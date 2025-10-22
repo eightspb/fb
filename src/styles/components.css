@@ -1,0 +1,527 @@
+/* Component Styles */
+
+/* Header Styles */
+.header {
+  background-color: white;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.header-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 4rem;
+}
+
+.header-logo {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.header-menu {
+  display: none;
+}
+
+.header-menu-link {
+  color: #374151;
+  transition: color 0.15s ease-in-out;
+  font-weight: 500;
+}
+
+.header-menu-link:hover {
+  color: #2563eb;
+}
+
+.header-mobile-menu {
+  display: block;
+}
+
+.header-mobile-button {
+  color: #374151;
+}
+
+.header-mobile-button:hover {
+  color: #2563eb;
+}
+
+/* Hero Section */
+.hero {
+  background: linear-gradient(to bottom right, #eff6ff, #e0e7ff);
+  padding-top: 5rem;
+  padding-bottom: 5rem;
+}
+
+.hero-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  text-align: center;
+}
+
+.hero-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 1.5rem;
+}
+
+.hero-subtitle {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  color: #4b5563;
+  margin-bottom: 2rem;
+  max-width: 48rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.hero-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  justify-content: center;
+}
+
+/* Breadcrumbs */
+.breadcrumb {
+  margin-bottom: 2rem;
+}
+
+.breadcrumb-list {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: #6b7280;
+}
+
+.breadcrumb-link {
+  transition: color 0.15s ease-in-out;
+}
+
+.breadcrumb-link:hover {
+  color: #2563eb;
+}
+
+.breadcrumb-current {
+  color: #111827;
+  font-weight: 500;
+}
+
+/* Card Styles */
+.card-hover {
+  transition: box-shadow 0.3s ease-in-out;
+}
+
+.card-hover:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.card-content {
+  padding: 1.5rem;
+}
+
+/* News Styles */
+.news-grid {
+  display: grid;
+  gap: 2rem;
+}
+
+.news-main {
+  grid-column: span 3 / span 3;
+}
+
+.news-sidebar {
+  grid-column: span 1 / span 1;
+}
+
+.news-year-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.news-year-header {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.5rem;
+}
+
+.news-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.news-card-title {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  transition: color 0.15s ease-in-out;
+  cursor: pointer;
+}
+
+.news-card-title:hover {
+  color: #2563eb;
+}
+
+.news-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: #6b7280;
+  margin-bottom: 1rem;
+}
+
+.news-card-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Sidebar */
+.sidebar-card {
+  position: sticky;
+  top: 2rem;
+}
+
+.sidebar-title {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.sidebar-archive {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebar-archive-link {
+  display: block;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  border-radius: 0.25rem;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.sidebar-archive-link:hover {
+  background-color: #f3f4f6;
+}
+
+.sidebar-archive-year {
+  font-weight: 500;
+}
+
+.sidebar-archive-count {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: #6b7280;
+}
+
+.sidebar-categories {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.sidebar-categories-title {
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+}
+
+.sidebar-categories-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.sidebar-categories-item {
+  display: flex;
+  justify-content: space-between;
+}
+
+.sidebar-subscribe {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.sidebar-subscribe-title {
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+}
+
+.sidebar-subscribe-text {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+}
+
+/* Footer */
+.footer {
+  background-color: #111827;
+  color: white;
+  padding-top: 3rem;
+  padding-bottom: 3rem;
+  margin-top: 4rem;
+}
+
+.footer-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.footer-grid {
+  display: grid;
+  gap: 2rem;
+}
+
+.footer-title {
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.footer-link {
+  transition: color 0.15s ease-in-out;
+}
+
+.footer-link:hover {
+  color: #60a5fa;
+}
+
+/* Page Layouts */
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-top: 4rem;
+  padding-bottom: 4rem;
+}
+
+.page-max-width {
+  max-width: 56rem;
+  margin: 0 auto;
+}
+
+.page-max-width-wide {
+  max-width: 80rem;
+  margin: 0 auto;
+}
+
+.page-title {
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+/* Training Styles */
+.training-stats {
+  display: grid;
+  gap: 2rem;
+  margin-bottom: 4rem;
+}
+
+.training-program {
+  margin-bottom: 4rem;
+}
+
+.training-program-grid {
+  display: grid;
+  gap: 2rem;
+}
+
+.training-calendar {
+  margin-bottom: 4rem;
+}
+
+.training-registration {
+  margin-bottom: 4rem;
+}
+
+.training-gallery {
+  margin-bottom: 4rem;
+}
+
+/* Equipment Styles */
+.equipment-purpose {
+  margin-bottom: 4rem;
+}
+
+.equipment-features {
+  margin-bottom: 4rem;
+}
+
+.equipment-specifications {
+  margin-bottom: 4rem;
+}
+
+.equipment-benefits {
+  margin-bottom: 4rem;
+}
+
+/* Conferences Styles */
+.conferences-tabs {
+  width: 100%;
+}
+
+.conferences-tabs-list {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.conferences-announcements {
+  margin-top: 2rem;
+}
+
+.conferences-grid {
+  display: grid;
+  gap: 2rem;
+}
+
+.conferences-archive {
+  margin-top: 2rem;
+}
+
+/* Contacts Styles */
+.contacts-grid {
+  display: grid;
+  gap: 3rem;
+}
+
+.contacts-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.contacts-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.contacts-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.contacts-form-label {
+  font-weight: 600;
+}
+
+.contacts-form-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  outline: none;
+}
+
+.contacts-form-input:focus {
+  box-shadow: 0 0 0 2px #3b82f6;
+}
+
+.contacts-form-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  outline: none;
+  height: 8rem;
+  resize: none;
+}
+
+.contacts-form-textarea:focus {
+  box-shadow: 0 0 0 2px #3b82f6;
+}
+
+/* Responsive Design */
+@media (min-width: 768px) {
+  .header-menu {
+    display: flex;
+    gap: 2rem;
+  }
+
+  .header-mobile-menu {
+    display: none;
+  }
+
+  .hero-title {
+    font-size: 3.75rem;
+    line-height: 1;
+  }
+
+  .hero-subtitle {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+
+  .hero-buttons {
+    flex-direction: row;
+  }
+
+  .news-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .news-main {
+    grid-column: span 3 / span 3;
+  }
+
+  .news-sidebar {
+    grid-column: span 1 / span 1;
+  }
+
+  .training-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .conferences-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .contacts-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .footer-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
