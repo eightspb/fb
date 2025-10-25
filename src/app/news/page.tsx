@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/Header";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { Footer } from "@/components/Footer";
 import { newsData, getNewsByYear, getAllYears } from "@/lib/news-data";
 
 export default function News() {
@@ -13,11 +14,18 @@ export default function News() {
     <div className="min-h-screen bg-white">
       <Header />
 
+      <div className="pt-20">
+        <div className="page-container">
+          <div className="page-max-width-wide">
+            <Breadcrumbs items={[{ label: "Новости" }]} />
+          </div>
+        </div>
+      </div>
+
       <main className="page-container">
         <div className="page-max-width-wide">
-          <Breadcrumbs items={[{ label: "Новости" }]} />
 
-          <h1 className="page-title">Новости</h1>
+          <h1 className="page-title gradient-text-pink shine-effect">Новости</h1>
 
           <div className="news-grid">
             {/* Main Content */}
@@ -138,30 +146,43 @@ export default function News() {
       </main>
 
       {/* Footer */}
-      <footer className="footer">
+      <footer className="footer animated-bg">
         <div className="footer-container">
           <div className="footer-grid">
             <div>
-              <h4 className="footer-title">О компании</h4>
+              <h4 className="footer-title gradient-text-pink">О компании</h4>
               <p>Единственный официальный дистрибьютор ВАБ завода Сишань в РФ</p>
             </div>
             <div>
-              <h4 className="footer-title">Контакты</h4>
+              <h4 className="footer-title gradient-text-blue">Контакты</h4>
               <p>Тел: +7 (495) 123-45-67</p>
               <p>Email: info@fb.net</p>
             </div>
             <div>
-              <h4 className="footer-title">Ссылки</h4>
+              <h4 className="footer-title gradient-text-pink">Ссылки</h4>
               <ul className="footer-links">
                 <li><Link href="/" className="footer-link">Главная</Link></li>
+                <li><Link href="/patients" className="footer-link">Пациентам</Link></li>
                 <li><Link href="/equipment" className="footer-link">Оборудование</Link></li>
                 <li><Link href="/training" className="footer-link">Обучение</Link></li>
+                <li><Link href="/news" className="footer-link">Новости</Link></li>
                 <li><Link href="/conferences" className="footer-link">Конференции</Link></li>
                 <li><Link href="/contacts" className="footer-link">Контакты</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="footer-title">Социальные сети</h4>
+              <h4 className="footer-title gradient-text-blue">Социальные сети</h4>
+              <div className="flex gap-4 mt-4">
+                <div className="w-10 h-10 bg-gradient-to-r from-pink-400 to-pink-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm">📘</span>
+                </div>
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm">🐦</span>
+                </div>
+                <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-purple-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm">💼</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

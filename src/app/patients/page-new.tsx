@@ -7,7 +7,6 @@ import { Header } from "@/components/Header";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
-import { Footer } from "@/components/Footer";
 
 export default function Patients() {
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
@@ -41,85 +40,32 @@ export default function Patients() {
           {/* How VAB Works */}
           <section className="mb-16">
             <h2 className="text-3xl font-bold text-center mb-4 gradient-text-blue">Как проходит Вакуумная аспирационная биопсия?</h2>
-            <p className="text-center text-gray-600 mb-12 max-w-3xl mx-auto">Вакуумная аспирационная биопсия (ВАБ) — это минимально инвазивная процедура, которая позволяет получить образцы ткани для диагностики или удалить доброкачественные образования молочной железы под контролем УЗИ.</p>
+            <p className="text-center text-gray-600 mb-12 max-w-3xl mx-auto">Неестественное преимущество вакуумной аспирационной биопсии в том, что с её помощью возможно получить огромное количество удалить опухоль молочной железы.</p>
             
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-1.png" alt="Step 1" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">1. Выявление образования</h3>
-                  <p className="text-sm text-gray-600">Врач выявляет образование при УЗИ и определяет его точное расположение</p>
+            <div className="grid md:grid-cols-2 gap-6 mb-12">
+              <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl p-6">
+                <div className="aspect-video bg-gradient-to-br from-pink-200 to-pink-300 rounded-lg mb-4 flex items-center justify-center">
+                  <span className="text-5xl">🔬</span>
                 </div>
+                <h3 className="font-semibold text-gray-800">Введение оборудования на УЗИ</h3>
               </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-2.png" alt="Step 2" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">2. Местное обезболивание</h3>
-                  <p className="text-sm text-gray-600">Проводится местная анестезия области вмешательства для комфорта пациентки</p>
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6">
+                <div className="aspect-video bg-gradient-to-br from-blue-200 to-blue-300 rounded-lg mb-4 flex items-center justify-center">
+                  <span className="text-5xl">💉</span>
                 </div>
+                <h3 className="font-semibold text-gray-800">Местное обезболивание</h3>
               </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-3.png" alt="Step 3" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">3. Минимальный прокол</h3>
-                  <p className="text-sm text-gray-600">Делается небольшой прокол (1-2 мм) для введения специальной иглы</p>
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6">
+                <div className="aspect-video bg-gradient-to-br from-purple-200 to-purple-300 rounded-lg mb-4 flex items-center justify-center">
+                  <span className="text-5xl">📊</span>
                 </div>
+                <h3 className="font-semibold text-gray-800">Получение образцов ткани</h3>
               </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-4.png" alt="Step 4" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">4. Роботизированная игла</h3>
-                  <p className="text-sm text-gray-600">Используется специальная игла с автоматической системой забора материала</p>
+              <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl p-6">
+                <div className="aspect-video bg-gradient-to-br from-pink-200 to-pink-300 rounded-lg mb-4 flex items-center justify-center">
+                  <span className="text-5xl">✅</span>
                 </div>
-              </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-5.png" alt="Step 5" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">5. Введение иглы</h3>
-                  <p className="text-sm text-gray-600">Игла вводится через прокол под образование под контролем УЗИ</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-6.png" alt="Step 6" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">6. Удаление образования</h3>
-                  <p className="text-sm text-gray-600">В автоматическом режиме образование удаляется полностью под контролем УЗИ</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-7.png" alt="Step 7" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">7. Извлечение иглы</h3>
-                  <p className="text-sm text-gray-600">После удаления образования врач выводит иглу и прижимает грудь для профилактики гематомы</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-8.png" alt="Step 8" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">8. Гистологическое исследование</h3>
-                  <p className="text-sm text-gray-600">Полученный материал направляется на гистологическое исследование</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-9.png" alt="Step 9" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">9. Заклеивание прокола</h3>
-                  <p className="text-sm text-gray-600">Место прокола заклеивается специальным пластырем</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-10.png" alt="Step 10" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">10. Тугая повязка</h3>
-                  <p className="text-sm text-gray-600">Накладывается тугая повязка для профилактики гематомы и отека</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-11.png" alt="Step 11" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">11. Возвращение к делам</h3>
-                  <p className="text-sm text-gray-600">Через час пациентка свободно возвращается к своим повседневным делам</p>
-                </div>
+                <h3 className="font-semibold text-gray-800">Результаты анализа</h3>
               </div>
             </div>
           </section>
@@ -289,5 +235,3 @@ export default function Patients() {
     </div>
   );
 }
-
-// Note: Footer should be replaced with <Footer /> component

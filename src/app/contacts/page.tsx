@@ -3,97 +3,117 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "@/components/Header";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { Footer } from "@/components/Footer";
 
 export default function Contacts() {
   return (
     <div className="min-h-screen bg-white">
       <Header />
 
-      <main className="container mx-auto px-4 py-16">
-        <div className="max-w-4xl mx-auto">
-          <Breadcrumbs items={[{ label: "Контакты" }]} />
+      <div className="pt-20">
+        <div className="page-container">
+          <div className="page-max-width-wide">
+            <Breadcrumbs items={[{ label: "Контакты" }]} />
+          </div>
+        </div>
+      </div>
 
-          <h1 className="text-4xl font-bold text-center mb-8">Контакты</h1>
+      <main className="page-container">
+        <div className="page-max-width-wide">
+
+          <h1 className="page-title gradient-text-pink shine-effect">Контакты</h1>
 
           <div className="grid md:grid-cols-2 gap-12">
             {/* Contact Info */}
             <section>
-              <h2 className="text-3xl font-semibold mb-6">Свяжитесь с нами</h2>
-              <div className="space-y-4">
-                <div>
-                  <h3 className="font-semibold">Телефон</h3>
-                  <p>+7 (495) 123-45-67</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold">Email</h3>
-                  <p>info@fb.net</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold">Адрес</h3>
-                  <p>Москва, ул. Примерная, д. 1</p>
-                </div>
+              <h2 className="text-3xl font-bold mb-6 gradient-text-blue">Свяжитесь с нами</h2>
+              <div className="space-y-6">
+                <Card className="card-hover gradient-card-pink shine-effect">
+                  <CardContent className="card-content">
+                    <h3 className="font-semibold gradient-text-pink mb-2">📞 Телефон</h3>
+                    <p className="text-gray-700"><a href="tel:+78127482213" className="hover:gradient-text-pink transition-colors">+7 (812) 748-22-13</a></p>
+                  </CardContent>
+                </Card>
+                <Card className="card-hover gradient-card-blue shine-effect">
+                  <CardContent className="card-content">
+                    <h3 className="font-semibold gradient-text-blue mb-2">📧 Email</h3>
+                    <p className="text-gray-700"><a href="mailto:info@zenitmed.ru" className="hover:gradient-text-blue transition-colors">info@zenitmed.ru</a></p>
+                  </CardContent>
+                </Card>
+                <Card className="card-hover gradient-card-purple shine-effect">
+                  <CardContent className="card-content">
+                    <h3 className="font-semibold gradient-text-purple mb-2">🏢 Компания</h3>
+                    <p className="text-gray-700">ООО «ЗЕНИТ»</p>
+                    <p className="text-sm text-gray-600 mt-2">Официальный представитель в РФ</p>
+                  </CardContent>
+                </Card>
               </div>
 
               {/* Map Placeholder */}
               <div className="mt-8">
-                <h3 className="font-semibold mb-4">Карта</h3>
-                <div className="aspect-video bg-gray-200 rounded flex items-center justify-center">
-                  Карта расположения
+                <h3 className="font-bold mb-4 gradient-text-pink">Карта расположения</h3>
+                <div className="aspect-video bg-gradient-to-br from-pink-100 to-blue-100 rounded-2xl glass-card flex items-center justify-center shadow-lg">
+                  <span className="text-2xl">🗺️</span>
                 </div>
               </div>
 
               {/* Legal */}
-              <div className="mt-8">
-                <h3 className="font-semibold mb-4">Юридические реквизиты</h3>
-                <p>ООО &quot;ФБ.НЕТ&quot;<br />
-                ИНН: 1234567890<br />
-                КПП: 123456789<br />
-                ОГРН: 1234567890123</p>
-              </div>
+              <Card className="mt-8 card-hover gradient-card-rose shine-effect">
+                <CardContent className="card-content">
+                  <h3 className="font-bold mb-4 gradient-text-rose">О компании</h3>
+                  <p className="text-gray-700">ООО «ЗЕНИТ»<br />
+                  Официальный дистрибьютор ВАБ завода Сишань в РФ<br />
+                  <a href="https://zenitmed.ru" target="_blank" rel="noopener noreferrer" className="gradient-text-pink hover:underline">zenitmed.ru</a></p>
+                </CardContent>
+              </Card>
 
               {/* Support */}
-              <div className="mt-8">
-                <h3 className="font-semibold mb-4">Поддержка</h3>
-                <p>Сервисное обслуживание: support@fb.net</p>
-                <p>Снабжение: supply@fb.net</p>
-              </div>
+              <Card className="mt-6 card-hover gradient-card-blue shine-effect">
+                <CardContent className="card-content">
+                  <h3 className="font-bold mb-4 gradient-text-blue">Связь с нами</h3>
+                  <p className="text-gray-700 mb-2">Основной телефон: <a href="tel:+78127482213" className="gradient-text-pink hover:underline">+7 (812) 748-22-13</a></p>
+                  <p className="text-gray-700">Email: <a href="mailto:info@zenitmed.ru" className="gradient-text-pink hover:underline">info@zenitmed.ru</a></p>
+                </CardContent>
+              </Card>
             </section>
 
             {/* Form */}
             <section>
-              <h2 className="text-3xl font-semibold mb-6">Форма обратной связи</h2>
-              <Card>
-                <CardContent className="p-6">
-                  <form className="space-y-4">
+              <h2 className="text-3xl font-bold mb-6 gradient-text-purple">Форма обратной связи</h2>
+              <Card className="card-hover gradient-card-pink shine-effect">
+                <CardContent className="card-content">
+                  <form className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium mb-1">Имя</label>
-                      <input type="text" className="w-full p-2 border rounded" />
+                      <label className="block text-sm font-semibold mb-2 gradient-text-pink">Имя</label>
+                      <input type="text" className="w-full p-3 border-2 border-pink-200 rounded-xl focus:border-pink-400 focus:outline-none transition-colors glass-card" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Email</label>
-                      <input type="email" className="w-full p-2 border rounded" />
+                      <label className="block text-sm font-semibold mb-2 gradient-text-blue">Email</label>
+                      <input type="email" className="w-full p-3 border-2 border-blue-200 rounded-xl focus:border-blue-400 focus:outline-none transition-colors glass-card" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Телефон</label>
-                      <input type="tel" className="w-full p-2 border rounded" />
+                      <label className="block text-sm font-semibold mb-2 gradient-text-purple">Телефон</label>
+                      <input type="tel" className="w-full p-3 border-2 border-purple-200 rounded-xl focus:border-purple-400 focus:outline-none transition-colors glass-card" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Сообщение</label>
-                      <textarea className="w-full p-2 border rounded" rows={4}></textarea>
+                      <label className="block text-sm font-semibold mb-2 gradient-text-rose">Сообщение</label>
+                      <textarea className="w-full p-3 border-2 border-rose-200 rounded-xl focus:border-rose-400 focus:outline-none transition-colors glass-card" rows={4}></textarea>
                     </div>
                     <div>
                       <label className="flex items-center">
-                        <input type="checkbox" className="mr-2" />
-                        <span className="text-sm">Согласие на обработку персональных данных</span>
+                        <input type="checkbox" className="mr-3 w-4 h-4 text-pink-600 rounded focus:ring-pink-500" />
+                        <span className="text-sm opacity-80">Согласие на обработку персональных данных</span>
                       </label>
                     </div>
-                    <Button type="submit" className="w-full">Отправить</Button>
+                    <Button type="submit" className="w-full gradient-button-pink rounded-full py-3 text-lg">
+                      Отправить сообщение
+                    </Button>
                   </form>
                 </CardContent>
               </Card>
 
               <div className="mt-8 text-center">
-                <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+                <Button size="lg" className="gradient-button-blue rounded-full px-8 py-3">
                   Запросить КП/демо
                 </Button>
               </div>
@@ -102,20 +122,20 @@ export default function Contacts() {
 
           {/* Policies */}
           <section className="mt-16">
-            <h2 className="text-3xl font-semibold mb-6">Политики</h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="font-semibold mb-2">Согласие на обработку ПДн</h3>
-                  <p className="text-sm text-gray-600">Мы соблюдаем все требования законодательства о защите персональных данных.</p>
-                  <Button variant="link" size="sm">Подробнее</Button>
+            <h2 className="text-3xl font-bold mb-12 gradient-text-pink shine-effect">Политики</h2>
+            <div className="grid md:grid-cols-2 gap-8">
+              <Card className="card-hover gradient-card-blue shine-effect">
+                <CardContent className="card-content">
+                  <h3 className="font-bold mb-3 gradient-text-blue">Согласие на обработку ПДн</h3>
+                  <p className="text-gray-700 mb-4">Мы соблюдаем все требования законодательства о защите персональных данных.</p>
+                  <Button variant="link" size="sm" className="gradient-text-blue hover:gradient-text-pink">Подробнее</Button>
                 </CardContent>
               </Card>
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="font-semibold mb-2">Условия коммуникаций</h3>
-                  <p className="text-sm text-gray-600">Правила взаимодействия с клиентами и партнерами.</p>
-                  <Button variant="link" size="sm">Подробнее</Button>
+              <Card className="card-hover gradient-card-purple shine-effect">
+                <CardContent className="card-content">
+                  <h3 className="font-bold mb-3 gradient-text-purple">Условия коммуникаций</h3>
+                  <p className="text-gray-700 mb-4">Правила взаимодействия с клиентами и партнерами.</p>
+                  <Button variant="link" size="sm" className="gradient-text-purple hover:gradient-text-pink">Подробнее</Button>
                 </CardContent>
               </Card>
             </div>
@@ -124,29 +144,43 @@ export default function Contacts() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12 mt-16">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8">
+      <footer className="footer animated-bg">
+        <div className="footer-container">
+          <div className="footer-grid">
             <div>
-              <h4 className="font-semibold mb-4">О компании</h4>
+              <h4 className="footer-title gradient-text-pink">О компании</h4>
               <p>Единственный официальный дистрибьютор ВАБ завода Сишань в РФ</p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Контакты</h4>
+              <h4 className="footer-title gradient-text-blue">Контакты</h4>
               <p>Тел: +7 (495) 123-45-67</p>
               <p>Email: info@fb.net</p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Ссылки</h4>
-              <ul className="space-y-2">
-                <li><Link href="/" className="hover:text-blue-400">Главная</Link></li>
-                <li><Link href="/equipment" className="hover:text-blue-400">Оборудование</Link></li>
-                <li><Link href="/training" className="hover:text-blue-400">Обучение</Link></li>
-                <li><Link href="/news" className="hover:text-blue-400">Новости</Link></li>
+              <h4 className="footer-title gradient-text-pink">Ссылки</h4>
+              <ul className="footer-links">
+                <li><Link href="/" className="footer-link">Главная</Link></li>
+                <li><Link href="/patients" className="footer-link">Пациентам</Link></li>
+                <li><Link href="/equipment" className="footer-link">Оборудование</Link></li>
+                <li><Link href="/training" className="footer-link">Обучение</Link></li>
+                <li><Link href="/news" className="footer-link">Новости</Link></li>
+                <li><Link href="/conferences" className="footer-link">Конференции</Link></li>
+                <li><Link href="/contacts" className="footer-link">Контакты</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Социальные сети</h4>
+              <h4 className="footer-title gradient-text-blue">Социальные сети</h4>
+              <div className="flex gap-4 mt-4">
+                <div className="w-10 h-10 bg-gradient-to-r from-pink-400 to-pink-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm">📘</span>
+                </div>
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm">🐦</span>
+                </div>
+                <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-purple-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm">💼</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -3,44 +3,46 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "@/components/Header";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { Footer } from "@/components/Footer";
 
 export default function Equipment() {
   return (
     <div className="min-h-screen bg-white">
       <Header />
 
+      <div className="pt-20">
+        <div className="page-container">
+          <div className="page-max-width-wide">
+            <Breadcrumbs items={[{ label: "Оборудование" }]} />
+          </div>
+        </div>
+      </div>
+
       <main className="page-container">
         <div className="page-max-width-wide">
-          <Breadcrumbs items={[{ label: "Оборудование" }]} />
 
-          <h1 className="page-title">DK-B-MS Система биопсии молочной железы</h1>
+          <h1 className="page-title gradient-text-pink shine-effect">DK-B-MS Система биопсии молочной железы</h1>
 
           {/* Hero Section */}
           <section className="equipment-purpose">
-            <Card className="card-hover">
+            <Card className="card-hover gradient-card-blue shine-effect">
               <CardContent className="card-content">
                 <div className="grid md:grid-cols-2 gap-8 items-center">
                   <div>
-                    <h2 className="text-2xl font-bold mb-4 text-blue-600">Инновационная технология биопсии</h2>
+                    <h2 className="text-2xl font-bold mb-4 gradient-text-blue">Инновационная технология биопсии</h2>
                     <p className="text-lg text-gray-700 mb-6">
                       DK-B-MS представляет собой передовую систему вакуумной биопсии молочной железы под контролем УЗИ.
                       Система обеспечивает высокую точность, безопасность и эффективность процедуры взятия образцов ткани.
                     </p>
                     <div className="space-y-2 text-sm text-gray-600">
-                      <p><strong>Производитель:</strong> CHONGQING XISHAN SCIENCE & TECHNOLOGY CO., LTD.</p>
-                      <p><strong>Официальный представитель в РФ:</strong> ООО «ЗЕНИТ»</p>
-                      <p><strong>Телефон:</strong> +7 812 748 22 13</p>
-                      <p><strong>Сайт:</strong> <a href="https://zenitmed.ru" className="text-blue-600 hover:underline">zenitmed.ru</a></p>
+                      <p><strong className="gradient-text-pink">Производитель:</strong> CHONGQING XISHAN SCIENCE & TECHNOLOGY CO., LTD.</p>
+                      <p><strong className="gradient-text-blue">Официальный представитель в РФ:</strong> ООО «ЗЕНИТ»</p>
+                      <p><strong className="gradient-text-pink">Телефон:</strong> +7 812 748 22 13</p>
+                      <p><strong className="gradient-text-blue">Сайт:</strong> <a href="https://zenitmed.ru" className="gradient-text-pink hover:underline">zenitmed.ru</a></p>
                     </div>
                   </div>
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-100 p-8 rounded-lg">
-                    <div className="text-center">
-                      <div className="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span className="text-white text-2xl font-bold">DK-B-MS</span>
-                      </div>
-                      <h3 className="text-xl font-semibold mb-2">Система биопсии</h3>
-                      <p className="text-gray-600">Молочной железы</p>
-                    </div>
+                  <div className="flex justify-center items-center">
+                    <img src="/images/equipment-main.png" alt="DK-B-MS Система биопсии" className="max-w-full h-auto rounded-lg shadow-lg" />
                   </div>
                 </div>
               </CardContent>
@@ -49,85 +51,85 @@ export default function Equipment() {
 
           {/* Technical Advantages */}
           <section className="equipment-features">
-            <h2 className="text-3xl font-bold text-center mb-12">Технические преимущества</h2>
+            <h2 className="text-3xl font-bold text-center mb-12 gradient-text-pink">Технические преимущества</h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card className="card-hover">
+              <Card className="card-hover gradient-card-pink float-animation">
                 <CardContent className="card-content text-center">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <span className="text-blue-600 text-xl">⚙️</span>
+                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mx-auto mb-4 pulse-pink">
+                    <span className="text-2xl">⚙️</span>
                   </div>
                   <h3 className="font-semibold mb-2">Плавная регулировка</h3>
-                  <p className="text-sm text-gray-600">Положения ножа в апертуре иглы</p>
+                  <p className="text-sm opacity-90">Положения ножа в апертуре иглы</p>
                 </CardContent>
               </Card>
 
-              <Card className="card-hover">
+              <Card className="card-hover gradient-card-blue float-animation" style={{ animationDelay: '1s' }}>
                 <CardContent className="card-content text-center">
-                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <span className="text-green-600 text-xl">🔇</span>
+                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mx-auto mb-4">
+                    <span className="text-2xl">🔇</span>
                   </div>
                   <h3 className="font-semibold mb-2">Высокая эффективность</h3>
-                  <p className="text-sm text-gray-600">И низкий уровень шума</p>
+                  <p className="text-sm opacity-90">И низкий уровень шума</p>
                 </CardContent>
               </Card>
 
-              <Card className="card-hover">
+              <Card className="card-hover gradient-card-purple float-animation" style={{ animationDelay: '2s' }}>
                 <CardContent className="card-content text-center">
-                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <span className="text-purple-600 text-xl">🎯</span>
+                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mx-auto mb-4">
+                    <span className="text-2xl">🎯</span>
                   </div>
                   <h3 className="font-semibold mb-2">Автоматическое определение</h3>
-                  <p className="text-sm text-gray-600">Типа иглы</p>
+                  <p className="text-sm opacity-90">Типа иглы</p>
                 </CardContent>
               </Card>
 
-              <Card className="card-hover">
+              <Card className="card-hover gradient-card-rose float-animation" style={{ animationDelay: '3s' }}>
                 <CardContent className="card-content text-center">
-                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <span className="text-orange-600 text-xl">📏</span>
+                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mx-auto mb-4">
+                    <span className="text-2xl">📏</span>
                   </div>
                   <h3 className="font-semibold mb-2">Настройка апертуры</h3>
-                  <p className="text-sm text-gray-600">5мм - 30мм</p>
+                  <p className="text-sm opacity-90">5мм - 30мм</p>
                 </CardContent>
               </Card>
 
-              <Card className="card-hover">
+              <Card className="card-hover gradient-card-pink float-animation" style={{ animationDelay: '4s' }}>
                 <CardContent className="card-content text-center">
-                  <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <span className="text-red-600 text-xl">🔔</span>
+                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mx-auto mb-4">
+                    <span className="text-2xl">🔔</span>
                   </div>
                   <h3 className="font-semibold mb-2">Интеллектуальный контроль</h3>
-                  <p className="text-sm text-gray-600">Предупреждение о переполнении</p>
+                  <p className="text-sm opacity-90">Предупреждение о переполнении</p>
                 </CardContent>
               </Card>
 
-              <Card className="card-hover">
+              <Card className="card-hover gradient-card-blue float-animation" style={{ animationDelay: '5s' }}>
                 <CardContent className="card-content text-center">
-                  <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <span className="text-indigo-600 text-xl">✂️</span>
+                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mx-auto mb-4">
+                    <span className="text-2xl">✂️</span>
                   </div>
                   <h3 className="font-semibold mb-2">Тройная заточка</h3>
-                  <p className="text-sm text-gray-600">Однонаправленный нож</p>
+                  <p className="text-sm opacity-90">Однонаправленный нож</p>
                 </CardContent>
               </Card>
 
-              <Card className="card-hover">
+              <Card className="card-hover gradient-card-purple float-animation" style={{ animationDelay: '6s' }}>
                 <CardContent className="card-content text-center">
-                  <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <span className="text-teal-600 text-xl">🔄</span>
+                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mx-auto mb-4">
+                    <span className="text-2xl">🔄</span>
                   </div>
                   <h3 className="font-semibold mb-2">Автоматическая доставка</h3>
-                  <p className="text-sm text-gray-600">Непрерывный сбор образцов</p>
+                  <p className="text-sm opacity-90">Непрерывный сбор образцов</p>
                 </CardContent>
               </Card>
 
-              <Card className="card-hover">
+              <Card className="card-hover gradient-card-rose float-animation" style={{ animationDelay: '7s' }}>
                 <CardContent className="card-content text-center">
-                  <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <span className="text-pink-600 text-xl">📱</span>
+                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mx-auto mb-4">
+                    <span className="text-2xl">📱</span>
                   </div>
                   <h3 className="font-semibold mb-2">Сенсорный интерфейс</h3>
-                  <p className="text-sm text-gray-600">Большой экран управления</p>
+                  <p className="text-sm opacity-90">Большой экран управления</p>
                 </CardContent>
               </Card>
             </div>
@@ -272,17 +274,17 @@ export default function Equipment() {
 
           {/* CTA Section */}
           <section className="text-center py-16">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-100 rounded-2xl p-8">
-              <h2 className="text-3xl font-bold mb-4">Заинтересованы в DK-B-MS?</h2>
+            <div className="bg-gradient-to-r from-pink-50 via-blue-50 to-purple-50 rounded-2xl p-8 glass-card">
+              <h2 className="text-3xl font-bold mb-4 gradient-text-pink">Заинтересованы в DK-B-MS?</h2>
               <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
                 Свяжитесь с нами для получения подробной информации, ценового предложения или организации демонстрации системы.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+                <Button size="lg" className="gradient-button-pink">
                   Запросить коммерческое предложение
                 </Button>
-                <Button size="lg" variant="outline" asChild>
-                  <Link href="/contacts">Связаться с нами</Link>
+                <Button size="lg" variant="outline" className="glass-card border-pink-200 hover:bg-pink-50">
+                  Связаться с нами
                 </Button>
               </div>
             </div>
@@ -291,22 +293,23 @@ export default function Equipment() {
       </main>
 
       {/* Footer */}
-      <footer className="footer">
+      <footer className="footer animated-bg">
         <div className="footer-container">
           <div className="footer-grid">
             <div>
-              <h4 className="footer-title">О компании</h4>
+              <h4 className="footer-title gradient-text-pink">О компании</h4>
               <p>Единственный официальный дистрибьютор ВАБ завода Сишань в РФ</p>
             </div>
             <div>
-              <h4 className="footer-title">Контакты</h4>
+              <h4 className="footer-title gradient-text-blue">Контакты</h4>
               <p>Тел: +7 (495) 123-45-67</p>
               <p>Email: info@fb.net</p>
             </div>
             <div>
-              <h4 className="footer-title">Ссылки</h4>
+              <h4 className="footer-title gradient-text-pink">Ссылки</h4>
               <ul className="footer-links">
                 <li><Link href="/" className="footer-link">Главная</Link></li>
+                <li><Link href="/patients" className="footer-link">Пациентам</Link></li>
                 <li><Link href="/equipment" className="footer-link">Оборудование</Link></li>
                 <li><Link href="/training" className="footer-link">Обучение</Link></li>
                 <li><Link href="/news" className="footer-link">Новости</Link></li>
@@ -315,7 +318,18 @@ export default function Equipment() {
               </ul>
             </div>
             <div>
-              <h4 className="footer-title">Социальные сети</h4>
+              <h4 className="footer-title gradient-text-blue">Социальные сети</h4>
+              <div className="flex gap-4 mt-4">
+                <div className="w-10 h-10 bg-gradient-to-r from-pink-400 to-pink-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm">📘</span>
+                </div>
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm">🐦</span>
+                </div>
+                <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-purple-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm">💼</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
