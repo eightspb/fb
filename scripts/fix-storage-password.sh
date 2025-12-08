@@ -6,13 +6,26 @@ set -e
 
 cd /opt/fibroadenoma.net
 
-# Загружаем переменные из .env.production
-if [ -f .env.production ]; then
-    export $(cat .env.production | grep -v '^#' | xargs)
+# Загружаем переменные из .env.production или .env
+ENV_FILE=".env.production"
+if [ ! -f "$ENV_FILE" ]; then
+    ENV_FILE=".env"
 fi
 
+if [ ! -f "$ENV_FILE" ]; then
+    echo "❌ Файл .env.production или .env не найден"
+    exit 1
+fi
+
+echo "📄 Используется файл: $ENV_FILE"
+
+# Загружаем переменные
+export $(cat "$ENV_FILE" | grep -v '^#' | grep -v '^$' | xargs)
+
+# Проверяем пароль
 if [ -z "$POSTGRES_PASSWORD" ]; then
-    echo "❌ POSTGRES_PASSWORD не найден в .env.production"
+    echo "❌ POSTGRES_PASSWORD не найден в $ENV_FILE"
+    echo "💡 Проверьте файл: cat $ENV_FILE | grep POSTGRES"
     exit 1
 fi
 
