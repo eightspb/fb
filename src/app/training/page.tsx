@@ -120,7 +120,7 @@ export default function Training() {
                              </div>
                         </div>
                         <p className="italic text-slate-200 text-sm pl-4 border-l-2 border-pink-500">
-                            "Мы даем не просто теорию, а ставим руку. Каждый курсант самостоятельно выполняет манипуляции."
+                            &quot;Мы даем не просто теорию, а ставим руку. Каждый курсант самостоятельно выполняет манипуляции.&quot;
                         </p>
                     </div>
                 </div>
