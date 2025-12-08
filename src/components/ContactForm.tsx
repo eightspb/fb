@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, FormEvent } from 'react';
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface FormErrors {
@@ -97,7 +96,7 @@ export function ContactForm() {
         setSubmitStatus('error');
         setSubmitMessage(data.error || 'Произошла ошибка при отправке сообщения. Пожалуйста, попробуйте еще раз.');
       }
-    } catch (error) {
+    } catch (_error) {
       setSubmitStatus('error');
       setSubmitMessage('Произошла ошибка при отправке сообщения. Пожалуйста, попробуйте еще раз.');
     } finally {

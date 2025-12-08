@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -10,7 +9,7 @@ import { NewsGallery } from '@/components/NewsGallery';
 import { NewsViewTracker } from '@/components/NewsViewTracker';
 import { Calendar, MapPin, PenTool, Download, ChevronLeft, MessageSquare } from 'lucide-react';
 // Fallback на статические данные
-import { getNewsById, newsData, normalizeTag } from '@/lib/news-data';
+import { getNewsById, newsData } from '@/lib/news-data';
 
 interface NewsPageProps {
   params: Promise<{ id: string }>;

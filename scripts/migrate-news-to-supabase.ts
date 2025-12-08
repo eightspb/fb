@@ -15,20 +15,20 @@ import dotenv from 'dotenv';
 import path from 'path';
 
 // Загружаем переменные окружения
+dotenv.config({ path: path.join(process.cwd(), '.env.production') });
 dotenv.config({ path: path.join(process.cwd(), '.env.local') });
+dotenv.config({ path: path.join(process.cwd(), '.env') });
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'http://localhost:8000';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('❌ Ошибка: Не найдены переменные окружения SUPABASE_URL и SUPABASE_ANON_KEY');
-  console.error('Создайте файл .env.local и добавьте:');
-  console.error('NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co');
-  console.error('NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key');
+if (!supabaseUrl || !supabaseKey) {
+  console.error('❌ Ошибка: Не найдены переменные окружения SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY');
+  console.error('Убедитесь, что .env файл существует и содержит ключи.');
   process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function migrateNews() {
   console.log('🚀 Начало миграции данных новостей в Supabase...\n');
@@ -41,7 +41,7 @@ async function migrateNews() {
       console.log(`📰 Миграция: ${news.title}`);
 
       // 1. Создаем основную запись новости
-      const { data: newsRecord, error: newsError } = await supabase
+      const { data: _newsRecord, error: newsError } = await supabase
         .from('news')
         .upsert({
           id: news.id,

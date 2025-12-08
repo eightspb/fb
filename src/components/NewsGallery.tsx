@@ -61,7 +61,8 @@ export function NewsGallery({ images, title }: NewsGalleryProps) {
       <h2 className="text-2xl font-bold text-slate-900 mb-6">Фотогалерея</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {images.map((image, index) => {
-          const imagePath = image.startsWith('/') ? image : `/${image}`;
+          const isExternal = image.startsWith('http://') || image.startsWith('https://');
+          const imagePath = isExternal || image.startsWith('/') ? image : `/${image}`;
           return (
             <div 
               key={`${image}-${index}`} 
@@ -89,7 +90,11 @@ export function NewsGallery({ images, title }: NewsGalleryProps) {
             <div className="relative w-[90vw] h-[85vh] md:w-[80vw] md:h-[90vh] flex items-center justify-center outline-none">
               <div className="relative w-full h-full">
                 <Image
-                  src={images[selectedIndex].startsWith('/') ? images[selectedIndex] : `/${images[selectedIndex]}`}
+                  src={
+                    images[selectedIndex].startsWith('http://') || images[selectedIndex].startsWith('https://') || images[selectedIndex].startsWith('/') 
+                      ? images[selectedIndex] 
+                      : `/${images[selectedIndex]}`
+                  }
                   alt={`${title} - фото ${selectedIndex + 1}`}
                   fill
                   className="object-contain"
@@ -146,4 +151,6 @@ export function NewsGallery({ images, title }: NewsGalleryProps) {
     </section>
   );
 }
+
+
 

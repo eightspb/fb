@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { NewsItem } from '@/lib/news-data';
-import { Calendar, MapPin, ImageIcon, Video, FileText, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { ImageIcon, Video, FileText, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
 export interface PastEventsProps {
   categories?: string[];
@@ -79,7 +79,7 @@ export function PastEvents({ categories }: PastEventsProps) {
     }
 
     loadEvents();
-  }, []);
+  }, [categories]);
 
   const totalPages = Math.ceil(events.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;

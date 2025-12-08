@@ -9,6 +9,12 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci --legacy-peer-deps && npm install lightningcss-linux-x64-musl @tailwindcss/oxide-linux-x64-musl --no-save --legacy-peer-deps
 
+# Build environment variables
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app

@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
-import { Loader2, Plus, Trash, X } from 'lucide-react';
+import { Loader2, Plus, X } from 'lucide-react';
 import { FileUpload } from '@/components/admin/FileUpload';
 
 interface NewsFormProps {

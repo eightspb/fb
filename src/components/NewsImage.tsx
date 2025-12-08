@@ -10,7 +10,7 @@ interface NewsImageProps {
   index: number;
 }
 
-export function NewsImage({ src, alt, index }: NewsImageProps) {
+export function NewsImage({ src, alt, index: _index }: NewsImageProps) {
   const [error, setError] = useState(false);
 
   if (error) {

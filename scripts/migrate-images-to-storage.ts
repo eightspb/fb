@@ -12,6 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Pool } from 'pg';
+import { config } from 'dotenv';
 
 // Загружаем переменные окружения
 // Пробуем загрузить из .env.production, если нет - из .env или .env.local
@@ -20,7 +21,7 @@ let envLoaded = false;
 
 for (const envFile of envFiles) {
   try {
-    require('dotenv').config({ path: envFile });
+    config({ path: envFile });
     if (process.env.POSTGRES_PASSWORD || process.env.DATABASE_URL) {
       console.log(`✅ Загружены переменные из ${envFile}`);
       envLoaded = true;
@@ -33,7 +34,7 @@ for (const envFile of envFiles) {
 
 // Если ничего не загрузилось, пробуем стандартный способ
 if (!envLoaded) {
-  require('dotenv').config();
+  config();
 }
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'http://localhost:8000';
@@ -103,7 +104,7 @@ async function uploadFileToStorage(localPath: string, storagePath: string): Prom
   // Проверяем подключение к Storage перед загрузкой
   try {
     // Загружаем файл
-    const { data, error } = await supabase.storage
+    const { data: _data, error } = await supabase.storage
       .from('public_files')
       .upload(storagePath, file, {
         contentType,

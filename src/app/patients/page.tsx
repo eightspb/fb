@@ -1,13 +1,11 @@
 'use client';
 
-import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "@/components/Header";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { ChevronDown, Check, Clock, ShieldCheck, Smile, Search, Heart, AlertCircle, HelpCircle } from "lucide-react";
-import { useState } from "react";
+import { Check, Clock, ShieldCheck, Smile, Search, Heart, AlertCircle } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { ClinicsMap } from "@/components/ClinicsMap";
 import {

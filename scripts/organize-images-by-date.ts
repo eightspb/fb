@@ -135,7 +135,7 @@ async function getImageDate(filePath: string): Promise<Date | null> {
     // Если ничего не найдено в EXIF, вернем null
     return null;
 
-  } catch (error) {
+  } catch (_error) {
     // Если не удалось прочитать EXIF, возвращаем null
     return null;
   }

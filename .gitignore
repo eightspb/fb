@@ -20,6 +20,9 @@
 # production
 /build
 
+#images
+/public/images/trainings
+
 # misc
 .DS_Store
 *.pem

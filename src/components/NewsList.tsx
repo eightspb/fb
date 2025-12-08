@@ -13,7 +13,7 @@ import {
   getAllTagsAndCategories, 
   getTagOrCategoryCount, 
 } from '@/lib/news-data';
-import { Calendar, MapPin, ImageIcon, Video, FileText, X, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ImageIcon, Video, FileText, X, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { NewsPlaceholder } from '@/components/NewsPlaceholder';
 
 interface NewsListProps {

@@ -2,10 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Button } from "@/components/ui/button";
 
 export default function ReportsPage() {
-  const [selectedFormation, setSelectedFormation] = useState<string | null>(null);
   const [rightBreastType, setRightBreastType] = useState('US III');
   const [leftBreastType, setLeftBreastType] = useState('US III');
   const [formData, setFormData] = useState({

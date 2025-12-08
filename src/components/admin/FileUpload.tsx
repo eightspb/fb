@@ -1,8 +1,7 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabase';
-import { Upload, Loader2, X } from 'lucide-react';
+import { Upload, Loader2 } from 'lucide-react';
 
 interface FileUploadProps {
   onUpload: (url: string) => void;
@@ -35,7 +34,7 @@ export function FileUpload({ onUpload, folder = 'uploads', accept = 'image/*', c
          console.warn('Attempting upload in bypass mode. This requires the bucket to be public or have anon policies.');
       }
 
-      const { data, error } = await supabase.storage
+      const { data: _data, error } = await supabase.storage
         .from('public_files') // Assuming a public bucket named 'public_files'
         .upload(filePath, file);
 

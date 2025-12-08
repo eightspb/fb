@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/Header";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Footer } from "@/components/Footer";
-import { GraduationCap, Users, Calendar, Clock, Award, CheckCircle, MapPin, Activity, FileText, ArrowRight, Microscope, ShieldCheck, Stethoscope } from "lucide-react";
+import { GraduationCap, Users, Calendar, Award, CheckCircle, Activity, Microscope } from "lucide-react";
 import { PastEvents } from "@/components/PastEvents";
 
 export const metadata: Metadata = {

@@ -95,8 +95,8 @@ async function getImageLocation(imagePath: string): Promise<{ latitude: number; 
     }
 
     // exifr может возвращать latitude/longitude напрямую или GPSLatitude/GPSLongitude
-    let lat = exifData.latitude || exifData.GPSLatitude;
-    let lon = exifData.longitude || exifData.GPSLongitude;
+    const lat = exifData.latitude || exifData.GPSLatitude;
+    const lon = exifData.longitude || exifData.GPSLongitude;
 
     if (lat && lon && typeof lat === 'number' && typeof lon === 'number') {
       // Валидируем координаты
@@ -106,7 +106,7 @@ async function getImageLocation(imagePath: string): Promise<{ latitude: number; 
     }
 
     return null;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
@@ -298,7 +298,7 @@ function generateDescription(startDate: Date, endDate: Date, imageCount: number,
 /**
  * Пытается определить город по координатам (упрощенная версия)
  */
-async function getCityFromCoordinates(lat: number, lon: number): Promise<string | null> {
+async function getCityFromCoordinates(_lat: number, _lon: number): Promise<string | null> {
   // Здесь можно использовать API геокодирования (например, Nominatim, Google Maps API)
   // Пока возвращаем null, можно расширить позже
   return null;

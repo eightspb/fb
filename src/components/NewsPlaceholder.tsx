@@ -37,3 +37,5 @@ export function NewsPlaceholder({ className }: NewsPlaceholderProps) {
   );
 }
 
+
+

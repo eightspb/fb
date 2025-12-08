@@ -9,7 +9,7 @@ import { FeaturesSection } from "@/components/FeaturesSection";
 import { PartnersSection } from "@/components/PartnersSection";
 import { Footer } from "@/components/Footer";
 import { RequestCPModal } from "@/components/RequestCPModal";
-import { ArrowRight, PlayCircle, Calendar, MapPin, User, Microscope, Heart, Brain } from "lucide-react";
+import { ArrowRight, PlayCircle, Calendar, MapPin, Microscope, Heart, Brain } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Главная",

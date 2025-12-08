@@ -156,7 +156,7 @@ ${contextInfo.length > 0 ? `Дополнительная информация:\n
 
       parsed = JSON.parse(cleanedContent);
       console.log('[AI] ✅ JSON успешно распарсен');
-    } catch (parseError) {
+    } catch (_parseError) {
       // Если не удалось распарсить JSON, создаем структуру из текста
       console.warn('[AI] ⚠️ Не удалось распарсить JSON ответ от AI, используем fallback');
       const lines = content.split('\n').filter((line) => line.trim());

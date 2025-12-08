@@ -97,8 +97,7 @@ if (fs.existsSync(kongPath)) {
   // or use a more aggressive replace if the structure is known.
   
   // Let's use a robust replace for the specific lines if they exist, or regex that matches the key pattern
-  const jwtRegex = /key: eyJ[\w\-\._]+/g;
-  
+
   // We expect 2 matches. First is usually anon, second service_role in the provided template.
   // But order is not guaranteed.
   

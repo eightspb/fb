@@ -1,12 +1,10 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "@/components/Header";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Footer } from "@/components/Footer";
 import { ContactForm } from "@/components/ContactForm";
-import { Phone, Mail, MapPin, Building2, ExternalLink, Shield, FileText } from "lucide-react";
+import { Phone, Mail, Building2, Shield, FileText } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Контакты",

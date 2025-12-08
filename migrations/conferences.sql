@@ -18,3 +18,5 @@ CREATE TABLE IF NOT EXISTS conferences (
 -- Индекс для сортировки по дате (хотя это TEXT, но лучше иметь индекс)
 CREATE INDEX IF NOT EXISTS idx_conferences_date ON conferences(date);
 
+
+

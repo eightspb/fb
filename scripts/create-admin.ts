@@ -14,7 +14,7 @@ async function createAdminUser() {
   console.log(`Создание администратора: ${email}...`);
 
   try {
-    const { data, error } = await supabase.auth.admin.createUser({
+    const { data: _data, error } = await supabase.auth.admin.createUser({
       email,
       password,
       email_confirm: true, // Автоматически подтверждаем почту
@@ -38,4 +38,6 @@ async function createAdminUser() {
 }
 
 createAdminUser();
+
+
 
