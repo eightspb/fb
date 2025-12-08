@@ -40,8 +40,8 @@ export function FileUpload({ onUpload, folder = 'uploads', accept = 'image/*', c
         .upload(filePath, file);
 
       if (error) {
-        // @ts-ignore - statusCode might exist on some error types but not on StorageError definition
-        if (bypassStorage === 'true' && (error.message.includes('new row violates row-level security') || (error as any).statusCode === '403')) {
+        const err = error as any;
+        if (bypassStorage === 'true' && (error.message.includes('new row violates row-level security') || err.statusCode === '403')) {
             throw new Error('Cannot upload files in "Bypass Auth" mode unless the storage bucket is public and allows anonymous uploads. Please log in with a real account or configure storage policies.');
         }
         throw error;
