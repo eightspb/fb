@@ -164,6 +164,10 @@ GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;
 GRANT USAGE ON SCHEMA storage TO anon, authenticated, service_role;
 
 -- Права на функции
+ALTER FUNCTION auth.role() OWNER TO supabase_auth_admin;
+ALTER FUNCTION auth.uid() OWNER TO supabase_auth_admin;
+ALTER FUNCTION auth.email() OWNER TO supabase_auth_admin;
+
 GRANT EXECUTE ON FUNCTION auth.role() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION auth.uid() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION auth.email() TO anon, authenticated, service_role;
