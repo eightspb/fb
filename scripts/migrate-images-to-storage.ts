@@ -89,16 +89,35 @@ async function uploadFileToStorage(localPath: string, storagePath: string): Prom
 
   console.log(`  Загрузка: ${storagePath}...`);
 
-  // Загружаем файл
-  const { data, error } = await supabase.storage
-    .from('public_files')
-    .upload(storagePath, file, {
-      contentType,
-      upsert: true, // Перезаписываем если файл уже существует
-    });
+  // Проверяем подключение к Storage перед загрузкой
+  try {
+    // Загружаем файл
+    const { data, error } = await supabase.storage
+      .from('public_files')
+      .upload(storagePath, file, {
+        contentType,
+        upsert: true, // Перезаписываем если файл уже существует
+      });
 
-  if (error) {
-    throw new Error(`Ошибка загрузки ${storagePath}: ${error.message}`);
+    if (error) {
+      // Более детальная информация об ошибке
+      const errorDetails = error as any;
+      throw new Error(
+        `Ошибка загрузки ${storagePath}: ${error.message || errorDetails.message || 'Unknown error'}. ` +
+        `Status: ${errorDetails.statusCode || 'N/A'}, ` +
+        `URL: ${SUPABASE_URL}/storage/v1/object/public_files/${storagePath}`
+      );
+    }
+  } catch (err: any) {
+    // Если это ошибка сети (fetch failed)
+    if (err.message?.includes('fetch failed') || err.code === 'ECONNREFUSED' || err.cause?.code === 'ECONNREFUSED') {
+      throw new Error(
+        `Не удалось подключиться к Storage API по адресу ${SUPABASE_URL}. ` +
+        `Проверьте: 1) Запущен ли контейнер supabase-storage, 2) Правильный ли URL, 3) Доступен ли Storage через Kong. ` +
+        `Ошибка: ${err.message}`
+      );
+    }
+    throw err;
   }
 
   // Получаем публичный URL
