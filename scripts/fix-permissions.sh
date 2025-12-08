@@ -48,6 +48,9 @@ BEGIN
   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'service_role') THEN
     CREATE ROLE service_role NOLOGIN NOINHERIT;
   END IF;
+  
+  -- Даем service_role право обходить RLS (как в стандартном Supabase)
+  ALTER ROLE service_role WITH BYPASSRLS;
 END
 \$\$;
 
