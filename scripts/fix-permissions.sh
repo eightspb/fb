@@ -7,19 +7,23 @@ cd /opt/fibroadenoma.net
 
 # Выполняем SQL команды
 docker exec -i fb-net-db psql -U supabase_admin -d postgres <<EOF
--- 1. Создаем схемы, если их нет
+-- 1. Создаем схемы
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE SCHEMA IF NOT EXISTS storage;
 CREATE SCHEMA IF NOT EXISTS extensions;
 CREATE SCHEMA IF NOT EXISTS graphql;
 CREATE SCHEMA IF NOT EXISTS graphql_public;
 
--- 2. Включаем расширения
+-- 2. Настраиваем расширения
+-- Убедимся, что uuid-ossp в схеме extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
+-- Если уже существует в public, переносим (раскомментируйте при необходимости, но опасно если используется)
+-- ALTER EXTENSION "uuid-ossp" SET SCHEMA extensions;
+
 CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS "pgjwt" WITH SCHEMA extensions;
 
--- 3. Создаем роли, если их нет
+-- 3. Создаем роли
 DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'anon') THEN
@@ -34,38 +38,35 @@ BEGIN
 END
 \$\$;
 
--- 4. Даем права ролям
+-- 4. Права доступа
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT USAGE ON SCHEMA extensions TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO anon, authenticated, service_role;
 
--- 5. Настраиваем пользователей Supabase (права и search_path)
-
--- Auth (GoTrue)
+-- 5. Настраиваем пользователей
 GRANT USAGE ON SCHEMA auth TO supabase_auth_admin;
 GRANT ALL ON ALL TABLES IN SCHEMA auth TO supabase_auth_admin;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA auth TO supabase_auth_admin;
-ALTER USER supabase_auth_admin SET search_path = auth;
+ALTER USER supabase_auth_admin SET search_path = auth, extensions;
 
--- Storage
 GRANT USAGE ON SCHEMA storage TO supabase_storage_admin;
 GRANT ALL ON ALL TABLES IN SCHEMA storage TO supabase_storage_admin;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA storage TO supabase_storage_admin;
-ALTER USER supabase_storage_admin SET search_path = storage;
+ALTER USER supabase_storage_admin SET search_path = storage, extensions;
 
--- Authenticator (PostgREST)
 GRANT USAGE ON SCHEMA public TO authenticator;
 GRANT USAGE ON SCHEMA storage TO authenticator;
 GRANT USAGE ON SCHEMA auth TO authenticator;
--- Authenticator должен уметь переключаться в другие роли
+GRANT USAGE ON SCHEMA extensions TO authenticator;
 GRANT anon TO authenticator;
 GRANT authenticated TO authenticator;
 GRANT service_role TO authenticator;
 GRANT supabase_auth_admin TO authenticator;
 GRANT supabase_storage_admin TO authenticator;
 
--- 6. Создаем таблицы для Storage (минимально необходимые)
+-- 6. Создаем таблицы (используем gen_random_uuid() из pgcrypto, он надежнее)
 CREATE TABLE IF NOT EXISTS storage.buckets (
     id text NOT NULL PRIMARY KEY,
     name text NOT NULL,
@@ -79,7 +80,7 @@ CREATE TABLE IF NOT EXISTS storage.buckets (
 );
 
 CREATE TABLE IF NOT EXISTS storage.objects (
-    id uuid DEFAULT extensions.uuid_generate_v4() NOT NULL PRIMARY KEY,
+    id uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     bucket_id text,
     name text,
     owner uuid,
@@ -92,7 +93,7 @@ CREATE TABLE IF NOT EXISTS storage.objects (
     FOREIGN KEY (bucket_id) REFERENCES storage.buckets(id)
 );
 
--- 7. Создаем таблицы для Auth (минимально необходимые)
+-- 7. Создаем таблицы Auth
 CREATE TABLE IF NOT EXISTS auth.users (
     instance_id uuid,
     id uuid NOT NULL PRIMARY KEY,
@@ -142,6 +143,28 @@ CREATE TABLE IF NOT EXISTS auth.refresh_tokens (
     session_id uuid
 );
 
+-- 8. Инициализация миграций Storage (чтобы не ругался при запуске)
+CREATE TABLE IF NOT EXISTS storage.migrations (
+    id integer NOT NULL PRIMARY KEY,
+    name character varying(100) NOT NULL,
+    hash character varying(40) NOT NULL,
+    executed_at timestamp without time zone DEFAULT now()
+);
+
+-- 9. Создаем bucket public_files если нет
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('public_files', 'public_files', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- 10. Политики для Storage
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public Access" ON storage.objects;
+CREATE POLICY "Public Access" ON storage.objects FOR SELECT USING (bucket_id = 'public_files');
+
+DROP POLICY IF EXISTS "Authenticated users can upload" ON storage.objects;
+CREATE POLICY "Authenticated users can upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'public_files' AND auth.role() = 'authenticated');
+
 EOF
 
 echo "✅ База данных восстановлена"
@@ -149,8 +172,8 @@ echo "✅ База данных восстановлена"
 echo "🔄 Перезапуск сервисов..."
 docker compose -f docker-compose.production.yml restart supabase-storage supabase-auth
 
-echo "⏳ Ждем 5 секунд..."
-sleep 5
+echo "⏳ Ждем 10 секунд..."
+sleep 10
 
 echo "📊 Статус:"
 docker ps | grep -E "(storage|auth)"
