@@ -43,9 +43,12 @@ docker run --rm -it \
   -e SUPABASE_SERVICE_ROLE_KEY="$SERVICE_KEY" \
   -e DATABASE_URL="$DB_URL" \
   node:20-alpine sh -c "
-    echo '📥 Установка зависимостей...'
-    npm install -g tsx dotenv
-    echo '✅ Зависимости установлены'
+    echo '📥 Установка глобальных зависимостей...'
+    npm install -g tsx
+    echo '✅ Глобальные зависимости установлены'
+    echo '📦 Установка зависимостей проекта...'
+    npm install --legacy-peer-deps --no-save @supabase/supabase-js pg dotenv
+    echo '✅ Зависимости проекта установлены'
     echo '🚀 Запуск скрипта миграции...'
     tsx scripts/migrate-images-to-storage.ts
   "
