@@ -129,7 +129,9 @@ services:
       SERVICE_KEY: ${ANON_KEY}
       POSTGREST_URL: http://supabase-rest:3000
       PGRST_JWT_SECRET: ${JWT_SECRET}
-      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD}@supabase-db:5432/postgres
+      # ВАЖНО: Пароль должен быть экранирован в URL (спецсимволы как /, @, :, # должны быть %2F, %40, %3A, %23)
+      # Используем переменную с экранированным паролем или экранируем вручную
+      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD_URL_ENCODED:-${POSTGRES_PASSWORD}}@supabase-db:5432/postgres
       FILE_SIZE_LIMIT: 52428800
       STORAGE_BACKEND: file
       FILE_STORAGE_BACKEND_PATH: /var/lib/storage
