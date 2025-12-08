@@ -196,6 +196,11 @@ CREATE POLICY "Authenticated users can upload" ON storage.objects FOR INSERT WIT
     AND auth.role() = 'authenticated'
 );
 
+DROP POLICY IF EXISTS "Service role full access" ON storage.objects;
+CREATE POLICY "Service role full access" ON storage.objects FOR ALL USING (
+    auth.role() = 'service_role'
+);
+
 EOF
 
 echo "✅ Права и владельцы обновлены."
