@@ -113,7 +113,35 @@ services:
       - fb-net-prod-network
     restart: always
 
-  # 5. API Gateway (Kong) - Единая точка входа в Supabase
+  # 5. Supabase Storage - для загрузки файлов
+  supabase-storage:
+    image: supabase/storage-api:v1.0.6
+    container_name: fb-net-storage
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+      supabase-rest:
+        condition: service_started
+    environment:
+      ANON_KEY: ${ANON_KEY}
+      SERVICE_KEY: ${ANON_KEY}
+      POSTGREST_URL: http://supabase-rest:3000
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD}@supabase-db:5432/postgres
+      FILE_SIZE_LIMIT: 52428800
+      STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      TENANT_ID: stub
+      REGION: stub
+      GLOBAL_S3_BUCKET: stub
+      ENABLE_IMAGE_TRANSFORMATION: "true"
+    volumes:
+      - supabase-storage-data:/var/lib/storage
+    networks:
+      - fb-net-prod-network
+    restart: always
+
+  # 6. API Gateway (Kong) - Единая точка входа в Supabase
   supabase-kong:
     image: kong:2.8.1
     container_name: fb-net-kong
@@ -132,6 +160,7 @@ services:
       - supabase-auth
       - supabase-rest
       - supabase-realtime
+      - supabase-storage
     networks:
       - fb-net-prod-network
     restart: always
