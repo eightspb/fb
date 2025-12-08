@@ -35,7 +35,7 @@ export function ClinicsMap() {
                 />
               ))}
             </Clusterer>
-            <ZoomControl options={{ float: 'right' }} />
+            <ZoomControl options={{ position: { right: 10, top: 10 } }} />
             <FullscreenControl />
           </Map>
         </YMaps>
