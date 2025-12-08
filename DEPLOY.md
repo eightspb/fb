@@ -80,11 +80,64 @@ Supabase API (Kong) будет доступен по адресу `http://ВАШ
 
 ## 6. Миграции базы данных
 
-При первом запуске база данных будет пустой. Скрипт `supabase-schema.sql` должен отработать автоматически (мы добавили его в volume `docker-entrypoint-initdb.d`), но если что-то пошло не так, можно запустить вручную:
+При первом запуске база данных будет пустой. Скрипты инициализации должны отработать автоматически, но если что-то пошло не так:
+
+### Если база уже существует (volume не пустой)
+
+Если вы видите ошибки типа "could not look up local user" или "connection error", это значит, что пользователи Supabase не созданы или имеют неправильные пароли.
+
+**Решение:** Удалите volume и пересоздайте БД:
+
+```bash
+# Остановите контейнеры
+docker compose -f docker-compose.production.yml down
+
+# Удалите volume с данными БД (ВНИМАНИЕ: это удалит все данные!)
+docker volume rm fibroadenomanet_supabase-prod-db-data
+
+# Запустите заново
+docker compose -f docker-compose.production.yml up -d --build
+```
+
+Или создайте пользователей вручную:
+
+```bash
+# Подключитесь к БД
+docker exec -it fb-net-db psql -U supabase_admin -d postgres
+
+# В psql выполните:
+CREATE ROLE supabase_auth_admin WITH LOGIN PASSWORD 'ваш_POSTGRES_PASSWORD';
+CREATE ROLE authenticator WITH LOGIN PASSWORD 'ваш_POSTGRES_PASSWORD' NOINHERIT;
+CREATE ROLE supabase_storage_admin WITH LOGIN PASSWORD 'ваш_POSTGRES_PASSWORD';
+CREATE ROLE anon NOLOGIN;
+CREATE ROLE authenticated NOLOGIN;
+GRANT anon TO authenticator;
+GRANT authenticated TO authenticator;
+```
+
+### Заливка структуры БД вручную
 
 ```bash
 # Залить структуру БД
-docker exec -i fb-net-db psql -U postgres -d postgres < supabase-schema.sql
+docker exec -i fb-net-db psql -U supabase_admin -d postgres < supabase-schema.sql
+
+# Создать пользователей
+docker exec -i fb-net-db psql -U supabase_admin -d postgres < scripts/create-supabase-users.sql
+
+# Инициализировать Storage
+docker exec -i fb-net-db psql -U supabase_admin -d postgres < scripts/init-storage.sql
+```
+
+## 7. Загрузка изображений
+
+**ВАЖНО:** Папка `/public/images/trainings/` исключена из Git, поэтому изображения нужно скопировать на сервер вручную.
+
+См. подробную инструкцию в файле `DEPLOY_IMAGES.md`.
+
+Кратко:
+```bash
+# С вашего компьютера
+scp -r public/images/trainings user@your-server:/opt/fb-net/public/images/
 ```
 
 ## 7. Полезные команды

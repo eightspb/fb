@@ -29,9 +29,11 @@ services:
       - supabase-prod-db-data:/var/lib/postgresql/data
       - ./supabase/migrations:/docker-entrypoint-initdb.d/migrations:ro
       # Инициализация схемы при первом запуске
-      - ./supabase-schema.sql:/docker-entrypoint-initdb.d/init-schema.sql:ro
+      - ./supabase-schema.sql:/docker-entrypoint-initdb.d/00-init-schema.sql:ro
+      # Создание пользователей Supabase (должно быть перед init-storage)
+      - ./scripts/create-supabase-users.sql:/docker-entrypoint-initdb.d/01-create-users.sql:ro
       # Инициализация Storage bucket
-      - ./scripts/init-storage.sql:/docker-entrypoint-initdb.d/init-storage.sql:ro
+      - ./scripts/init-storage.sql:/docker-entrypoint-initdb.d/02-init-storage.sql:ro
     networks:
       - fb-net-prod-network
     restart: always
