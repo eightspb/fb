@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
-RUN npm ci --legacy-peer-deps && npm install lightningcss-linux-x64-musl --no-save
+RUN npm ci --legacy-peer-deps && npm install lightningcss-linux-x64-musl --no-save --legacy-peer-deps
 
 # Rebuild the source code only when needed
 FROM base AS builder
