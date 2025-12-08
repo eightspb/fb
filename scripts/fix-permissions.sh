@@ -67,12 +67,13 @@ GRANT EXECUTE ON FUNCTION auth.uid() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION auth.email() TO anon, authenticated, service_role;
 
 -- 6. Настраиваем пользователей
-GRANT USAGE ON SCHEMA auth TO supabase_auth_admin;
+-- Важно: даем права CREATE на схемы, чтобы миграции могли создавать таблицы
+GRANT ALL ON SCHEMA auth TO supabase_auth_admin;
 GRANT ALL ON ALL TABLES IN SCHEMA auth TO supabase_auth_admin;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA auth TO supabase_auth_admin;
 ALTER USER supabase_auth_admin SET search_path = auth, extensions;
 
-GRANT USAGE ON SCHEMA storage TO supabase_storage_admin;
+GRANT ALL ON SCHEMA storage TO supabase_storage_admin;
 GRANT ALL ON ALL TABLES IN SCHEMA storage TO supabase_storage_admin;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA storage TO supabase_storage_admin;
 ALTER USER supabase_storage_admin SET search_path = storage, extensions;
