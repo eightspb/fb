@@ -10,6 +10,7 @@
     "lint": "eslint",
     "migrate:news": "tsx scripts/migrate-news-to-supabase.ts",
     "migrate:news:postgres": "tsx scripts/migrate-news-to-postgres.ts",
+    "migrate:images": "tsx scripts/migrate-images-to-storage.ts",
     "organize:images": "tsx scripts/organize-images-by-date.ts",
     "rename:folders": "tsx scripts/rename-date-folders.ts",
     "create:news-from-folders": "tsx scripts/create-news-from-folders.ts",
