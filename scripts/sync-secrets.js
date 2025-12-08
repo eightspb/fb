@@ -102,14 +102,20 @@ if (fs.existsSync(kongPath)) {
   // We expect 2 matches. First is usually anon, second service_role in the provided template.
   // But order is not guaranteed.
   
-  // Safer approach: Re-write the consumers section with our new keys.
+  // Safer approach: Re-write the consumers AND acls section with our new keys.
   const consumersSection = `consumers:
   - username: anon
     keyauth_credentials:
       - key: ${anonKey}
   - username: service_role
     keyauth_credentials:
-      - key: ${serviceKey}`;
+      - key: ${serviceKey}
+
+acls:
+  - consumer: anon
+    group: anon
+  - consumer: service_role
+    group: admin`;
       
   // Regex to replace the consumers block
   const consumersRegex = /consumers:[\s\S]*?services:/;
