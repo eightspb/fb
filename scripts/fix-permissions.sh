@@ -15,15 +15,30 @@ CREATE SCHEMA IF NOT EXISTS graphql;
 CREATE SCHEMA IF NOT EXISTS graphql_public;
 
 -- 2. Настраиваем расширения
--- Убедимся, что uuid-ossp в схеме extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
--- Если уже существует в public, переносим (раскомментируйте при необходимости, но опасно если используется)
--- ALTER EXTENSION "uuid-ossp" SET SCHEMA extensions;
-
 CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS "pgjwt" WITH SCHEMA extensions;
 
--- 3. Создаем роли
+-- 3. Создаем функцию auth.role() (ОБЯЗАТЕЛЬНО НУЖНА ДЛЯ RLS)
+CREATE OR REPLACE FUNCTION auth.role() RETURNS text
+    LANGUAGE sql STABLE
+    AS \$\$
+  select nullif(current_setting('request.jwt.claim.role', true), '')::text;
+\$\$;
+
+CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
+    LANGUAGE sql STABLE
+    AS \$\$
+  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
+\$\$;
+
+CREATE OR REPLACE FUNCTION auth.email() RETURNS text
+    LANGUAGE sql STABLE
+    AS \$\$
+  select nullif(current_setting('request.jwt.claim.email', true), '')::text;
+\$\$;
+
+-- 4. Создаем роли
 DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'anon') THEN
@@ -38,14 +53,20 @@ BEGIN
 END
 \$\$;
 
--- 4. Права доступа
+-- 5. Права доступа
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 GRANT USAGE ON SCHEMA extensions TO anon, authenticated, service_role;
+GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO anon, authenticated, service_role;
 
--- 5. Настраиваем пользователей
+-- Даем права на выполнение функций auth
+GRANT EXECUTE ON FUNCTION auth.role() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION auth.uid() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION auth.email() TO anon, authenticated, service_role;
+
+-- 6. Настраиваем пользователей
 GRANT USAGE ON SCHEMA auth TO supabase_auth_admin;
 GRANT ALL ON ALL TABLES IN SCHEMA auth TO supabase_auth_admin;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA auth TO supabase_auth_admin;
@@ -66,7 +87,7 @@ GRANT service_role TO authenticator;
 GRANT supabase_auth_admin TO authenticator;
 GRANT supabase_storage_admin TO authenticator;
 
--- 6. Создаем таблицы (используем gen_random_uuid() из pgcrypto, он надежнее)
+-- 7. Создаем таблицы (используем gen_random_uuid() из pgcrypto)
 CREATE TABLE IF NOT EXISTS storage.buckets (
     id text NOT NULL PRIMARY KEY,
     name text NOT NULL,
@@ -93,7 +114,7 @@ CREATE TABLE IF NOT EXISTS storage.objects (
     FOREIGN KEY (bucket_id) REFERENCES storage.buckets(id)
 );
 
--- 7. Создаем таблицы Auth
+-- 8. Создаем таблицы Auth
 CREATE TABLE IF NOT EXISTS auth.users (
     instance_id uuid,
     id uuid NOT NULL PRIMARY KEY,
@@ -143,7 +164,7 @@ CREATE TABLE IF NOT EXISTS auth.refresh_tokens (
     session_id uuid
 );
 
--- 8. Инициализация миграций Storage (чтобы не ругался при запуске)
+-- 9. Инициализация миграций Storage
 CREATE TABLE IF NOT EXISTS storage.migrations (
     id integer NOT NULL PRIMARY KEY,
     name character varying(100) NOT NULL,
@@ -151,23 +172,26 @@ CREATE TABLE IF NOT EXISTS storage.migrations (
     executed_at timestamp without time zone DEFAULT now()
 );
 
--- 9. Создаем bucket public_files если нет
+-- 10. Создаем bucket public_files если нет
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('public_files', 'public_files', true)
 ON CONFLICT (id) DO NOTHING;
 
--- 10. Политики для Storage
+-- 11. Политики для Storage
 ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Public Access" ON storage.objects;
 CREATE POLICY "Public Access" ON storage.objects FOR SELECT USING (bucket_id = 'public_files');
 
 DROP POLICY IF EXISTS "Authenticated users can upload" ON storage.objects;
-CREATE POLICY "Authenticated users can upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'public_files' AND auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can upload" ON storage.objects FOR INSERT WITH CHECK (
+    bucket_id = 'public_files' 
+    AND auth.role() = 'authenticated'
+);
 
 EOF
 
-echo "✅ База данных восстановлена"
+echo "✅ База данных полностью восстановлена"
 
 echo "🔄 Перезапуск сервисов..."
 docker compose -f docker-compose.production.yml restart supabase-storage supabase-auth
