@@ -1,8 +1,8 @@
 FROM node:20-alpine AS base
+RUN apk add --no-cache libc6-compat
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
@@ -16,7 +16,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Build Next.js
-RUN npm run build
+# Отключаем Turbopack для сборки в Docker из-за проблем с lightningcss на Alpine
+# И используем стандартный сборщик Webpack
+RUN npm run build -- --no-turbopack
 
 # Production image, copy all the files and run next
 FROM base AS runner
