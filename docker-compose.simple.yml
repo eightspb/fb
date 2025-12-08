@@ -1,0 +1,60 @@
+services:
+  # Supabase локально через официальный образ
+  supabase:
+    image: supabase/postgres:15.1.0.117
+    container_name: fb-net-supabase-db
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "54322:5432"
+    volumes:
+      - supabase-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - fb-net-network
+
+  # Next.js Application
+  nextjs-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: fb-net-nextjs
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      # Для клиентских запросов (не используется в текущей реализации, но оставлено для совместимости)
+      - NEXT_PUBLIC_SUPABASE_URL=http://localhost:54322
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+      # ВАЖНО: Используется имя сервиса Docker для подключения внутри сети
+      # Из контейнера Next.js доступ к PostgreSQL по имени 'supabase', не по localhost
+      - DATABASE_URL=postgresql://postgres:postgres@supabase:5432/postgres
+    volumes:
+      # Монтируем исходный код для hot-reload
+      - .:/app
+      # ВАЖНО: Исключаем node_modules из монтирования (используем из контейнера)
+      # Это гарантирует, что зависимости из контейнера не перезаписываются локальными
+      - /app/node_modules
+      # Исключаем .next из монтирования (генерируется в контейнере)
+      - /app/.next
+    depends_on:
+      supabase:
+        condition: service_healthy
+    networks:
+      - fb-net-network
+    # Запуск dev сервера с поддержкой всех сетевых интерфейсов
+    command: sh -c "npm list axios || npm install axios --legacy-peer-deps && npm run dev"
+
+volumes:
+  supabase-db-data:
+
+networks:
+  fb-net-network:
+    driver: bridge
+

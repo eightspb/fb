@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ChevronRight, Home } from 'lucide-react';
 
 interface BreadcrumbItem {
   label: string;
@@ -11,26 +12,30 @@ interface BreadcrumbsProps {
 
 export function Breadcrumbs({ items }: BreadcrumbsProps) {
   return (
-    <nav className="breadcrumb" aria-label="Breadcrumb">
-      <ol className="breadcrumb-list">
-        <li>
-          <Link href="/" className="breadcrumb-link">
-            Главная
-          </Link>
-        </li>
-        {items.map((item, index) => (
-          <li key={index} className="flex items-center">
-            <span className="mx-2">/</span>
-            {item.href && index < items.length - 1 ? (
-              <Link href={item.href} className="breadcrumb-link">
-                {item.label}
-              </Link>
-            ) : (
-              <span className="breadcrumb-current">{item.label}</span>
-            )}
-          </li>
-        ))}
-      </ol>
+    <nav aria-label="Breadcrumb" className="flex items-center space-x-1 text-sm text-slate-500">
+      <Link 
+        href="/" 
+        className="flex items-center hover:text-pink-600 transition-colors"
+        title="Главная"
+      >
+        <Home className="w-4 h-4" />
+      </Link>
+      
+      {items.map((item, index) => (
+        <div key={index} className="flex items-center">
+          <ChevronRight className="w-4 h-4 mx-1 text-slate-400" />
+          {item.href && index < items.length - 1 ? (
+            <Link 
+              href={item.href} 
+              className="hover:text-pink-600 transition-colors font-medium"
+            >
+              {item.label}
+            </Link>
+          ) : (
+            <span className="text-slate-900 font-medium">{item.label}</span>
+          )}
+        </div>
+      ))}
     </nav>
   );
 }

@@ -1,328 +1,264 @@
+import { RequestCPModal } from "@/components/RequestCPModal";
 import Link from "next/link";
+import Image from "next/image";
+import type { Metadata } from "next";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/Header";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Footer } from "@/components/Footer";
+import { GraduationCap, Users, Calendar, Clock, Award, CheckCircle, MapPin, Activity, FileText, ArrowRight, Microscope, ShieldCheck, Stethoscope } from "lucide-react";
+import { PastEvents } from "@/components/PastEvents";
+
+export const metadata: Metadata = {
+  title: "Обучение и Мероприятия",
+  description: "Обучающие курсы, мастер-классы и конференции по интервенционной маммологии. Расписание мероприятий и архив прошедших событий.",
+};
 
 export default function Training() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-slate-50 font-sans selection:bg-pink-100 selection:text-pink-900">
       <Header />
 
-      <div className="pt-20">
-        <div className="page-container">
-          <div className="page-max-width-wide">
-            <Breadcrumbs items={[{ label: "Обучение" }]} />
-          </div>
+      <div className="pt-24 pb-12 bg-white border-b border-slate-200">
+        <div className="container mx-auto px-4 md:px-6">
+          <Breadcrumbs items={[{ label: "Обучение" }]} />
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mt-6 mb-4 leading-tight">
+            Учебный центр <br className="hidden md:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-blue-600">
+              Xishan-Зенит
+            </span>
+          </h1>
+          <p className="text-xl text-slate-600 max-w-3xl leading-relaxed">
+            Повышение квалификации для врачей-маммологов, онкологов и хирургов. 
+            Регулярные мастер-классы, конференции и практические занятия на современном оборудовании.
+          </p>
         </div>
       </div>
 
-      <main className="page-container">
-        <div className="page-max-width-wide">
+      <main className="container mx-auto px-4 md:px-6 py-12">
+        
+        {/* Featured Course Hero Section */}
+        <section className="mb-24">
+           <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
+             <div className="grid lg:grid-cols-[1.4fr_1fr] gap-0">
+                <div className="p-8 md:p-16 flex flex-col justify-center relative z-10">
+                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-pink-50/50 via-white to-blue-50/50 -z-10"></div>
+                    
+                    <div className="flex flex-wrap gap-3 mb-8 self-start">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 shadow-sm text-sm font-semibold text-slate-600">
+                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                            Идет набор группы
+                        </div>
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 shadow-sm text-sm font-semibold text-slate-600">
+                            <Calendar className="w-4 h-4 text-blue-500" />
+                            Курсы проходят ежемесячно
+                        </div>
+                    </div>
 
-          <h1 className="page-title gradient-text-pink shine-effect">Обучение</h1>
+                    <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6 leading-[1.1]">
+                        Интервенционная маммология. <br/>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-blue-600">
+                            Диагностика и лечение
+                        </span>
+                    </h2>
+                    
+                    <p className="text-lg text-slate-600 mb-10 leading-relaxed">
+                        Комплексная программа повышения квалификации. Освойте передовые методики вакуумно-аспирационной биопсии и малоинвазивных вмешательств под руководством ведущих экспертов.
+                    </p>
 
-          {/* Statistics */}
-          <section className="training-stats mb-12">
-            <h2 className="text-3xl font-bold text-center mb-12 gradient-text-blue">Статистика обучения</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-              <Card className="card-hover gradient-card-pink float-animation">
-                <CardContent className="card-content text-center">
-                  <div className="text-3xl font-bold gradient-text-pink mb-2 shine-effect">150+</div>
-                  <p className="opacity-90">Обученных врачей</p>
-                </CardContent>
-              </Card>
-              <Card className="card-hover gradient-card-blue float-animation" style={{ animationDelay: '1s' }}>
-                <CardContent className="card-content text-center">
-                  <div className="text-3xl font-bold gradient-text-blue mb-2">12</div>
-                  <p className="opacity-90">Городов и стран</p>
-                </CardContent>
-              </Card>
-              <Card className="card-hover gradient-card-purple float-animation" style={{ animationDelay: '2s' }}>
-                <CardContent className="card-content text-center">
-                  <div className="text-3xl font-bold gradient-text-purple mb-2">Ежемесячно</div>
-                  <p className="opacity-90">Проводятся курсы</p>
-                </CardContent>
-              </Card>
-            </div>
-          </section>
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <RequestCPModal 
+                            title="Запись на курс" 
+                            description="Заполните форму для регистрации на курс. Наш менеджер свяжется с вами для подтверждения участия."
+                            formType="training"
+                        >
+                            <Button size="lg" className="h-14 px-8 text-lg rounded-full bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/20 transition-all hover:scale-105">
+                                Записаться на курс
+                            </Button>
+                        </RequestCPModal>
+                        <Button size="lg" variant="outline" className="h-14 px-8 text-lg rounded-full border-slate-300 hover:bg-slate-50 transition-all" asChild>
+                            <Link href="#program">Программа курса</Link>
+                        </Button>
+                    </div>
 
-          {/* Photogallery */}
-          <section className="training-gallery">
-            <h2 className="text-3xl font-bold text-center mb-12 gradient-text-purple shine-effect">Фотогалерея</h2>
-            <div className="grid md:grid-cols-3 gap-6">
-              <Card className="card-hover gradient-card-pink shine-effect float-animation">
-                <CardContent className="card-content text-center">
-                  <div className="aspect-square bg-gradient-to-br from-pink-100 to-pink-200 rounded-xl mb-4 glass-card flex items-center justify-center">
-                    <span className="text-4xl">🏥</span>
-                  </div>
-                  <h3 className="text-lg font-semibold gradient-text-pink">НИИ Петрова</h3>
-                  <p className="text-gray-600">Обучение специалистов</p>
-                </CardContent>
-              </Card>
-              <Card className="card-hover gradient-card-blue shine-effect float-animation" style={{ animationDelay: '1s' }}>
-                <CardContent className="card-content text-center">
-                  <div className="aspect-square bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl mb-4 glass-card flex items-center justify-center">
-                    <span className="text-4xl">🏥</span>
-                  </div>
-                  <h3 className="text-lg font-semibold gradient-text-blue">МКНЦ</h3>
-                  <p className="text-gray-600">Практическая подготовка</p>
-                </CardContent>
-              </Card>
-              <Card className="card-hover gradient-card-purple shine-effect float-animation" style={{ animationDelay: '2s' }}>
-                <CardContent className="card-content text-center">
-                  <div className="aspect-square bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl mb-4 glass-card flex items-center justify-center">
-                    <span className="text-4xl">🏥</span>
-                  </div>
-                  <h3 className="text-lg font-semibold gradient-text-purple">Обучение</h3>
-                  <p className="text-gray-600">Сертифицированные курсы</p>
-                </CardContent>
-              </Card>
-            </div>
-          </section>
-
-          {/* Program */}
-          <section className="training-program">
-            <h2 className="text-3xl font-bold text-center mb-12 gradient-text-pink">Программа обучения</h2>
-
-            {/* Target Audience */}
-            <Card className="mb-6 card-hover gradient-card-pink shine-effect">
-              <CardContent className="card-content">
-                <h3 className="text-xl font-semibold mb-4 gradient-text-pink">Для кого</h3>
-                <p className="text-gray-700">
-                  Курс для сертифицированных врачей «УЗ-диагностика», «Хирургия», «Онкология» с опытом ВАР/ВАБ от 1 года,
-                  кто хочет повысить точность, сократить осложнения и уверенно брать сложные локализации с отличным косметическим результатом.
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Format and Duration */}
-            <Card className="mb-6 card-hover gradient-card-blue shine-effect">
-              <CardContent className="card-content">
-                <h3 className="text-xl font-semibold mb-4 gradient-text-blue">Формат и длительность</h3>
-                <p className="text-gray-700">
-                  Очное обучение, 2 насыщенных дня, 36 академических часов. Теория + интенсивная практика с разбором реальных кейсов и пошаговыми отработками.
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Certificate */}
-            <Card className="mb-6 card-hover gradient-card-purple shine-effect">
-              <CardContent className="card-content">
-                <h3 className="text-xl font-semibold mb-4 gradient-text-purple">Документ</h3>
-                <p className="text-gray-700">
-                  Удостоверение о повышении квалификации установленного образца на 36 часов.
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Cost */}
-            <Card className="mb-6 card-hover gradient-card-rose shine-effect">
-              <CardContent className="card-content">
-                <h3 className="text-xl font-semibold mb-4 gradient-text-rose">Стоимость и условия</h3>
-                <p className="text-gray-700">
-                  25 000 ₽. Для партнёров ООО «Зенит» — бесплатно.
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Instructor */}
-            <Card className="mb-6 card-hover gradient-card-pink shine-effect">
-              <CardContent className="card-content">
-                <h3 className="text-xl font-semibold mb-4 gradient-text-pink">Преподаватель</h3>
-                <p className="text-gray-700 mb-4">
-                  Одинцов Владислав Александрович — д.м.н., онколог, хирург, врач УЗД и рентгенолог; главный врач «Клиники Одинцова»,
-                  ведущий специалист маммологического центра СПб клинической больницы РАН, профессор кафедры лучевой диагностики,
-                  лучевой терапии и онкологии СГМУ. Сильная школа «руками» и акцент на безопасности и результате.
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Why Attend */}
-            <Card className="mb-6 card-hover gradient-card-blue shine-effect">
-              <CardContent className="card-content">
-                <h3 className="text-xl font-semibold mb-4 gradient-text-blue">Почему это стоит вашего времени</h3>
-                <ul className="list-disc list-inside space-y-2 text-gray-700">
-                  <li>Ускорите принятие решений по BI-RADS в серых зонах и при дискордантных данных.</li>
-                  <li>Освоите алгоритмы, позволяющие минимизировать кровотечения, гематомы и деформации.</li>
-                  <li>Научитесь безопасно и красиво работать в субареолярной, подкожной и ретромаммарной зонах.</li>
-                  <li>Получите практические лайфхаки по резекции образований &gt;5 см без потери контроля и эстетики.</li>
-                  <li>Заберёте готовые протоколы и чек-листы, которые сразу внедряются в практику.</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* What You'll Learn */}
-            <Card className="mb-6 card-hover gradient-card-purple shine-effect">
-              <CardContent className="card-content">
-                <h3 className="text-xl font-semibold mb-4 gradient-text-purple">Что вы научитесь делать лучше уже после курса</h3>
-                <ul className="list-disc list-inside space-y-2 text-gray-700">
-                  <li>Быстро выбирать тактику ВАР/ВАБ по BI-RADS с учётом размера и фенотипа образования.</li>
-                  <li>Снижать риски осложнений: профилактика кровотечений, гематом, кожного повреждения.</li>
-                  <li>Уверенно проводить вакуумную аспирационную резекцию крупных узлов (&gt;5 см).</li>
-                  <li>Работать в сложных зонах с сохранением формы железы и минимальным рубцом.</li>
-                  <li>Выстраивать алгоритм при дискордантных ответах морфологии и визуализации.</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* Lectures */}
-            <Card className="mb-6 card-hover gradient-card-rose shine-effect">
-              <CardContent className="card-content">
-                <h3 className="text-xl font-semibold mb-4 gradient-text-rose">Лекции (теория — концентрат практики)</h3>
-                <ul className="list-disc list-inside space-y-2 text-gray-700">
-                  <li>Интервенционная маммология: место ВАР/ВАБ, сильные и слабые стороны методов.</li>
-                  <li>Комбинированные кисты и дуктоэктазия: ультразвук + ретроградное контрастирование, когда это меняет тактику.</li>
-                  <li>Дискордантные случаи: алгоритмы принятия решения и когда пересматривать биопсию.</li>
-                  <li>Солидные образования и шкала BI-RADS (US): показания к ВАБ/ВАР по размерам и типу очага.</li>
-                  <li>Профилактика осложнений и сохранение эстетики: техники, доступы, контроль.</li>
-                  <li>Субареолярные, подкожные, ретромаммарные образования: маршрутизация иглы и выбор траектории.</li>
-                  <li>Техника вакуумной резекции &gt;5 см: этапность, контроль, завершение без сюрпризов.</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* Practice */}
-            <Card className="mb-6 card-hover gradient-card-pink shine-effect">
-              <CardContent className="card-content">
-                <h3 className="text-xl font-semibold mb-4 gradient-text-pink">Практика (максимум пользы за 2 дня)</h3>
-                <ul className="list-disc list-inside space-y-2 text-gray-700">
-                  <li>Гидропрепаровка физраствором в сложных зонах: когда, как и сколько.</li>
-                  <li>Техника натяжения кожи для подкожных узлов: предотвращаем «ступеньки» и западения.</li>
-                  <li><strong>Самостоятельная работа с киноархивом:</strong>
-                    <ul className="list-disc list-inside ml-6 mt-2 space-y-1">
-                      <li>Кисты: типичные ловушки и как их обходить.</li>
-                      <li>Солидные образования и Core-биопсии: выбор инструмента, глубина, траектория.</li>
-                      <li>Внутрипротоковые образования: прицельность и контроль манипуляции.</li>
-                      <li>Абсцессы: от аспирации до дренирования, нюансы тактики.</li>
-                    </ul>
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* Takeaways */}
-            <Card className="mb-6 card-hover gradient-card-blue shine-effect">
-              <CardContent className="card-content">
-                <h3 className="text-xl font-semibold mb-4 gradient-text-blue">Что заберёте с собой</h3>
-                <ul className="list-disc list-inside space-y-2 text-gray-700">
-                  <li>Чек-листы по подготовке и ведению пациента до/после ВАР/ВАБ.</li>
-                  <li>Алгоритмы действий при несоответствиях US/морфологии.</li>
-                  <li>Схемы доступов для разных локализаций, включая «неудобные» зоны.</li>
-                  <li>Разбор типичных ошибок и способы их профилактики.</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* Who Should Attend */}
-            <Card className="mb-6 card-hover gradient-card-purple shine-effect">
-              <CardContent className="card-content">
-                <h3 className="text-xl font-semibold mb-4 gradient-text-purple">Кому особенно зайдёт</h3>
-                <ul className="list-disc list-inside space-y-2 text-gray-700">
-                  <li>УЗ-диагностам и хирургам, кто хочет повысить «проходимость» сложных случаев без роста осложнений.</li>
-                  <li>Онкологам, кто стремится к предсказуемому морфологическому подтверждению и корректной тактике.</li>
-                  <li>Командам, где важен быстрый и эстетически щадящий результат с минимальными повторными вмешательствами.</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* Summary */}
-            <Card className="mb-6 card-hover gradient-card-rose shine-effect">
-              <CardContent className="card-content">
-                <h3 className="text-xl font-semibold mb-4 gradient-text-rose">Итог</h3>
-                <p className="text-gray-700">
-                  За два дня вы систематизируете решения по BI-RADS, отточите технику в сложных зонах,
-                  снизите осложнения и получите инструменты, которые на следующий рабочий день улучшат ваши результаты и отзывы пациентов.
-                </p>
-              </CardContent>
-            </Card>
-
-            <div className="text-center">
-              <Button size="lg" className="gradient-button-pink">
-                Запросить условия
-              </Button>
-            </div>
-          </section>
-
-          {/* Calendar */}
-          <section className="training-calendar">
-            <h2 className="text-3xl font-bold text-center mb-12 gradient-text-blue">Календарь курсов</h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card className="card-hover gradient-card-pink shine-effect">
-                <CardContent className="card-content">
-                  <Badge className="mb-2 bg-pink-100 text-pink-800">Москва</Badge>
-                  <h3 className="text-xl font-semibold mb-2 gradient-text-pink">Курс ВАБ для начинающих</h3>
-                  <p className="mb-2">Дата: 15 ноября 2025</p>
-                  <p className="mb-2">Спикеры: Доктор Иванов, НИИ Петрова</p>
-                  <p className="mb-4">Часы: 16 CME</p>
-                  <div className="flex gap-2">
-                    <Button size="sm" className="gradient-button-pink">Регистрация</Button>
-                    <Button size="sm" variant="outline" className="glass-card">Программа</Button>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="card-hover gradient-card-blue shine-effect">
-                <CardContent className="card-content">
-                  <Badge className="mb-2 bg-blue-100 text-blue-800">СПб</Badge>
-                  <h3 className="text-xl font-semibold mb-2 gradient-text-blue">Мастер-класс по ВАБ</h3>
-                  <p className="mb-2">Дата: 20 апреля 2025</p>
-                  <p className="mb-2">Спикеры: Доктор Петрова, МКНЦ</p>
-                  <p className="mb-4">Часы: 8 CME</p>
-                  <div className="flex gap-2">
-                    <Button size="sm" className="gradient-button-blue">Регистрация</Button>
-                    <Button size="sm" variant="outline" className="glass-card">Программа</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </section>
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="footer animated-bg">
-        <div className="footer-container">
-          <div className="footer-grid">
-            <div>
-              <h4 className="footer-title gradient-text-pink">О компании</h4>
-              <p>Единственный официальный дистрибьютор ВАБ завода Сишань в РФ</p>
-            </div>
-            <div>
-              <h4 className="footer-title gradient-text-blue">Контакты</h4>
-              <p>Тел: +7 (495) 123-45-67</p>
-              <p>Email: info@fb.net</p>
-            </div>
-            <div>
-              <h4 className="footer-title gradient-text-pink">Ссылки</h4>
-              <ul className="footer-links">
-                <li><Link href="/" className="footer-link">Главная</Link></li>
-                <li><Link href="/patients" className="footer-link">Пациентам</Link></li>
-                <li><Link href="/equipment" className="footer-link">Оборудование</Link></li>
-                <li><Link href="/training" className="footer-link">Обучение</Link></li>
-                <li><Link href="/news" className="footer-link">Новости</Link></li>
-                <li><Link href="/conferences" className="footer-link">Конференции</Link></li>
-                <li><Link href="/contacts" className="footer-link">Контакты</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="footer-title gradient-text-blue">Социальные сети</h4>
-              <div className="flex gap-4 mt-4">
-                <div className="w-10 h-10 bg-gradient-to-r from-pink-400 to-pink-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm">📘</span>
+                    <div className="grid grid-cols-3 gap-6 mt-12 pt-12 border-t border-slate-200/60">
+                        <div>
+                            <div className="text-3xl font-bold text-slate-900 mb-1">36</div>
+                            <div className="text-sm font-medium text-slate-500">ак. часов</div>
+                        </div>
+                        <div>
+                            <div className="text-3xl font-bold text-slate-900 mb-1">5</div>
+                            <div className="text-sm font-medium text-slate-500">дней обучения</div>
+                        </div>
+                        <div>
+                            <div className="text-3xl font-bold text-slate-900 mb-1">СПб</div>
+                            <div className="text-sm font-medium text-slate-500">очно</div>
+                        </div>
+                    </div>
                 </div>
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm">🐦</span>
+
+                <div className="bg-slate-100 relative min-h-[400px] lg:min-h-full">
+                    <Image 
+                        src="/images/odintsov.jpg" 
+                        alt="Обучение в клинике" 
+                        fill
+                        className="object-cover"
+                        priority
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 from-5% via-slate-900/60 via-25% to-transparent to-50%"></div>
+                    <div className="absolute inset-0 hidden lg:block bg-gradient-to-l from-transparent to-slate-900/20"></div>
+                    
+                    <div className="absolute bottom-8 left-8 right-8 text-white">
+                        <div className="flex items-center gap-4 mb-2">
+                             <div className="w-12 h-12 rounded-full border-2 border-white/30 overflow-hidden relative">
+                                <Image src="/images/odintsov.jpg" alt="Одинцов В.А." fill className="object-cover" />
+                             </div>
+                             <div>
+                                 <div className="font-bold text-lg">Одинцов В.А.</div>
+                                 <div className="text-slate-300 text-sm">Автор курса, д.м.н.</div>
+                             </div>
+                        </div>
+                        <p className="italic text-slate-200 text-sm pl-4 border-l-2 border-pink-500">
+                            "Мы даем не просто теорию, а ставим руку. Каждый курсант самостоятельно выполняет манипуляции."
+                        </p>
+                    </div>
                 </div>
-                <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm">💼</span>
+             </div>
+           </div>
+        </section>
+
+        {/* Benefits / Infographics */}
+        <section className="mb-24">
+            <h3 className="text-3xl font-bold text-center text-slate-900 mb-16">Почему врачи выбирают этот курс</h3>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                {[
+                    {
+                        icon: <Activity className="w-8 h-8 text-white" />,
+                        color: "bg-pink-500",
+                        title: "Практический упор",
+                        desc: "70% времени посвящено практике на фантомах и ассистированию в операционной."
+                    },
+                    {
+                        icon: <Microscope className="w-8 h-8 text-white" />,
+                        color: "bg-blue-600",
+                        title: "Современное оборудование",
+                        desc: "Обучение на новейших системах ВАБ, УЗИ-аппаратах экспертного класса."
+                    },
+                    {
+                        icon: <Award className="w-8 h-8 text-white" />,
+                        color: "bg-purple-600",
+                        title: "Документы гособразца",
+                        desc: "Выдача удостоверения о повышении квалификации и баллы НМО."
+                    },
+                    {
+                        icon: <Users className="w-8 h-8 text-white" />,
+                        color: "bg-orange-500",
+                        title: "Малые группы",
+                        desc: "Индивидуальный подход к каждому курсанту, группы до 5 человек."
+                    }
+                ].map((item, idx) => (
+                    <div key={idx} className="bg-white p-8 rounded-3xl border border-slate-100 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                        <div className={`w-16 h-16 rounded-2xl ${item.color} flex items-center justify-center mb-6 shadow-md transform rotate-3`}>
+                            {item.icon}
+                        </div>
+                        <h4 className="text-xl font-bold text-slate-900 mb-3">{item.title}</h4>
+                        <p className="text-slate-600 leading-relaxed">
+                            {item.desc}
+                        </p>
+                    </div>
+                ))}
+            </div>
+        </section>
+
+        {/* Program Details Section */}
+        <section id="program" className="mb-24 max-w-5xl mx-auto">
+            <div className="text-center mb-16">
+                 <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-0 mb-4 px-4 py-1 text-base">Программа 36 часов</Badge>
+                 <h2 className="text-3xl md:text-4xl font-bold text-slate-900">Содержание курса</h2>
+                 <p className="text-slate-500 mt-4 text-lg">Пошаговое погружение в интервенционную маммологию</p>
+            </div>
+
+            <div className="space-y-6">
+                {[
+                    { day: "День 1", title: "Теоретические основы и диагностика", topics: ["Анатомия и физиология молочной железы", "Современные методы визуализации (УЗИ, ММГ, МРТ)", "Классификация BI-RADS", "Показания к интервенционным вмешательствам"] },
+                    { day: "День 2", title: "Технические аспекты биопсии", topics: ["Виды биопсийных игл и систем", "Тонкоигольная аспирационная биопсия (ТАБ)", "Трепан-биопсия (Core-биопсия)", "Отработка навыков на фантомах"] },
+                    { day: "День 3", title: "Вакуумная аспирационная биопсия (ВАБ)", topics: ["Принципы работы вакуумных систем", "Показания и противопоказания к ВАБ", "Техника выполнения процедуры", "Работа в операционной (наблюдение)"] },
+                    { day: "День 4", title: "Лечебные манипуляции и осложнения", topics: ["Удаление доброкачественных образований", "Дренирование кист и абсцессов", "Маркировка образований", "Профилактика и лечение осложнений"] },
+                    { day: "День 5", title: "Итоговая аттестация", topics: ["Самостоятельное выполнение манипуляций на фантомах", "Разбор сложных клинических случаев", "Итоговое тестирование", "Вручение удостоверений"] }
+                ].map((day, idx) => (
+                    <div key={idx} className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:border-pink-200 transition-colors">
+                        <div className="p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-10">
+                            <div className="shrink-0 flex md:flex-col items-center gap-3 md:w-32">
+                                <span className="text-sm font-bold uppercase tracking-wider text-slate-400">{day.day}</span>
+                                <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 font-bold text-xl border-4 border-white shadow-sm">
+                                    {idx + 1}
+                                </div>
+                                <div className="hidden md:block h-full w-px bg-slate-100 my-2"></div>
+                            </div>
+                            <div className="flex-grow">
+                                <h4 className="text-xl font-bold text-slate-900 mb-4">{day.title}</h4>
+                                <ul className="grid sm:grid-cols-2 gap-x-8 gap-y-3">
+                                    {day.topics.map((topic, tIdx) => (
+                                        <li key={tIdx} className="flex items-start gap-2 text-slate-600">
+                                            <CheckCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+                                            <span>{topic}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            
+            <div className="mt-12 p-6 bg-slate-50 rounded-2xl border border-slate-200 text-center">
+                <p className="text-slate-500 italic">
+                    * Программа может корректироваться в зависимости от уровня подготовки группы и клинических случаев в стационаре.
+                    <br/>
+                    Для получения полной программы в формате PDF, пожалуйста, свяжитесь с нами.
+                </p>
+            </div>
+        </section>
+
+        {/* Past Events Section (FILTERED) */}
+        <section id="past-trainings" className="bg-slate-50 -mx-4 md:-mx-6 px-4 md:px-6 py-24">
+           <div className="container mx-auto">
+                <div className="flex items-center justify-between gap-4 mb-12">
+                    <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-white shadow-sm flex items-center justify-center text-slate-900">
+                            <GraduationCap className="w-7 h-7 text-pink-600" />
+                        </div>
+                        <div>
+                            <h2 className="text-3xl font-bold text-slate-900">Прошедшие обучения</h2>
+                            <p className="text-slate-500">Фотоотчеты и новости учебного центра</p>
+                        </div>
+                    </div>
                 </div>
-              </div>
+                
+                <PastEvents categories={['Обучение']} />
+           </div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="mt-24 text-center py-16 bg-slate-900 rounded-3xl relative overflow-hidden">
+          <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
+          <div className="relative z-10 container mx-auto px-4">
+            <h2 className="text-3xl font-bold mb-4 text-white">Хотите организовать выездной цикл?</h2>
+            <p className="text-lg text-slate-300 mb-8 max-w-2xl mx-auto">
+                Мы открыты к сотрудничеству с клиниками и учебными центрами в регионах. Свяжитесь с нами для обсуждения условий выездных циклов и мастер-классов.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                 <Button size="lg" className="bg-pink-600 hover:bg-pink-700 text-white px-8 rounded-full h-12 text-lg shadow-lg shadow-pink-900/20" asChild>
+                    <Link href="/contacts">Связаться с нами</Link>
+                </Button>
             </div>
           </div>
-        </div>
-      </footer>
+        </section>
+
+      </main>
+
+      <Footer />
     </div>
   );
 }

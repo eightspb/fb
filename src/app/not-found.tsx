@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#e0e0e0]">
       <Header />
 
-      <main className="page-container">
+      <main className="page-container pt-48 md:pt-52">
         <div className="page-max-width text-center">
           <div className="mb-8">
             <h1 className="text-6xl font-bold text-gray-900 mb-4">404</h1>
@@ -28,37 +29,7 @@ export default function NotFound() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="footer">
-        <div className="footer-container">
-          <div className="footer-grid">
-            <div>
-              <h4 className="footer-title">О компании</h4>
-              <p>Единственный официальный дистрибьютор ВАБ завода Сишань в РФ</p>
-            </div>
-            <div>
-              <h4 className="footer-title">Контакты</h4>
-              <p>Тел: +7 (495) 123-45-67</p>
-              <p>Email: info@fb.net</p>
-            </div>
-            <div>
-              <h4 className="footer-title">Ссылки</h4>
-              <ul className="footer-links">
-                <li><Link href="/" className="footer-link">Главная</Link></li>
-                <li><Link href="/patients" className="footer-link">Пациентам</Link></li>
-                <li><Link href="/equipment" className="footer-link">Оборудование</Link></li>
-                <li><Link href="/training" className="footer-link">Обучение</Link></li>
-                <li><Link href="/news" className="footer-link">Новости</Link></li>
-                <li><Link href="/conferences" className="footer-link">Конференции</Link></li>
-                <li><Link href="/contacts" className="footer-link">Контакты</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="footer-title">Социальные сети</h4>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

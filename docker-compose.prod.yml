@@ -1,0 +1,54 @@
+# Production Docker Compose конфигурация
+# Использует production build Next.js
+
+services:
+  # Supabase PostgreSQL Database
+  supabase:
+    image: supabase/postgres:15.1.0.117
+    container_name: fb-net-supabase-db-prod
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "54322:5432"
+    volumes:
+      - supabase-db-data-prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - fb-net-network-prod
+    restart: unless-stopped
+
+  # Next.js Application (Production)
+  nextjs-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fb-net-nextjs-prod
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_SUPABASE_URL=http://localhost:54322
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+      # Используется имя сервиса для подключения внутри Docker сети
+      - DATABASE_URL=postgresql://postgres:postgres@supabase:5432/postgres
+    depends_on:
+      supabase:
+        condition: service_healthy
+    networks:
+      - fb-net-network-prod
+    restart: unless-stopped
+
+volumes:
+  supabase-db-data-prod:
+
+networks:
+  fb-net-network-prod:
+    driver: bridge
+
+

@@ -1,17 +1,23 @@
 'use client';
 
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Header } from "@/components/Header";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Check, Clock, ShieldCheck, Smile, Search, Heart, AlertCircle, HelpCircle } from "lucide-react";
 import { useState } from "react";
 import { Footer } from "@/components/Footer";
+import { ClinicsMap } from "@/components/ClinicsMap";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 export default function Patients() {
-  const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
-
   const faqItems = [
     { q: "Как подготовиться к ВАБ?", a: "Необходимо прийти на консультацию за неделю до процедуры. Врач проведет осмотр и даст рекомендации по подготовке." },
     { q: "Есть ли ограничения для проведения процедуры?", a: "Процедура противопоказана при беременности, кровотечениях и некоторых других состояниях. Врач определит возможность проведения." },
@@ -23,271 +29,175 @@ export default function Patients() {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-slate-50 font-sans selection:bg-pink-100 selection:text-pink-900">
       <Header />
 
-      <div className="pt-20">
-        <div className="page-container">
-          <div className="page-max-width-wide">
-            <Breadcrumbs items={[{ label: "Пациентам" }]} />
-          </div>
+      <div className="pt-24 pb-12 bg-white border-b border-slate-200">
+        <div className="container mx-auto px-4 md:px-6">
+          <Breadcrumbs items={[{ label: "Пациентам" }]} />
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mt-6 mb-4">
+            Пациентам
+          </h1>
+          <p className="text-xl text-slate-600 max-w-3xl">
+            Все, что нужно знать о процедуре вакуумной аспирационной биопсии (ВАБ).
+            Безопасно, быстро и эффективно.
+          </p>
         </div>
       </div>
 
-      <main className="page-container">
-        <div className="page-max-width-wide">
-          <h1 className="page-title gradient-text-pink shine-effect">Пациентам</h1>
+      <main className="container mx-auto px-4 md:px-6 py-12">
 
-          {/* How VAB Works */}
-          <section className="mb-16">
-            <h2 className="text-3xl font-bold text-center mb-4 gradient-text-blue">Как проходит Вакуумная аспирационная биопсия?</h2>
-            <p className="text-center text-gray-600 mb-12 max-w-3xl mx-auto">Вакуумная аспирационная биопсия (ВАБ) — это минимально инвазивная процедура, которая позволяет получить образцы ткани для диагностики или удалить доброкачественные образования молочной железы под контролем УЗИ.</p>
-            
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-1.png" alt="Step 1" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">1. Выявление образования</h3>
-                  <p className="text-sm text-gray-600">Врач выявляет образование при УЗИ и определяет его точное расположение</p>
+        {/* How VAB Works */}
+        <section className="mb-20">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">Как проходит процедура?</h2>
+            <p className="text-slate-600 max-w-2xl mx-auto">
+              Вакуумная аспирационная биопсия — это минимально инвазивная процедура, 
+              которая позволяет получить образцы ткани или удалить доброкачественные образования 
+              под контролем УЗИ.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { title: "Выявление", desc: "Врач определяет образование по УЗИ", img: "/images/vab-steps/step-1.png" },
+              { title: "Анестезия", desc: "Местное обезболивание области", img: "/images/vab-steps/step-2.png" },
+              { title: "Микро-прокол", desc: "Всего 1-2 мм для введения иглы", img: "/images/vab-steps/step-3.png" },
+              { title: "Введение", desc: "Зонд подводится под контролем УЗИ", img: "/images/vab-steps/step-5.png" },
+              { title: "Удаление", desc: "Вакуумная аспирация образования", img: "/images/vab-steps/step-6.png" },
+              { title: "Гистология", desc: "Отправка материала на анализ", img: "/images/vab-steps/step-8.png" },
+              { title: "Повязка", desc: "Профилактика гематомы", img: "/images/vab-steps/step-10.png" },
+              { title: "Результат", desc: "Без шрамов и госпитализации", img: "/images/vab-steps/step-11.png" },
+            ].map((step, i) => (
+              <Card key={i} className="overflow-hidden border-slate-200 hover:shadow-md transition-all group">
+                <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
+                  <Image 
+                    src={step.img} 
+                    alt={step.title} 
+                    fill 
+                    className="object-cover transition-transform duration-500 group-hover:scale-105" 
+                  />
+                  <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md text-xs font-bold text-slate-900 shadow-sm">
+                    {i + 1}
+                  </div>
                 </div>
-              </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-2.png" alt="Step 2" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">2. Местное обезболивание</h3>
-                  <p className="text-sm text-gray-600">Проводится местная анестезия области вмешательства для комфорта пациентки</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-3.png" alt="Step 3" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">3. Минимальный прокол</h3>
-                  <p className="text-sm text-gray-600">Делается небольшой прокол (1-2 мм) для введения специальной иглы</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-4.png" alt="Step 4" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">4. Роботизированная игла</h3>
-                  <p className="text-sm text-gray-600">Используется специальная игла с автоматической системой забора материала</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-5.png" alt="Step 5" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">5. Введение иглы</h3>
-                  <p className="text-sm text-gray-600">Игла вводится через прокол под образование под контролем УЗИ</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-6.png" alt="Step 6" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">6. Удаление образования</h3>
-                  <p className="text-sm text-gray-600">В автоматическом режиме образование удаляется полностью под контролем УЗИ</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-7.png" alt="Step 7" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">7. Извлечение иглы</h3>
-                  <p className="text-sm text-gray-600">После удаления образования врач выводит иглу и прижимает грудь для профилактики гематомы</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-8.png" alt="Step 8" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">8. Гистологическое исследование</h3>
-                  <p className="text-sm text-gray-600">Полученный материал направляется на гистологическое исследование</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-9.png" alt="Step 9" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">9. Заклеивание прокола</h3>
-                  <p className="text-sm text-gray-600">Место прокола заклеивается специальным пластырем</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-10.png" alt="Step 10" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">10. Тугая повязка</h3>
-                  <p className="text-sm text-gray-600">Накладывается тугая повязка для профилактики гематомы и отека</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
-                <img src="/images/vab-steps/step-11.png" alt="Step 11" className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">11. Возвращение к делам</h3>
-                  <p className="text-sm text-gray-600">Через час пациентка свободно возвращается к своим повседневным делам</p>
-                </div>
-              </div>
-            </div>
-          </section>
+                <CardContent className="p-4">
+                  <h3 className="font-bold text-slate-900 mb-1">{step.title}</h3>
+                  <p className="text-sm text-slate-500 leading-snug">{step.desc}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
 
-          {/* Benefits Section */}
-          <section className="mb-16 bg-gradient-to-r from-pink-50 via-white to-blue-50 rounded-2xl p-12">
-            <h2 className="text-3xl font-bold text-center mb-12 gradient-text-pink">Преимущества ВАБ</h2>
-            <div className="grid md:grid-cols-4 gap-6">
-              <div className="text-center">
-                <div className="text-4xl mb-3">⚡</div>
-                <h3 className="font-semibold mb-2 gradient-text-pink">Полное удаление опухоли за 15 минут</h3>
-                <p className="text-sm text-gray-600">Быстрая и эффективная процедура</p>
-              </div>
-              <div className="text-center">
-                <div className="text-4xl mb-3">🛡️</div>
-                <h3 className="font-semibold mb-2 gradient-text-blue">Безопасность лечения без маркеров</h3>
-                <p className="text-sm text-gray-600">Минимальный риск осложнений</p>
-              </div>
-              <div className="text-center">
-                <div className="text-4xl mb-3">🔍</div>
-                <h3 className="font-semibold mb-2 gradient-text-purple">Без шрамов и рубцов</h3>
-                <p className="text-sm text-gray-600">Косметический результат</p>
-              </div>
-              <div className="text-center">
-                <div className="text-4xl mb-3">😊</div>
-                <h3 className="font-semibold mb-2 gradient-text-pink">Сохранение эстетики груди</h3>
-                <p className="text-sm text-gray-600">Естественный внешний вид</p>
-              </div>
-            </div>
-            <div className="grid md:grid-cols-4 gap-6 mt-8">
-              <div className="text-center">
-                <div className="text-4xl mb-3">💆</div>
-                <h3 className="font-semibold mb-2 gradient-text-blue">Психологический комфорт</h3>
-                <p className="text-sm text-gray-600">Минимальный стресс</p>
-              </div>
-              <div className="text-center">
-                <div className="text-4xl mb-3">🔄</div>
-                <h3 className="font-semibold mb-2 gradient-text-pink">Сохранение формы груди</h3>
-                <p className="text-sm text-gray-600">Восстановление функции</p>
-              </div>
-              <div className="text-center">
-                <div className="text-4xl mb-3">📋</div>
-                <h3 className="font-semibold mb-2 gradient-text-purple">Не требует диагностического оборудования</h3>
-                <p className="text-sm text-gray-600">Доступная процедура</p>
-              </div>
-              <div className="text-center">
-                <div className="text-4xl mb-3">✨</div>
-                <h3 className="font-semibold mb-2 gradient-text-blue">Отсутствие побочных эффектов</h3>
-                <p className="text-sm text-gray-600">Безопасное лечение</p>
-              </div>
-            </div>
-          </section>
-
-          {/* FAQ Section */}
-          <section className="mb-16">
-            <h2 className="text-3xl font-bold text-center mb-12 gradient-text-blue">Часто задаваемые вопросы</h2>
-            <div className="max-w-3xl mx-auto space-y-4">
-              {faqItems.map((item, index) => (
-                <Card key={index} className="border border-pink-200/50 hover:border-pink-300 transition-colors">
-                  <button
-                    onClick={() => setExpandedFaq(expandedFaq === index ? null : index)}
-                    className="w-full p-6 flex items-center justify-between text-left"
-                  >
-                    <h3 className="font-semibold text-gray-800">{item.q}</h3>
-                    <ChevronDown className={`w-5 h-5 text-pink-500 transition-transform ${
-                      expandedFaq === index ? 'rotate-180' : ''
-                    }`} />
-                  </button>
-                  {expandedFaq === index && (
-                    <div className="px-6 pb-6 text-gray-600 border-t border-pink-200/30">
-                      {item.a}
+        {/* Benefits Section */}
+        <section className="mb-20">
+          <div className="bg-slate-900 text-white rounded-3xl p-8 md:p-12 overflow-hidden relative">
+            <div className="relative z-10">
+              <h2 className="text-3xl font-bold text-center mb-12">Преимущества метода</h2>
+              <div className="grid md:grid-cols-4 gap-8">
+                {[
+                  { icon: Clock, title: "15-20 минут", desc: "Длительность процедуры" },
+                  { icon: ShieldCheck, title: "Безопасно", desc: "Без общего наркоза" },
+                  { icon: Smile, title: "Эстетично", desc: "Без шрамов и рубцов" },
+                  { icon: Heart, title: "Комфортно", desc: "Сохранение формы груди" },
+                  { icon: Search, title: "Точно", desc: "Под контролем УЗИ" },
+                  { icon: Smile, title: "Без боли", desc: "Местная анестезия" },
+                  { icon: Check, title: "Эффективно", desc: "Полное удаление" },
+                  { icon: AlertCircle, title: "Минимум рисков", desc: "Отсутствие осложнений" },
+                ].map((item, i) => (
+                  <div key={i} className="flex flex-col items-center text-center group">
+                    <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mb-4 group-hover:bg-white/20 transition-colors group-hover:scale-110 duration-300">
+                      <item.icon className="w-6 h-6 text-blue-300" />
                     </div>
-                  )}
-                </Card>
-              ))}
-            </div>
-          </section>
-
-          {/* CTA Section */}
-          <section className="mb-16 bg-gradient-to-r from-pink-500 to-blue-500 rounded-2xl p-12 text-white text-center">
-            <h2 className="text-3xl font-bold mb-4">Готовы узнать больше?</h2>
-            <p className="text-lg mb-8 opacity-90">Запишитесь на консультацию к нашим специалистам</p>
-            <div className="flex gap-4 justify-center flex-wrap">
-              <Button size="lg" className="bg-white text-pink-600 hover:bg-gray-100 rounded-full">
-                Записаться на консультацию
-              </Button>
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/20 rounded-full">
-                Связаться с нами
-              </Button>
-            </div>
-          </section>
-
-          {/* Info Section */}
-          <section className="mb-16">
-            <h2 className="text-3xl font-bold text-center mb-12 gradient-text-pink">Инновационная технология биопсии</h2>
-            <div className="grid md:grid-cols-2 gap-8 items-center">
-              <div>
-                <p className="text-lg text-gray-700 mb-6">
-                  Вакуумная аспирационная биопсия (ВАБ) представляет собой передовую систему, которая позволяет получить точные образцы ткани для диагностики без традиционного хирургического вмешательства.
-                </p>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="bg-gradient-to-br from-pink-50 to-pink-100 p-4 rounded-lg">
-                    <div className="text-2xl font-bold gradient-text-blue mb-1">1.5M+</div>
-                    <div className="text-gray-700">процедур ежегодно</div>
+                    <h3 className="font-bold text-lg mb-1">{item.title}</h3>
+                    <p className="text-slate-400 text-sm">{item.desc}</p>
                   </div>
-                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg">
-                    <div className="text-2xl font-bold gradient-text-pink mb-1">1 час</div>
-                    <div className="text-gray-700">после процедуры домой</div>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gradient-to-br from-blue-50 to-pink-100 p-8 rounded-lg">
-                <div className="text-center">
-                  <div className="w-24 h-24 bg-gradient-to-r from-pink-400 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-white text-2xl">🔬</span>
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2 gradient-text-blue">ВАБ под контролем УЗИ</h3>
-                  <p className="text-gray-600">Безопасно и эффективно</p>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
-      </main>
-
-      <footer className="footer animated-bg">
-        <div className="footer-container">
-          <div className="footer-grid">
-            <div>
-              <h4 className="footer-title gradient-text-pink">О компании</h4>
-              <p>Единственный официальный дистрибьютор ВАБ завода Сишань в РФ</p>
-            </div>
-            <div>
-              <h4 className="footer-title gradient-text-blue">Контакты</h4>
-              <p>Тел: +7 (495) 123-45-67</p>
-              <p>Email: info@fb.net</p>
-            </div>
-            <div>
-              <h4 className="footer-title gradient-text-pink">Ссылки</h4>
-              <ul className="footer-links">
-                <li><Link href="/" className="footer-link">Главная</Link></li>
-                <li><Link href="/patients" className="footer-link">Пациентам</Link></li>
-                <li><Link href="/equipment" className="footer-link">Оборудование</Link></li>
-                <li><Link href="/training" className="footer-link">Обучение</Link></li>
-                <li><Link href="/news" className="footer-link">Новости</Link></li>
-                <li><Link href="/conferences" className="footer-link">Конференции</Link></li>
-                <li><Link href="/contacts" className="footer-link">Контакты</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="footer-title gradient-text-blue">Социальные сети</h4>
-              <div className="flex gap-4 mt-4">
-                <div className="w-10 h-10 bg-gradient-to-r from-pink-400 to-pink-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm">📘</span>
-                </div>
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm">🐦</span>
-                </div>
-                <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm">💼</span>
-                </div>
+                ))}
               </div>
             </div>
           </div>
-        </div>
-      </footer>
+        </section>
+
+        {/* Info Section */}
+        <section className="mb-20">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="order-2 md:order-1">
+              <h2 className="text-3xl font-bold text-slate-900 mb-6">Современный стандарт диагностики</h2>
+              <p className="text-lg text-slate-600 mb-6 leading-relaxed">
+                Вакуумная аспирационная биопсия (ВАБ) — это &quot;золотой стандарт&quot; в диагностике новообразований молочной железы. 
+                Метод позволяет не только получить материал для точного диагноза, но и полностью удалить доброкачественные образования (фиброаденомы) без разрезов.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100 flex-1">
+                  <div className="text-3xl font-bold text-blue-600 mb-1">1.5M+</div>
+                  <div className="text-sm text-slate-600">процедур ежегодно</div>
+                </div>
+                <div className="bg-pink-50 rounded-xl p-4 border border-pink-100 flex-1">
+                  <div className="text-3xl font-bold text-pink-600 mb-1">1 час</div>
+                  <div className="text-sm text-slate-600">и вы идете домой</div>
+                </div>
+              </div>
+            </div>
+            <div className="order-1 md:order-2 bg-slate-100 rounded-3xl aspect-square relative overflow-hidden">
+               {/* Placeholder for decorative image or abstract shape */}
+               <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-blue-100 opacity-50"></div>
+               <div className="absolute inset-0 flex items-center justify-center">
+                 <div className="w-32 h-32 bg-white rounded-full shadow-xl flex items-center justify-center animate-pulse">
+                    <Heart className="w-12 h-12 text-pink-500" />
+                 </div>
+               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ Section */}
+        <section className="mb-20 max-w-3xl mx-auto">
+          <h2 className="text-3xl font-bold text-center text-slate-900 mb-12">Часто задаваемые вопросы</h2>
+          <Accordion type="single" collapsible className="w-full">
+            {faqItems.map((item, index) => (
+              <AccordionItem key={index} value={`item-${index}`} className="border-slate-200">
+                <AccordionTrigger className="text-left font-medium text-slate-900 hover:text-pink-600 hover:no-underline py-4">
+                  {item.q}
+                </AccordionTrigger>
+                <AccordionContent className="text-slate-600 pb-4">
+                  {item.a}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </section>
+
+        {/* CTA Section */}
+        <section className="text-center py-16 bg-gradient-to-br from-pink-50 to-blue-50 rounded-3xl border border-pink-100">
+          <h2 className="text-3xl font-bold text-slate-900 mb-4">Готовы записаться?</h2>
+          <p className="text-lg text-slate-600 mb-8 max-w-2xl mx-auto">
+            Свяжитесь с нами, чтобы найти клинику в вашем городе или получить консультацию.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button size="lg" className="rounded-full bg-slate-900 text-white hover:bg-slate-800 px-8">
+              Найти клинику
+            </Button>
+            <Button size="lg" variant="outline" className="rounded-full border-slate-300 hover:bg-white">
+              Задать вопрос
+            </Button>
+          </div>
+        </section>
+
+        {/* Map Section */}
+        <section className="mb-20 mt-20">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">Где сделать ВАБ?</h2>
+            <p className="text-slate-600 max-w-2xl mx-auto">
+              Найдите ближайшую клинику, где проводят вакуумную аспирационную биопсию на оборудовании завода Сишань.
+            </p>
+          </div>
+          <ClinicsMap />
+        </section>
+
+      </main>
+
+      <Footer />
     </div>
   );
 }
-
-// Note: Footer should be replaced with <Footer /> component

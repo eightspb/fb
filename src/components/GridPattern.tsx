@@ -24,6 +24,19 @@ export function GridPattern({
 }: GridPatternProps) {
   const id = React.useId();
 
+  // Generate a stable ID for the pattern
+  const patternId = `grid-pattern-${id}`;
+  
+  // Generate stable square positions
+  const renderSquares = React.useMemo(() => {
+    if (!squares) return null;
+    return squares.map(([xPos, yPos], index) => ({
+      id: `${patternId}-${xPos}-${yPos}-${index}`,
+      x: xPos * width + 1,
+      y: yPos * height + 1,
+    }));
+  }, [squares, width, height, patternId]);
+
   return (
     <svg
       aria-hidden="true"
@@ -35,7 +48,7 @@ export function GridPattern({
     >
       <defs>
         <pattern
-          id={id}
+          id={patternId}
           width={width}
           height={height}
           patternUnits="userSpaceOnUse"
@@ -49,17 +62,17 @@ export function GridPattern({
           />
         </pattern>
       </defs>
-      <rect width="100%" height="100%" strokeWidth={0} fill={`url(#${id})`} />
-      {squares && (
+      <rect width="100%" height="100%" strokeWidth={0} fill={`url(#${patternId})`} />
+      {renderSquares && (
         <svg x={x} y={y} className="overflow-visible">
-          {squares.map(([x, y]) => (
+          {renderSquares.map((square) => (
             <rect
+              key={square.id}
               strokeWidth="0"
-              key={`${x}-${y}`}
               width={width - 1}
               height={height - 1}
-              x={x * width + 1}
-              y={y * height + 1}
+              x={square.x}
+              y={square.y}
             />
           ))}
         </svg>

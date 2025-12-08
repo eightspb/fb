@@ -1,88 +1,132 @@
 'use client';
 
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
-import { useState } from "react";
+import Image from "next/image";
+import { Menu, X, ChevronRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const navLinks = [
+    { href: "/", label: "Главная" },
+    { href: "/equipment", label: "Оборудование" },
+    { href: "/training", label: "Обучение" },
+    { href: "/news", label: "Новости" },
+    { href: "/conferences", label: "Конференции" },
+    { href: "/patients", label: "Пациентам" },
+    { href: "/contacts", label: "Контакты" },
+  ];
 
   return (
-    <nav className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-11/12 max-w-6xl">
-      <div className="bg-white/70 backdrop-blur-xl rounded-full px-6 py-3 shadow-lg border border-pink-200/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-blue-400 flex items-center justify-center">
-              <span className="text-white text-lg">🔬</span>
+    <header 
+      className={cn(
+        "fixed top-0 left-0 right-0 z-[100] transition-all duration-300",
+        scrolled ? "py-4" : "py-6"
+      )}
+    >
+      <nav className="container mx-auto px-4 md:px-6">
+        <div className={cn(
+          "relative rounded-full border transition-all duration-300 px-4 md:px-6 py-3 flex items-center justify-between",
+          scrolled 
+            ? "bg-white/80 backdrop-blur-lg border-slate-200 shadow-lg shadow-slate-200/20" 
+            : "bg-white/50 backdrop-blur-sm border-transparent"
+        )}>
+          
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2 group relative z-10">
+            <div className="relative w-[180px] h-[70px] -my-5 transition-transform group-hover:scale-155">
+              <Image 
+                src="/images/logo.png" 
+                alt="Zenit Logo" 
+                fill 
+                className="object-contain"
+                priority
+              />
             </div>
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-600 to-blue-600">
-              FB.NET
-            </span>
+          </Link>
+
+          {/* Desktop Nav */}
+          <div className="hidden lg:flex items-center gap-1">
+            {navLinks.map((link) => (
+              <Link 
+                key={link.href}
+                href={link.href} 
+                className={cn(
+                  "px-4 py-2 text-sm font-medium rounded-full transition-all duration-200",
+                  pathname === link.href
+                    ? "text-slate-900 bg-slate-100"
+                    : "text-slate-600 hover:text-pink-600 hover:bg-white/50"
+                )}
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
 
-          <div className="hidden md:flex items-center space-x-1">
-            <Link href="/" className="px-4 py-2 text-gray-700 hover:text-pink-600 font-medium rounded-full hover:bg-white/50 transition-colors">
-              Главная
-            </Link>
-            <Link href="/patients" className="px-4 py-2 text-gray-700 hover:text-pink-600 font-medium rounded-full hover:bg-white/50 transition-colors">
-              Пациентам
-            </Link>
-            <Link href="/equipment" className="px-4 py-2 text-gray-700 hover:text-pink-600 font-medium rounded-full hover:bg-white/50 transition-colors">
-              Оборудование
-            </Link>
-            <Link href="/training" className="px-4 py-2 text-gray-700 hover:text-pink-600 font-medium rounded-full hover:bg-white/50 transition-colors">
-              Обучение
-            </Link>
-            <Link href="/news" className="px-4 py-2 text-gray-700 hover:text-pink-600 font-medium rounded-full hover:bg-white/50 transition-colors">
-              Новости
-            </Link>
-            <Link href="/conferences" className="px-4 py-2 text-gray-700 hover:text-pink-600 font-medium rounded-full hover:bg-white/50 transition-colors">
-              Конференции
-            </Link>
-          </div>
-
-          <div className="hidden md:flex items-center space-x-2">
-            <Link href="/contacts" className="px-4 py-2 text-gray-700 hover:text-pink-600 font-medium rounded-full hover:bg-white/50 transition-colors">
-              Контакты
+          {/* Actions */}
+          <div className="hidden lg:flex items-center gap-2">
+            <Link href="/contacts">
+              <Button size="sm" className="rounded-full bg-gradient-to-br from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white px-5 shadow-lg shadow-purple-500/20 border-0 transition-all duration-300 hover:shadow-purple-500/40 hover:-translate-y-0.5">
+                Связаться
+              </Button>
             </Link>
           </div>
 
+          {/* Mobile Toggle */}
           <button
-            className="md:hidden p-2 rounded-full bg-white/50"
+            className="lg:hidden p-2 rounded-full hover:bg-slate-100 transition-colors"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label="Toggle menu"
           >
-            {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {isMenuOpen ? <X className="w-6 h-6 text-slate-900" /> : <Menu className="w-6 h-6 text-slate-900" />}
           </button>
         </div>
 
+        {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden mt-4 bg-white/90 rounded-2xl p-4 shadow-lg border border-pink-200/50">
-            <div className="flex flex-col space-y-3">
-              <Link href="/" className="px-4 py-3 text-gray-700 hover:text-pink-600 font-medium rounded-lg hover:bg-white transition-colors">
-                Главная
-              </Link>
-              <Link href="/patients" className="px-4 py-3 text-gray-700 hover:text-pink-600 font-medium rounded-lg hover:bg-white transition-colors">
-                Пациентам
-              </Link>
-              <Link href="/equipment" className="px-4 py-3 text-gray-700 hover:text-pink-600 font-medium rounded-lg hover:bg-white transition-colors">
-                Оборудование
-              </Link>
-              <Link href="/training" className="px-4 py-3 text-gray-700 hover:text-pink-600 font-medium rounded-lg hover:bg-white transition-colors">
-                Обучение
-              </Link>
-              <Link href="/news" className="px-4 py-3 text-gray-700 hover:text-pink-600 font-medium rounded-lg hover:bg-white transition-colors">
-                Новости
-              </Link>
-              <Link href="/conferences" className="px-4 py-3 text-gray-700 hover:text-pink-600 font-medium rounded-lg hover:bg-white transition-colors">
-                Конференции
-              </Link>
-              <Link href="/contacts" className="px-4 py-3 text-gray-700 hover:text-pink-600 font-medium rounded-lg hover:bg-white transition-colors">
-                Контакты
-              </Link>
+          <div className="absolute top-full left-0 right-0 p-4 mt-2 lg:hidden animate-in slide-in-from-top-5 fade-in duration-200 z-50">
+            <div className="bg-white rounded-3xl p-4 border border-slate-200 shadow-xl shadow-slate-200/20">
+              <div className="flex flex-col space-y-1">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setIsMenuOpen(false)}
+                    className={cn(
+                      "px-4 py-3 text-slate-600 font-medium rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-between group",
+                      pathname === link.href && "bg-pink-50 text-pink-700"
+                    )}
+                  >
+                    {link.label}
+                    <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400" />
+                  </Link>
+                ))}
+                <div className="pt-4 mt-2 border-t border-slate-100">
+                  <Link href="/contacts" onClick={() => setIsMenuOpen(false)}>
+                    <Button className="w-full rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white h-12 shadow-lg shadow-purple-500/20 border-0">
+                      Связаться с нами
+                    </Button>
+                  </Link>
+                </div>
+              </div>
             </div>
           </div>
         )}
-      </div>
-    </nav>
+      </nav>
+    </header>
   );
 }

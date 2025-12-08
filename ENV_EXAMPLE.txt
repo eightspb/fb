@@ -1,0 +1,29 @@
+# SECURITY WARNING: Keep this file secure and do not commit real secrets to Git!
+# Rename this file to .env on your server
+
+# 1. Passwords & Secrets
+# Генерируйте сложные пароли! (минимум 32 символа для JWT)
+POSTGRES_PASSWORD=your-secure-password-change-me
+JWT_SECRET=your-super-secret-jwt-token-at-least-32-chars-long
+
+# 2. Supabase Keys
+# Эти ключи должны быть сгенерированы на основе JWT_SECRET
+# Используйте инструмент для генерации JWT (например, jwt.io)
+# ANON_KEY должен иметь роль "anon"
+# SERVICE_ROLE_KEY должен иметь роль "service_role" (здесь не используется в env, но нужен для администрирования)
+ANON_KEY=your-anon-key-change-me
+
+# 3. Site Configuration
+# URL вашего сервера или домена
+# Если запускаете локально для теста: http://localhost
+# Если на сервере: http://your-domain.com или http://IP-ADDRESS
+# ВАЖНО: Без слэша в конце
+SITE_URL=http://localhost
+
+# 4. Mail Settings (Optional)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_ADMIN_EMAIL=admin@your-domain.com
+

@@ -12,12 +12,16 @@ interface FeatureCardProps {
   delay?: number;
 }
 
-function getRandomPattern(length?: number): [x: number, y: number][] {
-  length = length ?? 5;
-  return Array.from({ length }, () => [
-    Math.floor(Math.random() * 4) + 7,
-    Math.floor(Math.random() * 6) + 1,
-  ]);
+// Predefined patterns to ensure consistency between server and client
+const FEATURE_PATTERNS = [
+  [[7, 1], [8, 2], [9, 3], [10, 1], [8, 4]],
+  [[7, 2], [8, 3], [9, 4], [10, 2], [8, 5]],
+  [[7, 3], [8, 4], [9, 5], [10, 3], [8, 6]],
+  [[7, 4], [8, 5], [9, 6], [10, 4], [8, 3]]
+] as [number, number][][];
+
+function getPatternByIndex(index: number): [x: number, y: number][] {
+  return FEATURE_PATTERNS[index % FEATURE_PATTERNS.length];
 }
 
 function FeatureCardComponent({
@@ -40,7 +44,7 @@ function FeatureCardComponent({
             height={30}
             x={0}
             y={0}
-            squares={getRandomPattern(5)}
+            squares={getPatternByIndex(delay * 10)}
             className="fill-pink-200/30 stroke-pink-200/50 absolute inset-0 size-full translate-y-2 transition-transform duration-150 ease-out group-hover:translate-y-0"
           />
         </div>
@@ -82,8 +86,8 @@ export function FeaturesSection() {
   ];
 
   return (
-    <div className="py-24 bg-gradient-to-b from-white to-pink-50/30">
-      <div className="container mx-auto px-4 md:px-6">
+    <div className="w-full py-24 bg-gradient-to-b from-white to-pink-50/30">
+      <div className="w-full max-w-[2000px] mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
