@@ -27,7 +27,7 @@ if [ -f "$ENV_FILE" ]; then
     OLD_PASSWORD=$(grep "^POSTGRES_PASSWORD=" "$ENV_FILE" | cut -d'=' -f2 | tr -d '"' | tr -d "'")
     echo "   Старый пароль найден в $ENV_FILE"
 else
-    echo "⚠️  Файл .env.production не найден, используем дефолтный пароль"
+    echo "⚠️  Файл .env.production или .env не найден, используем дефолтный пароль"
     OLD_PASSWORD="postgres"
 fi
 
@@ -72,28 +72,28 @@ SELECT 'Пароли успешно изменены' as status;
 EOF
 
 echo ""
-echo "📝 Шаг 2: Обновляем .env.production..."
+echo "📝 Шаг 2: Обновляем $ENV_FILE..."
 
-# Обновляем или создаем .env.production
-if [ ! -f ".env.production" ]; then
-    echo "POSTGRES_PASSWORD=$NEW_PASSWORD" > .env.production
-    echo "✅ Создан файл .env.production"
+# Обновляем или создаем файл окружения
+if [ ! -f "$ENV_FILE" ]; then
+    echo "POSTGRES_PASSWORD=$NEW_PASSWORD" > "$ENV_FILE"
+    echo "✅ Создан файл $ENV_FILE"
 else
     # Обновляем пароль в файле
-    if grep -q "^POSTGRES_PASSWORD=" .env.production; then
-        sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$NEW_PASSWORD|g" .env.production
+    if grep -q "^POSTGRES_PASSWORD=" "$ENV_FILE"; then
+        sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$NEW_PASSWORD|g" "$ENV_FILE"
     else
-        echo "POSTGRES_PASSWORD=$NEW_PASSWORD" >> .env.production
+        echo "POSTGRES_PASSWORD=$NEW_PASSWORD" >> "$ENV_FILE"
     fi
-    echo "✅ Обновлен POSTGRES_PASSWORD в .env.production"
+    echo "✅ Обновлен POSTGRES_PASSWORD в $ENV_FILE"
 fi
 
 # Добавляем экранированную версию для URL (на всякий случай)
 ESCAPED_PASSWORD=$(echo "$NEW_PASSWORD" | sed 's|/|%2F|g' | sed 's|@|%40|g' | sed 's|#|%23|g' | sed 's|:|%3A|g' | sed 's| |%20|g')
-if grep -q "^POSTGRES_PASSWORD_URL_ENCODED=" .env.production; then
-    sed -i "s|^POSTGRES_PASSWORD_URL_ENCODED=.*|POSTGRES_PASSWORD_URL_ENCODED=$ESCAPED_PASSWORD|g" .env.production
+if grep -q "^POSTGRES_PASSWORD_URL_ENCODED=" "$ENV_FILE"; then
+    sed -i "s|^POSTGRES_PASSWORD_URL_ENCODED=.*|POSTGRES_PASSWORD_URL_ENCODED=$ESCAPED_PASSWORD|g" "$ENV_FILE"
 else
-    echo "POSTGRES_PASSWORD_URL_ENCODED=$ESCAPED_PASSWORD" >> .env.production
+    echo "POSTGRES_PASSWORD_URL_ENCODED=$ESCAPED_PASSWORD" >> "$ENV_FILE"
 fi
 
 echo ""

@@ -14,15 +14,26 @@ import * as path from 'path';
 import { Pool } from 'pg';
 
 // Загружаем переменные окружения
-// Пробуем загрузить из .env.production, если нет - из .env.local или .env
-try {
-  require('dotenv').config({ path: '.env.production' });
-} catch {
+// Пробуем загрузить из .env.production, если нет - из .env или .env.local
+const envFiles = ['.env.production', '.env', '.env.local'];
+let envLoaded = false;
+
+for (const envFile of envFiles) {
   try {
-    require('dotenv').config({ path: '.env.local' });
+    require('dotenv').config({ path: envFile });
+    if (process.env.POSTGRES_PASSWORD || process.env.DATABASE_URL) {
+      console.log(`✅ Загружены переменные из ${envFile}`);
+      envLoaded = true;
+      break;
+    }
   } catch {
-    require('dotenv').config();
+    // Продолжаем поиск
   }
+}
+
+// Если ничего не загрузилось, пробуем стандартный способ
+if (!envLoaded) {
+  require('dotenv').config();
 }
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'http://localhost:8000';

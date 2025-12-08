@@ -6,9 +6,17 @@ set -e
 
 cd /opt/fibroadenoma.net
 
-# Загружаем переменные из .env.production если существует
-if [ -f .env.production ]; then
-    export $(cat .env.production | grep -v '^#' | xargs)
+# Загружаем переменные из .env.production или .env
+ENV_FILE=".env.production"
+if [ ! -f "$ENV_FILE" ]; then
+    ENV_FILE=".env"
+fi
+
+if [ -f "$ENV_FILE" ]; then
+    echo "📄 Загружаем переменные из $ENV_FILE"
+    export $(cat "$ENV_FILE" | grep -v '^#' | grep -v '^$' | xargs)
+else
+    echo "⚠️  Файл .env.production или .env не найден"
 fi
 
 # Определяем имя сети Docker
