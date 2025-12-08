@@ -16,9 +16,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Build Next.js
-# Отключаем Turbopack для сборки в Docker из-за проблем с lightningcss на Alpine
-# И используем стандартный сборщик Webpack
-RUN npm run build -- --no-turbopack
+# Используем стандартный build скрипт (теперь без --turbopack по умолчанию)
+RUN npm run build
 
 # Production image, copy all the files and run next
 FROM base AS runner
