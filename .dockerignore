@@ -10,4 +10,5 @@ yarn-error.log*
 *.pem
 coverage
 .vercel
+public/images/trainings
 

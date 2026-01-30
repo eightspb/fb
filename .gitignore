@@ -20,8 +20,13 @@
 # production
 /build
 
-#images
-/public/images/trainings
+#images - trainings хранятся только в БД, не загружаем в репозиторий
+/public/images/trainings/
+/public/images/trainings/**
+public/images/trainings/
+public/images/trainings/**
+/public/images/trainings.zip
+public/images/trainings.zip
 
 # misc
 .DS_Store

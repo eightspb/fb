@@ -211,9 +211,7 @@ ${contextInfo.length > 0 ? `Дополнительная информация:\n
 export async function improveDescriptionWithAI(text: string): Promise<string> {
   console.log('[AI] 🤖 Начало улучшения описания через OpenRouter');
   
-  const apiKey = process.env.OPENROUTER_API_KEY;
-
-  if (!apiKey || apiKey.trim().length === 0) {
+  const apiKey = process.env.OPENROUTER_API_KEY;  if (!apiKey || apiKey.trim().length === 0) {
     console.warn('[AI] ⚠️ OPENROUTER_API_KEY не установлен или пустой');
     return text;
   }
