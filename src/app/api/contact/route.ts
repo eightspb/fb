@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createEmailTransporter, getSenderEmail, getTargetEmail } from '@/lib/email';
+import { Pool } from 'pg';
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
+});
 
 interface ContactFormData {
   name: string;
@@ -9,8 +15,16 @@ interface ContactFormData {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('[Contact Form API] Получен запрос на отправку формы');
   try {
     const body: ContactFormData = await request.json();
+    console.log('[Contact Form API] Данные формы получены:', {
+      name: body.name,
+      email: body.email,
+      phone: body.phone,
+      messageLength: body.message?.length || 0,
+      consent: body.consent,
+    });
 
     // Validate required fields
     if (!body.name || !body.email || !body.phone || !body.message) {
@@ -36,25 +50,101 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Here you would typically:
-    // 1. Save to database
-    // 2. Send email notification
-    // 3. Send to CRM system
-    // For now, we'll just log it and return success
+    // Save to database
+    try {
+      const client = await pool.connect();
+      try {
+        await client.query(
+          `INSERT INTO form_submissions (form_type, name, email, phone, message, status, page_url)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          ['contact', body.name, body.email, body.phone, body.message, 'new', request.headers.get('referer') || '']
+        );
+        console.log('[Contact Form] Заявка сохранена в БД');
+      } finally {
+        client.release();
+      }
+    } catch (dbErr) {
+      console.error('[Contact Form] Критическая ошибка сохранения в БД:', dbErr);
+    }
 
-    // Example: Send email (you would use a service like Resend, SendGrid, etc.)
-    // await sendEmail({
-    //   to: process.env.CONTACT_EMAIL || 'info@zenitmed.ru',
-    //   subject: `Новое сообщение от ${body.name}`,
-    //   html: `
-    //     <h2>Новое сообщение с сайта</h2>
-    //     <p><strong>Имя:</strong> ${body.name}</p>
-    //     <p><strong>Email:</strong> ${body.email}</p>
-    //     <p><strong>Телефон:</strong> ${body.phone}</p>
-    //     <p><strong>Сообщение:</strong></p>
-    //     <p>${body.message}</p>
-    //   `,
-    // });
+    // Send email notification
+    try {
+      console.log('[Contact Form] Начало отправки email...');
+      const transporter = createEmailTransporter();
+      const senderEmail = getSenderEmail();
+      const targetEmail = getTargetEmail();
+
+      console.log('[Contact Form] Email настройки:', {
+        from: senderEmail,
+        to: targetEmail,
+        userEmail: body.email,
+      });
+
+      // Send notification to info@zenitmed.ru
+      console.log('[Contact Form] Отправка уведомления администратору...');
+      const adminResult = await transporter.sendMail({
+        from: senderEmail,
+        to: targetEmail,
+        subject: `Новое сообщение с сайта от ${body.name}`,
+        html: `
+          <h2>Новое сообщение с сайта</h2>
+          <p><strong>Имя:</strong> ${body.name}</p>
+          <p><strong>Email:</strong> ${body.email}</p>
+          <p><strong>Телефон:</strong> ${body.phone}</p>
+          <p><strong>Сообщение:</strong></p>
+          <p>${body.message.replace(/\n/g, '<br>')}</p>
+          <p><strong>Дата:</strong> ${new Date().toLocaleString('ru-RU')}</p>
+        `,
+      });
+      console.log('[Contact Form] Уведомление администратору отправлено:', adminResult.messageId);
+
+      // Send confirmation to the user
+      console.log('[Contact Form] Отправка подтверждения пользователю...');
+      const userResult = await transporter.sendMail({
+        from: senderEmail,
+        to: body.email,
+        subject: 'Ваше сообщение получено | ЗЕНИТ МЕД',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Здравствуйте, ${body.name}!</h2>
+            <p>Мы получили ваше сообщение и свяжемся с вами в ближайшее время.</p>
+            <br>
+            <p>С уважением,<br>Команда ЗЕНИТ МЕД</p>
+            <p><a href="https://zenitmed.ru">zenitmed.ru</a></p>
+          </div>
+        `,
+      });
+      console.log('[Contact Form] Подтверждение пользователю отправлено:', userResult.messageId);
+      console.log('[Contact Form] Все письма успешно отправлены');
+    } catch (emailError: any) {
+      console.error('[Contact Form] Ошибка отправки email:', {
+        message: emailError?.message,
+        code: emailError?.code,
+        command: emailError?.command,
+        response: emailError?.response,
+        responseCode: emailError?.responseCode,
+        stack: emailError?.stack,
+      });
+      
+      const errorMessage = emailError?.message || 'Неизвестная ошибка при отправке email';
+      
+      // Если это ошибка конфигурации SMTP, возвращаем понятное сообщение
+      if (errorMessage.includes('не установлен') || errorMessage.includes('SMTP')) {
+        return NextResponse.json(
+          { error: 'Ошибка конфигурации почтового сервера. Обратитесь к администратору.' },
+          { status: 500 }
+        );
+      }
+      
+      // Для других ошибок отправки email возвращаем общее сообщение с деталями в dev режиме
+      return NextResponse.json(
+        { 
+          error: 'Не удалось отправить сообщение. Пожалуйста, попробуйте позже или свяжитесь с нами по телефону.',
+          ...(process.env.NODE_ENV === 'development' && { details: errorMessage })
+        },
+        { status: 500 }
+      );
+    }
 
     // Log the submission (in production, save to database)
     console.log('Contact form submission:', {
@@ -72,10 +162,21 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error) {
-    console.error('Error processing contact form:', error);
+  } catch (error: any) {
+    console.error('[Contact Form API] Общая ошибка обработки:', {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name,
+      cause: error?.cause,
+    });
     return NextResponse.json(
-      { error: 'Произошла ошибка при обработке запроса' },
+      { 
+        error: 'Произошла ошибка при обработке запроса',
+        ...(process.env.NODE_ENV === 'development' && { 
+          details: error?.message,
+          stack: error?.stack 
+        })
+      },
       { status: 500 }
     );
   }

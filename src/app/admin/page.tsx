@@ -1,13 +1,28 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
-import { FileText, Calendar } from 'lucide-react';
+import { FileText, Calendar, Inbox } from 'lucide-react';
 
 export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-slate-900">Обзор</h1>
       
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Link href="/admin/requests" className="block">
+          <Card className="hover:shadow-lg transition-all cursor-pointer h-full">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Заявки</CardTitle>
+              <Inbox className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">Обработка заявок</div>
+              <p className="text-xs text-muted-foreground">
+                Просмотр заявок с сайта (Контакты, КП, Обучение)
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
         <Link href="/admin/news" className="block">
           <Card className="hover:shadow-lg transition-all cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -41,6 +56,16 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
 
 
 

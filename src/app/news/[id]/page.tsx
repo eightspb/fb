@@ -8,8 +8,6 @@ import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { NewsGallery } from '@/components/NewsGallery';
 import { NewsViewTracker } from '@/components/NewsViewTracker';
 import { Calendar, MapPin, PenTool, Download, ChevronLeft, MessageSquare } from 'lucide-react';
-// Fallback на статические данные
-import { getNewsById, newsData } from '@/lib/news-data';
 
 interface NewsPageProps {
   params: Promise<{ id: string }>;
@@ -30,13 +28,12 @@ export async function generateStaticParams() {
         }));
       }
     }
-  } catch {
-    // Fallback на статические данные
+  } catch (error) {
+    console.error('Error generating static params:', error);
   }
   
-  return newsData.map((news) => ({
-    id: news.id,
-  }));
+  // Возвращаем пустой массив если БД недоступна
+  return [];
 }
 
 export default async function NewsPage({ params }: NewsPageProps) {
@@ -59,7 +56,12 @@ export default async function NewsPage({ params }: NewsPageProps) {
           SELECT 
             n.*,
             COALESCE(
-              (SELECT json_agg(jsonb_build_object('image_url', image_url, 'order', "order")) 
+              (SELECT json_agg(jsonb_build_object(
+                'id', id,
+                'image_url', image_url, 
+                'order', "order",
+                'has_data', (image_data IS NOT NULL)
+              )) 
                FROM news_images WHERE news_id = n.id),
               '[]'::json
             ) as images,
@@ -107,15 +109,6 @@ export default async function NewsPage({ params }: NewsPageProps) {
           const videos = parseJsonArray(row.videos);
           const documents = parseJsonArray(row.documents);
 
-          const convertImagePath = (imagePath: string): string => {
-            return imagePath.replace(
-              /(\/images\/trainings\/)(\d{2})\.(\d{2})\.(\d{4})(\/)/g,
-              (match, prefix, day, month, year, suffix) => {
-                return `${prefix}${year}.${month}.${day}${suffix}`;
-              }
-            );
-          };
-
           news = {
             id: row.id,
             title: row.title,
@@ -126,7 +119,11 @@ export default async function NewsPage({ params }: NewsPageProps) {
             category: row.category || undefined,
             location: row.location || undefined,
             author: row.author || undefined,
-            images: images.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((img: any) => convertImagePath(img.image_url || '')),
+            // Используем только изображения из БД
+            images: images
+              .filter((img: any) => img.has_data) // Только изображения из БД
+              .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+              .map((img: any) => `/api/images/${img.id}`),
             videos: videos.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((vid: any) => vid.video_url),
             documents: documents.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((doc: any) => doc.document_url),
             tags: tags.map((tag: any) => tag.tag),
@@ -147,11 +144,7 @@ export default async function NewsPage({ params }: NewsPageProps) {
       }
     }
   } catch (error) {
-    console.error('Error loading news from database, using static data:', error);
-  }
-  
-  if (!news) {
-    news = getNewsById(decodedId) || getNewsById(id);
+    console.error('Error loading news from database:', error);
   }
 
   if (!news) {
@@ -159,7 +152,7 @@ export default async function NewsPage({ params }: NewsPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans selection:bg-pink-100 selection:text-pink-900">
+    <div className="min-h-screen bg-slate-50 font-sans selection:bg-teal-100 selection:text-teal-900">
       <Header />
 
       <div className="pt-24 pb-8 bg-white border-b border-slate-200">
@@ -290,7 +283,108 @@ export default async function NewsPage({ params }: NewsPageProps) {
 
 export async function generateMetadata({ params }: NewsPageProps): Promise<import('next').Metadata> {
   const { id } = await params;
-  const news = getNewsById(id);
+  const decodedId = decodeURIComponent(id);
+  
+  let news = null;
+  try {
+    if (process.env.DATABASE_URL) {
+      const { Pool } = await import('pg');
+      const pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+      });
+      
+      const client = await pool.connect();
+      try {
+        const query = `
+          SELECT 
+            n.*,
+            COALESCE(
+              (SELECT json_agg(jsonb_build_object(
+                'id', id,
+                'image_url', image_url, 
+                'order', "order",
+                'has_data', (image_data IS NOT NULL)
+              )) 
+               FROM news_images WHERE news_id = n.id),
+              '[]'::json
+            ) as images,
+            COALESCE(
+              (SELECT json_agg(jsonb_build_object('tag', tag)) 
+               FROM news_tags WHERE news_id = n.id),
+              '[]'::json
+            ) as tags,
+            COALESCE(
+              (SELECT json_agg(jsonb_build_object('video_url', video_url, 'order', "order")) 
+               FROM news_videos WHERE news_id = n.id),
+              '[]'::json
+            ) as videos,
+            COALESCE(
+              (SELECT json_agg(jsonb_build_object('document_url', document_url, 'order', "order")) 
+               FROM news_documents WHERE news_id = n.id),
+              '[]'::json
+            ) as documents
+          FROM news n
+          WHERE (n.id = $1 OR n.id = $2)
+        `;
+        
+        const result = await client.query(query, [id, decodedId]);
+        
+        if (result.rows.length > 0) {
+          const row = result.rows[0];
+          
+          const parseJsonArray = (value: any): any[] => {
+            if (Array.isArray(value)) return value;
+            if (typeof value === 'string') {
+              try {
+                const parsed = JSON.parse(value);
+                return Array.isArray(parsed) ? parsed : [];
+              } catch {
+                return [];
+              }
+            }
+            return [];
+          };
+
+          const images = parseJsonArray(row.images);
+
+          news = {
+            id: row.id,
+            title: row.title,
+            shortDescription: row.short_description,
+            fullDescription: row.full_description,
+            date: row.date,
+            year: row.year,
+            category: row.category || undefined,
+            location: row.location || undefined,
+            author: row.author || undefined,
+            // Используем только изображения из БД (has_data = true)
+            // Изображения без данных в БД пропускаются - они должны быть загружены через миграцию
+            images: images
+              .filter((img: any) => img.has_data) // Только изображения из БД
+              .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+              .map((img: any) => `/api/images/${img.id}`),
+            videos: parseJsonArray(row.videos).sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((vid: any) => vid.video_url),
+            documents: parseJsonArray(row.documents).sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((doc: any) => doc.document_url),
+            tags: parseJsonArray(row.tags).map((tag: any) => tag.tag),
+          };
+        }
+      } finally {
+        client.release();
+        await pool.end();
+      }
+    } else {
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+      const response = await fetch(`${baseUrl}/api/news/${encodeURIComponent(decodedId)}`, {
+        cache: 'no-store'
+      });
+      
+      if (response.ok) {
+        news = await response.json();
+      }
+    }
+  } catch (error) {
+    console.error('Error loading news for metadata:', error);
+  }
 
   if (!news) {
     return {

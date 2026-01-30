@@ -26,10 +26,18 @@ export async function GET() {
     } finally {
       client.release();
     }
-  } catch (error) {
-    console.error('Error fetching filters:', error);
+  } catch (error: any) {
+    console.error('[API Filters] Error fetching filters:', error);
+    console.error('[API Filters] Error details:', {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack
+    });
     return NextResponse.json(
-      { error: 'Failed to fetch filters' },
+      { 
+        error: 'Failed to fetch filters',
+        details: process.env.NODE_ENV === 'development' ? error?.message : undefined
+      },
       { status: 500 }
     );
   }

@@ -27,7 +27,7 @@ export default function Patients() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans selection:bg-pink-100 selection:text-pink-900">
+    <div className="min-h-screen bg-slate-50 font-sans selection:bg-teal-100 selection:text-teal-900">
       <Header />
 
       <div className="pt-24 pb-12 bg-white border-b border-slate-200">
@@ -131,18 +131,18 @@ export default function Patients() {
                   <div className="text-3xl font-bold text-blue-600 mb-1">1.5M+</div>
                   <div className="text-sm text-slate-600">процедур ежегодно</div>
                 </div>
-                <div className="bg-pink-50 rounded-xl p-4 border border-pink-100 flex-1">
-                  <div className="text-3xl font-bold text-pink-600 mb-1">1 час</div>
+                <div className="bg-teal-50 rounded-xl p-4 border border-teal-100 flex-1">
+                  <div className="text-3xl font-bold text-teal-600 mb-1">1 час</div>
                   <div className="text-sm text-slate-600">и вы идете домой</div>
                 </div>
               </div>
             </div>
             <div className="order-1 md:order-2 bg-slate-100 rounded-3xl aspect-square relative overflow-hidden">
                {/* Placeholder for decorative image or abstract shape */}
-               <div className="absolute inset-0 bg-gradient-to-br from-pink-100 to-blue-100 opacity-50"></div>
+               <div className="absolute inset-0 bg-gradient-to-br from-teal-100 to-blue-100 opacity-50"></div>
                <div className="absolute inset-0 flex items-center justify-center">
                  <div className="w-32 h-32 bg-white rounded-full shadow-xl flex items-center justify-center animate-pulse">
-                    <Heart className="w-12 h-12 text-pink-500" />
+                    <Heart className="w-12 h-12 text-teal-500" />
                  </div>
                </div>
             </div>
@@ -155,7 +155,7 @@ export default function Patients() {
           <Accordion type="single" collapsible className="w-full">
             {faqItems.map((item, index) => (
               <AccordionItem key={index} value={`item-${index}`} className="border-slate-200">
-                <AccordionTrigger className="text-left font-medium text-slate-900 hover:text-pink-600 hover:no-underline py-4">
+                <AccordionTrigger className="text-left font-medium text-slate-900 hover:text-teal-600 hover:no-underline py-4">
                   {item.q}
                 </AccordionTrigger>
                 <AccordionContent className="text-slate-600 pb-4">
@@ -167,7 +167,7 @@ export default function Patients() {
         </section>
 
         {/* CTA Section */}
-        <section className="text-center py-16 bg-gradient-to-br from-pink-50 to-blue-50 rounded-3xl border border-pink-100">
+        <section className="text-center py-16 bg-gradient-to-br from-teal-50 to-blue-50 rounded-3xl border border-teal-100">
           <h2 className="text-3xl font-bold text-slate-900 mb-4">Готовы записаться?</h2>
           <p className="text-lg text-slate-600 mb-8 max-w-2xl mx-auto">
             Свяжитесь с нами, чтобы найти клинику в вашем городе или получить консультацию.

@@ -7,16 +7,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { NewsItem } from '@/lib/news-data';
-import { ImageIcon, Video, FileText, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { ImageIcon, Video, FileText, ChevronLeft, ChevronRight, Loader2, Filter } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export interface PastEventsProps {
   categories?: string[];
 }
 
 export function PastEvents({ categories }: PastEventsProps) {
-  const [events, setEvents] = useState<NewsItem[]>([]);
+  const [allEvents, setAllEvents] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const itemsPerPage = 6;
 
   useEffect(() => {
@@ -25,13 +27,6 @@ export function PastEvents({ categories }: PastEventsProps) {
         const response = await fetch('/api/news');
         if (response.ok) {
           const data: NewsItem[] = await response.json();
-          
-          // Filter for past events (Мероприятия or Обучение)
-          // And optionally filter by date if needed, but usually "News" are published things.
-          // However, some news are announcements.
-          // Let's filter by category/tag and maybe check if date is past?
-          // For now, I'll just filter by category as requested "all news which have the event mark".
-          // I will treat "Мероприятия" and "Обучение" as event marks.
           
           const now = new Date();
           
@@ -69,7 +64,7 @@ export function PastEvents({ categories }: PastEventsProps) {
              return dateB.getTime() - dateA.getTime();
           });
 
-          setEvents(filtered);
+          setAllEvents(filtered);
         }
       } catch (error) {
         console.error('Failed to load events', error);
@@ -81,38 +76,101 @@ export function PastEvents({ categories }: PastEventsProps) {
     loadEvents();
   }, [categories]);
 
-  const totalPages = Math.ceil(events.length / itemsPerPage);
+  // Extract available years
+  const availableYears = Array.from(new Set(allEvents.map(event => {
+    const parts = event.date.split('.');
+    return parts.length === 3 ? parseInt(parts[2]) : null;
+  }).filter((year): year is number => year !== null))).sort((a, b) => b - a);
+
+  // Filter events based on selected years
+  const filteredEvents = allEvents.filter(event => {
+    if (selectedYears.length === 0) return true;
+    
+    const parts = event.date.split('.');
+    if (parts.length !== 3) return false;
+    const year = parseInt(parts[2]);
+    return selectedYears.includes(year);
+  });
+
+  const totalPages = Math.ceil(filteredEvents.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedEvents = events.slice(startIndex, startIndex + itemsPerPage);
+  const paginatedEvents = filteredEvents.slice(startIndex, startIndex + itemsPerPage);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    // Optionally scroll to top of section
     const section = document.getElementById('past-events');
     if (section) {
       section.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
+  const toggleYear = (year: number) => {
+    setSelectedYears(prev => {
+      const newSelection = prev.includes(year)
+        ? prev.filter(y => y !== year)
+        : [...prev, year];
+      setCurrentPage(1); // Reset to first page on filter change
+      return newSelection;
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-pink-600" />
-      </div>
-    );
-  }
-
-  if (events.length === 0) {
-    return (
-      <div className="text-center py-12 text-slate-500">
-        Нет прошедших мероприятий.
+        <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
       </div>
     );
   }
 
   return (
     <div className="space-y-8" id="past-events">
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Year Filter */}
+      {availableYears.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-8">
+          <div className="flex items-center gap-2 text-slate-500 mr-2">
+            <Filter className="w-4 h-4" />
+            <span className="text-sm font-medium">Фильтр по годам:</span>
+          </div>
+          
+          <Button
+            variant={selectedYears.length === 0 ? "default" : "outline"}
+            size="sm"
+            onClick={() => { setSelectedYears([]); setCurrentPage(1); }}
+            className={cn(
+              "rounded-full transition-all",
+              selectedYears.length === 0 
+                ? "bg-teal-600 text-white hover:bg-teal-700 border-transparent shadow-md shadow-teal-900/20" 
+                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            )}
+          >
+            Все
+          </Button>
+          
+          {availableYears.map(year => (
+            <Button
+              key={year}
+              variant={selectedYears.includes(year) ? "default" : "outline"}
+              size="sm"
+              onClick={() => toggleYear(year)}
+              className={cn(
+                "rounded-full transition-all",
+                selectedYears.includes(year)
+                  ? "bg-teal-600 text-white hover:bg-teal-700 border-transparent shadow-md shadow-teal-900/20"
+                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              )}
+            >
+              {year}
+            </Button>
+          ))}
+        </div>
+      )}
+
+      {filteredEvents.length === 0 ? (
+        <div className="text-center py-12 text-slate-500">
+          {allEvents.length > 0 ? "Нет мероприятий за выбранный год." : "Нет прошедших мероприятий."}
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {paginatedEvents.map((event) => (
           <Card key={event.id} className="group hover:shadow-lg transition-all border-slate-200 overflow-hidden bg-white h-full flex flex-col">
             <CardContent className="p-0 flex flex-col h-full">
@@ -140,13 +198,13 @@ export function PastEvents({ categories }: PastEventsProps) {
                <div className="p-6 flex flex-col flex-grow">
                   <div className="flex flex-wrap gap-2 mb-3">
                     {event.category && (
-                        <Badge variant="outline" className="border-pink-200 text-pink-700 bg-pink-50">
+                        <Badge variant="outline" className="border-teal-200 text-teal-700 bg-teal-50">
                             {event.category}
                         </Badge>
                     )}
                   </div>
 
-                  <Link href={`/news/${event.id}`} className="group-hover:text-pink-600 transition-colors">
+                  <Link href={`/news/${event.id}`} className="group-hover:text-teal-600 transition-colors">
                     <h3 className="text-lg font-bold text-slate-900 mb-2 line-clamp-2">
                       {event.title}
                     </h3>
@@ -158,11 +216,26 @@ export function PastEvents({ categories }: PastEventsProps) {
 
                   <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
                      <div className="flex gap-3 text-slate-400">
-                        {event.images && event.images.length > 0 && <ImageIcon className="w-4 h-4" />}
-                        {event.videos && event.videos.length > 0 && <Video className="w-4 h-4" />}
-                        {event.documents && event.documents.length > 0 && <FileText className="w-4 h-4" />}
+                        {event.images && event.images.length > 0 && (
+                          <div className="flex items-center gap-1" title={`${event.images.length} фото`}>
+                            <ImageIcon className="w-4 h-4" />
+                            <span className="text-xs font-medium">{event.images.length}</span>
+                          </div>
+                        )}
+                        {event.videos && event.videos.length > 0 && (
+                          <div className="flex items-center gap-1" title={`${event.videos.length} видео`}>
+                            <Video className="w-4 h-4" />
+                            <span className="text-xs font-medium">{event.videos.length}</span>
+                          </div>
+                        )}
+                        {event.documents && event.documents.length > 0 && (
+                          <div className="flex items-center gap-1" title={`${event.documents.length} документов`}>
+                            <FileText className="w-4 h-4" />
+                            <span className="text-xs font-medium">{event.documents.length}</span>
+                          </div>
+                        )}
                      </div>
-                     <Button variant="ghost" size="sm" className="text-pink-600 hover:text-pink-700 hover:bg-pink-50 p-0 h-auto font-medium" asChild>
+                     <Button variant="ghost" size="sm" className="text-teal-600 hover:text-teal-700 hover:bg-teal-50 p-0 h-auto font-medium" asChild>
                         <Link href={`/news/${event.id}`}>Подробнее</Link>
                      </Button>
                   </div>
@@ -171,6 +244,7 @@ export function PastEvents({ categories }: PastEventsProps) {
           </Card>
         ))}
       </div>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (

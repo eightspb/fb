@@ -24,17 +24,13 @@ export default function LoginPage() {
     try {
       // DEV MODE: Bypass Auth Service check if we are in development and can't connect to auth service
       // This is a fallback for when local Docker containers for Auth are not running
-      if (process.env.NODE_ENV === 'development' && 
-          email === 'admin@fb.net' && 
-          password === 'password123') {
-        
+      // Check for dev credentials first (always allow in dev mode)
+      const isDevMode = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      
+      if (isDevMode && email === 'admin@fb.net' && password === 'password123') {
         // Manually set a fake session cookie/storage
         // In a real app, we would never do this client-side securely, 
         // but for local dev fallback it allows access to the UI.
-        // Note: API routes might still fail if they validate token strictly against the missing service.
-        // We'll need to relax API middleware too if we go this route fully.
-        
-        // Better approach: Just force redirect and let the Layout handle the "fake" session
         document.cookie = "sb-admin-bypass=true; path=/; max-age=3600";
         localStorage.setItem('sb-admin-bypass', 'true');
         
@@ -43,6 +39,7 @@ export default function LoginPage() {
         return;
       }
 
+      // Try Supabase auth
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -50,14 +47,18 @@ export default function LoginPage() {
 
       if (error) {
         // If network error (auth service down), and creds match dev creds, allow bypass
-        if (error.message.includes('fetch') || error.status === 500 || error.name === 'AuthApiError') {
-             if (email === 'admin@fb.net' && password === 'password123') {
-                document.cookie = "sb-admin-bypass=true; path=/; max-age=3600";
-                localStorage.setItem('sb-admin-bypass', 'true');
-                router.push('/admin');
-                router.refresh();
-                return;
-             }
+        const isNetworkError = error.message.includes('fetch') || 
+                              error.message.includes('Failed to fetch') ||
+                              error.status === 500 || 
+                              error.name === 'AuthApiError' ||
+                              error.message.includes('NetworkError');
+        
+        if (isNetworkError && email === 'admin@fb.net' && password === 'password123') {
+          document.cookie = "sb-admin-bypass=true; path=/; max-age=3600";
+          localStorage.setItem('sb-admin-bypass', 'true');
+          router.push('/admin');
+          router.refresh();
+          return;
         }
         throw error;
       }
@@ -67,6 +68,7 @@ export default function LoginPage() {
         router.refresh();
       }
     } catch (err: any) {
+      console.error('Login error:', err);
       setError(err.message || 'Ошибка входа');
     } finally {
       setLoading(false);

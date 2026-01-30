@@ -70,3 +70,13 @@ echo ""
 echo "📋 Логи Auth:"
 docker logs fb-net-auth --tail 10
 
+
+
+
+
+
+
+
+
+
+

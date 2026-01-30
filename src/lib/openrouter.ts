@@ -205,3 +205,61 @@ ${contextInfo.length > 0 ? `Дополнительная информация:\n
   }
 }
 
+/**
+ * Улучшает текст описания новости с помощью AI
+ */
+export async function improveDescriptionWithAI(text: string): Promise<string> {
+  console.log('[AI] 🤖 Начало улучшения описания через OpenRouter');
+  
+  const apiKey = process.env.OPENROUTER_API_KEY;
+
+  if (!apiKey || apiKey.trim().length === 0) {
+    console.warn('[AI] ⚠️ OPENROUTER_API_KEY не установлен или пустой');
+    return text;
+  }
+
+  const systemPrompt = `Ты профессиональный редактор и копирайтер медицинского портала.
+Твоя задача - улучшить, отредактировать и обогатить текст новости.
+Сделай текст более читаемым, профессиональным и структурированным.
+Исправь грамматические и стилистические ошибки.
+Сохрани смысл и факты, но изложи их более качественным языком.
+Не добавляй выдуманных фактов.
+Ответ должен содержать ТОЛЬКО улучшенный текст, без вступительных слов и комментариев.`;
+
+  const userPrompt = `Улучши следующий текст новости:
+"${text}"`;
+
+  try {
+    const response = await axios.post<OpenRouterResponse>(
+      OPENROUTER_API_URL,
+      {
+        model: OPENROUTER_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.7,
+        max_tokens: 2000,
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+          'X-Title': 'FB.NET News Bot',
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    const content = response.data.choices[0]?.message?.content;
+    
+    if (!content) {
+      throw new Error('Пустой ответ от OpenRouter');
+    }
+
+    return content.trim();
+  } catch (error) {
+    console.error('[AI] ❌ Ошибка при улучшении текста:', error);
+    return text; // Возвращаем исходный текст в случае ошибки
+  }
+}

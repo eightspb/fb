@@ -6,13 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { NewsItem } from '@/lib/news-data';
-// Fallback на статические данные
-import { 
-  newsData as staticNewsData, 
-  getAllYears, 
-  getAllTagsAndCategories, 
-  getTagOrCategoryCount, 
-} from '@/lib/news-data';
 import { ImageIcon, Video, FileText, X, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { NewsPlaceholder } from '@/components/NewsPlaceholder';
 
@@ -29,7 +22,7 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
   const [years, setYears] = useState<string[]>([]);
   const [tagsWithCounts, setTagsWithCounts] = useState<Array<{ filter: string; count: number }>>([]);
   const [loading, setLoading] = useState(true);
-  const itemsPerPage = 10;
+  const itemsPerPage = 9;
 
   // Загрузка данных при монтировании компонента
   useEffect(() => {
@@ -42,41 +35,72 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
           fetch('/api/news/filters')
         ]);
 
-        if (newsResponse.ok && yearsResponse.ok && filtersResponse.ok) {
-          const supabaseNews: NewsItem[] = await newsResponse.json();
-          const yearsData: string[] = await yearsResponse.json();
-          const filtersData: string[] = await filtersResponse.json();
+        console.log('[NewsList] API responses:', {
+          news: { ok: newsResponse.ok, status: newsResponse.status },
+          years: { ok: yearsResponse.ok, status: yearsResponse.status },
+          filters: { ok: filtersResponse.ok, status: filtersResponse.status }
+        });
 
-          if (supabaseNews && supabaseNews.length > 0) {
-            setNewsData(supabaseNews);
-            setYears(yearsData);
-            
-            // Загружаем счетчики
+        if (!newsResponse.ok) {
+          const errorText = await newsResponse.text();
+          console.error('[NewsList] News API error:', newsResponse.status, errorText);
+          throw new Error(`News API failed: ${newsResponse.status} - ${errorText}`);
+        }
+
+        if (!yearsResponse.ok) {
+          console.warn('[NewsList] Years API failed:', yearsResponse.status);
+        }
+
+        if (!filtersResponse.ok) {
+          console.warn('[NewsList] Filters API failed:', filtersResponse.status);
+        }
+
+        const supabaseNews: NewsItem[] = await newsResponse.json();
+        const yearsData: string[] = yearsResponse.ok ? await yearsResponse.json() : [];
+        const filtersData: string[] = filtersResponse.ok ? await filtersResponse.json() : [];
+
+        console.log('[NewsList] Loaded data:', {
+          newsCount: supabaseNews?.length || 0,
+          yearsCount: yearsData?.length || 0,
+          filtersCount: filtersData?.length || 0
+        });
+
+        // Устанавливаем данные даже если массив пустой (это валидное состояние)
+        setNewsData(supabaseNews || []);
+        setYears(yearsData || []);
+        
+        // Загружаем счетчики только если есть фильтры
+        if (filtersData && filtersData.length > 0) {
+          try {
             const counts = await Promise.all(
               filtersData.map(async filter => {
-                const countResponse = await fetch(`/api/news/count?filter=${encodeURIComponent(filter)}`);
-                const { count } = await countResponse.json();
-                return { filter, count };
+                try {
+                  const countResponse = await fetch(`/api/news/count?filter=${encodeURIComponent(filter)}`);
+                  if (countResponse.ok) {
+                    const { count } = await countResponse.json();
+                    return { filter, count };
+                  }
+                  return { filter, count: 0 };
+                } catch (e) {
+                  console.warn(`[NewsList] Failed to get count for filter ${filter}:`, e);
+                  return { filter, count: 0 };
+                }
               })
             );
             setTagsWithCounts(counts);
-          } else {
-            throw new Error('No news data');
+          } catch (e) {
+            console.warn('[NewsList] Failed to load filter counts:', e);
+            setTagsWithCounts([]);
           }
         } else {
-          throw new Error('API requests failed');
+          setTagsWithCounts([]);
         }
       } catch (error) {
-        console.error('Error loading news from API, using static data:', error);
-        // Fallback на статические данные при ошибке
-        setNewsData(staticNewsData);
-        setYears(getAllYears());
-        
-        const counts = getAllTagsAndCategories().map(filter => ({
-          filter,
-          count: getTagOrCategoryCount(filter)
-        }));
-        setTagsWithCounts(counts);
+        console.error('[NewsList] Error loading news from API:', error);
+        // Если БД недоступна, показываем пустой список
+        setNewsData([]);
+        setYears([]);
+        setTagsWithCounts([]);
       } finally {
         setLoading(false);
       }
@@ -238,7 +262,7 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-pink-50 to-blue-50 border-slate-200">
+        <Card className="bg-gradient-to-br from-teal-50 to-blue-50 border-slate-200">
           <CardContent className="p-6">
             <h4 className="font-bold text-slate-900 mb-2">Подписка</h4>
             <p className="text-sm text-slate-600 mb-4">
@@ -313,7 +337,7 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
                     {/* Category */}
                     <div className="mb-4">
                       {news.category ? (
-                        <Badge className="bg-pink-50 text-pink-700 hover:bg-pink-100 border-0">
+                        <Badge className="bg-teal-50 text-teal-700 hover:bg-teal-100 border-0">
                           {news.category}
                         </Badge>
                       ) : (
@@ -323,7 +347,7 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
                       )}
                     </div>
                     
-                    <Link href={`/news/${news.id}`} className="block group-hover:text-pink-600 transition-colors mb-3">
+                    <Link href={`/news/${news.id}`} className="block group-hover:text-teal-600 transition-colors mb-3">
                       <h3 className="text-xl font-bold text-slate-900 line-clamp-3">
                         {news.title}
                       </h3>
@@ -336,19 +360,28 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
                     <div className="flex items-center justify-between pt-4 mt-auto border-t border-slate-100">
                       <div className="flex gap-3 text-slate-400">
                         {news.images && news.images.length > 0 && (
-                          <ImageIcon className="w-4 h-4" />
+                          <div className="flex items-center gap-1" title={`${news.images.length} фото`}>
+                            <ImageIcon className="w-4 h-4" />
+                            <span className="text-xs font-medium">{news.images.length}</span>
+                          </div>
                         )}
                         {news.videos && news.videos.length > 0 && (
-                          <Video className="w-4 h-4" />
+                          <div className="flex items-center gap-1" title={`${news.videos.length} видео`}>
+                            <Video className="w-4 h-4" />
+                            <span className="text-xs font-medium">{news.videos.length}</span>
+                          </div>
                         )}
                         {news.documents && news.documents.length > 0 && (
-                          <FileText className="w-4 h-4" />
+                          <div className="flex items-center gap-1" title={`${news.documents.length} документов`}>
+                            <FileText className="w-4 h-4" />
+                            <span className="text-xs font-medium">{news.documents.length}</span>
+                          </div>
                         )}
                       </div>
                       
                       <Link 
                         href={`/news/${news.id}`} 
-                        className="text-sm font-medium text-pink-600 hover:text-pink-700 transition-colors"
+                        className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
                       >
                         Подробнее
                       </Link>

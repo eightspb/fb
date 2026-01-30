@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 
 export default function Training() {
   return (
-    <div className="min-h-screen bg-slate-50 font-sans selection:bg-pink-100 selection:text-pink-900">
+    <div className="min-h-screen bg-slate-50 font-sans selection:bg-teal-100 selection:text-teal-900">
       <Header />
 
       <div className="pt-24 pb-12 bg-white border-b border-slate-200">
@@ -25,7 +25,7 @@ export default function Training() {
           <Breadcrumbs items={[{ label: "Обучение" }]} />
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mt-6 mb-4 leading-tight">
             Учебный центр <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-blue-600">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-blue-600">
               Xishan-Зенит
             </span>
           </h1>
@@ -43,7 +43,7 @@ export default function Training() {
            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
              <div className="grid lg:grid-cols-[1.4fr_1fr] gap-0">
                 <div className="p-8 md:p-16 flex flex-col justify-center relative z-10">
-                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-pink-50/50 via-white to-blue-50/50 -z-10"></div>
+                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-teal-50/50 via-white to-blue-50/50 -z-10"></div>
                     
                     <div className="flex flex-wrap gap-3 mb-8 self-start">
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 shadow-sm text-sm font-semibold text-slate-600">
@@ -58,7 +58,7 @@ export default function Training() {
 
                     <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6 leading-[1.1]">
                         Интервенционная маммология. <br/>
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-blue-600">
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-blue-600">
                             Диагностика и лечение
                         </span>
                     </h2>
@@ -119,7 +119,7 @@ export default function Training() {
                                  <div className="text-slate-300 text-sm">Автор курса, д.м.н.</div>
                              </div>
                         </div>
-                        <p className="italic text-slate-200 text-sm pl-4 border-l-2 border-pink-500">
+                        <p className="italic text-slate-200 text-sm pl-4 border-l-2 border-teal-500">
                             &quot;Мы даем не просто теорию, а ставим руку. Каждый курсант самостоятельно выполняет манипуляции.&quot;
                         </p>
                     </div>
@@ -135,7 +135,7 @@ export default function Training() {
                 {[
                     {
                         icon: <Activity className="w-8 h-8 text-white" />,
-                        color: "bg-pink-500",
+                        color: "bg-teal-500",
                         title: "Практический упор",
                         desc: "70% времени посвящено практике на фантомах и ассистированию в операционной."
                     },
@@ -187,11 +187,11 @@ export default function Training() {
                     { day: "День 4", title: "Лечебные манипуляции и осложнения", topics: ["Удаление доброкачественных образований", "Дренирование кист и абсцессов", "Маркировка образований", "Профилактика и лечение осложнений"] },
                     { day: "День 5", title: "Итоговая аттестация", topics: ["Самостоятельное выполнение манипуляций на фантомах", "Разбор сложных клинических случаев", "Итоговое тестирование", "Вручение удостоверений"] }
                 ].map((day, idx) => (
-                    <div key={idx} className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:border-pink-200 transition-colors">
+                    <div key={idx} className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:border-teal-200 transition-colors">
                         <div className="p-6 md:p-8 flex flex-col md:flex-row gap-6 md:gap-10">
                             <div className="shrink-0 flex md:flex-col items-center gap-3 md:w-32">
                                 <span className="text-sm font-bold uppercase tracking-wider text-slate-400">{day.day}</span>
-                                <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 font-bold text-xl border-4 border-white shadow-sm">
+                                <div className="w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center text-teal-600 font-bold text-xl border-4 border-white shadow-sm">
                                     {idx + 1}
                                 </div>
                                 <div className="hidden md:block h-full w-px bg-slate-100 my-2"></div>
@@ -227,7 +227,7 @@ export default function Training() {
                 <div className="flex items-center justify-between gap-4 mb-12">
                     <div className="flex items-center gap-4">
                         <div className="w-14 h-14 rounded-2xl bg-white shadow-sm flex items-center justify-center text-slate-900">
-                            <GraduationCap className="w-7 h-7 text-pink-600" />
+                            <GraduationCap className="w-7 h-7 text-teal-600" />
                         </div>
                         <div>
                             <h2 className="text-3xl font-bold text-slate-900">Прошедшие обучения</h2>
@@ -249,7 +249,7 @@ export default function Training() {
                 Мы открыты к сотрудничеству с клиниками и учебными центрами в регионах. Свяжитесь с нами для обсуждения условий выездных циклов и мастер-классов.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                 <Button size="lg" className="bg-pink-600 hover:bg-pink-700 text-white px-8 rounded-full h-12 text-lg shadow-lg shadow-pink-900/20" asChild>
+                 <Button size="lg" className="bg-teal-600 hover:bg-teal-700 text-white px-8 rounded-full h-12 text-lg shadow-lg shadow-teal-900/20" asChild>
                     <Link href="/contacts">Связаться с нами</Link>
                 </Button>
             </div>

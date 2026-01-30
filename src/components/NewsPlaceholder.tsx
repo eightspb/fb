@@ -23,7 +23,7 @@ export function NewsPlaceholder({ className }: NewsPlaceholderProps) {
       />
       
       {/* Abstract Shapes */}
-      <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-gradient-to-br from-pink-100/20 to-purple-100/20 blur-3xl" />
+      <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-gradient-to-br from-teal-100/20 to-purple-100/20 blur-3xl" />
       <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 rounded-full bg-gradient-to-tr from-blue-100/20 to-cyan-100/20 blur-3xl" />
       
       {/* Center Icon */}
@@ -36,6 +36,13 @@ export function NewsPlaceholder({ className }: NewsPlaceholderProps) {
     </div>
   );
 }
+
+
+
+
+
+
+
 
 
 

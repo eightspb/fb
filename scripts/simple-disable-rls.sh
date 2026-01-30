@@ -26,3 +26,13 @@ WHERE schemaname = 'storage' AND tablename IN ('objects', 'buckets');
 
 echo "👉 Теперь сразу запускайте миграцию!"
 
+
+
+
+
+
+
+
+
+
+

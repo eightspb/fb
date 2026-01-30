@@ -24,3 +24,13 @@ docker exec -i fb-net-db psql -U supabase_admin -d postgres < scripts/create-new
 ```
 
 Пришлите результат проверки таблиц (пункт 1), чтобы я был уверен.
+
+
+
+
+
+
+
+
+
+

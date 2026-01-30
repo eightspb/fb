@@ -20,3 +20,13 @@ CREATE INDEX IF NOT EXISTS idx_conferences_date ON conferences(date);
 
 
 
+
+
+
+
+
+
+
+
+
+

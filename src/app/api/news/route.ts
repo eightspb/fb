@@ -50,9 +50,19 @@ export async function GET(request: Request) {
       
       const hasStatusColumn = columnCheck.rows.length > 0;
       
+      // Проверяем наличие колонки image_data в news_images
+      const imageDataCheck = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name='news_images' AND column_name='image_data'
+      `);
+      
+      const hasImageDataColumn = imageDataCheck.rows.length > 0;
+      
       let statusCondition = '';
       if (hasStatusColumn) {
-        statusCondition = "WHERE n.status IS DISTINCT FROM 'draft'";
+        // Показываем опубликованные новости и новости без статуса (NULL) для обратной совместимости
+        statusCondition = "WHERE (n.status = 'published' OR n.status IS NULL)";
       } else {
         statusCondition = "WHERE 1=1";
       }
@@ -72,7 +82,7 @@ export async function GET(request: Request) {
         }
       }
       
-      console.log(`[API News] isAdmin=${isAdmin}, hasStatusColumn=${hasStatusColumn}`);
+      console.log(`[API News] isAdmin=${isAdmin}, hasStatusColumn=${hasStatusColumn}, hasImageDataColumn=${hasImageDataColumn}`);
 
       // Если админ - показываем все, иначе - только опубликованные
       if (isAdmin) {
@@ -82,12 +92,28 @@ export async function GET(request: Request) {
       // Строим запрос с фильтрами
       // Используем подзапросы для агрегации, чтобы избежать проблем с GROUP BY
       // ВАЖНО: Показываем ТОЛЬКО опубликованные новости для публичного API, но ВСЕ для админки
+      // Строим запрос для изображений с учетом наличия колонки image_data
+      const imagesSubquery = hasImageDataColumn
+        ? `(SELECT json_agg(jsonb_build_object(
+              'id', id,
+              'image_url', image_url, 
+              'order', "order",
+              'has_data', (image_data IS NOT NULL)
+            )) 
+             FROM news_images WHERE news_id = n.id)`
+        : `(SELECT json_agg(jsonb_build_object(
+              'id', id,
+              'image_url', image_url, 
+              'order', "order",
+              'has_data', false
+            )) 
+             FROM news_images WHERE news_id = n.id)`;
+      
       let query = `
         SELECT 
           n.*,
           COALESCE(
-            (SELECT json_agg(jsonb_build_object('image_url', image_url, 'order', "order")) 
-             FROM news_images WHERE news_id = n.id),
+            ${imagesSubquery},
             '[]'::json
           ) as images,
           COALESCE(
@@ -143,6 +169,11 @@ export async function GET(request: Request) {
       const result = await client.query(query, params);
       
       console.log(`[API News] Found ${result.rows.length} rows`);
+      if (result.rows.length === 0) {
+        // Проверяем, есть ли вообще новости в базе
+        const totalCheck = await client.query('SELECT COUNT(*) as total, COUNT(CASE WHEN status IS DISTINCT FROM \'draft\' THEN 1 END) as published FROM news');
+        console.log('[API News] Total news in DB:', totalCheck.rows[0]);
+      }
 
       const news: NewsItem[] = result.rows.map(row => {
         // Обрабатываем JSON массивы
@@ -164,21 +195,15 @@ export async function GET(request: Request) {
         const videos = parseJsonArray(row.videos);
         const documents = parseJsonArray(row.documents);
 
-        // Преобразуем пути к изображениям из формата DD.MM.YYYY в YYYY.MM.DD
-        const convertImagePath = (imagePath: string): string => {
-          return imagePath.replace(
-            /(\/images\/trainings\/)(\d{2})\.(\d{2})\.(\d{4})(\/)/g,
-            (match, prefix, day, month, year, suffix) => {
-              return `${prefix}${year}.${month}.${day}${suffix}`;
-            }
-          );
-        };
-
-        // Применяем преобразование к изображениям
-        const convertedImages = images.map((img: any) => ({
-          ...img,
-          image_url: convertImagePath(img.image_url || '')
-        }));
+        // Используем только изображения из БД
+        // Если изображение есть в БД (has_data = true), используем API endpoint
+        // Если нет - пропускаем (изображение должно быть загружено в БД через миграцию)
+        const convertedImages = images
+          .filter((img: any) => img.has_data) // Только изображения из БД
+          .map((img: any) => ({
+            ...img,
+            image_url: `/api/images/${img.id}`
+          }));
 
         return transformNewsFromDB(row, convertedImages, tags, videos, documents);
       });
@@ -187,10 +212,30 @@ export async function GET(request: Request) {
     } finally {
       client.release();
     }
-  } catch (error) {
-    console.error('Error fetching news:', error);
+  } catch (error: any) {
+    console.error('[API News] Error fetching news:', error);
+    console.error('[API News] Error details:', {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack
+    });
+    
+    // Более понятные сообщения об ошибках
+    let errorMessage = 'Failed to fetch news';
+    if (error?.code === 'ECONNREFUSED' || error?.message?.includes('connect')) {
+      errorMessage = 'Не удалось подключиться к базе данных. Убедитесь, что база данных запущена.';
+    } else if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      errorMessage = 'Таблицы не найдены. Выполните npm run setup для создания схемы базы данных.';
+    } else if (error?.message) {
+      errorMessage = error.message;
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to fetch news' },
+      { 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error?.message : undefined,
+        code: error?.code
+      },
       { status: 500 }
     );
   }
@@ -247,10 +292,57 @@ export async function POST(request: Request) {
       // Images
       if (images && images.length > 0) {
         for (let i = 0; i < images.length; i++) {
-           await client.query(
-             'INSERT INTO news_images (news_id, image_url, "order") VALUES ($1, $2, $3)',
-             [newsId, images[i], i]
-           );
+           const imageStr = images[i];
+           if (imageStr.startsWith('data:')) {
+             // Process base64
+             try {
+               // Extract mime type and base64 data
+               // Format: data:image/png;base64,.....
+               const matches = imageStr.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+               
+               if (matches && matches.length === 3) {
+                 const mimeType = matches[1];
+                 const base64Data = matches[2];
+                 const buffer = Buffer.from(base64Data, 'base64');
+                 
+                 await client.query(
+                   'INSERT INTO news_images (news_id, image_url, "order", image_data, mime_type) VALUES ($1, $2, $3, $4, $5)',
+                   [newsId, 'stored_in_db', i, buffer, mimeType]
+                 );
+               } else {
+                 console.warn('Invalid base64 image format, skipping');
+               }
+             } catch (err) {
+               console.error('Error processing base64 image:', err);
+             }
+           } else {
+             // Regular URL
+             // If URL is external (http/https), try to fetch it and store as data
+             if (imageStr.startsWith('http://') || imageStr.startsWith('https://')) {
+                 try {
+                     const imgRes = await fetch(imageStr);
+                     if (imgRes.ok) {
+                         const arrayBuffer = await imgRes.arrayBuffer();
+                         const buffer = Buffer.from(arrayBuffer);
+                         const mimeType = imgRes.headers.get('content-type') || 'image/jpeg';
+                         
+                         await client.query(
+                           'INSERT INTO news_images (news_id, image_url, "order", image_data, mime_type) VALUES ($1, $2, $3, $4, $5)',
+                           [newsId, imageStr, i, buffer, mimeType]
+                         );
+                         continue; // Successfully stored as data
+                     }
+                 } catch (e) {
+                     console.error('Failed to fetch image from URL:', imageStr, e);
+                     // Fallback to storing just URL
+                 }
+             }
+
+             await client.query(
+               'INSERT INTO news_images (news_id, image_url, "order") VALUES ($1, $2, $3)',
+               [newsId, imageStr, i]
+             );
+           }
         }
       }
       

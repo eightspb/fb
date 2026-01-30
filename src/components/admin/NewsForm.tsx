@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
-import { Loader2, Plus, X } from 'lucide-react';
+import { Loader2, Plus, X, Sparkles } from 'lucide-react';
 import { FileUpload } from '@/components/admin/FileUpload';
 
 interface NewsFormProps {
@@ -19,6 +19,7 @@ interface NewsFormProps {
 export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [isImproving, setIsImproving] = useState(false);
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     shortDescription: initialData?.shortDescription || '',
@@ -39,6 +40,22 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
   const [newImage, setNewImage] = useState('');
   const [newVideo, setNewVideo] = useState('');
   const [newDoc, setNewDoc] = useState('');
+  const [categories, setCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const response = await fetch('/api/news/filters');
+        if (response.ok) {
+          const data = await response.json();
+          setCategories(data);
+        }
+      } catch (error) {
+        console.error('Failed to load categories', error);
+      }
+    }
+    loadCategories();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -59,6 +76,57 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
       ...prev,
       [field]: prev[field].filter((_: any, i: number) => i !== index)
     }));
+  };
+
+  const handleImproveDescription = async () => {
+    if (!formData.fullDescription) return;
+    
+    setIsImproving(true);
+    try {
+      // Auth check with bypass support
+      const bypassStorage = localStorage.getItem('sb-admin-bypass');
+      let sessionToken = '';
+
+      if (!bypassStorage) {
+        // Refresh session before request to ensure token is valid
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError || !session) {
+           throw new Error('Unauthorized: No active session');
+        }
+        sessionToken = session.access_token;
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+
+      if (bypassStorage === 'true') {
+        headers['X-Admin-Bypass'] = 'true';
+      } else {
+        headers['Authorization'] = `Bearer ${sessionToken}`;
+      }
+
+      const response = await fetch('/api/admin/ai/improve', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ text: formData.fullDescription })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to improve text');
+      }
+
+      const data = await response.json();
+      if (data.improvedText) {
+        setFormData(prev => ({ ...prev, fullDescription: data.improvedText }));
+      }
+    } catch (error) {
+      console.error('Error improving text:', error);
+      alert('Ошибка при улучшении текста');
+    } finally {
+      setIsImproving(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -136,7 +204,20 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="fullDescription">Полное описание</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="fullDescription">Полное описание</Label>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={handleImproveDescription}
+                disabled={isImproving || !formData.fullDescription}
+                className="gap-2 h-8"
+              >
+                {isImproving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3 text-purple-600" />}
+                Улучшить описание (AI)
+              </Button>
+            </div>
             <Textarea 
               id="fullDescription" 
               name="fullDescription" 
@@ -162,7 +243,20 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
 
           <div className="space-y-2">
             <Label htmlFor="category">Категория</Label>
-            <Input id="category" name="category" value={formData.category} onChange={handleChange} />
+            <Input 
+              id="category" 
+              name="category" 
+              value={formData.category} 
+              onChange={handleChange} 
+              list="categories-list"
+              placeholder="Выберите или введите новую"
+            />
+            <datalist id="categories-list">
+              {!categories.includes('Конференции') && <option value="Конференции" />}
+              {categories.map((cat) => (
+                <option key={cat} value={cat} />
+              ))}
+            </datalist>
           </div>
 
           <div className="space-y-2">
@@ -190,10 +284,10 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
         {/* Images */}
         <Card>
           <CardContent className="pt-6">
-            <Label className="mb-2 block">Изображения (URL)</Label>
+            <Label className="mb-2 block">Изображения (URL или Загрузка)</Label>
             <div className="flex gap-2 mb-4">
-              <Input value={newImage} onChange={(e) => setNewImage(e.target.value)} placeholder="/images/..." />
-              <FileUpload onUpload={(url) => setNewImage(url)} folder="news/images" />
+              <Input value={newImage} onChange={(e) => setNewImage(e.target.value)} placeholder="/images/... или загрузите файл" />
+              <FileUpload onUpload={(data) => setNewImage(data)} folder="news/images" mode="base64" />
               <Button type="button" onClick={() => handleArrayAdd('images', newImage, setNewImage)}><Plus className="w-4 h-4" /></Button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
@@ -217,7 +311,9 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
                     </Button>
                   </div>
                   <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1">
-                    <p className="text-[10px] text-white truncate px-1">{img.split('/').pop()}</p>
+                    <p className="text-[10px] text-white truncate px-1">
+                      {img.startsWith('data:') ? 'Новое изображение' : img.split('/').pop()}
+                    </p>
                   </div>
                 </div>
               ))}

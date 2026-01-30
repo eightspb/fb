@@ -60,7 +60,7 @@ export function PartnersSection() {
               href={partner.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="group relative w-full h-24 flex items-center justify-center p-4 bg-slate-200 rounded-xl border border-slate-300 hover:border-pink-300 hover:shadow-lg transition-all duration-300 grayscale hover:grayscale-0 hover:z-10"
+              className="group relative w-full h-24 flex items-center justify-center p-4 bg-slate-200 rounded-xl border border-slate-300 hover:border-teal-300 hover:shadow-lg transition-all duration-300 grayscale hover:grayscale-0 hover:z-10"
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: index * 0.05 }}

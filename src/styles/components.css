@@ -53,7 +53,7 @@
 }
 
 .header-menu-link:hover {
-  background: linear-gradient(135deg, #fce7f3 0%, #dbeafe 100%);
+  background: linear-gradient(135deg, #cffafe 0%, #dbeafe 100%);
   color: #1e293b;
   transform: translateY(-1px);
 }
@@ -72,7 +72,7 @@
 
 /* Hero Section */
 .hero {
-  background: linear-gradient(135deg, #fce7f3 0%, #dbeafe 25%, #f0abfc 50%, #bfdbfe 75%, #fce7f3 100%);
+  background: linear-gradient(135deg, #cffafe 0%, #dbeafe 25%, #a5f3fc 50%, #bfdbfe 75%, #cffafe 100%);
   background-size: 400% 400%;
   animation: gradient-shift 8s ease infinite;
   padding-top: 5rem;
@@ -88,9 +88,9 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: radial-gradient(circle at 20% 80%, rgba(255, 182, 193, 0.1) 0%, transparent 50%),
+  background: radial-gradient(circle at 20% 80%, rgba(6, 182, 212, 0.1) 0%, transparent 50%),
               radial-gradient(circle at 80% 20%, rgba(173, 216, 230, 0.1) 0%, transparent 50%),
-              radial-gradient(circle at 40% 40%, rgba(255, 192, 203, 0.1) 0%, transparent 50%);
+              radial-gradient(circle at 40% 40%, rgba(20, 184, 166, 0.1) 0%, transparent 50%);
   animation: float 6s ease-in-out infinite;
 }
 
@@ -149,7 +149,7 @@
   margin-bottom: 1.5rem;
   margin-top: 1rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(236, 72, 153, 0.1);
+  border: 1px solid rgba(6, 182, 212, 0.1);
 }
 
 .breadcrumb-list {
@@ -171,11 +171,11 @@
 }
 
 .breadcrumb-link:hover {
-  color: #ec4899;
+  color: #14b8a6;
 }
 
 .breadcrumb-current {
-  color: #ec4899;
+  color: #14b8a6;
   font-weight: 500;
 }
 
@@ -710,8 +710,8 @@
 
 /* Gradient Cards */
 .gradient-card-pink {
-  background: linear-gradient(135deg, #fce7f3 0%, #f9a8d4 100%);
-  color: #7c2d12;
+  background: linear-gradient(135deg, #cffafe 0%, #5eead4 100%);
+  color: #134e4a;
   border: none;
 }
 
@@ -722,14 +722,14 @@
 }
 
 .gradient-card-purple {
-  background: linear-gradient(135deg, #f3e8ff 0%, #c084fc 100%);
-  color: #581c87;
+  background: linear-gradient(135deg, #e0e7ff 0%, #a5b4fc 100%);
+  color: #312e81;
   border: none;
 }
 
 .gradient-card-rose {
-  background: linear-gradient(135deg, #fce7f3 0%, #fb7185 100%);
-  color: #7c2d12;
+  background: linear-gradient(135deg, #cffafe 0%, #2dd4bf 100%);
+  color: #134e4a;
   border: none;
 }
 
@@ -746,10 +746,10 @@
 /* Pulse Animation */
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 20px rgba(236, 72, 153, 0.3);
+    box-shadow: 0 0 20px rgba(20, 184, 166, 0.3);
   }
   50% {
-    box-shadow: 0 0 30px rgba(236, 72, 153, 0.5);
+    box-shadow: 0 0 30px rgba(20, 184, 166, 0.5);
   }
 }
 
@@ -789,7 +789,7 @@
 
 /* Gradient Text */
 .gradient-text-pink {
-  background: linear-gradient(135deg, #ec4899, #f472b6, #fb7185);
+  background: linear-gradient(135deg, #14b8a6, #2dd4bf, #5eead4);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -804,16 +804,16 @@
 
 /* Gradient Buttons */
 .gradient-button-pink {
-  background: linear-gradient(135deg, #ec4899, #f472b6);
+  background: linear-gradient(135deg, #14b8a6, #2dd4bf);
   border: none;
   color: white;
   transition: all 0.3s ease;
 }
 
 .gradient-button-pink:hover {
-  background: linear-gradient(135deg, #db2777, #ec4899);
+  background: linear-gradient(135deg, #0d9488, #14b8a6);
   transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(236, 72, 153, 0.3);
+  box-shadow: 0 10px 20px rgba(20, 184, 166, 0.3);
 }
 
 .gradient-button-blue {
@@ -837,7 +837,7 @@
 }
 
 .gradient-text-rose {
-  background: linear-gradient(135deg, #fb7185, #f472b6, #ec4899);
+  background: linear-gradient(135deg, #2dd4bf, #5eead4, #14b8a6);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -845,7 +845,7 @@
 
 /* Animated Background */
 .animated-bg {
-  background: linear-gradient(-45deg, #fce7f3, #dbeafe, #f0abfc, #bfdbfe);
+  background: linear-gradient(-45deg, #cffafe, #dbeafe, #a5f3fc, #bfdbfe);
   background-size: 400% 400%;
   animation: gradient-x 15s ease infinite;
 }
@@ -860,7 +860,7 @@
 .morphing-shape {
   width: 100px;
   height: 100px;
-  background: linear-gradient(45deg, #ec4899, #3b82f6);
+  background: linear-gradient(45deg, #14b8a6, #3b82f6);
   border-radius: 50%;
   animation: morph 8s ease-in-out infinite;
   position: absolute;
@@ -889,7 +889,7 @@
   position: absolute;
   width: 4px;
   height: 4px;
-  background: linear-gradient(45deg, #ec4899, #3b82f6);
+  background: linear-gradient(45deg, #14b8a6, #3b82f6);
   border-radius: 50%;
   animation: particle-float 10s linear infinite;
 }

@@ -35,7 +35,7 @@ function FeatureCardComponent({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay }}
-      className="group bg-white/80 backdrop-blur-sm relative isolate z-0 flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-pink-200/50 px-6 py-8 transition-all duration-300 hover:shadow-xl hover:border-pink-300"
+      className="group bg-white/80 backdrop-blur-sm relative isolate z-0 flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-teal-200/50 px-6 py-8 transition-all duration-300 hover:shadow-xl hover:border-teal-300"
     >
       <div className="absolute inset-0">
         <div className="absolute -inset-[25%] -skew-y-12 [mask-image:linear-gradient(225deg,black,transparent)]">
@@ -45,14 +45,14 @@ function FeatureCardComponent({
             x={0}
             y={0}
             squares={getPatternByIndex(delay * 10)}
-            className="fill-pink-200/30 stroke-pink-200/50 absolute inset-0 size-full translate-y-2 transition-transform duration-150 ease-out group-hover:translate-y-0"
+            className="fill-teal-200/30 stroke-teal-200/50 absolute inset-0 size-full translate-y-2 transition-transform duration-150 ease-out group-hover:translate-y-0"
           />
         </div>
-        <div className="absolute -inset-[10%] opacity-0 blur-[50px] transition-opacity duration-150 group-hover:opacity-20 bg-gradient-to-br from-pink-400 via-blue-300 to-pink-300" />
+        <div className="absolute -inset-[10%] opacity-0 blur-[50px] transition-opacity duration-150 group-hover:opacity-20 bg-gradient-to-br from-teal-400 via-blue-300 to-teal-300" />
       </div>
       <div className="relative z-10">
-        <div className="mb-4 inline-flex p-3 rounded-xl bg-gradient-to-br from-pink-100 to-blue-100">
-          <Icon className="w-6 h-6 text-pink-600" />
+        <div className="mb-4 inline-flex p-3 rounded-xl bg-gradient-to-br from-teal-100 to-blue-100">
+          <Icon className="w-6 h-6 text-teal-600" />
         </div>
         <h3 className="text-xl font-semibold text-gray-900 mb-2">{title}</h3>
         <p className="text-gray-600">{description}</p>
@@ -86,7 +86,7 @@ export function FeaturesSection() {
   ];
 
   return (
-    <div className="w-full py-24 bg-gradient-to-b from-white to-pink-50/30">
+    <div className="w-full py-24 bg-gradient-to-b from-white to-teal-50/30">
       <div className="w-full max-w-[2000px] mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -96,7 +96,7 @@ export function FeaturesSection() {
           className="text-center mb-16"
         >
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-pink-600 to-blue-600">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-blue-600">
               Преимущества ВАБ
             </span>
           </h2>

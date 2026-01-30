@@ -19,10 +19,18 @@ export async function GET() {
     } finally {
       client.release();
     }
-  } catch (error) {
-    console.error('Error fetching years:', error);
+  } catch (error: any) {
+    console.error('[API Years] Error fetching years:', error);
+    console.error('[API Years] Error details:', {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack
+    });
     return NextResponse.json(
-      { error: 'Failed to fetch years' },
+      { 
+        error: 'Failed to fetch years',
+        details: process.env.NODE_ENV === 'development' ? error?.message : undefined
+      },
       { status: 500 }
     );
   }

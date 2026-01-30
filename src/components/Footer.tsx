@@ -33,20 +33,20 @@ export function Footer() {
             <h4 className="font-semibold text-slate-900 mb-6">Контакты</h4>
             <ul className="space-y-4">
               <li className="flex items-start gap-3">
-                <Phone className="w-5 h-5 text-pink-500 mt-0.5" />
-                <a href="tel:+78127482213" className="text-slate-600 hover:text-pink-600 transition-colors text-sm">
+                <Phone className="w-5 h-5 text-teal-500 mt-0.5" />
+                <a href="tel:+78127482213" className="text-slate-600 hover:text-teal-600 transition-colors text-sm">
                   +7 (812) 748-22-13
                 </a>
               </li>
               <li className="flex items-start gap-3">
-                <Mail className="w-5 h-5 text-pink-500 mt-0.5" />
-                <a href="mailto:info@zenitmed.ru" className="text-slate-600 hover:text-pink-600 transition-colors text-sm">
+                <Mail className="w-5 h-5 text-teal-500 mt-0.5" />
+                <a href="mailto:info@zenitmed.ru" className="text-slate-600 hover:text-teal-600 transition-colors text-sm">
                   info@zenitmed.ru
                 </a>
               </li>
               <li className="flex items-start gap-3">
-                <Globe className="w-5 h-5 text-pink-500 mt-0.5" />
-                <a href="https://fibroadenoma.net" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-pink-600 transition-colors text-sm">
+                <Globe className="w-5 h-5 text-teal-500 mt-0.5" />
+                <a href="https://fibroadenoma.net" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-teal-600 transition-colors text-sm">
                   fibroadenoma.net
                 </a>
               </li>
@@ -66,7 +66,7 @@ export function Footer() {
                 { href: "/contacts", label: "Контакты" },
               ].map((link) => (
                 <li key={link.href}>
-                  <Link href={link.href} className="text-slate-600 hover:text-pink-600 transition-colors text-sm">
+                  <Link href={link.href} className="text-slate-600 hover:text-teal-600 transition-colors text-sm">
                     {link.label}
                   </Link>
                 </li>
@@ -86,7 +86,7 @@ export function Footer() {
                 <a
                   key={i}
                   href={social.href}
-                  className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-pink-500 hover:border-pink-200 hover:shadow-md transition-all duration-300"
+                  className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-teal-500 hover:border-teal-200 hover:shadow-md transition-all duration-300"
                 >
                   <social.icon className="w-5 h-5" />
                 </a>

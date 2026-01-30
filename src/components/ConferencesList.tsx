@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, MapPin, Users, Clock, Video, Image as ImageIcon, FileText, CheckCircle, GraduationCap } from "lucide-react";
 import Link from 'next/link';
 
+import { PastEvents } from '@/components/PastEvents';
+
 interface Conference {
   id: string;
   title: string;
@@ -68,11 +70,6 @@ export function ConferencesList() {
     return date >= now;
   }).sort((a, b) => parseDate(a.date).getTime() - parseDate(b.date).getTime());
 
-  const archive = conferences.filter(c => {
-    const date = parseDate(c.date);
-    return date < now;
-  }).sort((a, b) => parseDate(b.date).getTime() - parseDate(a.date).getTime());
-
   if (loading) {
     return <div className="text-center py-12">Загрузка мероприятий...</div>;
   }
@@ -103,7 +100,7 @@ export function ConferencesList() {
         
         {/* Recurring Monthly Training Event */}
         <div className="mb-8">
-           <Card className="border-pink-200 shadow-md bg-gradient-to-r from-pink-50/50 to-blue-50/50 overflow-hidden relative group">
+           <Card className="border-teal-200 shadow-md bg-gradient-to-r from-teal-50/50 to-blue-50/50 overflow-hidden relative group">
              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                 <GraduationCap className="w-32 h-32" />
              </div>
@@ -111,10 +108,10 @@ export function ConferencesList() {
                <div className="flex flex-col md:flex-row gap-8 items-start">
                  <div className="flex-1">
                    <div className="flex items-center gap-3 mb-4">
-                     <Badge className="bg-pink-600 text-white hover:bg-pink-700 border-0 px-3 py-1 text-sm">
+                     <Badge className="bg-teal-600 text-white hover:bg-teal-700 border-0 px-3 py-1 text-sm">
                         Регулярное обучение
                      </Badge>
-                     <div className="flex items-center gap-1 text-pink-700 font-medium text-sm bg-pink-100/50 px-3 py-1 rounded-full">
+                     <div className="flex items-center gap-1 text-teal-700 font-medium text-sm bg-teal-100/50 px-3 py-1 rounded-full">
                         <Calendar className="w-4 h-4" />
                         <span>Каждый месяц</span>
                      </div>
@@ -134,19 +131,19 @@ export function ConferencesList() {
 
                    <div className="grid sm:grid-cols-2 gap-4 mb-8 max-w-lg">
                       <div className="flex items-center gap-3 text-slate-700">
-                        <Users className="w-5 h-5 text-pink-500" />
+                        <Users className="w-5 h-5 text-teal-500" />
                         <span>Спикер: Одинцов В.А., д.м.н.</span>
                       </div>
                       <div className="flex items-center gap-3 text-slate-700">
-                        <MapPin className="w-5 h-5 text-pink-500" />
+                        <MapPin className="w-5 h-5 text-teal-500" />
                         <span>Санкт-Петербург</span>
                       </div>
                       <div className="flex items-center gap-3 text-slate-700">
-                        <Clock className="w-5 h-5 text-pink-500" />
+                        <Clock className="w-5 h-5 text-teal-500" />
                         <span>36 часов CME</span>
                       </div>
                       <div className="flex items-center gap-3 text-slate-700">
-                        <CheckCircle className="w-5 h-5 text-pink-500" />
+                        <CheckCircle className="w-5 h-5 text-teal-500" />
                         <span>Удостоверение гособразца</span>
                       </div>
                    </div>
@@ -166,6 +163,61 @@ export function ConferencesList() {
            </Card>
         </div>
 
+        {/* Conference 2026 Teaser */}
+        <div className="mb-8">
+          <Card className="border-teal-200 shadow-md bg-gradient-to-r from-teal-50/50 to-blue-50/50 overflow-hidden relative group">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Users className="w-32 h-32" />
+            </div>
+            <CardContent className="p-8 relative z-10">
+              <div className="flex flex-col md:flex-row gap-8 items-start">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Badge className="bg-teal-600 text-white hover:bg-teal-700 border-0 px-3 py-1 text-sm">
+                      Конференция
+                    </Badge>
+                    <div className="flex items-center gap-1 text-teal-700 font-medium text-sm bg-teal-100/50 px-3 py-1 rounded-full">
+                      <Calendar className="w-4 h-4" />
+                      <span>25 апреля 2026</span>
+                    </div>
+                  </div>
+
+                  <h3 className="text-3xl font-bold text-slate-900 mb-2">
+                    Миниинвазивная хирургия / Молочная железа
+                  </h3>
+                  <p className="text-xl text-slate-700 mb-6 font-medium">
+                    Научно-практическая конференция с международным участием
+                  </p>
+                  
+                  <p className="text-slate-600 mb-6 leading-relaxed max-w-2xl">
+                    Площадка для обмена опытом и знаниями с ведущими специалистами из России и других стран. 
+                    Обсуждение актуальных аспектов применения интервенционных методов в клинической практике.
+                  </p>
+
+                  <div className="grid sm:grid-cols-2 gap-4 mb-8 max-w-lg">
+                    <div className="flex items-center gap-3 text-slate-700">
+                      <MapPin className="w-5 h-5 text-teal-500" />
+                      <span>МКНЦ имени Логинова, Москва</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-slate-700">
+                      <Users className="w-5 h-5 text-teal-500" />
+                      <span>Ведущие специалисты</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Button className="bg-slate-900 hover:bg-slate-800 rounded-full px-8" asChild>
+                      <Link href="/conferences/sms3">
+                        Записаться
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {upcoming.length > 0 ? (
           <div className="grid md:grid-cols-2 gap-8">
             {upcoming.map((event) => {
@@ -175,10 +227,10 @@ export function ConferencesList() {
                const year = eventDate.getFullYear();
 
                return (
-                <Card key={event.id} className="border-slate-200 hover:border-pink-200 hover:shadow-lg transition-all group">
+                <Card key={event.id} className="border-slate-200 hover:border-teal-200 hover:shadow-lg transition-all group">
                   <CardContent className="p-8">
                     <div className="flex justify-between items-start mb-6">
-                      <Badge className="bg-pink-100 text-pink-700 hover:bg-pink-200 border-0 px-3 py-1">
+                      <Badge className="bg-teal-100 text-teal-700 hover:bg-teal-200 border-0 px-3 py-1">
                         {event.type}
                       </Badge>
                       <div className="text-center bg-slate-50 rounded-lg p-2 border border-slate-100 min-w-[80px]">
@@ -187,7 +239,7 @@ export function ConferencesList() {
                       </div>
                     </div>
                     
-                    <h3 className="text-2xl font-bold text-slate-900 mb-4 group-hover:text-pink-600 transition-colors">
+                    <h3 className="text-2xl font-bold text-slate-900 mb-4 group-hover:text-teal-600 transition-colors">
                       {event.title}
                     </h3>
                     
@@ -218,7 +270,7 @@ export function ConferencesList() {
                         <ul className="space-y-2">
                           {event.program.map((item, i) => (
                             <li key={i} className="flex items-center gap-2 text-sm text-slate-600">
-                              <CheckCircle className="w-4 h-4 text-pink-500" />
+                              <CheckCircle className="w-4 h-4 text-teal-500" />
                               {item}
                             </li>
                           ))}
@@ -247,48 +299,7 @@ export function ConferencesList() {
       </TabsContent>
 
       <TabsContent value="archive" className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        {archive.length > 0 ? (
-          <div className="space-y-6">
-            {archive.map((event) => (
-              <Card key={event.id} className="border-slate-200 hover:shadow-md transition-all">
-                <CardContent className="p-6 flex flex-col md:flex-row gap-6 items-start md:items-center">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Badge variant="outline" className="text-slate-600 border-slate-200">{event.type}</Badge>
-                      <span className="text-sm text-slate-400 flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> {event.date}
-                      </span>
-                    </div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">{event.title}</h3>
-                    <p className="text-slate-600">{event.description}</p>
-                  </div>
-                  
-                  <div className="flex gap-2 w-full md:w-auto">
-                    {event.materials?.includes("video") && (
-                      <Button size="sm" variant="outline" className="flex-1 md:flex-none gap-2 border-slate-200">
-                        <Video className="w-4 h-4" /> <span className="hidden sm:inline">Видео</span>
-                      </Button>
-                    )}
-                    {event.materials?.includes("photo") && (
-                      <Button size="sm" variant="outline" className="flex-1 md:flex-none gap-2 border-slate-200">
-                        <ImageIcon className="w-4 h-4" /> <span className="hidden sm:inline">Фото</span>
-                      </Button>
-                    )}
-                    {event.materials?.includes("doc") && (
-                      <Button size="sm" variant="outline" className="flex-1 md:flex-none gap-2 border-slate-200">
-                        <FileText className="w-4 h-4" /> <span className="hidden sm:inline">Отчет</span>
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-           <div className="text-center py-12 text-slate-500">
-             Нет прошедших мероприятий
-           </div>
-        )}
+        <PastEvents categories={['Конференции']} />
       </TabsContent>
     </Tabs>
   );

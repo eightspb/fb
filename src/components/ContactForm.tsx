@@ -71,6 +71,14 @@ export function ContactForm() {
     setSubmitMessage('');
 
     try {
+      console.log('[Contact Form] Отправка данных формы:', {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        messageLength: formData.message.length,
+        consent: formData.consent,
+      });
+
       const response = await fetch('/api/contact', {
         method: 'POST',
         headers: {
@@ -79,7 +87,14 @@ export function ContactForm() {
         body: JSON.stringify(formData),
       });
 
+      console.log('[Contact Form] Ответ от сервера:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+      });
+
       const data = await response.json();
+      console.log('[Contact Form] Данные ответа:', data);
 
       if (response.ok) {
         setSubmitStatus('success');
@@ -94,11 +109,22 @@ export function ContactForm() {
         setErrors({});
       } else {
         setSubmitStatus('error');
-        setSubmitMessage(data.error || 'Произошла ошибка при отправке сообщения. Пожалуйста, попробуйте еще раз.');
+        const errorMsg = data.error || data.details || 'Произошла ошибка при отправке сообщения. Пожалуйста, попробуйте еще раз.';
+        setSubmitMessage(errorMsg);
+        console.error('[Contact Form] Ошибка отправки:', {
+          status: response.status,
+          error: data.error,
+          details: data.details,
+        });
       }
-    } catch (_error) {
+    } catch (error: any) {
+      console.error('[Contact Form] Исключение при отправке:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name,
+      });
       setSubmitStatus('error');
-      setSubmitMessage('Произошла ошибка при отправке сообщения. Пожалуйста, попробуйте еще раз.');
+      setSubmitMessage(`Произошла ошибка при отправке сообщения: ${error?.message || 'Неизвестная ошибка'}. Пожалуйста, попробуйте еще раз.`);
     } finally {
       setIsSubmitting(false);
     }

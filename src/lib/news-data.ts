@@ -15,7 +15,13 @@ export interface NewsItem {
   status?: string;
 }
 
+// ⚠️ УСТАРЕЛО: Этот файл используется только как fallback для разработки
+// В продакшене все данные читаются из базы данных через API endpoints
+// Изображения хранятся только в БД (колонка image_data), а не в файловой системе
+// trainingImagesMap больше не используется для отображения изображений
+
 // Training images mapping - generated from /public/images/trainings folders
+// DEPRECATED: Images are now stored in database, not in file system
 const trainingImagesMap: Record<string, string[]> = {
   "06.11.2025": [
     "/images/trainings/2025.11.06/image_1762451338150_0.jpg",

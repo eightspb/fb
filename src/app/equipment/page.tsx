@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 
 export default function Equipment() {
   return (
-    <div className="min-h-screen bg-slate-50 font-sans selection:bg-pink-100 selection:text-pink-900">
+    <div className="min-h-screen bg-slate-50 font-sans selection:bg-teal-100 selection:text-teal-900">
       <Header />
 
       <div className="pt-24 pb-12 bg-white border-b border-slate-200">
@@ -52,19 +52,39 @@ export default function Equipment() {
               </p>
               
               <div className="grid sm:grid-cols-2 gap-4 pt-4">
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                  <p className="text-sm text-slate-500 mb-1">Производитель</p>
-                  <p className="font-semibold text-slate-900">XISHAN S&T CO., LTD.</p>
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-4">
+                  <div className="relative w-32 h-24 bg-white rounded-lg border border-slate-100 flex-shrink-0">
+                    <Image 
+                      src="/images/xishan-logo-new.png" 
+                      alt="Xishan" 
+                      fill
+                      className="object-contain p-2"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500 mb-1">Производитель</p>
+                    <p className="font-semibold text-slate-900 leading-tight">XISHAN S&T CO., LTD.</p>
+                  </div>
                 </div>
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                  <p className="text-sm text-slate-500 mb-1">Дистрибьютор в РФ</p>
-                  <p className="font-semibold text-slate-900">ООО «ЗЕНИТ»</p>
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-4">
+                  <div className="relative w-32 h-24 bg-white rounded-lg border border-slate-100 flex-shrink-0">
+                    <Image 
+                      src="/images/logo.png" 
+                      alt="Zenit" 
+                      fill
+                      className="object-contain p-2"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500 mb-1">Дистрибьютор в РФ</p>
+                    <p className="font-semibold text-slate-900 leading-tight">ООО «ЗЕНИТ»</p>
+                  </div>
                 </div>
               </div>
 
               <div className="flex gap-4 pt-4">
                 <RequestCPModal>
-                  <Button size="lg" className="rounded-full bg-pink-600 hover:bg-pink-700 text-white px-8">
+                  <Button size="lg" className="rounded-full bg-teal-600 hover:bg-teal-700 text-white px-8">
                     Запросить КП
                   </Button>
                 </RequestCPModal>
@@ -112,10 +132,10 @@ export default function Equipment() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               { icon: Settings, title: "Плавная регулировка", desc: "Положения ножа в апертуре иглы", color: "text-blue-500" },
-              { icon: VolumeX, title: "Тихая работа", desc: "Низкий уровень шума для комфорта", color: "text-pink-500" },
+              { icon: VolumeX, title: "Тихая работа", desc: "Низкий уровень шума для комфорта", color: "text-teal-500" },
               { icon: Target, title: "Авто-определение", desc: "Типа иглы и режима работы", color: "text-purple-500" },
               { icon: Maximize2, title: "Настройка апертуры", desc: "От 5 мм до 30 мм", color: "text-indigo-500" },
-              { icon: Bell, title: "Smart-контроль", desc: "Предупреждение о переполнении", color: "text-rose-500" },
+              { icon: Bell, title: "Smart-контроль", desc: "Предупреждение о переполнении", color: "text-teal-500" },
               { icon: Scissors, title: "Тройная заточка", desc: "Острый однонаправленный нож", color: "text-cyan-500" },
               { icon: RefreshCw, title: "Авто-доставка", desc: "Непрерывный сбор образцов", color: "text-teal-500" },
               { icon: Smartphone, title: "Сенсорный экран", desc: "Удобный интерфейс управления", color: "text-violet-500" },
@@ -187,9 +207,9 @@ export default function Equipment() {
               </CardContent>
             </Card>
 
-            <Card className="border-l-4 border-l-pink-500 shadow-sm">
+            <Card className="border-l-4 border-l-teal-500 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-pink-700">Тройная заточка</CardTitle>
+                <CardTitle className="text-teal-700">Тройная заточка</CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-3">
@@ -200,7 +220,7 @@ export default function Equipment() {
                     "Однонаправленный вращающийся нож"
                   ].map((text, i) => (
                     <li key={i} className="flex items-start gap-3 text-slate-600">
-                      <Check className="w-5 h-5 text-pink-500 shrink-0" />
+                      <Check className="w-5 h-5 text-teal-500 shrink-0" />
                       <span>{text}</span>
                     </li>
                   ))}
@@ -288,7 +308,7 @@ export default function Equipment() {
         </section>
 
         {/* CTA Section */}
-        <section className="text-center py-16 bg-gradient-to-br from-pink-50 to-blue-50 rounded-3xl border border-pink-100">
+        <section className="text-center py-16 bg-gradient-to-br from-teal-50 to-blue-50 rounded-3xl border border-teal-100">
           <h2 className="text-3xl font-bold text-slate-900 mb-4">Заинтересованы в DK-B-MS?</h2>
           <p className="text-lg text-slate-600 mb-8 max-w-2xl mx-auto">
             Свяжитесь с нами для получения подробной информации, ценового предложения или организации демонстрации системы.

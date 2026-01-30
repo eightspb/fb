@@ -34,3 +34,13 @@ SELECT tablename, rowsecurity, schemaname FROM pg_tables WHERE schemaname = 'sto
 echo "👉 Если rolbypassrls = t и rowsecurity = f, то ошибка 403 НЕВОЗМОЖНА со стороны БД."
 echo "👉 Теперь пробуйте ./migrate-images-docker.sh"
 
+
+
+
+
+
+
+
+
+
+

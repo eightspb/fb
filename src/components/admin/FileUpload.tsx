@@ -4,13 +4,14 @@ import { supabase } from '@/lib/supabase';
 import { Upload, Loader2 } from 'lucide-react';
 
 interface FileUploadProps {
-  onUpload: (url: string) => void;
+  onUpload: (result: string) => void;
   folder?: string;
   accept?: string;
   className?: string;
+  mode?: 'upload' | 'base64';
 }
 
-export function FileUpload({ onUpload, folder = 'uploads', accept = 'image/*', className }: FileUploadProps) {
+export function FileUpload({ onUpload, folder = 'uploads', accept = 'image/*', className, mode = 'upload' }: FileUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -20,6 +21,20 @@ export function FileUpload({ onUpload, folder = 'uploads', accept = 'image/*', c
 
     setIsUploading(true);
     try {
+      if (mode === 'base64') {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64String = reader.result as string;
+          onUpload(base64String);
+          setIsUploading(false);
+        };
+        reader.onerror = () => {
+          throw new Error('Failed to read file');
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
       const filePath = `${folder}/${fileName}`;

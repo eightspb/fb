@@ -11,6 +11,10 @@
     "migrate:news": "tsx scripts/migrate-news-to-supabase.ts",
     "migrate:news:postgres": "tsx scripts/migrate-news-to-postgres.ts",
     "migrate:images": "tsx scripts/migrate-images-to-storage.ts",
+    "migrate:db-images": "tsx scripts/import-images-to-db.ts",
+    "migrate:all-images-to-db": "tsx scripts/migrate-all-images-to-db.ts",
+    "docker:migrate-db-images": "docker exec -i fb-net-nextjs npx tsx scripts/import-images-to-db.ts",
+    "docker:migrate-all-images": "docker exec -i fb-net-nextjs npx tsx scripts/migrate-all-images-to-db.ts",
     "organize:images": "tsx scripts/organize-images-by-date.ts",
     "rename:folders": "tsx scripts/rename-date-folders.ts",
     "create:news-from-folders": "tsx scripts/create-news-from-folders.ts",
@@ -31,7 +35,11 @@
     "docker:prod": "docker-compose -f docker-compose.prod.yml up -d --build",
     "fix:image-paths": "tsx scripts/fix-image-paths.ts",
     "docker:add-views-tracking": "docker exec -i fb-net-supabase-db psql -U postgres -d postgres < scripts/add-views-tracking.sql",
-    "setup:telegram-bot": "tsx scripts/setup-telegram-bot.ts"
+    "setup:telegram-bot": "tsx scripts/setup-telegram-bot.ts",
+    "copy:trainings": "tsx scripts/copy-trainings-images.ts",
+    "copy:trainings-to-blog": "tsx scripts/copy-trainings-to-blog.ts",
+    "merge:blog-folders": "tsx scripts/merge-consecutive-blog-folders.ts",
+    "cleanup:blog-folders": "tsx scripts/cleanup-duplicate-blog-folders.ts"
   },
   "dependencies": {
     "@pbe/react-yandex-maps": "^1.2.5",

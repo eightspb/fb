@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { LayoutDashboard, FileText, Calendar, LogOut, Menu } from 'lucide-react';
+import { LayoutDashboard, FileText, Calendar, LogOut, Menu, Inbox } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 export default function AdminLayout({
@@ -91,6 +91,7 @@ export default function AdminLayout({
 
   const navItems = [
     { href: '/admin', label: 'Главная', icon: LayoutDashboard },
+    { href: '/admin/requests', label: 'Заявки', icon: Inbox },
     { href: '/admin/news', label: 'Новости', icon: FileText },
     { href: '/admin/conferences', label: 'Мероприятия', icon: Calendar },
   ];

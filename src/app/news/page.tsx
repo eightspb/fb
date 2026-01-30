@@ -19,7 +19,7 @@ export default async function News({ searchParams }: NewsPageProps) {
   const initialCategory = params.category || undefined;
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans selection:bg-pink-100 selection:text-pink-900">
+    <div className="min-h-screen bg-slate-50 font-sans selection:bg-teal-100 selection:text-teal-900">
       <Header />
 
       <div className="pt-24 pb-12 bg-white border-b border-slate-200">

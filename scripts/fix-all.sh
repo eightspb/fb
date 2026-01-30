@@ -71,3 +71,13 @@ docker logs fb-net-auth --tail 5
 echo ""
 echo "✅ Готово. Если статус всех контейнеров 'Up' (и не Restarting), можно запускать миграцию."
 
+
+
+
+
+
+
+
+
+
+

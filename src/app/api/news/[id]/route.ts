@@ -44,21 +44,14 @@ export async function GET(
     const client = await pool.connect();
 
     try {
-      // Получаем новость с связанными данными
-      // ВАЖНО: При прямом запросе по ID мы можем вернуть новость в статусе draft
-      // если это админ, но пока возвращаем только если не draft или поправим логику если нужно.
-      // Обычно GET по ID (публичный) должен возвращать только опубликованные.
-      // Но если мы будем использовать этот эндпоинт для админки (редактирование),
-      // то нам нужно отдавать и черновики.
-      // Поэтому проверим, есть ли статус черновика, и если да, то решаем.
-      // Для простоты пока разрешаем получать черновики по прямому ID (предполагая что ID черновика никто не угадает
-      // или это не критично), ЛИБО добавим auth check для черновиков.
-      // Сделаем так: возвращаем все по ID. На фронте публичном можно фильтровать, 
-      // но вообще лучше в API.
+      // Проверяем наличие колонки image_data в news_images
+      const imageDataCheck = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name='news_images' AND column_name='image_data'
+      `);
       
-      // Однако, в коде выше было: AND n.status IS DISTINCT FROM 'draft'
-      // Это значит публично черновики недоступны.
-      // Для админки нам нужен доступ.
+      const hasImageDataColumn = imageDataCheck.rows.length > 0;
       
       // Проверяем токен, если есть - отдаем всё.
       const authHeader = request.headers.get('Authorization');
@@ -69,17 +62,34 @@ export async function GET(
         if (user) isAdmin = true;
       }
 
-      let statusCondition = "AND n.status IS DISTINCT FROM 'draft'";
+      // Показываем опубликованные новости и новости без статуса (NULL) для обратной совместимости
+      let statusCondition = "AND (n.status = 'published' OR n.status IS NULL)";
       if (isAdmin) {
         statusCondition = ""; // Админ видит всё
       }
+
+      // Строим запрос для изображений с учетом наличия колонки image_data
+      const imagesSubquery = hasImageDataColumn
+        ? `(SELECT json_agg(jsonb_build_object(
+              'id', id,
+              'image_url', image_url, 
+              'order', "order",
+              'has_data', (image_data IS NOT NULL)
+            )) 
+             FROM news_images WHERE news_id = n.id)`
+        : `(SELECT json_agg(jsonb_build_object(
+              'id', id,
+              'image_url', image_url, 
+              'order', "order",
+              'has_data', false
+            )) 
+             FROM news_images WHERE news_id = n.id)`;
 
       const query = `
         SELECT 
           n.*,
           COALESCE(
-            (SELECT json_agg(jsonb_build_object('image_url', image_url, 'order', "order")) 
-             FROM news_images WHERE news_id = n.id),
+            ${imagesSubquery},
             '[]'::json
           ) as images,
           COALESCE(
@@ -135,21 +145,15 @@ export async function GET(
       const videos = parseJsonArray(row.videos);
       const documents = parseJsonArray(row.documents);
 
-      // Преобразуем пути к изображениям из формата DD.MM.YYYY в YYYY.MM.DD
-      const convertImagePath = (imagePath: string): string => {
-        return imagePath.replace(
-          /(\/images\/trainings\/)(\d{2})\.(\d{2})\.(\d{4})(\/)/g,
-          (match, prefix, day, month, year, suffix) => {
-            return `${prefix}${year}.${month}.${day}${suffix}`;
-          }
-        );
-      };
-
-      // Применяем преобразование к изображениям
-      const convertedImages = images.map((img: any) => ({
-        ...img,
-        image_url: convertImagePath(img.image_url || '')
-      }));
+      // Используем только изображения из БД
+      // Если изображение есть в БД (has_data = true), используем API endpoint
+      // Если нет - пропускаем (изображение должно быть загружено в БД через миграцию)
+      const convertedImages = images
+        .filter((img: any) => img.has_data) // Только изображения из БД
+        .map((img: any) => ({
+          ...img,
+          image_url: `/api/images/${img.id}`
+        }));
 
       const news = transformNewsFromDB(row, convertedImages, tags, videos, documents);
 
@@ -228,21 +232,96 @@ export async function PUT(
 
       const newsId = updateResult.rows[0].id;
 
-      // Delete existing relations
-      await client.query('DELETE FROM news_images WHERE news_id = $1', [newsId]);
+      // Delete existing relations (EXCEPT images which we handle smartly to preserve binary data)
+      // await client.query('DELETE FROM news_images WHERE news_id = $1', [newsId]); // Don't delete all images!
       await client.query('DELETE FROM news_tags WHERE news_id = $1', [newsId]);
       await client.query('DELETE FROM news_videos WHERE news_id = $1', [newsId]);
       await client.query('DELETE FROM news_documents WHERE news_id = $1', [newsId]);
 
-      // Insert new relations
-      // Images
+      // Handle Images (Smart Update)
+      // 1. Get current images
+      const existingImagesResult = await client.query('SELECT id, image_url FROM news_images WHERE news_id = $1', [newsId]);
+      const existingIds = new Set(existingImagesResult.rows.map(row => row.id));
+      const keptIds = new Set<string>();
+
       if (images && images.length > 0) {
         for (let i = 0; i < images.length; i++) {
-           await client.query(
-             'INSERT INTO news_images (news_id, image_url, "order") VALUES ($1, $2, $3)',
-             [newsId, images[i], i]
-           );
+           const imageStr = images[i];
+           
+           // Check if it's an existing image served via API
+           const idMatch = imageStr.match(/\/api\/images\/([0-9a-fA-F-]{36})/); // UUID regex
+           
+           if (idMatch && existingIds.has(idMatch[1])) {
+             // It's an existing DB image, update order
+             const imgId = idMatch[1];
+             await client.query('UPDATE news_images SET "order" = $1 WHERE id = $2', [i, imgId]);
+             keptIds.add(imgId);
+           } else if (imageStr.startsWith('data:')) {
+             // New Base64 image
+             try {
+               const matches = imageStr.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+               if (matches && matches.length === 3) {
+                   const mimeType = matches[1];
+                   const buffer = Buffer.from(matches[2], 'base64');
+                   await client.query(
+                     'INSERT INTO news_images (news_id, image_url, "order", image_data, mime_type) VALUES ($1, $2, $3, $4, $5)',
+                     [newsId, 'stored_in_db', i, buffer, mimeType]
+                   );
+               }
+             } catch (e) {
+               console.error('Error processing base64 image:', e);
+             }
+           } else {
+             // It's a URL (external or legacy local file)
+             // Check if we already have this URL in DB to preserve ID (and potential relations if any)
+             // But since we don't have unique constraint on image_url per news_id (technically), 
+             // we'll try to find one that is NOT already in keptIds to reuse it.
+             
+             // Simple approach: find one matching URL that is in existingIds and not in keptIds
+             const existingRow = existingImagesResult.rows.find(
+               row => row.image_url === imageStr && existingIds.has(row.id) && !keptIds.has(row.id)
+             );
+
+             if (existingRow) {
+                await client.query('UPDATE news_images SET "order" = $1 WHERE id = $2', [i, existingRow.id]);
+                keptIds.add(existingRow.id);
+             } else {
+                // New URL (not in DB or not kept)
+                let storedAsData = false;
+                if (imageStr.startsWith('http://') || imageStr.startsWith('https://')) {
+                    try {
+                        const imgRes = await fetch(imageStr);
+                        if (imgRes.ok) {
+                            const arrayBuffer = await imgRes.arrayBuffer();
+                            const buffer = Buffer.from(arrayBuffer);
+                            const mimeType = imgRes.headers.get('content-type') || 'image/jpeg';
+                            
+                            await client.query(
+                                'INSERT INTO news_images (news_id, image_url, "order", image_data, mime_type) VALUES ($1, $2, $3, $4, $5)',
+                                [newsId, imageStr, i, buffer, mimeType]
+                            );
+                            storedAsData = true;
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch image from URL:', imageStr, e);
+                    }
+                }
+
+                if (!storedAsData) {
+                    await client.query(
+                        'INSERT INTO news_images (news_id, image_url, "order") VALUES ($1, $2, $3)',
+                        [newsId, imageStr, i]
+                    );
+                }
+             }
+           }
         }
+      }
+
+      // Delete images that were not kept
+      const idsToDelete = [...existingIds].filter(id => !keptIds.has(id));
+      if (idsToDelete.length > 0) {
+         await client.query('DELETE FROM news_images WHERE id = ANY($1)', [idsToDelete]);
       }
       
       // Tags
@@ -315,11 +394,37 @@ export async function DELETE(
 
     const client = await pool.connect();
     try {
-      const result = await client.query('DELETE FROM news WHERE id = $1 OR id = $2 RETURNING id', [id, decodedId]);
-      if (result.rows.length === 0) {
+      await client.query('BEGIN');
+
+      // Get news ID first to clean up related tables manually (if cascade is missing)
+      const newsResult = await client.query('SELECT id FROM news WHERE id = $1 OR id = $2', [id, decodedId]);
+      
+      if (newsResult.rows.length === 0) {
+        await client.query('ROLLBACK');
         return NextResponse.json({ error: 'News not found' }, { status: 404 });
       }
+
+      const newsId = newsResult.rows[0].id;
+
+      // Manually delete related records to prevent FK violations if CASCADE is missing
+      await client.query('DELETE FROM news_images WHERE news_id = $1', [newsId]);
+      await client.query('DELETE FROM news_tags WHERE news_id = $1', [newsId]);
+      await client.query('DELETE FROM news_videos WHERE news_id = $1', [newsId]);
+      await client.query('DELETE FROM news_documents WHERE news_id = $1', [newsId]);
+
+      // Delete the news item
+      const result = await client.query('DELETE FROM news WHERE id = $1 RETURNING id', [newsId]);
+      
+      await client.query('COMMIT');
+      
+      if (result.rows.length === 0) {
+        // Should not happen as we checked existence, but for safety
+        return NextResponse.json({ error: 'News not found during delete' }, { status: 404 });
+      }
       return NextResponse.json({ success: true });
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
     } finally {
       client.release();
     }

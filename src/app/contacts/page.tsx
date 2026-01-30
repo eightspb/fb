@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function Contacts() {
   return (
-    <div className="min-h-screen bg-slate-50 font-sans selection:bg-pink-100 selection:text-pink-900">
+    <div className="min-h-screen bg-slate-50 font-sans selection:bg-teal-100 selection:text-teal-900">
       <Header />
 
       <div className="pt-24 pb-12 bg-white border-b border-slate-200">
@@ -43,7 +43,7 @@ export default function Contacts() {
                     </div>
                     <div>
                       <p className="text-sm text-slate-500 font-medium mb-1">Телефон</p>
-                      <a href="tel:+78127482213" className="text-lg font-semibold text-slate-900 hover:text-pink-600 transition-colors">
+                      <a href="tel:+78127482213" className="text-lg font-semibold text-slate-900 hover:text-teal-600 transition-colors">
                         +7 (812) 748-22-13
                       </a>
                     </div>
@@ -52,12 +52,12 @@ export default function Contacts() {
 
                 <Card className="border-slate-200 shadow-sm hover:shadow-md transition-all">
                   <CardContent className="p-6 flex flex-col items-start gap-4">
-                    <div className="w-10 h-10 rounded-full bg-pink-50 flex items-center justify-center text-pink-600">
+                    <div className="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center text-teal-600">
                       <Mail className="w-5 h-5" />
                     </div>
                     <div>
                       <p className="text-sm text-slate-500 font-medium mb-1">Email</p>
-                      <a href="mailto:info@zenitmed.ru" className="text-lg font-semibold text-slate-900 hover:text-pink-600 transition-colors">
+                      <a href="mailto:info@zenitmed.ru" className="text-lg font-semibold text-slate-900 hover:text-teal-600 transition-colors">
                         info@zenitmed.ru
                       </a>
                     </div>

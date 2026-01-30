@@ -47,6 +47,8 @@ export function RequestCPModal({
     setError(null)
 
     try {
+      console.log('[RequestCPModal] Отправка данных формы:', { ...formData, formType });
+      
       const response = await fetch("/api/request-cp", {
         method: "POST",
         headers: {
@@ -55,10 +57,23 @@ export function RequestCPModal({
         body: JSON.stringify({ ...formData, formType }),
       })
 
+      console.log('[RequestCPModal] Ответ от сервера:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+      });
+
       const data = await response.json()
+      console.log('[RequestCPModal] Данные ответа:', data);
 
       if (!response.ok) {
-        throw new Error(data.error || "Произошла ошибка при отправке запроса")
+        const errorMsg = data.error || data.details || "Произошла ошибка при отправке запроса";
+        console.error('[RequestCPModal] Ошибка отправки:', {
+          status: response.status,
+          error: data.error,
+          details: data.details,
+        });
+        throw new Error(errorMsg)
       }
 
       setIsSuccess(true)
@@ -74,8 +89,14 @@ export function RequestCPModal({
           institution: "",
         })
       }, 3000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Произошла ошибка")
+    } catch (err: any) {
+      console.error('[RequestCPModal] Исключение при отправке:', {
+        message: err?.message,
+        stack: err?.stack,
+        name: err?.name,
+      });
+      const errorMessage = err instanceof Error ? err.message : "Произошла ошибка";
+      setError(errorMessage);
     } finally {
       setIsLoading(false)
     }

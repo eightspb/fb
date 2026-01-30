@@ -171,3 +171,13 @@ DROP POLICY IF EXISTS "Authenticated users can delete news_documents" ON news_do
 CREATE POLICY "Authenticated users can delete news_documents" ON news_documents
   FOR DELETE USING (auth.role() = 'authenticated');
 
+
+
+
+
+
+
+
+
+
+
