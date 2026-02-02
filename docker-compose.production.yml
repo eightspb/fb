@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # --- SUPABASE SERVICES (BACKEND) ---
 
@@ -177,6 +175,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_SUPABASE_URL=${SITE_URL}:8000
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}
     container_name: fb-net-app
     ports:
       - "3000:3000"
