@@ -1,4 +1,4 @@
-FROM node:20-slim AS base
+FROM node:20-alpine AS base
 RUN apk add --no-cache libc6-compat
 
 # Install dependencies only when needed
