@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
-RUN npm ci --legacy-peer-deps && npm install lightningcss-linux-x64-musl @tailwindcss/oxide-linux-x64-musl --no-save --legacy-peer-deps
+RUN npm install --legacy-peer-deps && npm install lightningcss-linux-x64-musl @tailwindcss/oxide-linux-x64-musl --no-save --legacy-peer-deps
 
 # Build environment variables
 ARG NEXT_PUBLIC_SUPABASE_URL
@@ -29,7 +29,7 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -42,8 +42,8 @@ USER nextjs
 
 EXPOSE 3000
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 CMD ["node", "server.js"]
 
