@@ -20,16 +20,7 @@ ANON_KEY=your-anon-key-change-me
 # ВАЖНО: Без слэша в конце
 SITE_URL=http://localhost
 
-# 4. Mail Settings (SMTP для отправки писем с форм)
-# Настройки SMTP для mail.ru
-# Если порт 465 не работает, попробуйте порт 587
-SMTP_HOST=smtp.mail.ru
-SMTP_PORT=465
-# Альтернатива: SMTP_PORT=587 (использует STARTTLS вместо SSL)
-SMTP_USER=info@zenitmed.ru
-SMTP_PASSWORD=MnDG5esS7nqwxGkmBVey
-SMTP_FROM=info@zenitmed.ru
-TARGET_EMAIL=info@zenitmed.ru
+
 
 # 5. OpenRouter AI (Optional)
 # Ключ API для улучшения текстов новостей
