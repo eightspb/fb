@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { LayoutDashboard, FileText, Calendar, LogOut, Menu, Inbox } from 'lucide-react';
@@ -20,59 +19,45 @@ export default function AdminLayout({
 
   useEffect(() => {
     const checkAuth = async () => {
-      // Check for bypass cookie first (local dev fallback)
-      const bypassCookie = document.cookie.split('; ').find(row => row.startsWith('sb-admin-bypass='));
-      const bypassStorage = typeof window !== 'undefined' ? localStorage.getItem('sb-admin-bypass') : null;
-      
-      if (bypassCookie || bypassStorage === 'true') {
-        setIsAuthenticated(true);
-        if (pathname === '/admin/login') {
-          router.replace('/admin');
-        }
+      // Skip auth check on login page
+      if (pathname === '/admin/login') {
         setLoading(false);
         return;
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session && pathname !== '/admin/login') {
+      try {
+        const response = await fetch('/api/admin/auth', {
+          method: 'GET',
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          setIsAuthenticated(true);
+        } else {
+          router.replace('/admin/login');
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
         router.replace('/admin/login');
-      } else if (session && pathname === '/admin/login') {
-        router.replace('/admin');
-      } else {
-        setIsAuthenticated(!!session);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      // Re-check bypass on auth change events too
-      const bypassStorage = localStorage.getItem('sb-admin-bypass');
-      if (bypassStorage === 'true') return;
-
-      if (!session && pathname !== '/admin/login') {
-        router.replace('/admin/login');
-        setIsAuthenticated(false);
-      } else if (session && pathname === '/admin/login') {
-        router.replace('/admin');
-        setIsAuthenticated(true);
-      } else {
-        setIsAuthenticated(!!session);
-      }
-    });
-
-    return () => subscription.unsubscribe();
   }, [pathname, router]);
 
   const handleLogout = async () => {
-    // Clear bypass
-    document.cookie = "sb-admin-bypass=; path=/; max-age=0";
-    localStorage.removeItem('sb-admin-bypass');
-    
-    await supabase.auth.signOut();
+    try {
+      await fetch('/api/admin/auth', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
     router.replace('/admin/login');
+    setIsAuthenticated(false);
   };
 
   if (loading) {

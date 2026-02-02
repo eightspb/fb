@@ -20,7 +20,9 @@ ANON_KEY=your-anon-key-change-me
 # ВАЖНО: Без слэша в конце
 SITE_URL=http://localhost
 
-
+# 4. Admin Panel Password
+# Пароль для входа в админ-панель
+ADMIN_PASSWORD=your-secure-admin-password-here
 
 # 5. OpenRouter AI (Optional)
 # Ключ API для улучшения текстов новостей
