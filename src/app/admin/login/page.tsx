@@ -2,15 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Lock } from 'lucide-react';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -22,54 +20,25 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      // DEV MODE: Bypass Auth Service check if we are in development and can't connect to auth service
-      // This is a fallback for when local Docker containers for Auth are not running
-      // Check for dev credentials first (always allow in dev mode)
-      const isDevMode = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-      
-      if (isDevMode && email === 'admin@fb.net' && password === 'password123') {
-        // Manually set a fake session cookie/storage
-        // In a real app, we would never do this client-side securely, 
-        // but for local dev fallback it allows access to the UI.
-        document.cookie = "sb-admin-bypass=true; path=/; max-age=3600";
-        localStorage.setItem('sb-admin-bypass', 'true');
-        
-        router.push('/admin');
-        router.refresh();
-        return;
-      }
-
-      // Try Supabase auth
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const response = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
       });
 
-      if (error) {
-        // If network error (auth service down), and creds match dev creds, allow bypass
-        const isNetworkError = error.message.includes('fetch') || 
-                              error.message.includes('Failed to fetch') ||
-                              error.status === 500 || 
-                              error.name === 'AuthApiError' ||
-                              error.message.includes('NetworkError');
-        
-        if (isNetworkError && email === 'admin@fb.net' && password === 'password123') {
-          document.cookie = "sb-admin-bypass=true; path=/; max-age=3600";
-          localStorage.setItem('sb-admin-bypass', 'true');
-          router.push('/admin');
-          router.refresh();
-          return;
-        }
-        throw error;
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Ошибка входа');
       }
 
-      if (data.session) {
-        router.push('/admin');
-        router.refresh();
-      }
-    } catch (err: any) {
+      router.push('/admin');
+      router.refresh();
+    } catch (err: unknown) {
       console.error('Login error:', err);
-      setError(err.message || 'Ошибка входа');
+      setError(err instanceof Error ? err.message : 'Ошибка входа');
     } finally {
       setLoading(false);
     }
@@ -78,22 +47,14 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl text-center">Вход в админ-панель</CardTitle>
+        <CardHeader className="text-center">
+          <div className="mx-auto w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center mb-4">
+            <Lock className="w-6 h-6 text-white" />
+          </div>
+          <CardTitle className="text-2xl">Вход в админ-панель</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@example.com"
-                required
-              />
-            </div>
             <div className="space-y-2">
               <Label htmlFor="password">Пароль</Label>
               <Input
@@ -101,13 +62,15 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder="Введите пароль"
                 required
+                autoFocus
               />
             </div>
             
             {error && (
               <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-3 rounded">
-                <AlertCircle className="w-4 h-4" />
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 <span>{error}</span>
               </div>
             )}
