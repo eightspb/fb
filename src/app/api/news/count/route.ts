@@ -14,20 +14,25 @@ export async function GET(request: Request) {
 
     try {
       let count = 0;
+      // Условие для опубликованных новостей
+      const publishedCondition = "(n.status = 'published' OR n.status IS NULL)";
 
       if (!filter) {
-        // Общее количество
-        const result = await client.query('SELECT COUNT(*) FROM news');
+        // Общее количество опубликованных новостей
+        const result = await client.query(
+          `SELECT COUNT(*) FROM news n WHERE ${publishedCondition}`
+        );
         count = parseInt(result.rows[0].count);
       } else {
-        // Объединяем уникальные новости по категории или тегу (для обратной совместимости)
+        // Объединяем уникальные опубликованные новости по категории или тегу (для обратной совместимости)
         const normalizedFilter = filter.charAt(0).toUpperCase() + filter.slice(1).toLowerCase();
         
         const unionResult = await client.query(`
           SELECT COUNT(DISTINCT n.id) 
           FROM news n
           LEFT JOIN news_tags nt ON n.id = nt.news_id
-          WHERE n.category = $1 OR nt.tag ILIKE $2
+          WHERE ${publishedCondition}
+          AND (n.category = $1 OR nt.tag ILIKE $2)
         `, [filter, `%${normalizedFilter}%`]);
         
         count = parseInt(unionResult.rows[0].count);

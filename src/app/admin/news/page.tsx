@@ -88,7 +88,8 @@ export default function AdminNewsList() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/news', {
+      // includeAll=true - получить все новости, включая черновики (только для админов)
+      const response = await fetch('/api/news?includeAll=true', {
         credentials: 'include'
       });
       

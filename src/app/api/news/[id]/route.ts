@@ -32,10 +32,13 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    // Параметр includeAll=true позволяет получить черновики (только для авторизованных админов)
+    const includeAll = searchParams.get('includeAll') === 'true';
     
     // Декодируем ID из URL (на случай если он содержит кириллицу)
     const decodedId = decodeURIComponent(id);
-    console.log(`[API] Поиск новости: оригинальный ID="${id}", декодированный ID="${decodedId}"`);
+    console.log(`[API] Поиск новости: оригинальный ID="${id}", декодированный ID="${decodedId}", includeAll=${includeAll}`);
 
     const client = await pool.connect();
 
@@ -49,13 +52,14 @@ export async function GET(
       
       const hasImageDataColumn = imageDataCheck.rows.length > 0;
       
-      // Проверяем токен, если есть - отдаем всё.
+      // Проверяем токен
       const { isAuthenticated: isAdmin } = await checkApiAuth(request);
 
-      // Показываем опубликованные новости и новости без статуса (NULL) для обратной совместимости
+      // По умолчанию показываем только опубликованные новости
+      // Черновики показываем только если админ ЯВНО запросил includeAll=true
       let statusCondition = "AND (n.status = 'published' OR n.status IS NULL)";
-      if (isAdmin) {
-        statusCondition = ""; // Админ видит всё
+      if (isAdmin && includeAll) {
+        statusCondition = ""; // Админ видит всё при явном запросе
       }
 
       // Строим запрос для изображений с учетом наличия колонки image_data

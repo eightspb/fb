@@ -10,8 +10,11 @@ export async function GET() {
     const client = await pool.connect();
 
     try {
+      // Показываем годы только из опубликованных новостей
       const result = await client.query(
-        'SELECT DISTINCT year FROM news ORDER BY year DESC'
+        `SELECT DISTINCT year FROM news 
+         WHERE status = 'published' OR status IS NULL
+         ORDER BY year DESC`
       );
 
       const years = result.rows.map(row => row.year);

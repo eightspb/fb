@@ -31,6 +31,9 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const year = searchParams.get('year');
     const category = searchParams.get('category');
+    // Параметр includeAll=true позволяет получить все новости (включая черновики)
+    // Работает только для авторизованных админов
+    const includeAll = searchParams.get('includeAll') === 'true';
 
     console.log('[API News] GET Request received');
 
@@ -57,7 +60,7 @@ export async function GET(request: Request) {
       
       let statusCondition = '';
       if (hasStatusColumn) {
-        // Показываем опубликованные новости и новости без статуса (NULL) для обратной совместимости
+        // По умолчанию показываем только опубликованные новости и новости без статуса (NULL) для обратной совместимости
         statusCondition = "WHERE (n.status = 'published' OR n.status IS NULL)";
       } else {
         statusCondition = "WHERE 1=1";
@@ -66,10 +69,11 @@ export async function GET(request: Request) {
       // Проверяем авторизацию (является ли запрос от админа)
       const { isAuthenticated: isAdmin } = await checkApiAuth(request);
       
-      console.log(`[API News] isAdmin=${isAdmin}, hasStatusColumn=${hasStatusColumn}, hasImageDataColumn=${hasImageDataColumn}`);
+      console.log(`[API News] isAdmin=${isAdmin}, includeAll=${includeAll}, hasStatusColumn=${hasStatusColumn}, hasImageDataColumn=${hasImageDataColumn}`);
 
-      // Если админ - показываем все, иначе - только опубликованные
-      if (isAdmin) {
+      // Показываем ВСЕ новости только если админ ЯВНО запросил includeAll=true
+      // Это гарантирует что публичная страница /news всегда показывает только опубликованные
+      if (isAdmin && includeAll) {
         statusCondition = "WHERE 1=1";
       }
 

@@ -10,10 +10,11 @@ export async function GET() {
     const client = await pool.connect();
 
     try {
-      // Получаем только категории, так как пользователь попросил сократить количество фильтров
-      // и не смешивать теги с категориями
+      // Получаем только категории из опубликованных новостей
       const categoriesResult = await client.query(
-        'SELECT DISTINCT category FROM news WHERE category IS NOT NULL'
+        `SELECT DISTINCT category FROM news 
+         WHERE category IS NOT NULL 
+         AND (status = 'published' OR status IS NULL)`
       );
       const categories = categoriesResult.rows.map(row => row.category);
 
