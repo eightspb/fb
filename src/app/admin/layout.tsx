@@ -33,7 +33,10 @@ export default function AdminLayout({
 
         if (response.ok) {
           setIsAuthenticated(true);
+          // Set bypass flag for forms that check Supabase auth
+          localStorage.setItem('sb-admin-bypass', 'true');
         } else {
+          localStorage.removeItem('sb-admin-bypass');
           router.replace('/admin/login');
         }
       } catch (error) {
@@ -53,6 +56,8 @@ export default function AdminLayout({
         method: 'DELETE',
         credentials: 'include',
       });
+      // Clear bypass flag on logout
+      localStorage.removeItem('sb-admin-bypass');
     } catch (error) {
       console.error('Logout error:', error);
     }

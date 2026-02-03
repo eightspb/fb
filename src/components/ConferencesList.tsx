@@ -5,9 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, MapPin, Users, Clock, Video, Image as ImageIcon, FileText, CheckCircle, GraduationCap } from "lucide-react";
-import Link from 'next/link';
-
+import { Calendar, MapPin, Users, Clock, CheckCircle } from "lucide-react";
 import { PastEvents } from '@/components/PastEvents';
 
 interface Conference {
@@ -63,11 +61,14 @@ export function ConferencesList() {
     return new Date();
   };
 
-  const now = new Date();
+  // Compare only dates (without time) - set time to start of day
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   
   const upcoming = conferences.filter(c => {
     const date = parseDate(c.date);
-    return date >= now;
+    date.setHours(0, 0, 0, 0);
+    return date >= today;
   }).sort((a, b) => parseDate(a.date).getTime() - parseDate(b.date).getTime());
 
   if (loading) {
@@ -97,127 +98,6 @@ export function ConferencesList() {
       </div>
 
       <TabsContent value="announcements" className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        
-        {/* Recurring Monthly Training Event */}
-        <div className="mb-8">
-           <Card className="border-teal-200 shadow-md bg-gradient-to-r from-teal-50/50 to-blue-50/50 overflow-hidden relative group">
-             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <GraduationCap className="w-32 h-32" />
-             </div>
-             <CardContent className="p-8 relative z-10">
-               <div className="flex flex-col md:flex-row gap-8 items-start">
-                 <div className="flex-1">
-                   <div className="flex items-center gap-3 mb-4">
-                     <Badge className="bg-teal-600 text-white hover:bg-teal-700 border-0 px-3 py-1 text-sm">
-                        Регулярное обучение
-                     </Badge>
-                     <div className="flex items-center gap-1 text-teal-700 font-medium text-sm bg-teal-100/50 px-3 py-1 rounded-full">
-                        <Calendar className="w-4 h-4" />
-                        <span>Каждый месяц</span>
-                     </div>
-                   </div>
-
-                   <h3 className="text-3xl font-bold text-slate-900 mb-2">
-                     Интервенционная маммология
-                   </h3>
-                   <p className="text-xl text-slate-700 mb-6 font-medium">
-                     Практический курс по вакуумной аспирационной биопсии (ВАБ)
-                   </p>
-                   
-                   <p className="text-slate-600 mb-6 leading-relaxed max-w-2xl">
-                     Комплексная программа повышения квалификации для хирургов, онкологов и врачей УЗД. 
-                     Отработка навыков на фантомах и участие в реальных операциях под руководством эксперта.
-                   </p>
-
-                   <div className="grid sm:grid-cols-2 gap-4 mb-8 max-w-lg">
-                      <div className="flex items-center gap-3 text-slate-700">
-                        <Users className="w-5 h-5 text-teal-500" />
-                        <span>Спикер: Одинцов В.А., д.м.н.</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-slate-700">
-                        <MapPin className="w-5 h-5 text-teal-500" />
-                        <span>Санкт-Петербург</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-slate-700">
-                        <Clock className="w-5 h-5 text-teal-500" />
-                        <span>36 часов CME</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-slate-700">
-                        <CheckCircle className="w-5 h-5 text-teal-500" />
-                        <span>Удостоверение гособразца</span>
-                      </div>
-                   </div>
-
-                   <div className="flex flex-col sm:flex-row gap-4">
-                     <Button className="bg-slate-900 hover:bg-slate-800 rounded-full px-8" asChild>
-                       <Link href="/training">
-                         Подробнее о курсе
-                       </Link>
-                     </Button>
-                   </div>
-                 </div>
-                 
-                 {/* Decorative or extra info side - optional, maybe just keep text left aligned */}
-               </div>
-             </CardContent>
-           </Card>
-        </div>
-
-        {/* Conference 2026 Teaser */}
-        <div className="mb-8">
-          <Card className="border-teal-200 shadow-md bg-gradient-to-r from-teal-50/50 to-blue-50/50 overflow-hidden relative group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Users className="w-32 h-32" />
-            </div>
-            <CardContent className="p-8 relative z-10">
-              <div className="flex flex-col md:flex-row gap-8 items-start">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Badge className="bg-teal-600 text-white hover:bg-teal-700 border-0 px-3 py-1 text-sm">
-                      Конференция
-                    </Badge>
-                    <div className="flex items-center gap-1 text-teal-700 font-medium text-sm bg-teal-100/50 px-3 py-1 rounded-full">
-                      <Calendar className="w-4 h-4" />
-                      <span>25 апреля 2026</span>
-                    </div>
-                  </div>
-
-                  <h3 className="text-3xl font-bold text-slate-900 mb-2">
-                    Миниинвазивная хирургия / Молочная железа
-                  </h3>
-                  <p className="text-xl text-slate-700 mb-6 font-medium">
-                    Научно-практическая конференция с международным участием
-                  </p>
-                  
-                  <p className="text-slate-600 mb-6 leading-relaxed max-w-2xl">
-                    Площадка для обмена опытом и знаниями с ведущими специалистами из России и других стран. 
-                    Обсуждение актуальных аспектов применения интервенционных методов в клинической практике.
-                  </p>
-
-                  <div className="grid sm:grid-cols-2 gap-4 mb-8 max-w-lg">
-                    <div className="flex items-center gap-3 text-slate-700">
-                      <MapPin className="w-5 h-5 text-teal-500" />
-                      <span>МКНЦ имени Логинова, Москва</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-slate-700">
-                      <Users className="w-5 h-5 text-teal-500" />
-                      <span>Ведущие специалисты</span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <Button className="bg-slate-900 hover:bg-slate-800 rounded-full px-8" asChild>
-                      <Link href="/conferences/sms3">
-                        Записаться
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {upcoming.length > 0 ? (
           <div className="grid md:grid-cols-2 gap-8">
             {upcoming.map((event) => {
