@@ -71,7 +71,7 @@ export async function PUT(
     } = body;
 
     // Обработка slug
-    let slug = providedSlug?.trim() || null;
+    const slug = providedSlug?.trim() || null;
     
     // Если slug предоставлен, валидируем его
     if (slug && !isValidSlug(slug)) {
