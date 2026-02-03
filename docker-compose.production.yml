@@ -1,11 +1,10 @@
-# Упрощённая production конфигурация
-# Удалены неиспользуемые сервисы: auth, rest, realtime, storage, kong
-# Осталось только: PostgreSQL + Next.js
+# Production Docker Compose configuration
+# PostgreSQL database + Next.js application
 
 services:
   # PostgreSQL Database
-  supabase-db:
-    image: supabase/postgres:15.1.1.78
+  postgres:
+    image: postgres:15
     container_name: fb-net-db
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -14,20 +13,13 @@ services:
       retries: 10
       start_period: 30s
     environment:
-      POSTGRES_HOST: /var/run/postgresql
-      PGPORT: 5432
-      POSTGRES_PORT: 5432
-      PGDATABASE: postgres
       POSTGRES_DB: postgres
-      # Используем postgres как основного пользователя
-      PGUSER: postgres
       POSTGRES_USER: postgres
-      PGPASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - supabase-prod-db-data:/var/lib/postgresql/data
-      # Инициализация схемы при первом запуске (не применится к существующей БД)
-      - ./supabase-schema.sql:/docker-entrypoint-initdb.d/00-init-schema.sql:ro
+      - postgres-prod-data:/var/lib/postgresql/data
+      # Database schema initialization on first run
+      - ./database-schema.sql:/docker-entrypoint-initdb.d/00-init-schema.sql:ro
     networks:
       - fb-net-prod-network
     restart: always
@@ -42,23 +34,24 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: production
-      # Подключение к БД напрямую
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@supabase-db:5432/postgres
+      # Database connection
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
       # Admin panel authentication
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       # Telegram notifications (optional)
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_ADMIN_CHAT_ID: ${TELEGRAM_ADMIN_CHAT_ID:-}
     depends_on:
-      supabase-db:
+      postgres:
         condition: service_healthy
     networks:
       - fb-net-prod-network
     restart: always
 
 volumes:
-  supabase-prod-db-data:
+  postgres-prod-data:
 
 networks:
   fb-net-prod-network:

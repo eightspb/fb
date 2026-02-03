@@ -1,14 +1,10 @@
 import { NextResponse } from 'next/server';
 import { Pool } from 'pg';
-import { createClient } from '@supabase/supabase-js';
+import { checkApiAuth } from '@/lib/auth';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
 });
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:8000';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function GET(request: Request) {
   try {
@@ -45,23 +41,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     // Auth check
-    const authHeader = request.headers.get('Authorization');
-    const bypassHeader = request.headers.get('X-Admin-Bypass');
-    
-    // Allow bypass if header is present (for local dev/admin fallback)
-    const isBypass = bypassHeader === 'true';
-
-    if (!isBypass) {
-      if (!authHeader) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-      if (authError || !user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
+    const { isAuthenticated } = await checkApiAuth(request);
+    if (!isAuthenticated) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();

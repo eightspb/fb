@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { NewsForm } from '@/components/admin/NewsForm';
-import { supabase } from '@/lib/supabase';
 
 export default function EditNewsPage() {
   const { id } = useParams();
@@ -13,12 +12,8 @@ export default function EditNewsPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
         const response = await fetch(`/api/news/${id}`, {
-          headers: {
-             'Authorization': `Bearer ${session?.access_token || ''}`
-          }
+          credentials: 'include'
         });
         if (response.ok) {
           const newsData = await response.json();

@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Trash2, CheckCircle, XCircle, Users, Calendar, Image as ImageIcon, Eye } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 
 interface Speaker {
   id: string;
@@ -53,19 +52,9 @@ export default function AdminConferencesList() {
     if (!confirm('Вы уверены, что хотите удалить это мероприятие?')) return;
 
     try {
-      const bypassStorage = localStorage.getItem('sb-admin-bypass');
-      const headers: Record<string, string> = {};
-      
-      if (bypassStorage === 'true') {
-        headers['X-Admin-Bypass'] = 'true';
-      } else {
-        const { data: { session } } = await supabase.auth.getSession();
-        headers['Authorization'] = `Bearer ${session?.access_token || ''}`;
-      }
-
       const response = await fetch(`/api/conferences/${id}`, {
         method: 'DELETE',
-        headers
+        credentials: 'include'
       });
 
       if (response.ok) {
@@ -84,26 +73,14 @@ export default function AdminConferencesList() {
     setConferences(conferences.map(n => n.id === item.id ? { ...n, status: newStatus } : n));
 
     try {
-      const bypassStorage = localStorage.getItem('sb-admin-bypass');
-      const headers: Record<string, string> = {};
-      
-      if (bypassStorage === 'true') {
-        headers['X-Admin-Bypass'] = 'true';
-      } else {
-        const { data: { session } } = await supabase.auth.getSession();
-        headers['Authorization'] = `Bearer ${session?.access_token || ''}`;
-      }
-
-      const itemResponse = await fetch(`/api/conferences/${item.id}`, { headers });
+      const itemResponse = await fetch(`/api/conferences/${item.id}`, { credentials: 'include' });
       
       if (itemResponse.ok) {
         const fullItem = await itemResponse.json();
         const response = await fetch(`/api/conferences/${item.id}`, {
           method: 'PUT',
-          headers: {
-            ...headers,
-            'Content-Type': 'application/json'
-          },
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...fullItem,
             status: newStatus

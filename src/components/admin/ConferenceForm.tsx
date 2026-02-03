@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileUpload } from '@/components/admin/FileUpload';
-import { supabase } from '@/lib/supabase';
 import { Loader2, Plus, X, User, Image as ImageIcon, ChevronUp, ChevronDown } from 'lucide-react';
 
 interface Speaker {
@@ -150,34 +149,13 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
     setLoading(true);
 
     try {
-      const bypassStorage = localStorage.getItem('sb-admin-bypass');
-      let sessionToken = '';
-
-      if (!bypassStorage) {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError || !session) {
-           throw new Error('Unauthorized: No active session');
-        }
-        sessionToken = session.access_token;
-      }
-      
       const url = isEditing ? `/api/conferences/${initialData.id}` : '/api/conferences';
       const method = isEditing ? 'PUT' : 'POST';
 
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      };
-
-      if (bypassStorage === 'true') {
-        headers['X-Admin-Bypass'] = 'true';
-      } else {
-        headers['Authorization'] = `Bearer ${sessionToken}`;
-      }
-
       const response = await fetch(url, {
         method,
-        headers,
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
 

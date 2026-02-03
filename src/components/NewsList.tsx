@@ -55,18 +55,18 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
           console.warn('[NewsList] Filters API failed:', filtersResponse.status);
         }
 
-        const supabaseNews: NewsItem[] = await newsResponse.json();
+        const newsItems: NewsItem[] = await newsResponse.json();
         const yearsData: string[] = yearsResponse.ok ? await yearsResponse.json() : [];
         const filtersData: string[] = filtersResponse.ok ? await filtersResponse.json() : [];
 
         console.log('[NewsList] Loaded data:', {
-          newsCount: supabaseNews?.length || 0,
+          newsCount: newsItems?.length || 0,
           yearsCount: yearsData?.length || 0,
           filtersCount: filtersData?.length || 0
         });
 
         // Устанавливаем данные даже если массив пустой (это валидное состояние)
-        setNewsData(supabaseNews || []);
+        setNewsData(newsItems || []);
         setYears(yearsData || []);
         
         // Загружаем счетчики только если есть фильтры
