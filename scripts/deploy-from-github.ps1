@@ -165,7 +165,7 @@ function Backup-Database {
     Write-Step "Создание бэкапа базы данных"
     
     # Проверяем, запущен ли контейнер БД
-    $dbRunning = & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile ps --status running 2>/dev/null | grep -q supabase-db && echo 'YES' || echo 'NO'"
+    $dbRunning = & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile ps --status running 2>/dev/null | grep -q postgres && echo 'YES' || echo 'NO'"
     
     if ($dbRunning -match "NO") {
         Write-Warn "Контейнер БД не запущен, пропускаем бэкап"
@@ -176,7 +176,7 @@ function Backup-Database {
     
     Write-Info "Сохранение бэкапа в $backupFile..."
     
-    & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T supabase-db pg_dump -U postgres -d postgres --clean --if-exists" | Out-File -FilePath $backupFile -Encoding UTF8
+    & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres pg_dump -U postgres -d postgres --clean --if-exists" | Out-File -FilePath $backupFile -Encoding UTF8
     
     if ($LASTEXITCODE -eq 0 -and (Test-Path $backupFile) -and (Get-Item $backupFile).Length -gt 100) {
         $sizeKB = [math]::Round((Get-Item $backupFile).Length / 1KB, 2)
@@ -211,7 +211,7 @@ function Apply-Migrations {
     Write-Step "Применение миграций БД"
     
     # Проверяем, запущен ли контейнер БД
-    $dbRunning = & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile ps --status running 2>/dev/null | grep -q supabase-db && echo YES || echo NO"
+    $dbRunning = & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile ps --status running 2>/dev/null | grep -q postgres && echo YES || echo NO"
     
     if ($dbRunning -match "NO") {
         Write-Warn "Контейнер БД не запущен, пропускаем миграции"
@@ -220,7 +220,7 @@ function Apply-Migrations {
     
     # Создаем таблицу миграций если не существует
     $createTable = "CREATE TABLE IF NOT EXISTS schema_migrations (name VARCHAR(255) PRIMARY KEY, applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW());"
-    & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T supabase-db psql -U postgres -d postgres -c `"$createTable`""
+    & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -c `"$createTable`""
     
     # Получаем список миграций на сервере
     $migrations = & $SshPath $Server "cd $RemotePath && ls migrations/*.sql 2>/dev/null || echo ''"
@@ -236,14 +236,14 @@ function Apply-Migrations {
         $migrationName = [System.IO.Path]::GetFileNameWithoutExtension($migrationPath.Trim())
         
         # Проверяем, применена ли миграция
-        $applied = & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T supabase-db psql -U postgres -d postgres -tAc `"SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE name = '$migrationName');`""
+        $applied = & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -tAc `"SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE name = '$migrationName');`""
         
         if ($applied -match "t") {
             Write-Info "  [SKIP] $migrationName (уже применена)"
         } else {
             Write-Info "  [APPLY] $migrationName"
-            & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T supabase-db psql -U postgres -d postgres < $migrationPath"
-            & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T supabase-db psql -U postgres -d postgres -c `"INSERT INTO schema_migrations (name) VALUES ('$migrationName');`""
+            & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres < $migrationPath"
+            & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -c `"INSERT INTO schema_migrations (name) VALUES ('$migrationName');`""
         }
     }
     
