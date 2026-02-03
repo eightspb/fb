@@ -33,7 +33,7 @@ if (-not (Test-Path $BackupDir)) {
 function Backup-Database {
     Write-Info "💾 Создание бэкапа базы данных..."
     
-    $dbContainer = ssh $Server "cd $RemotePath && docker compose -f $ComposeFile ps -q supabase 2>/dev/null || echo 'fb-net-supabase-db-prod'"
+    $dbContainer = ssh $Server "cd $RemotePath && docker compose -f $ComposeFile ps -q supabase-db 2>/dev/null || echo 'fb-net-db'"
     
     if ([string]::IsNullOrWhiteSpace($dbContainer)) {
         Write-Warning "Контейнер БД не найден, пропускаем бэкап"
@@ -62,7 +62,7 @@ function Test-MigrationApplied {
     $migrationName = [System.IO.Path]::GetFileNameWithoutExtension($MigrationFile)
     
     # Проверяем наличие таблицы для отслеживания миграций
-    $tableExists = ssh $Server "cd $RemotePath && docker exec `$(docker compose -f $ComposeFile ps -q supabase) psql -U postgres -d postgres -tAc \"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'schema_migrations');\""
+    $tableExists = ssh $Server "cd $RemotePath && docker exec `$(docker compose -f $ComposeFile ps -q supabase-db) psql -U postgres -d postgres -tAc \"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'schema_migrations');\""
     
     if ($LASTEXITCODE -ne 0) {
         # Таблица не существует, создаем её
@@ -72,11 +72,11 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
     applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 "@
-        ssh $Server "cd $RemotePath && docker exec -i `$(docker compose -f $ComposeFile ps -q supabase) psql -U postgres -d postgres" | Out-String -InputObject $createTable
+        ssh $Server "cd $RemotePath && docker exec -i `$(docker compose -f $ComposeFile ps -q supabase-db) psql -U postgres -d postgres" | Out-String -InputObject $createTable
     }
     
     # Проверяем, применена ли миграция
-    $applied = ssh $Server "cd $RemotePath && docker exec `$(docker compose -f $ComposeFile ps -q supabase) psql -U postgres -d postgres -tAc \"SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE name = '$migrationName');\""
+    $applied = ssh $Server "cd $RemotePath && docker exec `$(docker compose -f $ComposeFile ps -q supabase-db) psql -U postgres -d postgres -tAc \"SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE name = '$migrationName');\""
     
     return $applied -eq "t"
 }
@@ -100,7 +100,7 @@ function Apply-Migration {
     
     $fullCommand = $migrationContent + "`n" + $markMigration
     
-    ssh $Server "cd $RemotePath && docker exec -i `$(docker compose -f $ComposeFile ps -q supabase) psql -U postgres -d postgres" | Out-String -InputObject $fullCommand
+    ssh $Server "cd $RemotePath && docker exec -i `$(docker compose -f $ComposeFile ps -q supabase-db) psql -U postgres -d postgres" | Out-String -InputObject $fullCommand
     
     if ($LASTEXITCODE -eq 0) {
         Write-Success "Миграция $migrationName применена"
@@ -115,7 +115,7 @@ function Apply-Migration {
 function Check-ImagesInDb {
     Write-Info "🔍 Проверка изображений в базе данных..."
     
-    $dbContainer = ssh $Server "cd $RemotePath && docker compose -f $ComposeFile ps -q supabase 2>/dev/null || echo 'fb-net-supabase-db-prod'"
+    $dbContainer = ssh $Server "cd $RemotePath && docker compose -f $ComposeFile ps -q supabase-db 2>/dev/null || echo 'fb-net-db'"
     
     if ([string]::IsNullOrWhiteSpace($dbContainer)) {
         Write-Warning "Контейнер БД не найден, пропускаем проверку"
@@ -268,7 +268,7 @@ function Main {
         Write-Error "Не удалось перезапустить контейнеры."
         Write-Warning "Бэкап сохранен в $BackupDir"
         Write-Warning "Вы можете восстановить базу данных командой:"
-        Write-Warning "  Get-Content $BackupDir\db_backup_${Timestamp}.sql | ssh $Server 'cd $RemotePath && docker exec -i `$(docker compose -f $ComposeFile ps -q supabase) psql -U postgres -d postgres'"
+        Write-Warning "  Get-Content $BackupDir\db_backup_${Timestamp}.sql | ssh $Server 'cd $RemotePath && docker exec -i `$(docker compose -f $ComposeFile ps -q supabase-db) psql -U postgres -d postgres'"
         exit 1
     }
     
