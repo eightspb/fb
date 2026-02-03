@@ -22,13 +22,12 @@ export function Header() {
   }, []);
 
   const navLinks = [
-    { href: "/", label: "Главная" },
-    { href: "/equipment", label: "Оборудование" },
-    { href: "/training", label: "Обучение" },
-    { href: "/news", label: "Новости" },
-    { href: "/conferences", label: "Конференции" },
-    { href: "/patients", label: "Пациентам" },
-    { href: "/contacts", label: "Контакты" },
+    { href: "/", label: "ГЛАВНАЯ" },
+    { href: "/equipment", label: "ОБОРУДОВАНИЕ" },
+    { href: "/training", label: "ОБУЧЕНИЕ" },
+    { href: "/news", label: "НОВОСТИ" },
+    { href: "/conferences", label: "КОНФЕРЕНЦИИ" },
+    { href: "/patients", label: "ПАЦИЕНТАМ" },
   ];
 
   return (
@@ -81,7 +80,7 @@ export function Header() {
           <div className="hidden lg:flex items-center gap-2">
             <Link href="/contacts">
               <Button size="sm" className="rounded-full bg-gradient-to-br from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white px-5 shadow-lg shadow-purple-500/20 border-0 transition-all duration-300 hover:shadow-purple-500/40 hover:-translate-y-0.5">
-                Связаться
+                Контакты
               </Button>
             </Link>
           </div>
@@ -118,7 +117,7 @@ export function Header() {
                 <div className="pt-4 mt-2 border-t border-slate-100">
                   <Link href="/contacts" onClick={() => setIsMenuOpen(false)}>
                     <Button className="w-full rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white h-12 shadow-lg shadow-purple-500/20 border-0">
-                      Связаться с нами
+                      Контакты
                     </Button>
                   </Link>
                 </div>
