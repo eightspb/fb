@@ -47,7 +47,7 @@ export async function middleware(request: NextRequest) {
 function getClientIdentifier(request: NextRequest): string {
   const forwardedFor = request.headers.get('x-forwarded-for');
   const realIp = request.headers.get('x-real-ip');
-  const ip = forwardedFor?.split(',')[0]?.trim() || realIp || request.ip || 'unknown';
+  const ip = forwardedFor?.split(',')[0]?.trim() || realIp || 'unknown';
   return ip;
 }
 
