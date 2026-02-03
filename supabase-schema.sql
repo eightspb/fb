@@ -1,3 +1,36 @@
+-- Таблица заявок с форм (form_submissions)
+CREATE TABLE IF NOT EXISTS form_submissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  form_type TEXT NOT NULL, -- 'contact', 'cp', 'training', 'conference_registration'
+  status TEXT DEFAULT 'new', -- new, processed, archived
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  message TEXT,
+  institution TEXT,
+  city TEXT,
+  page_url TEXT, -- where the form was submitted from
+  metadata JSONB DEFAULT '{}'::jsonb -- for any extra fields
+);
+
+-- Индексы для form_submissions
+CREATE INDEX IF NOT EXISTS idx_form_submissions_created_at ON form_submissions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_status ON form_submissions(status);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_type ON form_submissions(form_type);
+
+-- RLS для form_submissions (разрешаем INSERT для всех, SELECT/UPDATE/DELETE только для postgres)
+ALTER TABLE form_submissions ENABLE ROW LEVEL SECURITY;
+
+-- Разрешаем публичную вставку (для форм на сайте)
+DROP POLICY IF EXISTS "Allow public insert on form_submissions" ON form_submissions;
+CREATE POLICY "Allow public insert on form_submissions" ON form_submissions
+  FOR INSERT WITH CHECK (true);
+
+-- Разрешаем всё для пользователя postgres (используется в API)
+DROP POLICY IF EXISTS "Allow all for postgres" ON form_submissions;
+CREATE POLICY "Allow all for postgres" ON form_submissions
+  FOR ALL TO postgres USING (true) WITH CHECK (true);
 
 -- Таблица конференций
 CREATE TABLE IF NOT EXISTS conferences (
