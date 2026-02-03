@@ -5,6 +5,9 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
 });
 
+const MIN_YEAR = 1900;
+const MAX_YEAR = 2100;
+
 export async function GET() {
   try {
     const client = await pool.connect();
@@ -17,7 +20,9 @@ export async function GET() {
          ORDER BY year DESC`
       );
 
-      const years = result.rows.map(row => row.year);
+      const years = result.rows
+        .map(row => Number(row.year))
+        .filter(year => Number.isInteger(year) && year >= MIN_YEAR && year <= MAX_YEAR);
       return NextResponse.json(years);
     } finally {
       client.release();

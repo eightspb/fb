@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Trash2, CheckCircle, XCircle, Users, Calendar, Image as ImageIcon, Eye, Link2 } from 'lucide-react';
+import { getCsrfToken } from '@/lib/csrf-client';
 
 interface Speaker {
   id: string;
@@ -53,9 +54,11 @@ export default function AdminConferencesList() {
     if (!confirm('Вы уверены, что хотите удалить это мероприятие?')) return;
 
     try {
+      const csrfToken = await getCsrfToken();
       const response = await fetch(`/api/conferences/${id}`, {
         method: 'DELETE',
-        credentials: 'include'
+        credentials: 'include',
+        headers: { 'x-csrf-token': csrfToken }
       });
 
       if (response.ok) {
@@ -78,10 +81,11 @@ export default function AdminConferencesList() {
       
       if (itemResponse.ok) {
         const fullItem = await itemResponse.json();
+        const csrfToken = await getCsrfToken();
         const response = await fetch(`/api/conferences/${item.id}`, {
           method: 'PUT',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
           body: JSON.stringify({
             ...fullItem,
             status: newStatus

@@ -15,6 +15,7 @@ interface FileUploadProps {
 export function FileUpload({ onUpload, accept = 'image/*', className }: FileUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const maxSizeBytes = 10 * 1024 * 1024;
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -22,6 +23,16 @@ export function FileUpload({ onUpload, accept = 'image/*', className }: FileUplo
 
     setIsUploading(true);
     try {
+      if (!file.type.startsWith('image/')) {
+        alert('Можно загружать только изображения');
+        setIsUploading(false);
+        return;
+      }
+      if (file.size > maxSizeBytes) {
+        alert('Файл слишком большой. Максимум 10MB.');
+        setIsUploading(false);
+        return;
+      }
       // Convert file to base64
       const reader = new FileReader();
       reader.onloadend = () => {

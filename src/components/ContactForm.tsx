@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
+import { getCsrfToken } from '@/lib/csrf-client';
 
 interface FormErrors {
   name?: string;
@@ -79,10 +80,12 @@ export function ContactForm() {
         consent: formData.consent,
       });
 
+      const csrfToken = await getCsrfToken();
       const response = await fetch('/api/contact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken,
         },
         body: JSON.stringify(formData),
       });

@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
+import { getCsrfToken } from '@/lib/csrf-client';
 
 interface RequestCPModalProps {
   children: React.ReactNode
@@ -49,10 +50,12 @@ export function RequestCPModal({
     try {
       console.log('[RequestCPModal] Отправка данных формы:', { ...formData, formType });
       
+      const csrfToken = await getCsrfToken();
       const response = await fetch("/api/request-cp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "x-csrf-token": csrfToken,
         },
         body: JSON.stringify({ ...formData, formType }),
       })

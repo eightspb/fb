@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { LayoutDashboard, FileText, Calendar, LogOut, Menu, Inbox } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { getCsrfToken } from '@/lib/csrf-client';
 
 export default function AdminLayout({
   children,
@@ -33,8 +34,10 @@ export default function AdminLayout({
 
         if (response.ok) {
           setIsAuthenticated(true);
-          // Set bypass flag for forms that check Supabase auth
-          localStorage.setItem('sb-admin-bypass', 'true');
+          // Set bypass flag only for local development
+          if (process.env.NODE_ENV !== 'production') {
+            localStorage.setItem('sb-admin-bypass', 'true');
+          }
         } else {
           localStorage.removeItem('sb-admin-bypass');
           router.replace('/admin/login');
@@ -52,9 +55,13 @@ export default function AdminLayout({
 
   const handleLogout = async () => {
     try {
+      const csrfToken = await getCsrfToken();
       await fetch('/api/admin/auth', {
         method: 'DELETE',
         credentials: 'include',
+        headers: {
+          'x-csrf-token': csrfToken,
+        },
       });
       // Clear bypass flag on logout
       localStorage.removeItem('sb-admin-bypass');

@@ -32,7 +32,12 @@ SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_USER=your-email@example.com
 SMTP_PASSWORD=your-smtp-password
+SMTP_TLS_REJECT_UNAUTHORIZED=true
 TARGET_EMAIL=target@example.com
+
+# 6.1 Rate limiting (Required for API rate limiting)
+UPSTASH_REDIS_REST_URL=https://your-upstash-url
+UPSTASH_REDIS_REST_TOKEN=your-upstash-token
 
 # 7. OpenRouter AI (Optional)
 # API key for improving news texts with AI

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createEmailTransporter, getSenderEmail, getTargetEmail } from '@/lib/email';
+import { escapeHtml } from '@/lib/sanitize';
 import { Pool } from 'pg';
 
 const pool = new Pool({
@@ -98,17 +99,23 @@ export async function POST(request: NextRequest) {
         const senderEmail = getSenderEmail();
 
         // Отправка уведомления на info@zenitmed.ru
+        const safeConference = escapeHtml(body.conference);
+        const safeName = escapeHtml(body.name);
+        const safeEmail = escapeHtml(body.email);
+        const safePhone = escapeHtml(body.phone);
+        const safeInstitution = body.institution ? escapeHtml(body.institution) : '';
+
         await transporter.sendMail({
           from: senderEmail,
           to: targetEmail,
-          subject: `Регистрация на конференцию: ${body.name}`,
+          subject: `Регистрация на конференцию: ${safeName}`,
           html: `
             <h2>Новая регистрация на конференцию</h2>
-            <p><strong>Конференция:</strong> ${body.conference}</p>
-            <p><strong>ФИО:</strong> ${body.name}</p>
-            <p><strong>Email:</strong> ${body.email}</p>
-            <p><strong>Телефон:</strong> ${body.phone}</p>
-            ${body.institution ? `<p><strong>Учреждение:</strong> ${body.institution}</p>` : ''}
+            <p><strong>Конференция:</strong> ${safeConference}</p>
+            <p><strong>ФИО:</strong> ${safeName}</p>
+            <p><strong>Email:</strong> ${safeEmail}</p>
+            <p><strong>Телефон:</strong> ${safePhone}</p>
+            ${safeInstitution ? `<p><strong>Учреждение:</strong> ${safeInstitution}</p>` : ''}
             <p><strong>Нужен сертификат:</strong> ${body.certificate ? 'Да' : 'Нет'}</p>
             <p><strong>Дата регистрации:</strong> ${new Date().toLocaleString('ru-RU')}</p>
           `,
@@ -121,8 +128,8 @@ export async function POST(request: NextRequest) {
           subject: 'Регистрация на конференцию получена | ЗЕНИТ МЕД',
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2>Здравствуйте, ${body.name}!</h2>
-              <p>Мы получили вашу регистрацию на конференцию "${body.conference}".</p>
+              <h2>Здравствуйте, ${safeName}!</h2>
+              <p>Мы получили вашу регистрацию на конференцию "${safeConference}".</p>
               <p>Наш менеджер свяжется с вами в ближайшее время для подтверждения регистрации.</p>
               <br>
               <p>С уважением,<br>Команда ЗЕНИТ МЕД</p>

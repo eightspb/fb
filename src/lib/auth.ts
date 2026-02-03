@@ -2,7 +2,8 @@ import { jwtVerify, SignJWT } from 'jose';
 import { cookies } from 'next/headers';
 
 // Константы
-const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-me';
+const JWT_SECRET = process.env.JWT_SECRET;
+const FALLBACK_JWT_SECRET = 'default-secret-change-me';
 const COOKIE_NAME = 'admin-session';
 const SESSION_DURATION = 7 * 24 * 60 * 60; // 7 дней в секундах
 
@@ -18,7 +19,7 @@ export async function verifyAdminSession(): Promise<boolean> {
       return false;
     }
 
-    const secret = new TextEncoder().encode(JWT_SECRET);
+    const secret = new TextEncoder().encode(getJwtSecret());
     await jwtVerify(token, secret);
     return true;
   } catch {
@@ -44,7 +45,7 @@ export async function getAdminToken(): Promise<string | null> {
  */
 export async function verifyToken(token: string): Promise<boolean> {
   try {
-    const secret = new TextEncoder().encode(JWT_SECRET);
+    const secret = new TextEncoder().encode(getJwtSecret());
     await jwtVerify(token, secret);
     return true;
   } catch {
@@ -56,7 +57,7 @@ export async function verifyToken(token: string): Promise<boolean> {
  * Создание нового JWT токена
  */
 export async function createToken(): Promise<string> {
-  const secret = new TextEncoder().encode(JWT_SECRET);
+  const secret = new TextEncoder().encode(getJwtSecret());
   return new SignJWT({ role: 'admin', iat: Date.now() })
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime(`${SESSION_DURATION}s`)
@@ -71,7 +72,7 @@ export async function createToken(): Promise<string> {
 export async function checkApiAuth(request: Request): Promise<{ isAuthenticated: boolean; isBypass: boolean }> {
   // Проверяем bypass header (для локальной разработки)
   const bypassHeader = request.headers.get('X-Admin-Bypass');
-  if (bypassHeader === 'true') {
+  if (bypassHeader === 'true' && process.env.NODE_ENV !== 'production') {
     return { isAuthenticated: true, isBypass: true };
   }
 
@@ -99,3 +100,13 @@ export async function checkApiAuth(request: Request): Promise<{ isAuthenticated:
 // Экспорт констант для использования в других модулях
 export const AUTH_COOKIE_NAME = COOKIE_NAME;
 export const AUTH_SESSION_DURATION = SESSION_DURATION;
+
+function getJwtSecret(): string {
+  if (JWT_SECRET) {
+    return JWT_SECRET;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET is required in production');
+  }
+  return FALLBACK_JWT_SECRET;
+}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createEmailTransporter, getSenderEmail, getTargetEmail } from '@/lib/email';
+import { escapeHtml } from '@/lib/sanitize';
 import { Pool } from 'pg';
 
 const pool = new Pool({
@@ -116,13 +117,19 @@ export async function POST(request: NextRequest) {
       formType,
     });
 
-    let subject = `Новый запрос КП: ${name} (${institution})`;
+    const safeName = escapeHtml(name);
+    const safePhone = escapeHtml(phone);
+    const safeEmail = escapeHtml(email);
+    const safeCity = escapeHtml(city);
+    const safeInstitution = escapeHtml(institution);
+
+    let subject = `Новый запрос КП: ${safeName} (${safeInstitution})`;
     let header = 'Новый запрос коммерческого предложения';
     let userSubject = 'Ваш запрос получен | ЗЕНИТ МЕД';
     let userMessage = 'Мы получили ваш запрос на коммерческое предложение.';
 
     if (formType === 'training') {
-        subject = `Запись на обучение: ${name} (${institution})`;
+        subject = `Запись на обучение: ${safeName} (${safeInstitution})`;
         header = 'Новая заявка на обучение';
         userSubject = 'Заявка на обучение получена | ЗЕНИТ МЕД';
         userMessage = 'Мы получили вашу заявку на обучение.';
@@ -136,11 +143,11 @@ export async function POST(request: NextRequest) {
       subject: subject,
       html: `
         <h2>${header}</h2>
-        <p><strong>ФИО:</strong> ${name}</p>
-        <p><strong>Телефон:</strong> ${phone}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Город:</strong> ${city}</p>
-        <p><strong>Медицинское учреждение:</strong> ${institution}</p>
+        <p><strong>ФИО:</strong> ${safeName}</p>
+        <p><strong>Телефон:</strong> ${safePhone}</p>
+        <p><strong>Email:</strong> ${safeEmail}</p>
+        <p><strong>Город:</strong> ${safeCity}</p>
+        <p><strong>Медицинское учреждение:</strong> ${safeInstitution}</p>
         <p><strong>Дата:</strong> ${new Date().toLocaleString('ru-RU')}</p>
       `,
     });
@@ -154,7 +161,7 @@ export async function POST(request: NextRequest) {
       subject: userSubject,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Здравствуйте, ${name}!</h2>
+          <h2>Здравствуйте, ${safeName}!</h2>
           <p>${userMessage}</p>
           <p>Наш менеджер свяжется с вами в ближайшее время для уточнения деталей.</p>
           <br>

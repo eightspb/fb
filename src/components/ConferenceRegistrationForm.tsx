@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react';
 import { Button } from "@/components/ui/button";
+import { getCsrfToken } from '@/lib/csrf-client';
 
 interface ConferenceRegistrationFormProps {
   conferenceName?: string;
@@ -65,10 +66,12 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
     setSubmitMessage('');
 
     try {
+      const csrfToken = await getCsrfToken();
       const response = await fetch('/api/conferences/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken,
         },
         body: JSON.stringify({
           ...formData,

@@ -7,6 +7,10 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
 });
 
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MIN_YEAR = 1900;
+const MAX_YEAR = 2100;
+
 function transformNewsFromDB(row: any, images: any[], tags: any[], videos: any[], documents: any[]): NewsItem {
   return {
     id: row.id,
@@ -184,11 +188,16 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { 
+    const {
       title, shortDescription, fullDescription, date, year, 
       category, location, author, status,
       images, tags, videos, documents 
     } = body;
+
+    const parsedYear = parseYear(year);
+    if (year !== undefined && year !== null && parsedYear === null) {
+      return NextResponse.json({ error: 'Invalid year' }, { status: 400 });
+    }
 
     const client = await pool.connect();
     try {
@@ -204,7 +213,7 @@ export async function PUT(
       `;
       
       const updateResult = await client.query(updateQuery, [
-        title, shortDescription, fullDescription, date, year, 
+        title, shortDescription, fullDescription, date, parsedYear, 
         category || null, location || null, author || null, status || 'published',
         id, decodedId
       ]);
@@ -229,76 +238,97 @@ export async function PUT(
       const keptIds = new Set<string>();
 
       if (images && images.length > 0) {
+        const urlImages: Array<{ url: string; order: number }> = [];
         for (let i = 0; i < images.length; i++) {
-           const imageStr = images[i];
-           
-           // Check if it's an existing image served via API
-           const idMatch = imageStr.match(/\/api\/images\/([0-9a-fA-F-]{36})/); // UUID regex
-           
-           if (idMatch && existingIds.has(idMatch[1])) {
-             // It's an existing DB image, update order
-             const imgId = idMatch[1];
-             await client.query('UPDATE news_images SET "order" = $1 WHERE id = $2', [i, imgId]);
-             keptIds.add(imgId);
-           } else if (imageStr.startsWith('data:')) {
-             // New Base64 image
-             try {
-               const matches = imageStr.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-               if (matches && matches.length === 3) {
-                   const mimeType = matches[1];
-                   const buffer = Buffer.from(matches[2], 'base64');
-                   await client.query(
-                     'INSERT INTO news_images (news_id, image_url, "order", image_data, mime_type) VALUES ($1, $2, $3, $4, $5)',
-                     [newsId, 'stored_in_db', i, buffer, mimeType]
-                   );
-               }
-             } catch (e) {
-               console.error('Error processing base64 image:', e);
-             }
-           } else {
-             // It's a URL (external or legacy local file)
-             // Check if we already have this URL in DB to preserve ID (and potential relations if any)
-             // But since we don't have unique constraint on image_url per news_id (technically), 
-             // we'll try to find one that is NOT already in keptIds to reuse it.
-             
-             // Simple approach: find one matching URL that is in existingIds and not in keptIds
-             const existingRow = existingImagesResult.rows.find(
-               row => row.image_url === imageStr && existingIds.has(row.id) && !keptIds.has(row.id)
-             );
+          const imageStr = images[i];
+          
+          // Check if it's an existing image served via API
+          const idMatch = imageStr.match(/\/api\/images\/([0-9a-fA-F-]{36})/); // UUID regex
+          
+          if (idMatch && existingIds.has(idMatch[1])) {
+            // It's an existing DB image, update order
+            const imgId = idMatch[1];
+            await client.query('UPDATE news_images SET "order" = $1 WHERE id = $2', [i, imgId]);
+            keptIds.add(imgId);
+          } else if (imageStr.startsWith('data:')) {
+            // New Base64 image
+            try {
+              const matches = imageStr.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+              if (matches && matches.length === 3) {
+                const mimeType = matches[1];
+                const buffer = Buffer.from(matches[2], 'base64');
+                validateImageMime(mimeType);
+                validateImageSize(buffer.length);
+                await client.query(
+                  'INSERT INTO news_images (news_id, image_url, "order", image_data, mime_type) VALUES ($1, $2, $3, $4, $5)',
+                  [newsId, 'stored_in_db', i, buffer, mimeType]
+                );
+              } else {
+                throw new Error('VALIDATION_ERROR: Invalid base64 image format');
+              }
+            } catch (e) {
+              throw e;
+            }
+          } else {
+            // It's a URL (external or legacy local file)
+            // Check if we already have this URL in DB to preserve ID (and potential relations if any)
+            // But since we don't have unique constraint on image_url per news_id (technically), 
+            // we'll try to find one that is NOT already in keptIds to reuse it.
+            
+            // Simple approach: find one matching URL that is in existingIds and not in keptIds
+            const existingRow = existingImagesResult.rows.find(
+              row => row.image_url === imageStr && existingIds.has(row.id) && !keptIds.has(row.id)
+            );
 
-             if (existingRow) {
-                await client.query('UPDATE news_images SET "order" = $1 WHERE id = $2', [i, existingRow.id]);
-                keptIds.add(existingRow.id);
-             } else {
-                // New URL (not in DB or not kept)
-                let storedAsData = false;
-                if (imageStr.startsWith('http://') || imageStr.startsWith('https://')) {
-                    try {
-                        const imgRes = await fetch(imageStr);
-                        if (imgRes.ok) {
-                            const arrayBuffer = await imgRes.arrayBuffer();
-                            const buffer = Buffer.from(arrayBuffer);
-                            const mimeType = imgRes.headers.get('content-type') || 'image/jpeg';
-                            
-                            await client.query(
-                                'INSERT INTO news_images (news_id, image_url, "order", image_data, mime_type) VALUES ($1, $2, $3, $4, $5)',
-                                [newsId, imageStr, i, buffer, mimeType]
-                            );
-                            storedAsData = true;
-                        }
-                    } catch (e) {
-                        console.error('Failed to fetch image from URL:', imageStr, e);
+            if (existingRow) {
+              await client.query('UPDATE news_images SET "order" = $1 WHERE id = $2', [i, existingRow.id]);
+              keptIds.add(existingRow.id);
+            } else {
+              // New URL (not in DB or not kept)
+              let storedAsData = false;
+              if (imageStr.startsWith('http://') || imageStr.startsWith('https://')) {
+                try {
+                  const imgRes = await fetch(imageStr);
+                  if (imgRes.ok) {
+                    const contentType = imgRes.headers.get('content-type') || '';
+                    const contentLength = imgRes.headers.get('content-length');
+                    validateImageMime(contentType);
+                    if (contentLength && Number(contentLength) > MAX_IMAGE_BYTES) {
+                      throw new Error('VALIDATION_ERROR: Image exceeds max size');
                     }
-                }
-
-                if (!storedAsData) {
+                    const arrayBuffer = await imgRes.arrayBuffer();
+                    const buffer = Buffer.from(arrayBuffer);
+                    const mimeType = imgRes.headers.get('content-type') || 'image/jpeg';
+                    validateImageSize(buffer.length);
+                    
                     await client.query(
-                        'INSERT INTO news_images (news_id, image_url, "order") VALUES ($1, $2, $3)',
-                        [newsId, imageStr, i]
+                      'INSERT INTO news_images (news_id, image_url, "order", image_data, mime_type) VALUES ($1, $2, $3, $4, $5)',
+                      [newsId, imageStr, i, buffer, mimeType]
                     );
+                    storedAsData = true;
+                  }
+                } catch (e: any) {
+                  if (e?.message?.startsWith('VALIDATION_ERROR:')) {
+                    throw e;
+                  }
+                  console.error('Failed to fetch image from URL:', imageStr, e);
                 }
-             }
-           }
+              }
+
+              if (!storedAsData) {
+                urlImages.push({ url: imageStr, order: i });
+              }
+            }
+          }
+        }
+
+        if (urlImages.length > 0) {
+          const urls = urlImages.map(image => image.url);
+          const orders = urlImages.map(image => image.order);
+          await client.query(
+            'INSERT INTO news_images (news_id, image_url, "order") SELECT $1, url, ord FROM unnest($2::text[], $3::int[]) AS t(url, ord)',
+            [newsId, urls, orders]
+          );
         }
       }
 
@@ -310,32 +340,28 @@ export async function PUT(
       
       // Tags
       if (tags && tags.length > 0) {
-        for (const tag of tags) {
-           await client.query(
-             'INSERT INTO news_tags (news_id, tag) VALUES ($1, $2)',
-             [newsId, tag]
-           );
-        }
+        await client.query(
+          'INSERT INTO news_tags (news_id, tag) SELECT $1, unnest($2::text[])',
+          [newsId, tags]
+        );
       }
 
       // Videos
       if (videos && videos.length > 0) {
-        for (let i = 0; i < videos.length; i++) {
-           await client.query(
-             'INSERT INTO news_videos (news_id, video_url, "order") VALUES ($1, $2, $3)',
-             [newsId, videos[i], i]
-           );
-        }
+        const videoOrders = videos.map((_: string, index: number) => index);
+        await client.query(
+          'INSERT INTO news_videos (news_id, video_url, "order") SELECT $1, v, o FROM unnest($2::text[], $3::int[]) AS t(v, o)',
+          [newsId, videos, videoOrders]
+        );
       }
 
       // Documents
       if (documents && documents.length > 0) {
-         for (let i = 0; i < documents.length; i++) {
-           await client.query(
-             'INSERT INTO news_documents (news_id, document_url, "order") VALUES ($1, $2, $3)',
-             [newsId, documents[i], i]
-           );
-        }
+        const documentOrders = documents.map((_: string, index: number) => index);
+        await client.query(
+          'INSERT INTO news_documents (news_id, document_url, "order") SELECT $1, d, o FROM unnest($2::text[], $3::int[]) AS t(d, o)',
+          [newsId, documents, documentOrders]
+        );
       }
 
       await client.query('COMMIT');
@@ -348,7 +374,36 @@ export async function PUT(
     }
   } catch (error: any) {
     console.error('Error updating news:', error);
+    if (error?.message?.startsWith('VALIDATION_ERROR:')) {
+      return NextResponse.json(
+        { error: error.message.replace('VALIDATION_ERROR:', '').trim() },
+        { status: 400 }
+      );
+    }
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+function parseYear(value: unknown): number | null {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+  const year = typeof value === 'string' ? Number(value) : Number(value);
+  if (!Number.isInteger(year) || year < MIN_YEAR || year > MAX_YEAR) {
+    return null;
+  }
+  return year;
+}
+
+function validateImageMime(mimeType: string): void {
+  if (!mimeType || !mimeType.startsWith('image/')) {
+    throw new Error('VALIDATION_ERROR: Invalid image mime type');
+  }
+}
+
+function validateImageSize(sizeBytes: number): void {
+  if (sizeBytes > MAX_IMAGE_BYTES) {
+    throw new Error('VALIDATION_ERROR: Image exceeds max size');
   }
 }
 
