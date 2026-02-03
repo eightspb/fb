@@ -4,10 +4,13 @@ import { useState, FormEvent } from 'react';
 import { Button } from "@/components/ui/button";
 
 interface ConferenceRegistrationFormProps {
-  conferenceName: string;
+  conferenceName?: string;
+  conferenceId?: string;
+  conferenceTitle?: string;
 }
 
-export function ConferenceRegistrationForm({ conferenceName }: ConferenceRegistrationFormProps) {
+export function ConferenceRegistrationForm({ conferenceName, conferenceId, conferenceTitle }: ConferenceRegistrationFormProps) {
+  const eventName = conferenceName || conferenceTitle || 'Мероприятие';
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -69,7 +72,8 @@ export function ConferenceRegistrationForm({ conferenceName }: ConferenceRegistr
         },
         body: JSON.stringify({
           ...formData,
-          conference: conferenceName,
+          conference: eventName,
+          conferenceId: conferenceId,
         }),
       });
 
