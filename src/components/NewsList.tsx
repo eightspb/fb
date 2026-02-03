@@ -73,7 +73,7 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
         }
 
         const newsItems: NewsItem[] = await newsResponse.json();
-        const yearsData: string[] = yearsResponse.ok ? await yearsResponse.json() : [];
+        const yearsData: Array<string | number> = yearsResponse.ok ? await yearsResponse.json() : [];
         const filtersData: string[] = filtersResponse.ok ? await filtersResponse.json() : [];
 
         console.log('[NewsList] Loaded data:', {
@@ -119,7 +119,7 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
 
         // Устанавливаем данные даже если массив пустой (это валидное состояние)
         setNewsData(newsItems || []);
-        setYears(yearsData || []);
+        setYears((yearsData || []).map(year => String(year)));
         
         // Загружаем счетчики только если есть фильтры
         if (filtersData && filtersData.length > 0) {
@@ -175,7 +175,7 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
     let filtered = [...newsData];
 
     if (selectedYear) {
-      filtered = filtered.filter(news => news.year === selectedYear);
+      filtered = filtered.filter(news => String(news.year) === String(selectedYear));
     }
 
     if (selectedCategory) {
@@ -265,7 +265,7 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
               <div className="flex flex-wrap gap-2">
                 {years.map(year => {
                   const isSelected = selectedYear === year;
-                  const count = newsData.filter(news => news.year === year).length;
+                  const count = newsData.filter(news => String(news.year) === String(year)).length;
                   return (
                     <button
                       key={year}
