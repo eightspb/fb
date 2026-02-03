@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: 'standalone', // Для Docker - создает оптимизированную standalone сборку
+  serverExternalPackages: ['jose'], // Include jose in standalone build
   images: {
     remotePatterns: [
       {
