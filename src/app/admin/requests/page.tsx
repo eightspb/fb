@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,18 +35,10 @@ export default function AdminRequestsList() {
     setLoading(true);
     setError(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const headers: Record<string, string> = {
-          'Authorization': `Bearer ${session?.access_token || ''}`
-      };
-      
-      const bypassStorage = localStorage.getItem('sb-admin-bypass');
-      if (bypassStorage === 'true') {
-        headers['X-Admin-Bypass'] = 'true';
-      }
-
-      const response = await fetch('/api/admin/requests', { headers });
+      // Cookies are automatically sent with fetch requests
+      const response = await fetch('/api/admin/requests', {
+        credentials: 'include'
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -69,19 +60,12 @@ export default function AdminRequestsList() {
     setRequests(requests.map(r => r.id === id ? { ...r, status: newStatus } : r));
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-       const headers: Record<string, string> = {
-          'Authorization': `Bearer ${session?.access_token || ''}`,
-          'Content-Type': 'application/json'
-      };
-      const bypassStorage = localStorage.getItem('sb-admin-bypass');
-      if (bypassStorage === 'true') {
-        headers['X-Admin-Bypass'] = 'true';
-      }
-
       await fetch(`/api/admin/requests/${id}`, {
         method: 'PATCH',
-        headers,
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({ status: newStatus })
       });
     } catch (error) {

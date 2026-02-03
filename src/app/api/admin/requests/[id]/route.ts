@@ -1,34 +1,42 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
-import { supabase } from '@/lib/supabase';
+import { jwtVerify } from 'jose';
+import { cookies } from 'next/headers';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
 });
 
+const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-me';
+const COOKIE_NAME = 'admin-session';
+
+async function verifyAdminSession(): Promise<boolean> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(COOKIE_NAME)?.value;
+    
+    if (!token) {
+      return false;
+    }
+
+    const secret = new TextEncoder().encode(JWT_SECRET);
+    await jwtVerify(token, secret);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Auth check
-    const authHeader = request.headers.get('Authorization');
-    const bypassHeader = request.headers.get('X-Admin-Bypass');
-    
-    // Allow bypass if header is present (for local dev/admin fallback)
-    const isBypass = bypassHeader === 'true';
+    // Auth check using cookie-based JWT (same as admin auth)
+    const isAuthenticated = await verifyAdminSession();
 
-    if (!isBypass) {
-      if (!authHeader) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-      if (authError || !user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
+    if (!isAuthenticated) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
