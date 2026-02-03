@@ -23,6 +23,23 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
   const [tagsWithCounts, setTagsWithCounts] = useState<Array<{ filter: string; count: number }>>([]);
   const [loading, setLoading] = useState(true);
   const itemsPerPage = 9;
+  const debugLog = (message: string, data: Record<string, unknown>, hypothesisId: string) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'year-filter',
+        hypothesisId,
+        location: 'src/components/NewsList.tsx',
+        message,
+        data,
+        timestamp: Date.now()
+      })
+    }).catch(() => {});
+    // #endregion
+  };
 
   // Загрузка данных при монтировании компонента
   useEffect(() => {
@@ -64,6 +81,41 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
           yearsCount: yearsData?.length || 0,
           filtersCount: filtersData?.length || 0
         });
+
+        const sampleYears = (yearsData || []).slice(0, 3);
+        const sampleNewsYears = (newsItems || []).slice(0, 3).map(item => ({
+          value: item.year,
+          type: typeof item.year
+        }));
+        debugLog(
+          'Loaded years/news samples',
+          {
+            yearsSample: sampleYears,
+            yearsTypes: sampleYears.map(value => typeof value),
+            newsYearSample: sampleNewsYears,
+            newsCount: newsItems?.length || 0,
+            yearsCount: yearsData?.length || 0
+          },
+          'H1'
+        );
+
+        const firstYear = sampleYears[0];
+        const strictMatchCount = firstYear !== undefined
+          ? (newsItems || []).filter(item => item.year === (firstYear as any)).length
+          : null;
+        const normalizedMatchCount = firstYear !== undefined
+          ? (newsItems || []).filter(item => String(item.year) === String(firstYear)).length
+          : null;
+        debugLog(
+          'Year match counts',
+          {
+            firstYear,
+            firstYearType: typeof firstYear,
+            strictMatchCount,
+            normalizedMatchCount
+          },
+          'H2'
+        );
 
         // Устанавливаем данные даже если массив пустой (это валидное состояние)
         setNewsData(newsItems || []);
@@ -155,6 +207,11 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
   const paginatedNews = filteredNews.slice(startIndex, startIndex + itemsPerPage);
 
   const handleYearChange = (year: string | null) => {
+    debugLog(
+      'Year filter toggled',
+      { year, yearType: typeof year, selectedYear, selectedYearType: typeof selectedYear },
+      'H3'
+    );
     setSelectedYear(year === selectedYear ? null : year);
     setCurrentPage(1);
   };
