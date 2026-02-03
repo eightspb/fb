@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { supabase } from '@/lib/supabase';
 import { Loader2, Plus, X, Sparkles } from 'lucide-react';
 import { FileUpload } from '@/components/admin/FileUpload';
 
@@ -83,33 +82,10 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
     
     setIsImproving(true);
     try {
-      // Auth check with bypass support
-      const bypassStorage = localStorage.getItem('sb-admin-bypass');
-      let sessionToken = '';
-
-      if (!bypassStorage) {
-        // Refresh session before request to ensure token is valid
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError || !session) {
-           throw new Error('Unauthorized: No active session');
-        }
-        sessionToken = session.access_token;
-      }
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      };
-
-      if (bypassStorage === 'true') {
-        headers['X-Admin-Bypass'] = 'true';
-      } else {
-        headers['Authorization'] = `Bearer ${sessionToken}`;
-      }
-
       const response = await fetch('/api/admin/ai/improve', {
         method: 'POST',
-        headers,
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: formData.fullDescription })
       });
 
@@ -134,36 +110,13 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
     setLoading(true);
 
     try {
-      // Auth check with bypass support
-      const bypassStorage = localStorage.getItem('sb-admin-bypass');
-      let sessionToken = '';
-
-      if (!bypassStorage) {
-        // Refresh session before request to ensure token is valid
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError || !session) {
-           throw new Error('Unauthorized: No active session');
-        }
-        sessionToken = session.access_token;
-      }
-
       const url = isEditing ? `/api/news/${initialData.id}` : '/api/news';
       const method = isEditing ? 'PUT' : 'POST';
 
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      };
-
-      if (bypassStorage === 'true') {
-        headers['X-Admin-Bypass'] = 'true';
-      } else {
-        headers['Authorization'] = `Bearer ${sessionToken}`;
-      }
-
       const response = await fetch(url, {
         method,
-        headers,
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
 

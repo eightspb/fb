@@ -1,15 +1,11 @@
 import { NextResponse } from 'next/server';
 import { Pool } from 'pg';
 import { NewsItem } from '@/lib/news-data';
-import { createClient } from '@supabase/supabase-js';
+import { checkApiAuth } from '@/lib/auth';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
 });
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:8000';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 function transformNewsFromDB(row: any, images: any[], tags: any[], videos: any[], documents: any[]): NewsItem {
   return {
@@ -54,13 +50,7 @@ export async function GET(
       const hasImageDataColumn = imageDataCheck.rows.length > 0;
       
       // Проверяем токен, если есть - отдаем всё.
-      const authHeader = request.headers.get('Authorization');
-      let isAdmin = false;
-      if (authHeader) {
-        const token = authHeader.replace('Bearer ', '');
-        const { data: { user } } = await supabase.auth.getUser(token);
-        if (user) isAdmin = true;
-      }
+      const { isAuthenticated: isAdmin } = await checkApiAuth(request);
 
       // Показываем опубликованные новости и новости без статуса (NULL) для обратной совместимости
       let statusCondition = "AND (n.status = 'published' OR n.status IS NULL)";
@@ -184,19 +174,9 @@ export async function PUT(
     const decodedId = decodeURIComponent(id);
 
     // Auth check
-    const authHeader = request.headers.get('Authorization');
-    const bypassHeader = request.headers.get('X-Admin-Bypass');
-    const isBypass = bypassHeader === 'true';
-
-    if (!isBypass) {
-        if (!authHeader) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-        const token = authHeader.replace('Bearer ', '');
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-        if (authError || !user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+    const { isAuthenticated } = await checkApiAuth(request);
+    if (!isAuthenticated) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
@@ -377,19 +357,9 @@ export async function DELETE(
     const decodedId = decodeURIComponent(id);
 
     // Auth check
-    const authHeader = request.headers.get('Authorization');
-    const bypassHeader = request.headers.get('X-Admin-Bypass');
-    const isBypass = bypassHeader === 'true';
-
-    if (!isBypass) {
-        if (!authHeader) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-        const token = authHeader.replace('Bearer ', '');
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-        if (authError || !user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+    const { isAuthenticated } = await checkApiAuth(request);
+    if (!isAuthenticated) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const client = await pool.connect();

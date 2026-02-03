@@ -1,159 +1,89 @@
-# Устранение проблем при запуске
+# Устранение проблем
 
-## Проблема 1: Supabase CLI не установлен
+## Docker не запущен
 
-**Ошибка:** `'supabase' is not recognized as an internal or external command`
+**Ошибка:** `unable to get image ... dockerDesktopLinuxEngine`
 
-### Решение:
+**Решение:**
+1. Запустите Docker Desktop
+2. Дождитесь полной загрузки (зеленая иконка в трее)
+3. Проверьте: `docker ps`
 
-**Вариант A: Установить Supabase CLI (Windows)**
+---
 
-```powershell
-# Через npm (если Node.js установлен)
-npm install -g supabase
+## Ошибка подключения к БД
 
-# Или через Scoop (если установлен)
-scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
-scoop install supabase
+**Ошибка:** `ECONNREFUSED` или `connect ECONNREFUSED`
 
-# Или через Chocolatey (если установлен)
-choco install supabase
+**Решение:**
+1. Убедитесь что Docker запущен: `docker ps`
+2. Проверьте контейнер БД: `docker ps | grep supabase-db`
+3. Перезапустите: `npm run docker:up`
+
+---
+
+## Страницы не открываются
+
+**Решение:**
+1. Проверьте запущен ли сервер: `npm run dev`
+2. Проверьте порт: http://localhost:3000
+3. Смотрите консоль на ошибки
+
+---
+
+## Таблицы не найдены
+
+**Ошибка:** `relation "news" does not exist`
+
+**Решение:**
+```bash
+# Примените схему БД
+docker exec -i fb-net-supabase-db psql -U postgres -d postgres < supabase-schema.sql
 ```
 
-**Вариант B: Использовать Docker вместо CLI**
+---
+
+## Переменные окружения не работают
+
+**Решение:**
+1. Убедитесь что `.env.local` существует в корне проекта
+2. Перезапустите dev сервер (Ctrl+C, затем `npm run dev`)
+
+---
+
+## Ошибки SMTP (отправка писем)
+
+**Ошибка:** `socket disconnected` или `TLS connection`
+
+**Решение:**
+1. Используйте пароль приложения (не обычный пароль)
+2. Создайте его в настройках почты: **Пароль и безопасность** → **Пароли для внешних приложений**
+3. Попробуйте порт 587 вместо 465
+
+---
+
+## Изображения не загружаются
+
+Изображения хранятся в БД и отдаются через `/api/images/{id}`.
+
+**Проверка:**
+```sql
+SELECT id, image_url, 
+       CASE WHEN image_data IS NULL THEN 'NO DATA' ELSE 'HAS DATA' END 
+FROM news_images LIMIT 5;
+```
+
+---
+
+## Логи и отладка
 
 ```bash
-npm run docker:up
+# Логи Docker
+npm run docker:logs
+
+# Логи конкретного контейнера
+docker logs fb-net-nextjs -f
+
+# Подключение к БД
+npm run docker:psql
 ```
-
-**Вариант C: Использовать облачный Supabase**
-
-1. Создайте проект на [supabase.com](https://supabase.com)
-2. Скопируйте ключи в `.env.local`
-3. Выполните SQL схему вручную
-
----
-
-## Проблема 2: Docker Desktop не запущен
-
-**Ошибка:** `unable to get image ... error during connect: ... dockerDesktopLinuxEngine: The system cannot find the file specified`
-
-### Решение:
-
-1. **Запустите Docker Desktop**
-   - Найдите "Docker Desktop" в меню Пуск
-   - Запустите приложение
-   - Дождитесь полной загрузки (иконка в трее должна быть зеленой)
-
-2. **Проверьте статус Docker**
-   ```powershell
-   docker ps
-   ```
-   Должна быть пустая таблица (или список контейнеров), но не ошибка
-
-3. **Если Docker Desktop не установлен:**
-   - Скачайте с [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/)
-   - Установите и перезагрузите компьютер
-   - Запустите Docker Desktop
-
-4. **Если Docker Desktop установлен, но не запускается:**
-   - Проверьте службы Windows: `services.msc`
-   - Найдите "Docker Desktop Service" и запустите
-   - Или переустановите Docker Desktop
-
----
-
-## Проблема 3: Предупреждение о версии в docker-compose.yml
-
-**Предупреждение:** `the attribute 'version' is obsolete`
-
-### Решение:
-
-Атрибут `version` уже удален из `docker-compose.simple.yml`. Если видите предупреждение, убедитесь, что используете обновленный файл.
-
----
-
-## Рекомендуемый порядок действий
-
-### Вариант 1: Использовать Docker (если установлен)
-
-```powershell
-# 1. Убедитесь, что Docker Desktop запущен
-docker ps
-
-# 2. Запустите контейнеры
-npm run docker:up
-
-# 3. Инициализируйте базу данных
-npm run docker:init-db
-
-# 4. Запустите полную настройку
-npm run setup
-```
-
-### Вариант 2: Использовать Supabase CLI
-
-```powershell
-# 1. Установите Supabase CLI
-npm install -g supabase
-
-# 2. Инициализируйте и запустите
-npm run setup:supabase
-
-# 3. Скопируйте переменные из вывода в .env.local
-
-# 4. Запустите полную настройку
-npm run setup
-```
-
-### Вариант 3: Использовать облачный Supabase (без локальной установки)
-
-1. Создайте проект на [supabase.com](https://supabase.com)
-2. Выполните SQL из `supabase-schema.sql` в SQL Editor
-3. Создайте `.env.local`:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-   ```
-4. Запустите:
-   ```powershell
-   npm run migrate:news
-   npm run create:news-from-folders
-   ```
-
----
-
-## Проверка работоспособности
-
-После успешного запуска проверьте:
-
-```powershell
-# Проверить контейнеры Docker
-docker ps
-
-# Должны быть запущены:
-# - fb-net-supabase-db (PostgreSQL)
-# - fb-net-nextjs (Next.js приложение)
-
-# Проверить логи
-docker logs fb-net-supabase-db
-docker logs fb-net-nextjs
-
-# Запустить приложение (если не запускается автоматически)
-npm run dev
-```
-
----
-
-## Альтернатива: Работа без базы данных
-
-Если у вас проблемы с Docker/Supabase, приложение будет работать со статическими данными из `news-data.ts` (fallback режим).
-
-Просто запустите:
-```powershell
-npm run dev
-```
-
-Приложение автоматически определит отсутствие базы данных и будет использовать статические данные.
-
-

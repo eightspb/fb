@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Trash2, CheckCircle, XCircle, Image as ImageIcon, Video, FileText, Search, Filter, RefreshCw, Merge } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -89,13 +88,8 @@ export default function AdminNewsList() {
     setLoading(true);
     setError(null);
     try {
-      // Get session for auth header
-      const { data: { session } } = await supabase.auth.getSession();
-      
       const response = await fetch('/api/news', {
-        headers: {
-          'Authorization': `Bearer ${session?.access_token || ''}`
-        }
+        credentials: 'include'
       });
       
       if (response.ok) {
@@ -122,20 +116,9 @@ export default function AdminNewsList() {
     if (!confirm('Вы уверены, что хотите удалить эту новость?')) return;
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const headers: Record<string, string> = {
-          'Authorization': `Bearer ${session?.access_token || ''}`
-      };
-      
-      const bypassStorage = localStorage.getItem('sb-admin-bypass');
-      if (bypassStorage === 'true') {
-        headers['X-Admin-Bypass'] = 'true';
-      }
-
       const response = await fetch(`/api/news/${id}`, {
         method: 'DELETE',
-        headers
+        credentials: 'include'
       });
 
       if (response.ok) {
@@ -155,28 +138,15 @@ export default function AdminNewsList() {
     setNews(news.map(n => n.id === item.id ? { ...n, status: newStatus } : n));
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const headers: Record<string, string> = {
-          'Authorization': `Bearer ${session?.access_token || ''}`
-      };
-      
-      const bypassStorage = localStorage.getItem('sb-admin-bypass');
-      if (bypassStorage === 'true') {
-        headers['X-Admin-Bypass'] = 'true';
-      }
-
       // Need to fetch full item first because PUT replaces everything
-      const itemResponse = await fetch(`/api/news/${item.id}`, { headers });
+      const itemResponse = await fetch(`/api/news/${item.id}`, { credentials: 'include' });
       
       if (itemResponse.ok) {
         const fullItem = await itemResponse.json();
         const response = await fetch(`/api/news/${item.id}`, {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            ...headers
-          },
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...fullItem,
             status: newStatus
@@ -217,21 +187,10 @@ export default function AdminNewsList() {
 
     setIsMerging(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const headers: Record<string, string> = {
-        'Authorization': `Bearer ${session?.access_token || ''}`,
-        'Content-Type': 'application/json'
-      };
-      
-      const bypassStorage = localStorage.getItem('sb-admin-bypass');
-      if (bypassStorage === 'true') {
-        headers['X-Admin-Bypass'] = 'true';
-      }
-
       const response = await fetch('/api/news/merge', {
         method: 'POST',
-        headers,
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           newsIds: Array.from(selectedNewsIds)
         })

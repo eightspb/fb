@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { ConferenceForm } from '@/components/admin/ConferenceForm';
-import { supabase } from '@/lib/supabase';
 
 export default function EditConferencePage() {
   const { id } = useParams();
@@ -13,12 +12,8 @@ export default function EditConferencePage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
         const response = await fetch(`/api/conferences/${id}`, {
-          headers: {
-             'Authorization': `Bearer ${session?.access_token || ''}`
-          }
+          credentials: 'include'
         });
         if (response.ok) {
           const confData = await response.json();

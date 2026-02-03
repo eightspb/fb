@@ -1,6 +1,7 @@
+'use client';
+
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/lib/supabase';
 import { Upload, Loader2 } from 'lucide-react';
 
 interface FileUploadProps {
@@ -11,7 +12,7 @@ interface FileUploadProps {
   mode?: 'upload' | 'base64';
 }
 
-export function FileUpload({ onUpload, folder = 'uploads', accept = 'image/*', className, mode = 'upload' }: FileUploadProps) {
+export function FileUpload({ onUpload, accept = 'image/*', className }: FileUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -21,57 +22,22 @@ export function FileUpload({ onUpload, folder = 'uploads', accept = 'image/*', c
 
     setIsUploading(true);
     try {
-      if (mode === 'base64') {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64String = reader.result as string;
-          onUpload(base64String);
-          setIsUploading(false);
-        };
-        reader.onerror = () => {
-          throw new Error('Failed to read file');
-        };
-        reader.readAsDataURL(file);
-        return;
-      }
-
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
-      const filePath = `${folder}/${fileName}`;
-
-      // Check for bypass - if bypassing, we can't upload to protected storage easily
-      // But we can try uploading anyway, maybe bucket is public.
-      // If it fails, we show a specific error.
-      const bypassStorage = localStorage.getItem('sb-admin-bypass');
-      
-      if (bypassStorage === 'true') {
-         // Warning: In bypass mode, uploads might fail if RLS is strict.
-         console.warn('Attempting upload in bypass mode. This requires the bucket to be public or have anon policies.');
-      }
-
-      const { data: _data, error } = await supabase.storage
-        .from('public_files') // Assuming a public bucket named 'public_files'
-        .upload(filePath, file);
-
-      if (error) {
-        const err = error as any;
-        if (bypassStorage === 'true' && (error.message.includes('new row violates row-level security') || err.statusCode === '403')) {
-            throw new Error('Cannot upload files in "Bypass Auth" mode unless the storage bucket is public and allows anonymous uploads. Please log in with a real account or configure storage policies.');
-        }
-        throw error;
-      }
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('public_files')
-        .getPublicUrl(filePath);
-
-      onUpload(publicUrl);
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        onUpload(base64String);
+        setIsUploading(false);
+      };
+      reader.onerror = () => {
+        throw new Error('Failed to read file');
+      };
+      reader.readAsDataURL(file);
     } catch (error: any) {
       console.error('Error uploading file:', error);
       alert('Ошибка загрузки файла: ' + (error.message || 'Unknown error'));
-    } finally {
       setIsUploading(false);
+    } finally {
       // Reset input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -103,4 +69,3 @@ export function FileUpload({ onUpload, folder = 'uploads', accept = 'image/*', c
     </div>
   );
 }
-
