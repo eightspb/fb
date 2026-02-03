@@ -28,15 +28,11 @@ async function verifyToken(token: string): Promise<boolean> {
 // POST - Login
 export async function POST(request: NextRequest) {
   try {
-    const text = await request.text();
-    console.log('Raw body:', text);
-    
-    let password: string;
+    let password: string | undefined;
     try {
-      const body = JSON.parse(text);
-      password = body.password;
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError, 'Body was:', text);
+      const body = await request.json();
+      password = body?.password;
+    } catch {
       return NextResponse.json(
         { error: 'Неверный формат запроса' },
         { status: 400 }
@@ -50,9 +46,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Password received:', password?.substring(0, 3) + '***');
-    console.log('Expected password starts with:', ADMIN_PASSWORD?.substring(0, 3) + '***');
-
     if (password !== ADMIN_PASSWORD) {
       return NextResponse.json(
         { error: 'Неверный пароль' },
@@ -61,11 +54,14 @@ export async function POST(request: NextRequest) {
     }
 
     const token = await createToken();
+    const isSecure =
+      request.headers.get('x-forwarded-proto') === 'https' ||
+      request.nextUrl.protocol === 'https:';
     
     const response = NextResponse.json({ success: true });
     response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecure,
       sameSite: 'lax',
       maxAge: SESSION_DURATION,
       path: '/',
@@ -105,11 +101,14 @@ export async function GET() {
 }
 
 // DELETE - Logout
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
+  const isSecure =
+    request.headers.get('x-forwarded-proto') === 'https' ||
+    request.nextUrl.protocol === 'https:';
   const response = NextResponse.json({ success: true });
   response.cookies.set(COOKIE_NAME, '', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isSecure,
     sameSite: 'lax',
     maxAge: 0,
     path: '/',
