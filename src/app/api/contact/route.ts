@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createEmailTransporter, getSenderEmail, getTargetEmail } from '@/lib/email';
+import { escapeHtml } from '@/lib/sanitize';
 import { Pool } from 'pg';
 
 const pool = new Pool({
@@ -82,17 +83,22 @@ export async function POST(request: NextRequest) {
 
       // Send notification to info@zenitmed.ru
       console.log('[Contact Form] Отправка уведомления администратору...');
+      const safeName = escapeHtml(body.name);
+      const safeEmail = escapeHtml(body.email);
+      const safePhone = escapeHtml(body.phone);
+      const safeMessage = escapeHtml(body.message).replace(/\n/g, '<br>');
+
       const adminResult = await transporter.sendMail({
         from: senderEmail,
         to: targetEmail,
-        subject: `Новое сообщение с сайта от ${body.name}`,
+        subject: `Новое сообщение с сайта от ${safeName}`,
         html: `
           <h2>Новое сообщение с сайта</h2>
-          <p><strong>Имя:</strong> ${body.name}</p>
-          <p><strong>Email:</strong> ${body.email}</p>
-          <p><strong>Телефон:</strong> ${body.phone}</p>
+          <p><strong>Имя:</strong> ${safeName}</p>
+          <p><strong>Email:</strong> ${safeEmail}</p>
+          <p><strong>Телефон:</strong> ${safePhone}</p>
           <p><strong>Сообщение:</strong></p>
-          <p>${body.message.replace(/\n/g, '<br>')}</p>
+          <p>${safeMessage}</p>
           <p><strong>Дата:</strong> ${new Date().toLocaleString('ru-RU')}</p>
         `,
       });
@@ -106,7 +112,7 @@ export async function POST(request: NextRequest) {
         subject: 'Ваше сообщение получено | ЗЕНИТ МЕД',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Здравствуйте, ${body.name}!</h2>
+            <h2>Здравствуйте, ${safeName}!</h2>
             <p>Мы получили ваше сообщение и свяжемся с вами в ближайшее время.</p>
             <br>
             <p>С уважением,<br>Команда ЗЕНИТ МЕД</p>

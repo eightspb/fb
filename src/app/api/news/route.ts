@@ -7,6 +7,10 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
 });
 
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MIN_YEAR = 1900;
+const MAX_YEAR = 2100;
+
 function transformNewsFromDB(row: any, images: any[], tags: any[], videos: any[], documents: any[]): NewsItem {
   return {
     id: row.id,
@@ -29,7 +33,11 @@ function transformNewsFromDB(row: any, images: any[], tags: any[], videos: any[]
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const year = searchParams.get('year');
+    const yearParam = searchParams.get('year');
+    const year = yearParam ? parseYear(yearParam) : null;
+    if (yearParam && year === null) {
+      return NextResponse.json({ error: 'Invalid year' }, { status: 400 });
+    }
     const category = searchParams.get('category');
     // Параметр includeAll=true позволяет получить все новости (включая черновики)
     // Работает только для авторизованных админов
@@ -126,7 +134,7 @@ export async function GET(request: Request) {
       const params: any[] = [];
       let paramIndex = 1;
 
-      if (year) {
+      if (year !== null) {
         query += ` AND n.year = $${paramIndex}`;
         params.push(year);
         paramIndex++;
@@ -239,11 +247,16 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { 
+    const {
       id, title, shortDescription, fullDescription, date, year, 
       category, location, author, status,
       images, tags, videos, documents 
     } = body;
+
+    const parsedYear = parseYear(year);
+    if (year !== undefined && year !== null && parsedYear === null) {
+      return NextResponse.json({ error: 'Invalid year' }, { status: 400 });
+    }
 
     const client = await pool.connect();
     try {
@@ -259,96 +272,111 @@ export async function POST(request: Request) {
       `;
       
       await client.query(insertNewsQuery, [
-        newsId, title, shortDescription, fullDescription, date, year, 
+        newsId, title, shortDescription, fullDescription, date, parsedYear, 
         category || null, location || null, author || null, status || 'published'
       ]);
 
       // Insert related data...
       // Images
       if (images && images.length > 0) {
+        const urlImages: Array<{ url: string; order: number }> = [];
         for (let i = 0; i < images.length; i++) {
-           const imageStr = images[i];
-           if (imageStr.startsWith('data:')) {
-             // Process base64
-             try {
-               // Extract mime type and base64 data
-               // Format: data:image/png;base64,.....
-               const matches = imageStr.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-               
-               if (matches && matches.length === 3) {
-                 const mimeType = matches[1];
-                 const base64Data = matches[2];
-                 const buffer = Buffer.from(base64Data, 'base64');
-                 
-                 await client.query(
-                   'INSERT INTO news_images (news_id, image_url, "order", image_data, mime_type) VALUES ($1, $2, $3, $4, $5)',
-                   [newsId, 'stored_in_db', i, buffer, mimeType]
-                 );
-               } else {
-                 console.warn('Invalid base64 image format, skipping');
-               }
-             } catch (err) {
-               console.error('Error processing base64 image:', err);
-             }
-           } else {
-             // Regular URL
-             // If URL is external (http/https), try to fetch it and store as data
-             if (imageStr.startsWith('http://') || imageStr.startsWith('https://')) {
-                 try {
-                     const imgRes = await fetch(imageStr);
-                     if (imgRes.ok) {
-                         const arrayBuffer = await imgRes.arrayBuffer();
-                         const buffer = Buffer.from(arrayBuffer);
-                         const mimeType = imgRes.headers.get('content-type') || 'image/jpeg';
-                         
-                         await client.query(
-                           'INSERT INTO news_images (news_id, image_url, "order", image_data, mime_type) VALUES ($1, $2, $3, $4, $5)',
-                           [newsId, imageStr, i, buffer, mimeType]
-                         );
-                         continue; // Successfully stored as data
-                     }
-                 } catch (e) {
-                     console.error('Failed to fetch image from URL:', imageStr, e);
-                     // Fallback to storing just URL
-                 }
-             }
+          const imageStr = images[i];
+          if (imageStr.startsWith('data:')) {
+            // Process base64
+            try {
+              // Extract mime type and base64 data
+              // Format: data:image/png;base64,.....
+              const matches = imageStr.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+              
+              if (matches && matches.length === 3) {
+                const mimeType = matches[1];
+                const base64Data = matches[2];
+                const buffer = Buffer.from(base64Data, 'base64');
+                validateImageMime(mimeType);
+                validateImageSize(buffer.length);
+                
+                await client.query(
+                  'INSERT INTO news_images (news_id, image_url, "order", image_data, mime_type) VALUES ($1, $2, $3, $4, $5)',
+                  [newsId, 'stored_in_db', i, buffer, mimeType]
+                );
+              } else {
+                throw new Error('VALIDATION_ERROR: Invalid base64 image format');
+              }
+            } catch (err) {
+              throw err;
+            }
+          } else {
+            // Regular URL
+            // If URL is external (http/https), try to fetch it and store as data
+            if (imageStr.startsWith('http://') || imageStr.startsWith('https://')) {
+              try {
+                const imgRes = await fetch(imageStr);
+                if (imgRes.ok) {
+                  const contentType = imgRes.headers.get('content-type') || '';
+                  const contentLength = imgRes.headers.get('content-length');
+                  validateImageMime(contentType);
+                  if (contentLength && Number(contentLength) > MAX_IMAGE_BYTES) {
+                    throw new Error('VALIDATION_ERROR: Image exceeds max size');
+                  }
+                  const arrayBuffer = await imgRes.arrayBuffer();
+                  const buffer = Buffer.from(arrayBuffer);
+                  validateImageSize(buffer.length);
+                  const mimeType = imgRes.headers.get('content-type') || 'image/jpeg';
+                  
+                  await client.query(
+                    'INSERT INTO news_images (news_id, image_url, "order", image_data, mime_type) VALUES ($1, $2, $3, $4, $5)',
+                    [newsId, imageStr, i, buffer, mimeType]
+                  );
+                  continue; // Successfully stored as data
+                }
+              } catch (e: any) {
+                if (e?.message?.startsWith('VALIDATION_ERROR:')) {
+                  throw e;
+                }
+                console.error('Failed to fetch image from URL:', imageStr, e);
+                // Fallback to storing just URL
+              }
+            }
 
-             await client.query(
-               'INSERT INTO news_images (news_id, image_url, "order") VALUES ($1, $2, $3)',
-               [newsId, imageStr, i]
-             );
-           }
+            urlImages.push({ url: imageStr, order: i });
+          }
+        }
+
+        if (urlImages.length > 0) {
+          const urls = urlImages.map(image => image.url);
+          const orders = urlImages.map(image => image.order);
+          await client.query(
+            'INSERT INTO news_images (news_id, image_url, "order") SELECT $1, url, ord FROM unnest($2::text[], $3::int[]) AS t(url, ord)',
+            [newsId, urls, orders]
+          );
         }
       }
       
       // Tags
       if (tags && tags.length > 0) {
-        for (const tag of tags) {
-           await client.query(
-             'INSERT INTO news_tags (news_id, tag) VALUES ($1, $2)',
-             [newsId, tag]
-           );
-        }
+        await client.query(
+          'INSERT INTO news_tags (news_id, tag) SELECT $1, unnest($2::text[])',
+          [newsId, tags]
+        );
       }
 
       // Videos
       if (videos && videos.length > 0) {
-        for (let i = 0; i < videos.length; i++) {
-           await client.query(
-             'INSERT INTO news_videos (news_id, video_url, "order") VALUES ($1, $2, $3)',
-             [newsId, videos[i], i]
-           );
-        }
+        const videoOrders = videos.map((_: string, index: number) => index);
+        await client.query(
+          'INSERT INTO news_videos (news_id, video_url, "order") SELECT $1, v, o FROM unnest($2::text[], $3::int[]) AS t(v, o)',
+          [newsId, videos, videoOrders]
+        );
       }
 
       // Documents
       if (documents && documents.length > 0) {
-        for (let i = 0; i < documents.length; i++) {
-           await client.query(
-             'INSERT INTO news_documents (news_id, document_url, "order") VALUES ($1, $2, $3)',
-             [newsId, documents[i], i]
-           );
-        }
+        const documentOrders = documents.map((_: string, index: number) => index);
+        await client.query(
+          'INSERT INTO news_documents (news_id, document_url, "order") SELECT $1, d, o FROM unnest($2::text[], $3::int[]) AS t(d, o)',
+          [newsId, documents, documentOrders]
+        );
       }
 
       await client.query('COMMIT');
@@ -362,6 +390,35 @@ export async function POST(request: Request) {
     }
   } catch (error: any) {
     console.error('Error creating news:', error);
+    if (error?.message?.startsWith('VALIDATION_ERROR:')) {
+      return NextResponse.json(
+        { error: error.message.replace('VALIDATION_ERROR:', '').trim() },
+        { status: 400 }
+      );
+    }
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+function parseYear(value: unknown): number | null {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+  const year = typeof value === 'string' ? Number(value) : Number(value);
+  if (!Number.isInteger(year) || year < MIN_YEAR || year > MAX_YEAR) {
+    return null;
+  }
+  return year;
+}
+
+function validateImageMime(mimeType: string): void {
+  if (!mimeType || !mimeType.startsWith('image/')) {
+    throw new Error('VALIDATION_ERROR: Invalid image mime type');
+  }
+}
+
+function validateImageSize(sizeBytes: number): void {
+  if (sizeBytes > MAX_IMAGE_BYTES) {
+    throw new Error('VALIDATION_ERROR: Image exceeds max size');
   }
 }

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
+import { getCsrfToken } from '@/lib/csrf-client';
 
 interface RequestItem {
   id: string;
@@ -60,11 +61,13 @@ export default function AdminRequestsList() {
     setRequests(requests.map(r => r.id === id ? { ...r, status: newStatus } : r));
 
     try {
+      const csrfToken = await getCsrfToken();
       await fetch(`/api/admin/requests/${id}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken,
         },
         body: JSON.stringify({ status: newStatus })
       });

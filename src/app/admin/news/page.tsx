@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Trash2, CheckCircle, XCircle, Image as ImageIcon, Video, FileText, Search, Filter, RefreshCw, Merge } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { getCsrfToken } from '@/lib/csrf-client';
 
 interface NewsItem {
   id: string;
@@ -117,9 +118,11 @@ export default function AdminNewsList() {
     if (!confirm('Вы уверены, что хотите удалить эту новость?')) return;
 
     try {
+      const csrfToken = await getCsrfToken();
       const response = await fetch(`/api/news/${id}`, {
         method: 'DELETE',
-        credentials: 'include'
+        credentials: 'include',
+        headers: { 'x-csrf-token': csrfToken }
       });
 
       if (response.ok) {
@@ -144,10 +147,11 @@ export default function AdminNewsList() {
       
       if (itemResponse.ok) {
         const fullItem = await itemResponse.json();
+        const csrfToken = await getCsrfToken();
         const response = await fetch(`/api/news/${item.id}`, {
           method: 'PUT',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
           body: JSON.stringify({
             ...fullItem,
             status: newStatus
@@ -188,10 +192,11 @@ export default function AdminNewsList() {
 
     setIsMerging(true);
     try {
+      const csrfToken = await getCsrfToken();
       const response = await fetch('/api/news/merge', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
         body: JSON.stringify({
           newsIds: Array.from(selectedNewsIds)
         })

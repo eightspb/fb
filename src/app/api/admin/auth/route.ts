@@ -3,12 +3,13 @@ import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
-const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-me';
+const JWT_SECRET = process.env.JWT_SECRET;
+const FALLBACK_JWT_SECRET = 'default-secret-change-me';
 const COOKIE_NAME = 'admin-session';
 const SESSION_DURATION = 7 * 24 * 60 * 60; // 7 days in seconds
 
 async function createToken(): Promise<string> {
-  const secret = new TextEncoder().encode(JWT_SECRET);
+  const secret = new TextEncoder().encode(getJwtSecret());
   return new SignJWT({ role: 'admin', iat: Date.now() })
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime(`${SESSION_DURATION}s`)
@@ -17,7 +18,7 @@ async function createToken(): Promise<string> {
 
 async function verifyToken(token: string): Promise<boolean> {
   try {
-    const secret = new TextEncoder().encode(JWT_SECRET);
+    const secret = new TextEncoder().encode(getJwtSecret());
     await jwtVerify(token, secret);
     return true;
   } catch {
@@ -115,4 +116,14 @@ export async function DELETE(request: NextRequest) {
   });
 
   return response;
+}
+
+function getJwtSecret(): string {
+  if (JWT_SECRET) {
+    return JWT_SECRET;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET is required in production');
+  }
+  return FALLBACK_JWT_SECRET;
 }

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, Lock } from 'lucide-react';
+import { getCsrfToken } from '@/lib/csrf-client';
 
 export default function LoginPage() {
   const [password, setPassword] = useState('');
@@ -20,10 +21,12 @@ export default function LoginPage() {
     setError(null);
 
     try {
+      const csrfToken = await getCsrfToken();
       const response = await fetch('/api/admin/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken,
         },
         credentials: 'include',
         body: JSON.stringify({ password }),

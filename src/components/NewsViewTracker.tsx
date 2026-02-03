@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { getCsrfToken } from '@/lib/csrf-client';
 
 interface NewsViewTrackerProps {
   newsId: string;
@@ -35,10 +36,12 @@ export function NewsViewTracker({ newsId }: NewsViewTrackerProps) {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       try {
+        const csrfToken = await getCsrfToken();
         const response = await fetch(`/api/news/${newsId}/view`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'x-csrf-token': csrfToken,
           },
         });
 

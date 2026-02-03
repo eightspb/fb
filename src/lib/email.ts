@@ -76,9 +76,11 @@ export function createEmailTransporter(): Transporter {
       config.requireTLS = true;
     }
 
+    const rejectUnauthorized = parseBooleanEnv(process.env.SMTP_TLS_REJECT_UNAUTHORIZED, true);
+
     // TLS настройки для mail.ru
     config.tls = {
-      rejectUnauthorized: false, // Для mail.ru может потребоваться
+      rejectUnauthorized, // По умолчанию true
       minVersion: 'TLSv1.2', // Минимальная версия TLS
     };
 
@@ -120,6 +122,13 @@ export function getSenderEmail(): string {
  */
 export function getTargetEmail(): string {
   return process.env.TARGET_EMAIL || process.env.SMTP_USER || 'info@zenitmed.ru';
+}
+
+function parseBooleanEnv(value: string | undefined, defaultValue: boolean): boolean {
+  if (value === undefined) {
+    return defaultValue;
+  }
+  return value.toLowerCase() === 'true';
 }
 
 /**
