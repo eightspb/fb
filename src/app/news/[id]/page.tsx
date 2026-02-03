@@ -52,6 +52,7 @@ export default async function NewsPage({ params }: NewsPageProps) {
       
       const client = await pool.connect();
       try {
+        // Показываем только опубликованные новости (status = 'published' или NULL для обратной совместимости)
         const query = `
           SELECT 
             n.*,
@@ -82,9 +83,8 @@ export default async function NewsPage({ params }: NewsPageProps) {
             ) as documents
           FROM news n
           WHERE (n.id = $1 OR n.id = $2)
+          AND (n.status = 'published' OR n.status IS NULL)
         `;
-        // Removed status check for individual news page to allow viewing specific news even if status is tricky
-        // Also removed: AND n.status IS DISTINCT FROM 'draft'
         
         const result = await client.query(query, [id, decodedId]);
         
@@ -295,6 +295,7 @@ export async function generateMetadata({ params }: NewsPageProps): Promise<impor
       
       const client = await pool.connect();
       try {
+        // Показываем только опубликованные новости
         const query = `
           SELECT 
             n.*,
@@ -325,6 +326,7 @@ export async function generateMetadata({ params }: NewsPageProps): Promise<impor
             ) as documents
           FROM news n
           WHERE (n.id = $1 OR n.id = $2)
+          AND (n.status = 'published' OR n.status IS NULL)
         `;
         
         const result = await client.query(query, [id, decodedId]);

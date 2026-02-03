@@ -12,7 +12,8 @@ export default function EditNewsPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const response = await fetch(`/api/news/${id}`, {
+        // includeAll=true - получить новость даже если она черновик (только для админов)
+        const response = await fetch(`/api/news/${id}?includeAll=true`, {
           credentials: 'include'
         });
         if (response.ok) {
