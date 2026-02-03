@@ -28,7 +28,20 @@ async function verifyToken(token: string): Promise<boolean> {
 // POST - Login
 export async function POST(request: NextRequest) {
   try {
-    const { password } = await request.json();
+    const text = await request.text();
+    console.log('Raw body:', text);
+    
+    let password: string;
+    try {
+      const body = JSON.parse(text);
+      password = body.password;
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError, 'Body was:', text);
+      return NextResponse.json(
+        { error: 'Неверный формат запроса' },
+        { status: 400 }
+      );
+    }
 
     if (!ADMIN_PASSWORD) {
       return NextResponse.json(
@@ -36,6 +49,9 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    console.log('Password received:', password?.substring(0, 3) + '***');
+    console.log('Expected password starts with:', ADMIN_PASSWORD?.substring(0, 3) + '***');
 
     if (password !== ADMIN_PASSWORD) {
       return NextResponse.json(
