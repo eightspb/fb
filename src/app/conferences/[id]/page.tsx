@@ -7,6 +7,7 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { ConferenceRegistrationForm } from '@/components/ConferenceRegistrationForm';
+import { isUUID } from '@/lib/slug';
 import { 
   Calendar, 
   MapPin, 
@@ -38,6 +39,7 @@ interface OrganizerContacts {
 
 interface Conference {
   id: string;
+  slug?: string;
   title: string;
   date: string;
   date_end?: string;
@@ -59,7 +61,7 @@ interface ConferencePageProps {
   params: Promise<{ id: string }>;
 }
 
-async function getConference(id: string): Promise<Conference | null> {
+async function getConference(idOrSlug: string): Promise<Conference | null> {
   try {
     if (process.env.DATABASE_URL) {
       const { Pool } = await import('pg');
@@ -69,15 +71,25 @@ async function getConference(id: string): Promise<Conference | null> {
       
       const client = await pool.connect();
       try {
-        const result = await client.query(
-          'SELECT * FROM conferences WHERE id = $1',
-          [id]
-        );
+        // Поиск по UUID или slug
+        let result;
+        if (isUUID(idOrSlug)) {
+          result = await client.query(
+            'SELECT * FROM conferences WHERE id = $1',
+            [idOrSlug]
+          );
+        } else {
+          result = await client.query(
+            'SELECT * FROM conferences WHERE slug = $1',
+            [idOrSlug]
+          );
+        }
         
         if (result.rows.length > 0) {
           const row = result.rows[0];
           return {
             id: row.id,
+            slug: row.slug || undefined,
             title: row.title,
             date: row.date,
             date_end: row.date_end || undefined,
@@ -101,7 +113,7 @@ async function getConference(id: string): Promise<Conference | null> {
       }
     } else {
       const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-      const response = await fetch(`${baseUrl}/api/conferences/${id}`, {
+      const response = await fetch(`${baseUrl}/api/conferences/${idOrSlug}`, {
         cache: 'no-store'
       });
       
@@ -378,7 +390,7 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
 
                 {upcoming && (
                   <div className="pt-4 border-t">
-                    <Button asChild className="w-full bg-teal-600 hover:bg-teal-700">
+                    <Button asChild className="w-full bg-teal-600 hover:bg-teal-700 text-white">
                       <a href="#register">Зарегистрироваться</a>
                     </Button>
                   </div>

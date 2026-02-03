@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { generateSlug, isValidSlug } from '@/lib/slug';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileUpload } from '@/components/admin/FileUpload';
-import { Loader2, Plus, X, User, Image as ImageIcon, ChevronUp, ChevronDown } from 'lucide-react';
+import { Loader2, Plus, X, User, Image as ImageIcon, ChevronUp, ChevronDown, Link2, RefreshCw } from 'lucide-react';
 
 interface Speaker {
   id: string;
@@ -36,8 +37,11 @@ const generateId = () => Math.random().toString(36).substring(2, 15) + Date.now(
 export function ConferenceForm({ initialData, isEditing = false }: ConferenceFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(!!initialData?.slug);
+  const [slugError, setSlugError] = useState('');
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
+    slug: initialData?.slug || '',
     date: initialData?.date || new Date().toISOString().split('T')[0],
     date_end: initialData?.date_end || '',
     description: initialData?.description || '',
@@ -60,6 +64,23 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
   });
 
   const [newProgramItem, setNewProgramItem] = useState('');
+
+  // Автогенерация slug из названия (только если не редактировался вручную)
+  useEffect(() => {
+    if (!slugManuallyEdited && formData.title && !isEditing) {
+      const newSlug = generateSlug(formData.title);
+      setFormData(prev => ({ ...prev, slug: newSlug }));
+    }
+  }, [formData.title, slugManuallyEdited, isEditing]);
+
+  // Валидация slug при изменении
+  useEffect(() => {
+    if (formData.slug && !isValidSlug(formData.slug)) {
+      setSlugError('Используйте только латинские буквы, цифры и дефисы');
+    } else {
+      setSlugError('');
+    }
+  }, [formData.slug]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -146,6 +167,13 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Валидация slug перед отправкой
+    if (formData.slug && !isValidSlug(formData.slug)) {
+      alert('Некорректный slug. Используйте только латинские буквы, цифры и дефисы.');
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -182,6 +210,49 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
           <div className="space-y-2">
             <Label htmlFor="title">Название *</Label>
             <Input id="title" name="title" value={formData.title} onChange={handleChange} required />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="slug" className="flex items-center gap-2">
+              <Link2 className="w-4 h-4" />
+              URL (slug)
+            </Label>
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <Input 
+                  id="slug" 
+                  name="slug" 
+                  value={formData.slug} 
+                  onChange={(e) => {
+                    setSlugManuallyEdited(true);
+                    handleChange(e);
+                  }}
+                  placeholder="miniinvazivnaya-hirurgiya-2026"
+                  className={slugError ? 'border-red-300' : ''}
+                />
+                {slugError && (
+                  <p className="text-xs text-red-500 mt-1">{slugError}</p>
+                )}
+              </div>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="icon"
+                onClick={() => {
+                  const newSlug = generateSlug(formData.title);
+                  setFormData(prev => ({ ...prev, slug: newSlug }));
+                  setSlugManuallyEdited(false);
+                }}
+                title="Сгенерировать из названия"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </Button>
+            </div>
+            {formData.slug && (
+              <p className="text-xs text-slate-500">
+                URL: /conferences/<span className="font-medium text-teal-600">{formData.slug}</span>
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

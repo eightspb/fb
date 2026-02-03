@@ -253,7 +253,7 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
       <Button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-slate-900 hover:bg-slate-800 rounded-full py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-teal-600 hover:bg-teal-700 text-white rounded-full py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isSubmitting ? 'Отправка...' : 'Зарегистрироваться'}
       </Button>

@@ -35,6 +35,7 @@ CREATE POLICY "Allow all for postgres" ON form_submissions
 -- Таблица конференций
 CREATE TABLE IF NOT EXISTS conferences (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug TEXT UNIQUE, -- URL-friendly идентификатор (например, 'sms-2026')
   title TEXT NOT NULL,
   date TEXT NOT NULL,
   description TEXT,
@@ -51,6 +52,9 @@ CREATE TABLE IF NOT EXISTS conferences (
 
 -- Индекс для сортировки по дате
 CREATE INDEX IF NOT EXISTS idx_conferences_date ON conferences(date);
+
+-- Индекс для поиска по slug
+CREATE INDEX IF NOT EXISTS idx_conferences_slug ON conferences(slug);
 
 -- Триггер для автоматического обновления updated_at
 DROP TRIGGER IF EXISTS update_conferences_updated_at ON conferences;

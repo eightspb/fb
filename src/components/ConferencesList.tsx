@@ -20,6 +20,7 @@ interface Speaker {
 
 interface Conference {
   id: string;
+  slug?: string;
   title: string;
   date: string;
   date_end?: string;
@@ -118,6 +119,8 @@ export function ConferencesList() {
     const month = eventDate.toLocaleString('ru-RU', { month: 'short' }).toUpperCase();
     const year = eventDate.getFullYear();
     const speakersCount = event.speakers?.length || 0;
+    // Используем slug если есть, иначе id
+    const conferenceUrl = event.slug || event.id;
 
     return (
       <Card key={event.id} className="border-slate-200 hover:border-teal-200 hover:shadow-lg transition-all group overflow-hidden">
@@ -212,14 +215,14 @@ export function ConferencesList() {
 
           <div className="flex gap-3">
             {isUpcoming && (
-              <Button asChild className="flex-1 bg-slate-900 hover:bg-slate-800 rounded-full">
-                <Link href={`/conferences/${event.id}#register`}>
+              <Button asChild className="flex-1 bg-teal-600 hover:bg-teal-700 text-white rounded-full">
+                <Link href={`/conferences/${conferenceUrl}#register`}>
                   Регистрация
                 </Link>
               </Button>
             )}
-            <Button variant="outline" asChild className={`${isUpcoming ? 'flex-1' : 'w-full'} border-slate-200 rounded-full group/btn`}>
-              <Link href={`/conferences/${event.id}`} className="flex items-center gap-2">
+            <Button variant="outline" asChild className={`${isUpcoming ? 'flex-1' : 'w-full'} border-slate-300 hover:border-teal-400 hover:text-teal-600 rounded-full group/btn`}>
+              <Link href={`/conferences/${conferenceUrl}`} className="flex items-center gap-2">
                 Подробнее
                 <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
               </Link>
@@ -238,13 +241,13 @@ export function ConferencesList() {
             value="announcements" 
             className="rounded-full data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm text-slate-500 transition-all"
           >
-            Предстоящие ({upcoming.length})
+            Предстоящие
           </TabsTrigger>
           <TabsTrigger 
             value="archive" 
             className="rounded-full data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm text-slate-500 transition-all"
           >
-            Прошедшие ({past.length})
+            Прошедшие
           </TabsTrigger>
         </TabsList>
       </div>
