@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, CheckCircle, XCircle, Users, Calendar, Image as ImageIcon, Eye } from 'lucide-react';
+import { Plus, Pencil, Trash2, CheckCircle, XCircle, Users, Calendar, Image as ImageIcon, Eye, Link2 } from 'lucide-react';
 
 interface Speaker {
   id: string;
@@ -15,6 +15,7 @@ interface Speaker {
 
 interface Conference {
   id: string;
+  slug?: string;
   title: string;
   date: string;
   date_end?: string;
@@ -188,6 +189,12 @@ export default function AdminConferencesList() {
                   {item.location && (
                     <p className="text-xs text-slate-500 truncate">{item.location}</p>
                   )}
+                  {item.slug && (
+                    <div className="flex items-center gap-1 text-xs text-teal-600 bg-teal-50 rounded px-2 py-1">
+                      <Link2 className="w-3 h-3" />
+                      <span className="truncate">/{item.slug}</span>
+                    </div>
+                  )}
                 </CardContent>
                 
                 <CardFooter className="flex justify-between gap-2 pt-4 border-t">
@@ -195,9 +202,9 @@ export default function AdminConferencesList() {
                     variant="ghost" 
                     size="sm" 
                     asChild
-                    title="Посмотреть на сайте"
+                    title={`Посмотреть на сайте${item.slug ? ` (/${item.slug})` : ''}`}
                   >
-                    <Link href={`/conferences/${item.id}`} target="_blank">
+                    <Link href={`/conferences/${item.slug || item.id}`} target="_blank">
                       <Eye className="w-4 h-4 text-slate-500" />
                     </Link>
                   </Button>

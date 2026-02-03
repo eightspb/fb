@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Pool } from 'pg';
 import { checkApiAuth } from '@/lib/auth';
+import { generateSlug, isValidSlug } from '@/lib/slug';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { 
       title, 
+      slug: providedSlug,
       date, 
       date_end,
       description, 
@@ -65,16 +67,40 @@ export async function POST(request: Request) {
       additional_info
     } = body;
 
+    // Генерируем slug из названия, если не предоставлен
+    let slug = providedSlug?.trim() || generateSlug(title);
+    
+    // Валидация slug
+    if (slug && !isValidSlug(slug)) {
+      return NextResponse.json({ 
+        error: 'Некорректный slug. Используйте только латинские буквы, цифры и дефисы.' 
+      }, { status: 400 });
+    }
+
     const client = await pool.connect();
     try {
+      // Проверяем уникальность slug
+      if (slug) {
+        const existingSlug = await client.query(
+          'SELECT id FROM conferences WHERE slug = $1',
+          [slug]
+        );
+        if (existingSlug.rows.length > 0) {
+          // Добавляем суффикс для уникальности
+          const timestamp = Date.now().toString(36);
+          slug = `${slug}-${timestamp}`;
+        }
+      }
+
       const result = await client.query(
         `INSERT INTO conferences (
-          title, date, date_end, description, type, location, speaker, cme_hours, 
+          slug, title, date, date_end, description, type, location, speaker, cme_hours, 
           program, materials, status, cover_image, speakers, organizer_contacts, additional_info
         )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
          RETURNING *`,
         [
+          slug || null,
           title, 
           date, 
           date_end || null,

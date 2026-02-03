@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Pool } from 'pg';
 import { checkApiAuth } from '@/lib/auth';
+import { isUUID, isValidSlug } from '@/lib/slug';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
@@ -14,7 +15,16 @@ export async function GET(
     const { id } = await params;
     const client = await pool.connect();
     try {
-      const result = await client.query('SELECT * FROM conferences WHERE id = $1', [id]);
+      // Поиск по UUID или slug
+      let result;
+      if (isUUID(id)) {
+        // Если это UUID - ищем по id
+        result = await client.query('SELECT * FROM conferences WHERE id = $1', [id]);
+      } else {
+        // Иначе ищем по slug
+        result = await client.query('SELECT * FROM conferences WHERE slug = $1', [id]);
+      }
+      
       if (result.rows.length === 0) {
         return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
@@ -43,6 +53,7 @@ export async function PUT(
     const body = await request.json();
     const { 
       title, 
+      slug: providedSlug,
       date, 
       date_end,
       description, 
@@ -59,17 +70,51 @@ export async function PUT(
       additional_info
     } = body;
 
+    // Обработка slug
+    let slug = providedSlug?.trim() || null;
+    
+    // Если slug предоставлен, валидируем его
+    if (slug && !isValidSlug(slug)) {
+      return NextResponse.json({ 
+        error: 'Некорректный slug. Используйте только латинские буквы, цифры и дефисы.' 
+      }, { status: 400 });
+    }
+
     const client = await pool.connect();
     try {
+      // Определяем реальный UUID конференции (если запрос по slug)
+      let conferenceId = id;
+      if (!isUUID(id)) {
+        const findResult = await client.query('SELECT id FROM conferences WHERE slug = $1', [id]);
+        if (findResult.rows.length === 0) {
+          return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        }
+        conferenceId = findResult.rows[0].id;
+      }
+
+      // Проверяем уникальность slug (если он изменился)
+      if (slug) {
+        const existingSlug = await client.query(
+          'SELECT id FROM conferences WHERE slug = $1 AND id != $2',
+          [slug, conferenceId]
+        );
+        if (existingSlug.rows.length > 0) {
+          return NextResponse.json({ 
+            error: 'Этот slug уже используется другой конференцией.' 
+          }, { status: 400 });
+        }
+      }
+
       const result = await client.query(
         `UPDATE conferences 
-         SET title = $1, date = $2, date_end = $3, description = $4, type = $5, 
-             location = $6, speaker = $7, cme_hours = $8, program = $9, materials = $10, 
-             status = $11, cover_image = $12, speakers = $13, organizer_contacts = $14, 
-             additional_info = $15, updated_at = NOW()
-         WHERE id = $16
+         SET slug = $1, title = $2, date = $3, date_end = $4, description = $5, type = $6, 
+             location = $7, speaker = $8, cme_hours = $9, program = $10, materials = $11, 
+             status = $12, cover_image = $13, speakers = $14, organizer_contacts = $15, 
+             additional_info = $16, updated_at = NOW()
+         WHERE id = $17
          RETURNING *`,
         [
+          slug,
           title, 
           date, 
           date_end || null,
@@ -85,7 +130,7 @@ export async function PUT(
           JSON.stringify(speakers || []),
           JSON.stringify(organizer_contacts || {}),
           additional_info || null,
-          id
+          conferenceId
         ]
       );
       
@@ -117,7 +162,14 @@ export async function DELETE(
 
     const client = await pool.connect();
     try {
-      const result = await client.query('DELETE FROM conferences WHERE id = $1 RETURNING *', [id]);
+      // Удаление по UUID или slug
+      let result;
+      if (isUUID(id)) {
+        result = await client.query('DELETE FROM conferences WHERE id = $1 RETURNING *', [id]);
+      } else {
+        result = await client.query('DELETE FROM conferences WHERE slug = $1 RETURNING *', [id]);
+      }
+      
       if (result.rows.length === 0) {
         return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
