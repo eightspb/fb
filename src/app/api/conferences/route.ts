@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     
     const client = await pool.connect();
     try {
-      let query = `
+      const query = `
         SELECT * FROM conferences 
         ${status ? 'WHERE status = $1' : ''}
         ORDER BY 
