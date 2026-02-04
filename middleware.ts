@@ -13,8 +13,14 @@ const ratelimit = hasUpstashConfig
     })
   : null;
 
+// Пути, исключённые из CSRF-проверки (публичные API)
+const CSRF_EXEMPT_PATHS = ['/api/analytics/track'];
+
 export async function middleware(request: NextRequest) {
-  if (ratelimit) {
+  const pathname = request.nextUrl.pathname;
+  
+  // Rate limiting (пропускаем для трекинга аналитики)
+  if (ratelimit && !pathname.startsWith('/api/analytics')) {
     const identifier = getClientIdentifier(request);
     const result = await ratelimit.limit(`api_${identifier}`);
     if (!result.success) {
@@ -32,8 +38,11 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // CSRF проверка (пропускаем для определённых путей)
   const method = request.method.toUpperCase();
-  if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+  const isExempt = CSRF_EXEMPT_PATHS.some(path => pathname.startsWith(path));
+  
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && !isExempt) {
     const cookieToken = request.cookies.get(CSRF_COOKIE_NAME)?.value;
     const headerToken = request.headers.get(CSRF_HEADER_NAME);
     if (!cookieToken || !headerToken || cookieToken !== headerToken) {
