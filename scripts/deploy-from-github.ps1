@@ -218,14 +218,52 @@ function Invoke-Migrations {
         return
     }
     
-    # Создаем таблицу миграций если не существует (через heredoc, чтобы избежать проблем с кавычками)
-    $createTableCommand = @"
+    # Создаем/нормализуем таблицу миграций (через heredoc, чтобы избежать проблем с кавычками)
+    $initTableCommand = @"
 cd $RemotePath
 docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
-CREATE TABLE IF NOT EXISTS schema_migrations (name VARCHAR(255) PRIMARY KEY, applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW());
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'schema_migrations'
+  ) THEN
+    CREATE TABLE schema_migrations (
+      name VARCHAR(255) PRIMARY KEY,
+      applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+  ELSE
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'schema_migrations' AND column_name = 'name'
+    ) THEN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'schema_migrations' AND column_name = 'migration'
+      ) THEN
+        ALTER TABLE schema_migrations RENAME COLUMN migration TO name;
+      ELSIF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'schema_migrations' AND column_name = 'version'
+      ) THEN
+        ALTER TABLE schema_migrations RENAME COLUMN version TO name;
+      ELSE
+        ALTER TABLE schema_migrations ADD COLUMN name VARCHAR(255);
+      END IF;
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'schema_migrations' AND column_name = 'applied_at'
+    ) THEN
+      ALTER TABLE schema_migrations ADD COLUMN applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+    END IF;
+  END IF;
+END
+$$;
 SQL
 "@
-    & $SshPath $Server $createTableCommand
+    & $SshPath $Server $initTableCommand
     
     # Получаем список миграций на сервере
     $migrations = & $SshPath $Server "cd $RemotePath && ls migrations/*.sql 2>/dev/null || echo ''"
@@ -247,7 +285,8 @@ docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -tA
 SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE name = '$migrationName');
 SQL
 "@
-        $applied = (& $SshPath $Server $checkCommand).Trim()
+        $appliedRaw = & $SshPath $Server $checkCommand
+        $applied = if ($null -eq $appliedRaw) { '' } else { ($appliedRaw | Out-String).Trim() }
         
         if ($applied -match "t") {
             Write-Info "  [SKIP] $migrationName (уже применена)"
