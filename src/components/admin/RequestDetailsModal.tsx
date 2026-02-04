@@ -333,7 +333,32 @@ export function RequestDetailsModal({
               <label className="block text-xs font-medium text-slate-500 mb-2">Статус</label>
               <select
                 value={status}
-                onChange={(e) => setStatus(e.target.value)}
+                onChange={async (e) => {
+                  const newStatus = e.target.value;
+                  setStatus(newStatus);
+                  
+                  // Автосохранение статуса
+                  if (!request) return;
+                  try {
+                    const csrfToken = await getCsrfToken();
+                    const response = await fetch(`/api/admin/requests/${request.id}`, {
+                      method: 'PATCH',
+                      credentials: 'include',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'x-csrf-token': csrfToken,
+                      },
+                      body: JSON.stringify({ status: newStatus })
+                    });
+
+                    if (response.ok) {
+                      const updatedRequest = await response.json();
+                      onUpdate(updatedRequest);
+                    }
+                  } catch (error) {
+                    console.error('Error updating status:', error);
+                  }
+                }}
                 className="w-full h-10 px-3 py-2 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {statusOptions.map(option => (
@@ -347,7 +372,32 @@ export function RequestDetailsModal({
               <label className="block text-xs font-medium text-slate-500 mb-2">Приоритет</label>
               <select
                 value={priority}
-                onChange={(e) => setPriority(e.target.value)}
+                onChange={async (e) => {
+                  const newPriority = e.target.value;
+                  setPriority(newPriority);
+                  
+                  // Автосохранение приоритета
+                  if (!request) return;
+                  try {
+                    const csrfToken = await getCsrfToken();
+                    const response = await fetch(`/api/admin/requests/${request.id}`, {
+                      method: 'PATCH',
+                      credentials: 'include',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'x-csrf-token': csrfToken,
+                      },
+                      body: JSON.stringify({ priority: newPriority })
+                    });
+
+                    if (response.ok) {
+                      const updatedRequest = await response.json();
+                      onUpdate(updatedRequest);
+                    }
+                  } catch (error) {
+                    console.error('Error updating priority:', error);
+                  }
+                }}
                 className="w-full h-10 px-3 py-2 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {priorityOptions.map(option => (
