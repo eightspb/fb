@@ -172,74 +172,82 @@ export function PastEvents({ categories }: PastEventsProps) {
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {paginatedEvents.map((event) => (
-          <Card key={event.id} className="group hover:shadow-lg transition-all border-slate-200 overflow-hidden bg-white h-full flex flex-col">
-            <CardContent className="p-0 flex flex-col h-full">
-               {/* Image */}
-               <div className="relative h-48 bg-slate-100 overflow-hidden">
-                  {event.images && event.images.length > 0 ? (
-                    <Image 
-                      src={event.images[0]} 
-                      alt={event.title}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-300">
-                      <ImageIcon className="w-12 h-12" />
+          <Card key={event.id} className="group hover:shadow-lg transition-all border-slate-200 bg-white flex flex-col overflow-hidden h-full">
+            {/* Image Section - same as NewsList */}
+            <div className="relative w-full aspect-[4/3] overflow-hidden bg-slate-100">
+              {event.images && event.images.length > 0 ? (
+                <Image 
+                  src={event.images[0]} 
+                  alt={event.title}
+                  fill
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  style={{ objectPosition: event.imageFocalPoint || 'center 30%' }}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-slate-300">
+                  <ImageIcon className="w-12 h-12" />
+                </div>
+              )}
+              
+              {/* Date Badge */}
+              <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold text-slate-900 shadow-sm">
+                {event.date}
+              </div>
+            </div>
+
+            <CardContent className="p-6 flex flex-col flex-grow">
+              {/* Category */}
+              <div className="mb-4">
+                {event.category ? (
+                  <Badge className="bg-teal-50 text-teal-700 hover:bg-teal-100 border-0">
+                    {event.category}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">
+                    Новости
+                  </Badge>
+                )}
+              </div>
+              
+              <Link href={`/news/${event.id}`} className="block group-hover:text-teal-600 transition-colors mb-3">
+                <h3 className="text-xl font-bold text-slate-900 line-clamp-3">
+                  {event.title}
+                </h3>
+              </Link>
+              
+              <p className="text-slate-600 text-sm line-clamp-3 mb-6 flex-grow">
+                {event.shortDescription}
+              </p>
+
+              <div className="flex items-center justify-between pt-4 mt-auto border-t border-slate-100">
+                <div className="flex gap-3 text-slate-400">
+                  {event.images && event.images.length > 0 && (
+                    <div className="flex items-center gap-1" title={`${event.images.length} фото`}>
+                      <ImageIcon className="w-4 h-4" />
+                      <span className="text-xs font-medium">{event.images.length}</span>
                     </div>
                   )}
-                  <div className="absolute top-4 left-4 flex gap-2">
-                    <Badge className="bg-white/90 text-slate-900 backdrop-blur-sm hover:bg-white border-0 shadow-sm">
-                      {event.date}
-                    </Badge>
-                  </div>
-               </div>
-
-               <div className="p-6 flex flex-col flex-grow">
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {event.category && (
-                        <Badge variant="outline" className="border-teal-200 text-teal-700 bg-teal-50">
-                            {event.category}
-                        </Badge>
-                    )}
-                  </div>
-
-                  <Link href={`/news/${event.id}`} className="group-hover:text-teal-600 transition-colors">
-                    <h3 className="text-lg font-bold text-slate-900 mb-2 line-clamp-2">
-                      {event.title}
-                    </h3>
-                  </Link>
-
-                  <p className="text-slate-600 text-sm mb-4 line-clamp-3">
-                    {event.shortDescription}
-                  </p>
-
-                  <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
-                     <div className="flex gap-3 text-slate-400">
-                        {event.images && event.images.length > 0 && (
-                          <div className="flex items-center gap-1" title={`${event.images.length} фото`}>
-                            <ImageIcon className="w-4 h-4" />
-                            <span className="text-xs font-medium">{event.images.length}</span>
-                          </div>
-                        )}
-                        {event.videos && event.videos.length > 0 && (
-                          <div className="flex items-center gap-1" title={`${event.videos.length} видео`}>
-                            <Video className="w-4 h-4" />
-                            <span className="text-xs font-medium">{event.videos.length}</span>
-                          </div>
-                        )}
-                        {event.documents && event.documents.length > 0 && (
-                          <div className="flex items-center gap-1" title={`${event.documents.length} документов`}>
-                            <FileText className="w-4 h-4" />
-                            <span className="text-xs font-medium">{event.documents.length}</span>
-                          </div>
-                        )}
-                     </div>
-                     <Button variant="ghost" size="sm" className="text-teal-600 hover:text-teal-700 hover:bg-teal-50 p-0 h-auto font-medium" asChild>
-                        <Link href={`/news/${event.id}`}>Подробнее</Link>
-                     </Button>
-                  </div>
-               </div>
+                  {event.videos && event.videos.length > 0 && (
+                    <div className="flex items-center gap-1" title={`${event.videos.length} видео`}>
+                      <Video className="w-4 h-4" />
+                      <span className="text-xs font-medium">{event.videos.length}</span>
+                    </div>
+                  )}
+                  {event.documents && event.documents.length > 0 && (
+                    <div className="flex items-center gap-1" title={`${event.documents.length} документов`}>
+                      <FileText className="w-4 h-4" />
+                      <span className="text-xs font-medium">{event.documents.length}</span>
+                    </div>
+                  )}
+                </div>
+                
+                <Link 
+                  href={`/news/${event.id}`} 
+                  className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
+                >
+                  Подробнее
+                </Link>
+              </div>
             </CardContent>
           </Card>
         ))}
