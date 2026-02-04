@@ -4,7 +4,6 @@ import type { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/Header";
-import { GridPattern } from "@/components/GridPattern";
 import { FeaturesSection } from "@/components/FeaturesSection";
 import { PartnersSection } from "@/components/PartnersSection";
 import { Footer } from "@/components/Footer";
@@ -26,18 +25,17 @@ export default function Home() {
 
       {/* Hero Section */}
       <section className="relative min-h-screen w-full flex items-center justify-center overflow-hidden pt-32 pb-16 lg:pt-32">
-        {/* Background Elements */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-teal-50/50 via-slate-50 to-slate-50" />
-        <GridPattern
-          width={40}
-          height={40}
-          x={-1}
-          y={-1}
-          className="absolute inset-0 h-full w-full text-slate-200/50 [mask-image:linear-gradient(to_bottom_right,white,transparent,transparent)]"
-          squares={[
-            [4, 4], [4, 6], [5, 5], [6, 4], [7, 6], [8, 5], [9, 4]
-          ]}
-        />
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <Image
+            src="/images/background.png"
+            alt="Background"
+            fill
+            className="object-cover"
+            priority
+            quality={90}
+          />
+        </div>
         
         <div className="relative z-10 container mx-auto px-4 md:px-6 lg:px-8 flex flex-col items-center text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-teal-100 shadow-sm mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
