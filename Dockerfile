@@ -1,13 +1,15 @@
-FROM node:20-alpine AS base
+# Production Dockerfile with Bun
+FROM oven/bun:1-alpine AS base
 RUN apk add --no-cache libc6-compat
 
 # Install dependencies only when needed
 FROM base AS deps
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
-COPY package.json package-lock.json* ./
-RUN npm install --legacy-peer-deps && npm install lightningcss-linux-x64-musl @tailwindcss/oxide-linux-x64-musl --no-save --legacy-peer-deps
+# Install dependencies with Bun
+COPY package.json bun.lock* ./
+RUN bun install --frozen-lockfile && \
+    bun install lightningcss-linux-x64-musl @tailwindcss/oxide-linux-x64-musl --no-save
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -17,8 +19,8 @@ COPY . .
 
 # Build environment variables (must be in builder stage)
 
-# Build Next.js
-RUN npm run build
+# Build Next.js with Bun
+RUN bun run build
 
 # Production image, copy all the files and run next
 FROM base AS runner
@@ -40,5 +42,6 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
+# Use node for running Next.js standalone server (more stable than Bun for production)
 CMD ["node", "server.js"]
 

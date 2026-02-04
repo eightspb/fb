@@ -173,6 +173,7 @@ upload_files() {
     
     # Список файлов и директорий для загрузки (исключая ненужные)
     # ВАЖНО: public/images/trainings исключена, так как изображения хранятся только в БД
+    # ВАЖНО: Включаем bun.lockb для деплоя с Bun
     rsync -avz --progress \
         --exclude='node_modules' \
         --exclude='.next' \
@@ -185,6 +186,7 @@ upload_files() {
         --exclude='public/images/trainings/**' \
         --exclude='.DS_Store' \
         --exclude='*.tsbuildinfo' \
+        --exclude='package-lock.json' \
         "$PROJECT_ROOT/" "$SERVER:$REMOTE_PATH/"
     
     if [ $? -eq 0 ]; then

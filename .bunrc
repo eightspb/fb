@@ -1,0 +1,15 @@
+# Bun runtime configuration
+
+[install]
+# Автоматически устанавливать peer dependencies
+auto = true
+
+# Использовать точные версии (как npm ci)
+exact = false
+
+# Кеш
+cache = true
+
+[test]
+# Настройки для тестов (если будут добавлены)
+preload = []

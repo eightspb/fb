@@ -146,6 +146,7 @@ function Upload-Files {
     
     # Используем rsync через WSL или напрямую если установлен
     # ВАЖНО: public/images/trainings исключена, так как изображения хранятся только в БД
+    # ВАЖНО: Исключаем package-lock.json, используем bun.lockb
     $excludes = @(
         "node_modules",
         ".next",
@@ -157,7 +158,8 @@ function Upload-Files {
         "public/images/trainings",
         "public/images/trainings/**",
         ".DS_Store",
-        "*.tsbuildinfo"
+        "*.tsbuildinfo",
+        "package-lock.json"
     )
     
     $excludeArgs = $excludes | ForEach-Object { "--exclude=$_" }
