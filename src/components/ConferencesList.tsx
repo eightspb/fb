@@ -6,9 +6,7 @@ import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, MapPin, Users, Clock, ArrowRight } from "lucide-react";
-import { PastEvents } from '@/components/PastEvents';
 
 interface Speaker {
   id: string;
@@ -114,14 +112,146 @@ export function ConferencesList() {
     return <div className="text-center py-12">Загрузка мероприятий...</div>;
   }
 
-  const renderConferenceCard = (event: Conference, isUpcoming: boolean = true) => {
+  // Широкий тизер для предстоящих конференций
+  const renderUpcomingTeaser = (event: Conference) => {
     const speakersCount = event.speakers?.length || 0;
-    // Используем slug если есть, иначе id
+    const conferenceUrl = event.slug || event.id;
+
+    return (
+      <Card key={event.id} className="group hover:shadow-xl transition-all border-slate-200 bg-white overflow-hidden">
+        <div className="grid md:grid-cols-2 gap-0">
+          {/* Image Section */}
+          <div className="relative w-full aspect-[16/10] md:aspect-auto md:min-h-[400px] overflow-hidden bg-slate-100">
+            {event.cover_image ? (
+              <Image
+                src={event.cover_image}
+                alt={event.title}
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className="object-cover transition-transform duration-700 group-hover:scale-105"
+                style={{ objectPosition: 'center 30%' }}
+                unoptimized
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-teal-50 to-blue-50">
+                <Calendar className="w-20 h-20 text-teal-300" />
+              </div>
+            )}
+            
+            {/* Date Badge */}
+            <div className="absolute top-6 left-6 bg-white/95 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg">
+              <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-0.5">Дата проведения</div>
+              <div className="text-sm font-bold text-slate-900">
+                {formatDateRange(event.date, event.date_end)}
+              </div>
+            </div>
+          </div>
+
+          {/* Content Section */}
+          <CardContent className="p-8 md:p-10 flex flex-col justify-center">
+            {/* Category/Type */}
+            <Badge className="bg-teal-50 text-teal-700 hover:bg-teal-100 border-0 w-fit mb-4">
+              {event.type}
+            </Badge>
+            
+            <Link href={`/conferences/${conferenceUrl}`} className="block group-hover:text-teal-600 transition-colors mb-4">
+              <h3 className="text-2xl md:text-3xl font-bold text-slate-900 leading-tight">
+                {event.title}
+              </h3>
+            </Link>
+            
+            {event.description && (
+              <p className="text-slate-600 text-base mb-6 line-clamp-4">
+                {event.description}
+              </p>
+            )}
+            
+            {/* Meta info */}
+            <div className="space-y-3 text-slate-600 mb-6">
+              {event.location && (
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-5 h-5 text-teal-600 flex-shrink-0" />
+                  <span>{event.location}</span>
+                </div>
+              )}
+              {speakersCount > 0 && (
+                <div className="flex items-center gap-3">
+                  <Users className="w-5 h-5 text-teal-600 flex-shrink-0" />
+                  <span>{speakersCount} {speakersCount === 1 ? 'спикер' : speakersCount < 5 ? 'спикера' : 'спикеров'}</span>
+                </div>
+              )}
+              {event.cme_hours && event.cme_hours > 0 && (
+                <div className="flex items-center gap-3">
+                  <Clock className="w-5 h-5 text-teal-600 flex-shrink-0" />
+                  <span>{event.cme_hours} часов CME</span>
+                </div>
+              )}
+            </div>
+
+            {/* Speakers preview */}
+            {event.speakers && event.speakers.length > 0 && (
+              <div className="flex items-center gap-3 mb-8">
+                <div className="flex -space-x-3">
+                  {event.speakers.slice(0, 5).map((speaker, idx) => (
+                    <div 
+                      key={speaker.id || idx}
+                      className="w-10 h-10 rounded-full border-2 border-white overflow-hidden bg-slate-200 shadow-sm"
+                      title={speaker.name}
+                    >
+                      {speaker.photo ? (
+                        <Image
+                          src={speaker.photo}
+                          alt={speaker.name}
+                          width={40}
+                          height={40}
+                          className="w-full h-full object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-sm font-medium text-slate-500">
+                          {speaker.name?.charAt(0) || '?'}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {event.speakers.length > 5 && (
+                    <div className="w-10 h-10 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-sm font-medium text-slate-600 shadow-sm">
+                      +{event.speakers.length - 5}
+                    </div>
+                  )}
+                </div>
+                <span className="text-sm text-slate-500">Ведущие специалисты</span>
+              </div>
+            )}
+
+            {/* CTA Buttons */}
+            <div className="flex flex-wrap gap-4">
+              <Button asChild size="lg" className="bg-teal-600 hover:bg-teal-700 text-white rounded-full px-8">
+                <Link href={`/conferences/${conferenceUrl}#register`}>
+                  Зарегистрироваться
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="rounded-full px-8 border-slate-300 hover:bg-slate-50">
+                <Link href={`/conferences/${conferenceUrl}`} className="flex items-center gap-2">
+                  Подробнее
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </div>
+      </Card>
+    );
+  };
+
+  // Компактная карточка для прошедших мероприятий
+  const renderPastCard = (event: Conference) => {
+    const speakersCount = event.speakers?.length || 0;
     const conferenceUrl = event.slug || event.id;
 
     return (
       <Card key={event.id} className="group hover:shadow-lg transition-all border-slate-200 bg-white flex flex-col overflow-hidden h-full">
-        {/* Image Section - same as NewsList */}
+        {/* Image Section */}
         <div className="relative w-full aspect-[4/3] overflow-hidden bg-slate-100">
           {event.cover_image ? (
             <Image
@@ -134,13 +264,13 @@ export function ConferencesList() {
               unoptimized
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-teal-50 to-blue-50">
-              <Calendar className="w-12 h-12 text-teal-300" />
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+              <Calendar className="w-12 h-12 text-slate-300" />
             </div>
           )}
           
           {/* Date Badge */}
-          <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold text-slate-900 shadow-sm">
+          <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold text-slate-700 shadow-sm">
             {formatDateRange(event.date, event.date_end)}
           </div>
         </div>
@@ -148,7 +278,7 @@ export function ConferencesList() {
         <CardContent className="p-6 flex flex-col flex-grow">
           {/* Category/Type */}
           <div className="mb-4">
-            <Badge className="bg-teal-50 text-teal-700 hover:bg-teal-100 border-0">
+            <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-200 border-0">
               {event.type}
             </Badge>
           </div>
@@ -177,12 +307,6 @@ export function ConferencesList() {
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-slate-400" />
                 <span>{speakersCount} {speakersCount === 1 ? 'спикер' : speakersCount < 5 ? 'спикера' : 'спикеров'}</span>
-              </div>
-            )}
-            {event.cme_hours && event.cme_hours > 0 && (
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-slate-400" />
-                <span>{event.cme_hours} часов CME</span>
               </div>
             )}
           </div>
@@ -224,39 +348,20 @@ export function ConferencesList() {
 
           {/* Footer */}
           <div className="flex items-center justify-between pt-4 mt-auto border-t border-slate-100">
-            {isUpcoming ? (
-              <>
-                <Button asChild size="sm" className="bg-teal-600 hover:bg-teal-700 text-white rounded-full">
-                  <Link href={`/conferences/${conferenceUrl}#register`}>
-                    Регистрация
-                  </Link>
-                </Button>
-                <Link 
-                  href={`/conferences/${conferenceUrl}`} 
-                  className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors flex items-center gap-1"
-                >
-                  Подробнее
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </>
-            ) : (
-              <>
-                <div className="flex gap-3 text-slate-400">
-                  {event.materials && event.materials.length > 0 && (
-                    <div className="flex items-center gap-1" title="Есть материалы">
-                      <Calendar className="w-4 h-4" />
-                      <span className="text-xs font-medium">{event.materials.length}</span>
-                    </div>
-                  )}
+            <div className="flex gap-3 text-slate-400">
+              {event.materials && event.materials.length > 0 && (
+                <div className="flex items-center gap-1" title="Есть материалы">
+                  <Calendar className="w-4 h-4" />
+                  <span className="text-xs font-medium">{event.materials.length}</span>
                 </div>
-                <Link 
-                  href={`/conferences/${conferenceUrl}`} 
-                  className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
-                >
-                  Подробнее
-                </Link>
-              </>
-            )}
+              )}
+            </div>
+            <Link 
+              href={`/conferences/${conferenceUrl}`} 
+              className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
+            >
+              Подробнее
+            </Link>
           </div>
         </CardContent>
       </Card>
@@ -264,46 +369,41 @@ export function ConferencesList() {
   };
 
   return (
-    <Tabs defaultValue="announcements" className="w-full">
-      <div className="flex justify-center mb-12">
-        <TabsList className="grid w-full max-w-md grid-cols-2 bg-slate-100 p-1 rounded-full">
-          <TabsTrigger 
-            value="announcements" 
-            className="rounded-full data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm text-slate-500 transition-all"
-          >
-            Предстоящие
-          </TabsTrigger>
-          <TabsTrigger 
-            value="archive" 
-            className="rounded-full data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm text-slate-500 transition-all"
-          >
-            Прошедшие
-          </TabsTrigger>
-        </TabsList>
-      </div>
+    <div className="w-full space-y-16">
+      {/* Предстоящие конференции - широкие тизеры */}
+      {upcoming.length > 0 && (
+        <section className="space-y-8">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-slate-900 mb-2">Предстоящие мероприятия</h2>
+            <p className="text-slate-600">Зарегистрируйтесь и примите участие</p>
+          </div>
+          <div className="max-w-6xl mx-auto space-y-8">
+            {upcoming.map((event) => renderUpcomingTeaser(event))}
+          </div>
+        </section>
+      )}
 
-      <TabsContent value="announcements" className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        {upcoming.length > 0 ? (
+      {/* Прошедшие мероприятия - компактные карточки */}
+      {past.length > 0 && (
+        <section className="space-y-8">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-slate-900 mb-2">Прошедшие мероприятия</h2>
+            <p className="text-slate-600">Архив конференций и мастер-классов</p>
+          </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {upcoming.map((event) => renderConferenceCard(event, true))}
+            {past.map((event) => renderPastCard(event))}
           </div>
-        ) : (
-          <div className="text-center py-12 text-slate-500">
-            <p className="text-lg mb-2">Нет предстоящих мероприятий</p>
-            <p className="text-sm">Следите за обновлениями!</p>
-          </div>
-        )}
-      </TabsContent>
+        </section>
+      )}
 
-      <TabsContent value="archive" className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        {past.length > 0 ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {past.map((event) => renderConferenceCard(event, false))}
-          </div>
-        ) : (
-          <PastEvents categories={['Конференции']} />
-        )}
-      </TabsContent>
-    </Tabs>
+      {/* Если нет ни предстоящих, ни прошедших */}
+      {upcoming.length === 0 && past.length === 0 && (
+        <div className="text-center py-16 text-slate-500">
+          <Calendar className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+          <p className="text-lg mb-2">Мероприятий пока нет</p>
+          <p className="text-sm">Следите за обновлениями!</p>
+        </div>
+      )}
+    </div>
   );
 }
