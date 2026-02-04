@@ -17,7 +17,7 @@
 
 **Решение:**
 1. Убедитесь что Docker запущен: `docker ps`
-2. Проверьте контейнер БД: `docker ps | grep supabase-db`
+2. Проверьте контейнер БД: `docker ps | grep postgres`
 3. Перезапустите: `npm run docker:up`
 
 ---
@@ -37,8 +37,11 @@
 
 **Решение:**
 ```bash
-# Примените схему БД
-docker exec -i fb-net-supabase-db psql -U postgres -d postgres < supabase-schema.sql
+# Для production окружения
+docker exec -i fb-net-db psql -U postgres -d postgres < database-schema.sql
+
+# Для dev окружения
+docker exec -i fb-net-postgres psql -U postgres -d postgres < database-schema.sql
 ```
 
 ---
@@ -81,8 +84,11 @@ FROM news_images LIMIT 5;
 # Логи Docker
 npm run docker:logs
 
-# Логи конкретного контейнера
-docker logs fb-net-nextjs -f
+# Логи конкретного контейнера (для production)
+docker logs fb-net-app -f
+
+# Или для dev окружения
+docker logs fb-net-postgres -f
 
 # Подключение к БД
 npm run docker:psql

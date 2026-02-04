@@ -51,7 +51,7 @@ if [ "$confirm" != "yes" ]; then
 fi
 
 info "📤 Загрузка бэкапа на сервер..."
-cat "$BACKUP_FILE" | ssh "$SERVER" "cd $REMOTE_PATH && docker exec -i \$(docker compose -f $COMPOSE_FILE ps -q supabase) psql -U postgres -d postgres"
+cat "$BACKUP_FILE" | ssh "$SERVER" "cd $REMOTE_PATH && docker exec -i \$(docker compose -f $COMPOSE_FILE ps -q postgres) psql -U postgres -d postgres"
 
 if [ $? -eq 0 ]; then
     success "База данных успешно восстановлена"

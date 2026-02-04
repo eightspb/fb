@@ -1,7 +1,7 @@
 # Скрипт для создания бэкапа базы данных PostgreSQL из Docker контейнера
 
 param(
-    [string]$ContainerName = "fb-net-supabase-db",
+    [string]$ContainerName = "fb-net-postgres",
     [string]$DbUser = "postgres",
     [string]$DbName = "postgres",
     [string]$DbPassword = "postgres",
@@ -62,7 +62,7 @@ if ($Production) {
             }
         }
         $ContainerName = "fb-net-db"
-        $DbUser = "supabase_admin"
+        $DbUser = "postgres"
     } else {
         Write-Warning ".env файл не найден, используются значения по умолчанию"
     }

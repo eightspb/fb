@@ -14,8 +14,6 @@ npm install
 
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:54322/postgres
-NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
 ### 3. Запуск БД (Docker)

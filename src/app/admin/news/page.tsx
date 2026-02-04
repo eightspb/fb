@@ -307,7 +307,7 @@ export default function AdminNewsList() {
             <div className="text-red-600 text-sm mb-4">{error}</div>
             <div className="text-xs text-red-500 mb-2">Возможные причины:</div>
             <ul className="text-xs text-red-500 list-disc list-inside space-y-1 mb-4">
-              <li>База данных не запущена (проверьте Docker или Supabase CLI)</li>
+              <li>База данных не запущена (проверьте Docker контейнеры)</li>
               <li>Переменные окружения не настроены (создайте .env.local)</li>
               <li>Таблицы не созданы (выполните npm run setup)</li>
             </ul>

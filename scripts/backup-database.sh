@@ -27,7 +27,7 @@ error() {
 
 # Параметры по умолчанию
 CONTAINER_NAME="${CONTAINER_NAME:-fb-net-db}"
-DB_USER="${DB_USER:-supabase_admin}"
+DB_USER="${DB_USER:-postgres}"
 DB_NAME="${DB_NAME:-postgres}"
 BACKUP_DIR="${BACKUP_DIR:-backups}"
 PRODUCTION="${PRODUCTION:-false}"
@@ -39,7 +39,7 @@ if [ "$PRODUCTION" = "true" ]; then
         info "Чтение настроек из .env файла..."
         export POSTGRES_PASSWORD=$(grep "^POSTGRES_PASSWORD=" "$ENV_FILE" | cut -d '=' -f2)
         CONTAINER_NAME="fb-net-db"
-        DB_USER="supabase_admin"
+        DB_USER="postgres"
     else
         warning ".env файл не найден, используются значения по умолчанию"
     fi

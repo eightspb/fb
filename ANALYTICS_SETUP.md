@@ -113,8 +113,11 @@ npm install @next/third-parties
 npm run docker:psql
 # Затем выполните содержимое scripts/add-views-tracking.sql
 
-# Или через команду:
-docker exec -i fb-net-supabase-db psql -U postgres -d postgres < scripts/add-views-tracking.sql
+# Или через команду (для production):
+docker exec -i fb-net-db psql -U postgres -d postgres < scripts/add-views-tracking.sql
+
+# Для dev окружения:
+docker exec -i fb-net-postgres psql -U postgres -d postgres < scripts/add-views-tracking.sql
 ```
 
 ### Шаг 2: Проверить работу

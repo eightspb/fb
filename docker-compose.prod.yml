@@ -5,7 +5,7 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15
-    container_name: fb-net-postgres-prod
+    container_name: fb-net-db
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
@@ -24,11 +24,11 @@ services:
     restart: unless-stopped
 
   # Next.js Application (Production)
-  nextjs-app:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: fb-net-nextjs-prod
+    container_name: fb-net-app
     ports:
       - "3000:3000"
     environment:

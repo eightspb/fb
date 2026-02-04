@@ -61,7 +61,7 @@ backup_database() {
     info "💾 Создание бэкапа базы данных..."
     
     # Определяем имя контейнера БД
-    DB_CONTAINER=$(ssh "$SERVER" "cd $REMOTE_PATH && docker compose -f $COMPOSE_FILE ps -q supabase 2>/dev/null || echo 'fb-net-supabase-db-prod'")
+    DB_CONTAINER=$(ssh "$SERVER" "cd $REMOTE_PATH && docker compose -f $COMPOSE_FILE ps -q postgres 2>/dev/null || echo 'fb-net-db'")
     
     if [ -z "$DB_CONTAINER" ]; then
         warning "Контейнер БД не найден, пропускаем бэкап"
@@ -88,11 +88,11 @@ check_migration_applied() {
     local migration_name=$(basename "$migration_file" .sql)
     
     # Проверяем наличие таблицы для отслеживания миграций
-    ssh "$SERVER" "cd $REMOTE_PATH && docker exec \$(docker compose -f $COMPOSE_FILE ps -q supabase) psql -U postgres -d postgres -tAc \"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'schema_migrations');\"" > /dev/null 2>&1
+    ssh "$SERVER" "cd $REMOTE_PATH && docker exec \$(docker compose -f $COMPOSE_FILE ps -q postgres) psql -U postgres -d postgres -tAc \"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'schema_migrations');\"" > /dev/null 2>&1
     
     if [ $? -ne 0 ]; then
         # Таблица не существует, создаем её
-        ssh "$SERVER" "cd $REMOTE_PATH && docker exec -i \$(docker compose -f $COMPOSE_FILE ps -q supabase) psql -U postgres -d postgres" <<EOF
+        ssh "$SERVER" "cd $REMOTE_PATH && docker exec -i \$(docker compose -f $COMPOSE_FILE ps -q postgres) psql -U postgres -d postgres" <<EOF
 CREATE TABLE IF NOT EXISTS schema_migrations (
     name VARCHAR(255) PRIMARY KEY,
     applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -101,7 +101,7 @@ EOF
     fi
     
     # Проверяем, применена ли миграция
-    local applied=$(ssh "$SERVER" "cd $REMOTE_PATH && docker exec \$(docker compose -f $COMPOSE_FILE ps -q supabase) psql -U postgres -d postgres -tAc \"SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE name = '$migration_name');\"")
+    local applied=$(ssh "$SERVER" "cd $REMOTE_PATH && docker exec \$(docker compose -f $COMPOSE_FILE ps -q postgres) psql -U postgres -d postgres -tAc \"SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE name = '$migration_name');\"")
     
     if [ "$applied" = "t" ]; then
         return 0  # Миграция применена
@@ -124,9 +124,9 @@ apply_migration() {
     fi
     
     # Применяем миграцию
-    if ssh "$SERVER" "cd $REMOTE_PATH && docker exec -i \$(docker compose -f $COMPOSE_FILE ps -q supabase) psql -U postgres -d postgres" < "$migration_file"; then
+    if ssh "$SERVER" "cd $REMOTE_PATH && docker exec -i \$(docker compose -f $COMPOSE_FILE ps -q postgres) psql -U postgres -d postgres" < "$migration_file"; then
         # Отмечаем миграцию как примененную
-        ssh "$SERVER" "cd $REMOTE_PATH && docker exec -i \$(docker compose -f $COMPOSE_FILE ps -q supabase) psql -U postgres -d postgres" <<EOF
+        ssh "$SERVER" "cd $REMOTE_PATH && docker exec -i \$(docker compose -f $COMPOSE_FILE ps -q postgres) psql -U postgres -d postgres" <<EOF
 INSERT INTO schema_migrations (name) VALUES ('$migration_name') ON CONFLICT (name) DO NOTHING;
 EOF
         success "Миграция $migration_name применена"
@@ -141,7 +141,7 @@ EOF
 check_images_in_db() {
     info "🔍 Проверка изображений в базе данных..."
     
-    DB_CONTAINER=$(ssh "$SERVER" "cd $REMOTE_PATH && docker compose -f $COMPOSE_FILE ps -q supabase 2>/dev/null || echo 'fb-net-supabase-db-prod'")
+    DB_CONTAINER=$(ssh "$SERVER" "cd $REMOTE_PATH && docker compose -f $COMPOSE_FILE ps -q postgres 2>/dev/null || echo 'fb-net-db'")
     
     if [ -z "$DB_CONTAINER" ]; then
         warning "Контейнер БД не найден, пропускаем проверку"
@@ -279,7 +279,7 @@ main() {
         error "Не удалось перезапустить контейнеры."
         warning "Бэкап сохранен в $BACKUP_DIR"
         warning "Вы можете восстановить базу данных командой:"
-        warning "  cat $BACKUP_DIR/db_backup_${TIMESTAMP}.sql | ssh $SERVER 'cd $REMOTE_PATH && docker exec -i \$(docker compose -f $COMPOSE_FILE ps -q supabase) psql -U postgres -d postgres'"
+        warning "  cat $BACKUP_DIR/db_backup_${TIMESTAMP}.sql | ssh $SERVER 'cd $REMOTE_PATH && docker exec -i \$(docker compose -f $COMPOSE_FILE ps -q postgres) psql -U postgres -d postgres'"
         exit 1
     fi
     
