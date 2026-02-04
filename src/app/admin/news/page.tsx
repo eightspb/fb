@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Trash2, CheckCircle, XCircle, Image as ImageIcon, Video, FileText, Search, RefreshCw, Merge } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -22,11 +22,12 @@ interface NewsItem {
   images?: string[];
   videos?: string[];
   documents?: string[];
+  imageFocalPoint?: string;
 }
 
 import { NewsPlaceholder } from '@/components/NewsPlaceholder';
 
-function AdminNewsImage({ src, alt }: { src: string, alt: string }) {
+function AdminNewsImage({ src, alt, focalPoint }: { src: string, alt: string, focalPoint?: string }) {
   const [error, setError] = useState(false);
 
   if (error) {
@@ -38,7 +39,8 @@ function AdminNewsImage({ src, alt }: { src: string, alt: string }) {
     <img 
       src={src} 
       alt={alt}
-      className="w-full h-full object-cover object-top"
+      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+      style={{ objectPosition: focalPoint || 'center 30%' }}
       onError={() => setError(true)}
     />
   );
@@ -329,86 +331,108 @@ export default function AdminNewsList() {
       ) : !error ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredNews.map((item) => (
-            <Card key={item.id} className={`flex flex-col h-full bg-slate-50 border shadow-sm ${selectedNewsIds.has(item.id) ? 'ring-2 ring-blue-500' : ''}`}>
-              <div className="relative h-48 w-full overflow-hidden bg-slate-200 rounded-t-xl">
-                <div className="absolute top-2 left-2 z-10">
+            <Card key={item.id} className={`group hover:shadow-lg transition-all border-slate-200 bg-white flex flex-col overflow-hidden h-full ${selectedNewsIds.has(item.id) ? 'ring-2 ring-blue-500' : ''}`}>
+              {/* Image Section - как на сайте */}
+              <div className="relative w-full aspect-[4/3] overflow-hidden bg-slate-100">
+                <div className="absolute top-4 left-4 z-10">
                   <Checkbox
                     checked={selectedNewsIds.has(item.id)}
                     onChange={() => handleToggleSelect(item.id)}
                     onClick={(e) => e.stopPropagation()}
+                    className="bg-white/90 backdrop-blur-sm"
                   />
                 </div>
                 {item.images && item.images.length > 0 ? (
                   <AdminNewsImage 
                     src={item.images[0]} 
-                    alt={item.title} 
+                    alt={item.title}
+                    focalPoint={item.imageFocalPoint}
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400">
-                    <ImageIcon className="w-10 h-10 opacity-20" />
-                  </div>
+                  <NewsPlaceholder />
                 )}
-              </div>
-              <CardHeader className="pb-4 pt-4">
-                <div className="flex justify-between items-start gap-2">
-                  <Badge variant={item.status === 'published' ? 'default' : 'secondary'} className="mb-2">
-                    {item.status === 'published' ? 'Опубликовано' : 'Черновик'}
-                  </Badge>
-                  <div className="text-xs text-slate-500 whitespace-nowrap">{item.date}</div>
+                
+                {/* Date Badge - как на сайте */}
+                <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold text-slate-900 shadow-sm">
+                  {item.date}
                 </div>
-                <CardTitle className="text-lg font-bold line-clamp-2 leading-tight min-h-[3rem]" title={item.title}>
-                  {item.title}
-                </CardTitle>
-                {item.category && <div className="text-xs text-muted-foreground mt-2">{item.category}</div>}
-              </CardHeader>
-              <CardContent className="flex-grow space-y-4">
-                <p className="text-sm text-slate-600 line-clamp-3">
+              </div>
+
+              <CardContent className="p-6 flex flex-col flex-grow">
+                {/* Category & Status */}
+                <div className="mb-4 flex items-center gap-2">
+                  {item.category ? (
+                    <Badge className="bg-teal-50 text-teal-700 hover:bg-teal-100 border-0">
+                      {item.category}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">
+                      Новости
+                    </Badge>
+                  )}
+                  <Badge variant={item.status === 'published' ? 'default' : 'secondary'}>
+                    {item.status === 'published' ? 'Опубл.' : 'Черновик'}
+                  </Badge>
+                </div>
+                
+                <Link href={`/admin/news/${item.id}`} className="block group-hover:text-teal-600 transition-colors mb-3">
+                  <h3 className="text-xl font-bold text-slate-900 line-clamp-3">
+                    {item.title}
+                  </h3>
+                </Link>
+                
+                <p className="text-slate-600 text-sm line-clamp-3 mb-6 flex-grow">
                   {item.shortDescription || item.fullDescription}
                 </p>
-                
-                <div className="flex gap-3 text-slate-400">
-                  {item.images && item.images.length > 0 && (
-                    <div className="flex items-center gap-1" title={`${item.images.length} фото`}>
-                      <ImageIcon className="w-4 h-4" />
-                      <span className="text-xs font-medium">{item.images.length}</span>
-                    </div>
-                  )}
-                  {item.videos && item.videos.length > 0 && (
-                    <div className="flex items-center gap-1" title={`${item.videos.length} видео`}>
-                      <Video className="w-4 h-4" />
-                      <span className="text-xs font-medium">{item.videos.length}</span>
-                    </div>
-                  )}
-                  {item.documents && item.documents.length > 0 && (
-                    <div className="flex items-center gap-1" title={`${item.documents.length} документов`}>
-                      <FileText className="w-4 h-4" />
-                      <span className="text-xs font-medium">{item.documents.length}</span>
-                    </div>
-                  )}
+
+                <div className="flex items-center justify-between pt-4 mt-auto border-t border-slate-100">
+                  <div className="flex gap-3 text-slate-400">
+                    {item.images && item.images.length > 0 && (
+                      <div className="flex items-center gap-1" title={`${item.images.length} фото`}>
+                        <ImageIcon className="w-4 h-4" />
+                        <span className="text-xs font-medium">{item.images.length}</span>
+                      </div>
+                    )}
+                    {item.videos && item.videos.length > 0 && (
+                      <div className="flex items-center gap-1" title={`${item.videos.length} видео`}>
+                        <Video className="w-4 h-4" />
+                        <span className="text-xs font-medium">{item.videos.length}</span>
+                      </div>
+                    )}
+                    {item.documents && item.documents.length > 0 && (
+                      <div className="flex items-center gap-1" title={`${item.documents.length} документов`}>
+                        <FileText className="w-4 h-4" />
+                        <span className="text-xs font-medium">{item.documents.length}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  <div className="flex gap-1">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => togglePublish(item)}
+                      title={item.status === 'published' ? 'Снять с публикации' : 'Опубликовать'}
+                      className="h-8 w-8 p-0"
+                    >
+                      {item.status === 'published' ? (
+                        <XCircle className="w-4 h-4 text-orange-500" />
+                      ) : (
+                        <CheckCircle className="w-4 h-4 text-green-500" />
+                      )}
+                    </Button>
+                    <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
+                      <Link href={`/admin/news/${item.id}`}>
+                        <Pencil className="w-4 h-4" />
+                      </Link>
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)} className="h-8 w-8 p-0">
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
-              <CardFooter className="flex justify-end gap-2 pt-4 border-t">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => togglePublish(item)}
-                    title={item.status === 'published' ? 'Снять с публикации' : 'Опубликовать'}
-                  >
-                    {item.status === 'published' ? (
-                      <XCircle className="w-4 h-4 text-orange-500" />
-                    ) : (
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                    )}
-                  </Button>
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link href={`/admin/news/${item.id}`}>
-                      <Pencil className="w-4 h-4" />
-                    </Link>
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)}>
-                    <Trash2 className="w-4 h-4 text-red-500" />
-                  </Button>
-              </CardFooter>
             </Card>
           ))}
         </div>
