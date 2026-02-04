@@ -8,6 +8,7 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { ConferenceRegistrationForm } from '@/components/ConferenceRegistrationForm';
+import { CountdownTimer } from '@/components/CountdownTimer';
 import { isUUID } from '@/lib/slug';
 import { 
   Calendar, 
@@ -356,6 +357,14 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Countdown Timer for upcoming events */}
+            {upcoming && (
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 mb-4 text-center">До начала мероприятия</h3>
+                <CountdownTimer targetDate={parseDate(conference.date)} />
+              </div>
+            )}
+            
             {/* Event Details Card */}
             <Card className="sticky top-24">
               <CardContent className="p-6 space-y-4">
