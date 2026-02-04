@@ -1,25 +1,45 @@
 # Руководство разработчика FB.NET
 
-## Содержание
-
-1. [Архитектура](#архитектура)
-2. [База данных](#база-данных)
-3. [API структура](#api-структура)
-4. [Компоненты](#компоненты)
-5. [Docker](#docker)
-6. [Стили](#стили)
+Документация для разработчиков, работающих над проектом.
 
 ---
 
-## Архитектура
+## 📋 Содержание
 
-### Технический стек
+1. [Технический стек](#технический-стек)
+2. [Архитектура](#архитектура)
+3. [База данных](#база-данных)
+4. [API структура](#api-структура)
+5. [Компоненты](#компоненты)
+6. [Рабочий процесс](#рабочий-процесс)
+7. [Стили и UI](#стили-и-ui)
 
-- **Frontend**: Next.js 15 (App Router), React 19, TypeScript
-- **База данных**: PostgreSQL (через `pg` модуль напрямую)
+---
+
+## 🛠️ Технический стек
+
+### Frontend
+- **Framework**: Next.js 15 (App Router)
+- **Язык**: TypeScript
+- **Стилизация**: Tailwind CSS
+- **UI компоненты**: Radix UI (shadcn/ui)
+- **Анимации**: Framer Motion
+- **Карты**: @pbe/react-yandex-maps
+
+### Backend
+- **База данных**: PostgreSQL (прямое подключение через `pg`)
 - **Аутентификация**: JWT (cookie-based, собственная реализация)
-- **Стили**: Tailwind CSS + кастомные CSS классы
-- **UI**: Radix UI (shadcn/ui)
+- **API**: Next.js API Routes
+- **Runtime**: Node.js или Bun
+
+### Интеграции
+- **Telegram Bot**: node-telegram-bot-api
+- **Email**: Nodemailer (SMTP)
+- **AI**: OpenRouter API
+
+---
+
+## 🏗️ Архитектура
 
 ### Структура данных
 
@@ -27,76 +47,126 @@
 interface NewsItem {
   id: string;
   title: string;
-  shortDescription: string;
-  fullDescription: string;
+  short_description: string;
+  full_description: string;
   date: string;           // Формат: "DD.MM.YYYY"
   year: string;           // Формат: "YYYY"
-  images?: string[];
-  videos?: string[];
-  documents?: string[];
-  tags?: string[];
-  status?: 'draft' | 'published';
+  views?: number;
+  created_at?: string;
+  updated_at?: string;
 }
+
+interface Conference {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  location: string;
+  registration_deadline: string;
+  max_participants?: number;
+  status: 'upcoming' | 'ongoing' | 'completed';
+}
+```
+
+### Папки проекта
+
+```
+src/
+├── app/
+│   ├── (routes)/          # Публичные страницы
+│   ├── admin/             # Админ-панель
+│   └── api/               # API endpoints
+├── components/
+│   ├── ui/                # Базовые UI компоненты
+│   ├── admin/             # Компоненты админки
+│   └── *.tsx              # Общие компоненты
+├── lib/
+│   ├── auth.ts            # JWT аутентификация
+│   ├── csrf.ts            # CSRF защита
+│   ├── email.ts           # Отправка email
+│   ├── telegram-bot.ts    # Telegram интеграция
+│   └── utils.ts           # Утилиты
+└── styles/
+    └── components.css     # Кастомные CSS классы
 ```
 
 ---
 
-## База данных
+## 💾 База данных
 
 ### Подключение
-
-Проект использует **PostgreSQL напрямую** через модуль `pg`:
 
 ```typescript
 import { Pool } from 'pg';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
+
+// Использование
+const result = await pool.query('SELECT * FROM news WHERE id = $1', [id]);
 ```
 
 ### Основные таблицы
 
-- `news` - новости
-- `news_images` - изображения (с `image_data` BYTEA для хранения в БД)
-- `news_tags` - теги
-- `news_videos` - видео
-- `news_documents` - документы
-- `conferences` - конференции
-- `form_submissions` - заявки с форм
+| Таблица | Описание |
+|---------|----------|
+| `news` | Новости и статьи |
+| `news_images` | Изображения (BYTEA) |
+| `news_tags` | Теги новостей |
+| `news_videos` | Видео (ссылки) |
+| `news_documents` | Документы |
+| `conferences` | Конференции |
+| `conference_registrations` | Регистрации на конференции |
+| `form_submissions` | Заявки с форм |
+| `analytics_sessions` | Сессии пользователей |
+| `analytics_page_views` | Просмотры страниц |
 
 ### Схема БД
 
-Основная схема находится в `database-schema.sql`.
+Полная схема в файле `database-schema.sql`.
+
+### Миграции
+
+Миграции хранятся в папке `migrations/` и применяются автоматически при деплое:
+
+```sql
+-- migrations/add-new-table.sql
+CREATE TABLE IF NOT EXISTS example (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL
+);
+```
 
 ---
 
-## API структура
+## 🔌 API структура
 
 ### Новости
 
 ```
-GET  /api/news              # Список новостей
-GET  /api/news/[id]         # Одна новость
-POST /api/news              # Создание новости
-PUT  /api/news/[id]         # Обновление
-DELETE /api/news/[id]       # Удаление
+GET    /api/news              # Список новостей
+GET    /api/news/[id]         # Одна новость
+POST   /api/news              # Создание (требует auth)
+PUT    /api/news/[id]         # Обновление (требует auth)
+DELETE /api/news/[id]         # Удаление (требует auth)
 
-GET  /api/news/years        # Список годов
-GET  /api/news/filters      # Фильтры (года, категории)
-GET  /api/news/[id]/view    # Трекинг просмотров
-POST /api/news/merge        # Объединение новостей
+GET    /api/news/years        # Список годов
+GET    /api/news/filters      # Фильтры (года, категории)
+GET    /api/news/count        # Количество новостей
+POST   /api/news/merge        # Объединение новостей (требует auth)
 ```
 
 ### Конференции
 
 ```
-GET  /api/conferences           # Список конференций
-GET  /api/conferences/[id]      # Одна конференция
-POST /api/conferences           # Создание
-PUT  /api/conferences/[id]      # Обновление
-DELETE /api/conferences/[id]    # Удаление
-POST /api/conferences/register  # Регистрация на конференцию
+GET    /api/conferences           # Список конференций
+GET    /api/conferences/[id]      # Одна конференция
+POST   /api/conferences           # Создание (требует auth)
+PUT    /api/conferences/[id]      # Обновление (требует auth)
+DELETE /api/conferences/[id]      # Удаление (требует auth)
+POST   /api/conferences/register  # Регистрация на конференцию
 ```
 
 ### Изображения
@@ -105,13 +175,19 @@ POST /api/conferences/register  # Регистрация на конференц
 GET /api/images/[id]        # Получение изображения из БД
 ```
 
-Изображения хранятся в БД в колонке `image_data` (BYTEA) и отдаются через API endpoint.
+**Важно:** Изображения хранятся в БД в колонке `image_data` (BYTEA) и отдаются через API endpoint с правильными заголовками.
 
 ### Формы
 
 ```
 POST /api/contact           # Контактная форма
-POST /api/request-cp        # Запрос КП
+POST /api/request-cp        # Запрос коммерческого предложения
+```
+
+### Аутентификация
+
+```
+POST /api/admin/auth        # Вход в админ-панель
 ```
 
 ### Telegram
@@ -120,15 +196,26 @@ POST /api/request-cp        # Запрос КП
 POST /api/telegram/webhook  # Webhook для Telegram бота
 ```
 
+### Аналитика
+
+```
+POST /api/analytics/track              # Трекинг событий
+GET  /api/admin/analytics/stats        # Статистика (требует auth)
+GET  /api/admin/analytics/sessions     # Активные сессии (требует auth)
+```
+
 ---
 
-## Компоненты
+## 🧩 Компоненты
 
 ### Основные компоненты
 
 ```tsx
 // Header с навигацией
 import { Header } from "@/components/Header";
+
+// Footer
+import { Footer } from "@/components/Footer";
 
 // Breadcrumbs
 import { Breadcrumbs } from "@/components/Breadcrumbs";
@@ -140,59 +227,97 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 // Список новостей
 import { NewsList } from "@/components/NewsList";
 <NewsList initialYear="2024" />
+
+// Карта клиник
+import { ClinicsMap } from "@/components/ClinicsMap";
+<ClinicsMap />
+
+// Таймер обратного отсчета
+import { CountdownTimer } from "@/components/CountdownTimer";
+<CountdownTimer targetDate="2025-12-31T23:59:59" />
 ```
 
 ### UI компоненты (shadcn/ui)
 
 ```tsx
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+```
+
+### Админ компоненты
+
+```tsx
+import { NewsForm } from "@/components/admin/NewsForm";
+import { ConferenceForm } from "@/components/admin/ConferenceForm";
+import { FileUpload } from "@/components/admin/FileUpload";
+import { VisitStats } from "@/components/admin/VisitStats";
+import { ActiveSessions } from "@/components/admin/ActiveSessions";
 ```
 
 ---
 
-## Docker
+## 🔄 Рабочий процесс
 
-### Локальная разработка
+### 1. Локальная разработка
 
 ```bash
-# Запустить PostgreSQL
+# Запустить БД
 npm run docker:up
 
-# Просмотр логов
-npm run docker:logs
+# Запустить приложение
+bun run dev
 
-# Остановить
-npm run docker:down
-
-# Подключиться к БД
-npm run docker:psql
+# Открыть http://localhost:3000
 ```
 
-### Docker Compose файлы
+### 2. Внесение изменений
 
-- `docker-compose.yml` - для разработки (только PostgreSQL)
-- `docker-compose.prod.yml` - для продакшена (PostgreSQL + Next.js)
-- `docker-compose.production.yml` - альтернативный production файл
+- Создайте новую ветку (опционально)
+- Внесите изменения в код
+- Протестируйте локально
+- Проверьте TypeScript ошибки: `bun run lint`
 
-### Структура контейнеров
+### 3. Коммит и push
 
-При запуске `npm run docker:up`:
+```powershell
+# Автоматический коммит всех изменений
+.\scripts\commit-and-push.ps1 -Message "Описание изменений"
+```
 
-1. **PostgreSQL** (`fb-net-postgres`) - порт 54322
+Скрипт автоматически:
+- Добавляет все файлы
+- Проверяет отсутствие секретов
+- Создает коммит
+- Пушит в GitHub
 
-Next.js запускается отдельно через `npm run dev`.
+### 4. Деплой на продакшен
+
+```powershell
+# Быстрый деплой (только приложение, БД работает)
+.\scripts\deploy-from-github.ps1 -AppOnly
+
+# Полный деплой (если нужны миграции БД)
+.\scripts\deploy-from-github.ps1
+```
+
+**Время деплоя:** ~2-3 минуты
 
 ---
 
-## Стили
+## 🎨 Стили и UI
 
 ### Tailwind CSS
 
+Используем Tailwind для базовых стилей:
+
 ```tsx
-<div className="flex items-center gap-4 p-6 bg-white rounded-lg">
+<div className="flex items-center gap-4 p-6 bg-white rounded-lg shadow-lg">
+  <h1 className="text-2xl font-bold text-gray-800">Заголовок</h1>
+</div>
 ```
 
 ### Кастомные CSS классы
@@ -201,69 +326,212 @@ Next.js запускается отдельно через `npm run dev`.
 
 ```css
 /* Контейнеры */
-.page-container
-.page-max-width
-.page-title
+.page-container        /* Основной контейнер страницы */
+.page-max-width        /* Ограничение ширины контента */
+.page-title            /* Стиль заголовка страницы */
 
 /* Компоненты */
-.card-hover
-.card-content
+.card-hover            /* Эффект при наведении на карточку */
+.card-content          /* Контент карточки */
 
 /* Новости */
-.news-card
-.news-grid
+.news-card             /* Карточка новости */
+.news-grid             /* Сетка новостей */
 ```
 
 ### Цветовая палитра
 
-- Основной: `#2563eb` (blue-500)
-- Фон: `#e0e0e0`
-- Текст: `#1f2937` (gray-800)
+```css
+/* Основные цвета */
+--primary: #2563eb;     /* Синий */
+--background: #e0e0e0;  /* Светло-серый фон */
+--text: #1f2937;        /* Темно-серый текст */
+--border: #d1d5db;      /* Серая граница */
+```
+
+### Адаптивность
+
+Проект полностью адаптивен:
+
+```tsx
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  {/* Контент */}
+</div>
+```
 
 ---
 
-## Добавление нового функционала
+## 📝 Добавление нового функционала
 
 ### Новая страница
 
-1. Создать папку в `src/app/`
-2. Добавить `page.tsx`
-3. Использовать существующие компоненты
+1. Создайте файл `src/app/your-page/page.tsx`:
+
+```tsx
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
+
+export default function YourPage() {
+  return (
+    <>
+      <Header />
+      <main className="page-container">
+        <h1 className="page-title">Ваша страница</h1>
+        {/* Контент */}
+      </main>
+      <Footer />
+    </>
+  );
+}
+```
+
+2. Страница будет доступна по адресу `/your-page`
 
 ### Новый API endpoint
 
-1. Создать файл в `src/app/api/`
-2. Экспортировать функции `GET`, `POST`, `PUT`, `DELETE`
-3. Использовать `pool` для запросов к БД
+1. Создайте файл `src/app/api/your-endpoint/route.ts`:
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { Pool } from 'pg';
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+export async function GET(request: NextRequest) {
+  try {
+    const result = await pool.query('SELECT * FROM your_table');
+    return NextResponse.json(result.rows);
+  } catch (error) {
+    return NextResponse.json({ error: 'Ошибка' }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    // Обработка данных
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: 'Ошибка' }, { status: 500 });
+  }
+}
+```
 
 ### Новый компонент
 
-1. Создать файл в `src/components/`
-2. Использовать TypeScript интерфейсы для props
-3. Экспортировать компонент
+1. Создайте файл `src/components/YourComponent.tsx`:
+
+```tsx
+"use client";
+
+interface YourComponentProps {
+  title: string;
+  description?: string;
+}
+
+export function YourComponent({ title, description }: YourComponentProps) {
+  return (
+    <div className="p-6 bg-white rounded-lg">
+      <h2 className="text-xl font-bold">{title}</h2>
+      {description && <p className="text-gray-600">{description}</p>}
+    </div>
+  );
+}
+```
+
+2. Используйте компонент:
+
+```tsx
+import { YourComponent } from "@/components/YourComponent";
+
+<YourComponent title="Заголовок" description="Описание" />
+```
 
 ---
 
-## Соглашения по коду
+## 🔧 Соглашения по коду
 
 ### TypeScript
-- Строгая типизация
-- Интерфейсы для props
+- Строгая типизация для всех функций
+- Интерфейсы для props компонентов
+- Избегайте `any` типа
 
 ### Компоненты
-- Функциональные компоненты
+- Функциональные компоненты (не классовые)
 - Деструктуризация props
+- `"use client"` для клиентских компонентов
 
 ### Именование
-- Компоненты: PascalCase
-- Файлы: kebab-case или PascalCase
-- Переменные: camelCase
+- **Компоненты**: PascalCase (`NewsCard.tsx`)
+- **Файлы**: kebab-case или PascalCase
+- **Переменные**: camelCase (`userName`)
+- **Константы**: UPPER_CASE (`MAX_ITEMS`)
+
+### Импорты
+```typescript
+// React и Next.js
+import { useState } from "react";
+import { NextRequest } from "next/server";
+
+// Компоненты проекта
+import { Header } from "@/components/Header";
+
+// Утилиты
+import { formatDate } from "@/lib/utils";
+
+// Типы
+import type { NewsItem } from "@/lib/types";
+```
 
 ---
 
-## Полезные ссылки
+## 🐛 Отладка
+
+### Просмотр логов
+
+```bash
+# Локально - в консоли dev сервера
+
+# На сервере
+ssh root@your-server.com
+cd /opt/fb-net
+docker compose -f docker-compose.production.yml logs app --tail=50
+```
+
+### Подключение к БД
+
+```bash
+# Локально
+npm run docker:psql
+
+# На сервере
+docker exec -it fb-net-db psql -U postgres -d postgres
+```
+
+### Проверка переменных окружения
+
+```typescript
+console.log('DATABASE_URL:', process.env.DATABASE_URL);
+console.log('NODE_ENV:', process.env.NODE_ENV);
+```
+
+---
+
+## 📚 Полезные ссылки
 
 - [Next.js Documentation](https://nextjs.org/docs)
+- [React Documentation](https://react.dev)
+- [TypeScript Documentation](https://www.typescriptlang.org/docs/)
 - [Tailwind CSS](https://tailwindcss.com/docs)
 - [shadcn/ui](https://ui.shadcn.com)
-- [pg (node-postgres)](https://node-postgres.com)
+- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
+- [node-postgres](https://node-postgres.com)
+
+---
+
+## 🤝 Вопросы?
+
+Если возникли вопросы или проблемы:
+1. Проверьте [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
+2. Посмотрите логи приложения
+3. Проверьте документацию используемых технологий
