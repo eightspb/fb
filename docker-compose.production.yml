@@ -50,6 +50,16 @@ services:
     networks:
       - fb-net-prod-network
     restart: always
+    # Security enhancements
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100M
+    read_only: false  # Cannot be true due to Next.js cache requirements
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
 
 volumes:
   postgres-prod-data:
