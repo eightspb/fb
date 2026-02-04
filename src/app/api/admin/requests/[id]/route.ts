@@ -27,12 +27,47 @@ async function verifyAdminSession(): Promise<boolean> {
   }
 }
 
+// Получить одну заявку по ID
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const isAuthenticated = await verifyAdminSession();
+
+    if (!isAuthenticated) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        'SELECT * FROM form_submissions WHERE id = $1',
+        [id]
+      );
+      
+      if (result.rows.length === 0) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      }
+
+      return NextResponse.json(result.rows[0]);
+    } finally {
+      client.release();
+    }
+  } catch (error: any) {
+    console.error('Error fetching request:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// Обновить заявку (статус, заметки, приоритет и т.д.)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Auth check using cookie-based JWT (same as admin auth)
     const isAuthenticated = await verifyAdminSession();
 
     if (!isAuthenticated) {
@@ -40,20 +75,40 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { status } = body;
     const { id } = await params;
+    
+    // Разрешённые поля для обновления
+    const allowedFields = ['status', 'notes', 'priority', 'assigned_to'];
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        updates.push(`${field} = $${paramIndex}`);
+        values.push(body[field]);
+        paramIndex++;
+      }
+    }
+
+    if (updates.length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+    }
+
+    values.push(id);
 
     const client = await pool.connect();
     try {
-      const result = await client.query(`
-        UPDATE form_submissions 
-        SET status = $1 
-        WHERE id = $2 
-        RETURNING *
-      `, [status, id]);
+      const result = await client.query(
+        `UPDATE form_submissions 
+         SET ${updates.join(', ')}, updated_at = NOW()
+         WHERE id = $${paramIndex}
+         RETURNING *`,
+        values
+      );
       
       if (result.rows.length === 0) {
-         return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
 
       return NextResponse.json(result.rows[0]);
@@ -62,6 +117,41 @@ export async function PATCH(
     }
   } catch (error: any) {
     console.error('Error updating request:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// Удалить заявку
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const isAuthenticated = await verifyAdminSession();
+
+    if (!isAuthenticated) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        'DELETE FROM form_submissions WHERE id = $1 RETURNING id',
+        [id]
+      );
+      
+      if (result.rows.length === 0) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      }
+
+      return NextResponse.json({ success: true, deleted: id });
+    } finally {
+      client.release();
+    }
+  } catch (error: any) {
+    console.error('Error deleting request:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

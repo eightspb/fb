@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -17,6 +17,21 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [newRequestsCount, setNewRequestsCount] = useState(0);
+
+  const fetchRequestsCount = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/requests/count', {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setNewRequestsCount(data.new || 0);
+      }
+    } catch (error) {
+      console.error('Failed to fetch requests count:', error);
+    }
+  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -34,6 +49,8 @@ export default function AdminLayout({
 
         if (response.ok) {
           setIsAuthenticated(true);
+          // Fetch requests count after auth
+          fetchRequestsCount();
           // Set bypass flag only for local development
           if (process.env.NODE_ENV !== 'production') {
             localStorage.setItem('sb-admin-bypass', 'true');
@@ -51,7 +68,15 @@ export default function AdminLayout({
     };
 
     checkAuth();
-  }, [pathname, router]);
+  }, [pathname, router, fetchRequestsCount]);
+
+  // Периодическое обновление счётчика заявок (каждые 60 сек)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    const interval = setInterval(fetchRequestsCount, 60000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, fetchRequestsCount]);
 
   const handleLogout = async () => {
     try {
@@ -87,10 +112,10 @@ export default function AdminLayout({
   }
 
   const navItems = [
-    { href: '/admin', label: 'Главная', icon: LayoutDashboard },
-    { href: '/admin/requests', label: 'Заявки', icon: Inbox },
-    { href: '/admin/news', label: 'Новости', icon: FileText },
-    { href: '/admin/conferences', label: 'Мероприятия', icon: Calendar },
+    { href: '/admin', label: 'Главная', icon: LayoutDashboard, badge: 0 },
+    { href: '/admin/requests', label: 'Заявки', icon: Inbox, badge: newRequestsCount },
+    { href: '/admin/news', label: 'Новости', icon: FileText, badge: 0 },
+    { href: '/admin/conferences', label: 'Мероприятия', icon: Calendar, badge: 0 },
   ];
 
   return (
@@ -120,7 +145,16 @@ export default function AdminLayout({
                   }`}
                 >
                   <item.icon className="w-5 h-5" />
-                  {item.label}
+                  <span className="flex-1">{item.label}</span>
+                  {item.badge > 0 && (
+                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                      pathname === item.href 
+                        ? 'bg-white text-slate-900' 
+                        : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               ))}
               <Button
@@ -142,20 +176,32 @@ export default function AdminLayout({
           <h1 className="font-bold text-xl">Админ-панель</h1>
         </div>
         <nav className="flex-1 p-4 space-y-2">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
-                  ? 'bg-slate-900 text-white'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <item.icon className="w-5 h-5" />
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  isActive
+                    ? 'bg-slate-900 text-white'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <item.icon className="w-5 h-5" />
+                <span className="flex-1">{item.label}</span>
+                {item.badge > 0 && (
+                  <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                    isActive 
+                      ? 'bg-white text-slate-900' 
+                      : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    {item.badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
         </nav>
         <div className="p-4 border-t">
           <Button
