@@ -46,7 +46,6 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
     "@tailwindcss/postcss": "^4.1.18",
-    "@types/form-data": "^4.0.0",
     "@types/node": "^25.2.0",
     "@types/node-telegram-bot-api": "^0.64.13",
     "@types/nodemailer": "^7.0.9",
