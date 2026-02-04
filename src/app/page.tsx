@@ -27,7 +27,7 @@ export default function Home() {
       <section className="relative min-h-screen w-full flex items-center justify-center overflow-hidden pt-32 pb-16 lg:pt-32">
         {/* Background Image - без оптимизации для максимального качества */}
         <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          className="absolute inset-0 bg-cover bg-left md:bg-center bg-no-repeat"
           style={{
             backgroundImage: 'url(/images/background.png)',
           }}
