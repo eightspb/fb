@@ -38,22 +38,26 @@ CREATE TABLE IF NOT EXISTS conferences (
   slug TEXT UNIQUE, -- URL-friendly идентификатор (например, 'sms-2026')
   title TEXT NOT NULL,
   date TEXT NOT NULL,
+  date_end TEXT, -- Дата окончания конференции
   description TEXT,
   type TEXT NOT NULL, -- 'Конференция', 'Мастер-класс', 'Выставка'
   location TEXT,
-  speaker TEXT,
+  speaker TEXT, -- Legacy field
   cme_hours INTEGER,
   program JSONB DEFAULT '[]', -- Array of strings
   materials JSONB DEFAULT '[]', -- Array of 'video', 'photo', 'doc'
   status TEXT DEFAULT 'published' CHECK (status IN ('draft', 'published')),
+  cover_image TEXT, -- URL или base64 обложки
+  speakers JSONB DEFAULT '[]', -- Массив спикеров с детальной информацией
+  organizer_contacts JSONB DEFAULT '{}', -- Контакты организатора
+  additional_info TEXT, -- Дополнительная информация
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Индекс для сортировки по дате
+-- Индексы для сортировки и поиска
 CREATE INDEX IF NOT EXISTS idx_conferences_date ON conferences(date);
-
--- Индекс для поиска по slug
+CREATE INDEX IF NOT EXISTS idx_conferences_date_end ON conferences(date_end);
 CREATE INDEX IF NOT EXISTS idx_conferences_slug ON conferences(slug);
 
 -- Триггер для автоматического обновления updated_at
