@@ -18,7 +18,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - supabase-prod-db-data:/var/lib/postgresql/data
+      - postgres-prod-db-data:/var/lib/postgresql/data
       - ./database-schema.sql:/docker-entrypoint-initdb.d/00-init-schema.sql:ro
     networks:
       - fb-net-prod-network
@@ -81,7 +81,7 @@ services:
     restart: always
 
 volumes:
-  supabase-prod-db-data:
+  postgres-prod-db-data:
 
 networks:
   fb-net-prod-network:

@@ -124,7 +124,7 @@ docker compose -f docker-compose.production.yml up -d --build
 docker exec -it fb-net-db psql -U postgres -d postgres
 
 # Логи конкретного контейнера
-docker logs fb-net-nextjs-prod -f
+docker logs fb-net-app -f
 ```
 
 ## 9. Устранение проблем
@@ -153,8 +153,8 @@ docker exec -it fb-net-db psql -U postgres -d postgres -c "\dt"
 
 ```bash
 # Проверьте что контейнер запущен
-docker ps | grep nextjs
+docker ps | grep fb-net-app
 
 # Проверьте логи
-docker logs fb-net-nextjs-prod --tail 100
+docker logs fb-net-app --tail 100
 ```
