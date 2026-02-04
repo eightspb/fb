@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { generateSlug, isValidSlug } from '@/lib/slug';
+import { getCsrfToken, refreshCsrfToken } from '@/lib/csrf-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -181,12 +182,25 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
       const url = isEditing ? `/api/conferences/${initialData.id}` : '/api/conferences';
       const method = isEditing ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      let csrfToken = await getCsrfToken();
+      let response = await fetch(url, {
         method,
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
         body: JSON.stringify(formData)
       });
+
+      // Если ошибка CSRF, пробуем обновить токен и повторить запрос
+      if (response.status === 403) {
+        console.warn('[ConferenceForm] CSRF error, refreshing token and retrying...');
+        csrfToken = await refreshCsrfToken();
+        response = await fetch(url, {
+          method,
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+          body: JSON.stringify(formData)
+        });
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
