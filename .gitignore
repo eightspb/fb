@@ -35,6 +35,9 @@ public/images/trainings.zip
 # backups
 /backups
 
+# SSL certificates (certbot)
+/certbot
+
 # debug
 npm-debug.log*
 yarn-debug.log*

@@ -1,0 +1,88 @@
+# Production Docker Compose with SSL (nginx + Let's Encrypt)
+# Use this after setting up SSL certificate
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: fb-net-db
+    command: postgres -c listen_addresses='*'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - supabase-prod-db-data:/var/lib/postgresql/data
+      - ./database-schema.sql:/docker-entrypoint-initdb.d/00-init-schema.sql:ro
+    networks:
+      - fb-net-prod-network
+    restart: always
+
+  # Next.js Application  
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fb-net-app
+    # Port 3000 only accessible within Docker network (not exposed to host)
+    expose:
+      - "3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_ADMIN_CHAT_ID: ${TELEGRAM_ADMIN_CHAT_ID:-}
+      # Important for Next.js to know it's behind a proxy
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - fb-net-prod-network
+    restart: always
+
+  # Nginx Reverse Proxy with SSL
+  nginx:
+    image: nginx:alpine
+    container_name: fb-net-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx-ssl.conf:/etc/nginx/nginx.conf:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+    depends_on:
+      - app
+    networks:
+      - fb-net-prod-network
+    restart: always
+
+  # Certbot for SSL certificate renewal
+  certbot:
+    image: certbot/certbot
+    container_name: fb-net-certbot
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    # Auto-renewal: runs every 12 hours
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - fb-net-prod-network
+    restart: always
+
+volumes:
+  supabase-prod-db-data:
+
+networks:
+  fb-net-prod-network:
+    driver: bridge
