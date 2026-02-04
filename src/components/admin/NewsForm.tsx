@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Plus, X, Sparkles } from 'lucide-react';
 import { FileUpload } from '@/components/admin/FileUpload';
+import { MultiImageUpload } from '@/components/admin/MultiImageUpload';
 import { getCsrfToken, refreshCsrfToken } from '@/lib/csrf-client';
 
 interface NewsFormProps {
@@ -36,6 +37,9 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
     tags: initialData?.tags || [],
     imageFocalPoint: initialData?.imageFocalPoint || 'center 30%'
   });
+
+  // Track which image is selected as the main image for the card
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   // Варианты позиционирования изображения
   const focalPointOptions = [
@@ -263,19 +267,59 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
         {/* Images */}
         <Card>
           <CardContent className="pt-6">
-            <Label className="mb-2 block">Изображения (URL или Загрузка)</Label>
-            <div className="flex gap-2 mb-4">
-              <Input value={newImage} onChange={(e) => setNewImage(e.target.value)} placeholder="/images/... или загрузите файл" />
-              <FileUpload onUpload={(data) => setNewImage(data)} folder="news/images" mode="base64" />
-              <Button type="button" onClick={() => handleArrayAdd('images', newImage, setNewImage)}><Plus className="w-4 h-4" /></Button>
+            <Label className="mb-4 block text-base font-semibold">Изображения</Label>
+            
+            {/* Multi-image upload component */}
+            <MultiImageUpload
+              images={formData.images}
+              onImagesChange={(newImages) => {
+                setFormData(prev => ({ ...prev, images: newImages }));
+                // Reset selected index if it's out of bounds
+                if (selectedImageIndex >= newImages.length && newImages.length > 0) {
+                  setSelectedImageIndex(0);
+                }
+              }}
+              selectedImageIndex={selectedImageIndex}
+              onSelectedImageChange={(index) => {
+                setSelectedImageIndex(index);
+                // Reorder images so selected one is first
+                if (index !== 0 && formData.images.length > 0) {
+                  const newImages = [...formData.images];
+                  const selectedImage = newImages[index];
+                  newImages.splice(index, 1);
+                  newImages.unshift(selectedImage);
+                  setFormData(prev => ({ ...prev, images: newImages }));
+                  setSelectedImageIndex(0);
+                }
+              }}
+            />
+
+            {/* Add image by URL option */}
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              <Label className="mb-2 block text-sm">Или добавить изображение по URL</Label>
+              <div className="flex gap-2">
+                <Input 
+                  value={newImage} 
+                  onChange={(e) => setNewImage(e.target.value)} 
+                  placeholder="/images/... или https://..." 
+                  className="flex-1"
+                />
+                <Button 
+                  type="button" 
+                  onClick={() => handleArrayAdd('images', newImage, setNewImage)}
+                  variant="outline"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
             
             {/* Focal Point Selection - показываем если есть изображения */}
             {formData.images.length > 0 && (
-              <div className="mb-6 p-4 bg-slate-50 rounded-lg border">
+              <div className="mt-6 p-4 bg-slate-50 rounded-lg border">
                 <Label className="mb-3 block font-medium">Точка фокуса (для карточки новости)</Label>
                 <p className="text-xs text-slate-500 mb-3">
-                  Выберите, какая часть изображения будет видна в карточке новости
+                  Выберите, какая часть главного изображения будет видна в карточке новости
                 </p>
                 <div className="flex flex-col md:flex-row gap-4">
                   {/* Preview */}
@@ -317,36 +361,6 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
                 </div>
               </div>
             )}
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-              {formData.images.map((img: string, i: number) => (
-                <div key={i} className="group relative aspect-video bg-slate-100 rounded-lg overflow-hidden border">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img 
-                    src={img} 
-                    alt={`Image ${i + 1}`} 
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Button 
-                      type="button" 
-                      variant="destructive" 
-                      size="icon"
-                      onClick={() => handleArrayRemove('images', i)}
-                      className="h-8 w-8"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1">
-                    <p className="text-[10px] text-white truncate px-1">
-                      {i === 0 && <span className="text-teal-400 mr-1">★</span>}
-                      {img.startsWith('data:') ? 'Новое изображение' : img.split('/').pop()}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
           </CardContent>
         </Card>
 
