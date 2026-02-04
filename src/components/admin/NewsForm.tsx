@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Plus, X, Sparkles } from 'lucide-react';
 import { FileUpload } from '@/components/admin/FileUpload';
-import { getCsrfToken } from '@/lib/csrf-client';
+import { getCsrfToken, refreshCsrfToken } from '@/lib/csrf-client';
 
 interface NewsFormProps {
   initialData?: any;
@@ -126,13 +126,25 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
       const url = isEditing ? `/api/news/${initialData.id}` : '/api/news';
       const method = isEditing ? 'PUT' : 'POST';
 
-      const csrfToken = await getCsrfToken();
-      const response = await fetch(url, {
+      let csrfToken = await getCsrfToken();
+      let response = await fetch(url, {
         method,
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
         body: JSON.stringify(formData)
       });
+
+      // Если ошибка CSRF, пробуем обновить токен и повторить запрос
+      if (response.status === 403) {
+        console.warn('[NewsForm] CSRF error, refreshing token and retrying...');
+        csrfToken = await refreshCsrfToken();
+        response = await fetch(url, {
+          method,
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+          body: JSON.stringify(formData)
+        });
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
