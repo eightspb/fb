@@ -128,6 +128,9 @@ if (-not $status) {
   exit 0
 }
 
+# Инициализируем переменную для тела сообщения
+$MessageBody = ""
+
 if (-not $Message) {
   $auto = Get-AutoCommitMessage
   $Message = $auto.Subject
