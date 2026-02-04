@@ -1,27 +1,19 @@
-FROM node:20-slim
+# Development Dockerfile with Bun
+FROM oven/bun:1-slim
 
 WORKDIR /app
 
-# Install dependencies
-COPY package.json package-lock.json* ./
+# Install dependencies with Bun
+COPY package.json bun.lockb* ./
 
-# Устанавливаем зависимости с retry и увеличенными таймаутами
-RUN npm config set registry https://registry.npmjs.org/ && \
-    npm config set fetch-retries 5 && \
-    npm config set fetch-retry-mintimeout 20000 && \
-    npm config set fetch-retry-maxtimeout 120000
+# Install dependencies with Bun (much faster than npm)
+RUN bun install
 
-# Пытаемся установить зависимости
-RUN npm ci --legacy-peer-deps 2>&1 || npm install --legacy-peer-deps
+# Verify critical dependencies are installed
+RUN bun pm ls axios || (echo "ERROR: axios not installed" && exit 1)
 
-# Явно проверяем и устанавливаем axios, если его нет
-RUN npm list axios > /dev/null 2>&1 || npm install axios@^1.13.2 --legacy-peer-deps --save
-
-# Проверяем, что axios установлен (это упадет сборку, если axios не установлен)
-RUN npm list axios || (echo "ERROR: axios not installed after explicit install" && exit 1)
-
-# Выводим список установленных пакетов для отладки
-RUN echo "=== Installed packages ===" && npm list --depth=0 | grep -E "(axios|node-telegram|pg)" || true
+# Display installed packages for debugging
+RUN echo "=== Installed packages ===" && bun pm ls | grep -E "(axios|node-telegram|pg)" || true
 
 # Copy app files
 COPY . .
@@ -34,6 +26,6 @@ ENV NODE_ENV=development
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# Start Next.js dev server
-CMD ["npm", "run", "dev"]
+# Start Next.js dev server with Bun
+CMD ["bun", "run", "dev"]
 
