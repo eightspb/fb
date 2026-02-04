@@ -532,7 +532,7 @@ export default function AdminRequestsPage() {
                 <th className="px-4 py-3 w-10">
                   <Checkbox 
                     checked={selectAll}
-                    onCheckedChange={handleSelectAll}
+                    onChange={handleSelectAll}
                   />
                 </th>
                 <th 
@@ -602,7 +602,7 @@ export default function AdminRequestsPage() {
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <Checkbox 
                         checked={selectedIds.has(req.id)}
-                        onCheckedChange={() => handleSelectOne(req.id)}
+                        onChange={() => handleSelectOne(req.id)}
                       />
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
