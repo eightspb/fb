@@ -2,17 +2,20 @@
 # Запускается локально, разворачивает проект на сервере через git pull
 #
 # Использование:
-#   .\scripts\deploy-from-github.ps1              # полный деплой (все контейнеры)
-#   .\scripts\deploy-from-github.ps1 -AppOnly     # быстрый деплой (только приложение, БД не перезапускается)
-#   .\scripts\deploy-from-github.ps1 -SkipBackup  # деплой без бэкапа БД
-#   .\scripts\deploy-from-github.ps1 -Branch dev  # деплой из другой ветки
+#   .\scripts\deploy-from-github.ps1                    # полный деплой (все контейнеры)
+#   .\scripts\deploy-from-github.ps1 -AppOnly           # быстрый деплой (только приложение, БД не перезапускается)
+#   .\scripts\deploy-from-github.ps1 -SkipBackup        # деплой без бэкапа БД
+#   .\scripts\deploy-from-github.ps1 -SkipMigrations    # деплой без применения миграций (если БД уже настроена)
+#   .\scripts\deploy-from-github.ps1 -AppOnly -SkipMigrations  # самый быстрый деплой для обновления кода
+#   .\scripts\deploy-from-github.ps1 -Branch dev        # деплой из другой ветки
 #
 # Первый запуск (клонирование репозитория на сервер):
 #   .\scripts\deploy-from-github.ps1 -Init
 #
 # Рекомендуется:
-#   - Для обновления кода приложения: используйте -AppOnly (быстро, БД работает)
-#   - Для миграций БД или первого деплоя: используйте без параметров (полный деплой)
+#   - Для обычного обновления кода: используйте -AppOnly -SkipMigrations (самый быстрый)
+#   - Для обновления с новыми миграциями: используйте -AppOnly (БД работает, миграции применяются)
+#   - Для первого деплоя или больших изменений: используйте без параметров (полный деплой)
 
 param(
     [Parameter(Mandatory=$false)]
@@ -32,6 +35,9 @@ param(
     
     [Parameter(Mandatory=$false)]
     [switch]$SkipBackup,  # Пропустить бэкап БД
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$SkipMigrations,  # Пропустить применение миграций (если БД уже настроена)
     
     [Parameter(Mandatory=$false)]
     [switch]$AppOnly  # Деплой только приложения (без пересборки БД)
@@ -224,6 +230,11 @@ function Update-Repository {
 }
 
 function Invoke-Migrations {
+    if ($SkipMigrations) {
+        Write-Warn "Миграции БД пропущены (флаг -SkipMigrations)"
+        return
+    }
+    
     Write-Step "Применение миграций БД"
     
     # Проверяем, запущен ли контейнер БД
@@ -281,13 +292,16 @@ SQL
 "@
     & $SshPath $Server $initTableCommand
     
-    # Получаем список миграций на сервере
-    $migrations = & $SshPath $Server "cd $RemotePath && ls migrations/*.sql 2>/dev/null || echo ''"
+    # Получаем список миграций на сервере (только .sql файлы)
+    $migrations = & $SshPath $Server "cd $RemotePath && find migrations -maxdepth 1 -name '*.sql' -type f 2>/dev/null | sort || echo ''"
     
     if ([string]::IsNullOrWhiteSpace($migrations)) {
-        Write-Info "Папка migrations/ пуста или не найдена"
+        Write-Info "Миграции не найдены (папка пуста или содержит только документацию)"
         return
     }
+    
+    $migrationCount = ($migrations -split "`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count
+    Write-Info "Найдено миграций: $migrationCount"
     
     foreach ($migrationPath in $migrations -split "`n") {
         if ([string]::IsNullOrWhiteSpace($migrationPath)) { continue }
