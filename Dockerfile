@@ -36,7 +36,15 @@ RUN mkdir -p /app/.next/cache && \
     chown -R nextjs:nodejs /app/.next/cache && \
     chmod 755 /app/.next/cache
 
-COPY --from=builder /app/public ./public
+# Copy public folder but preserve existing background.png on server if it exists
+COPY --from=builder /app/public ./public.tmp
+RUN if [ -f ./public/images/background.png ]; then \
+      cp ./public/images/background.png ./public.tmp/images/background.png.bak 2>/dev/null || true; \
+    fi && \
+    mv ./public.tmp ./public && \
+    if [ -f ./public/images/background.png.bak ]; then \
+      mv ./public/images/background.png.bak ./public/images/background.png; \
+    fi
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 

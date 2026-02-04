@@ -2,20 +2,12 @@
 # Запускается локально, разворачивает проект на сервере через git pull
 #
 # Использование:
-#   .\scripts\deploy-from-github.ps1                    # полный деплой (все контейнеры)
-#   .\scripts\deploy-from-github.ps1 -AppOnly           # быстрый деплой (только приложение, БД не перезапускается)
-#   .\scripts\deploy-from-github.ps1 -SkipBackup        # деплой без бэкапа БД
-#   .\scripts\deploy-from-github.ps1 -SkipMigrations    # деплой без применения миграций (если БД уже настроена)
-#   .\scripts\deploy-from-github.ps1 -AppOnly -SkipMigrations  # самый быстрый деплой для обновления кода
-#   .\scripts\deploy-from-github.ps1 -Branch dev        # деплой из другой ветки
+#   .\scripts\deploy-from-github.ps1              # деплой с настройками по умолчанию
+#   .\scripts\deploy-from-github.ps1 -SkipBackup  # быстрый деплой без бэкапа БД
+#   .\scripts\deploy-from-github.ps1 -Branch dev  # деплой из другой ветки
 #
 # Первый запуск (клонирование репозитория на сервер):
 #   .\scripts\deploy-from-github.ps1 -Init
-#
-# Рекомендуется:
-#   - Для обычного обновления кода: используйте -AppOnly -SkipMigrations (самый быстрый)
-#   - Для обновления с новыми миграциями: используйте -AppOnly (БД работает, миграции применяются)
-#   - Для первого деплоя или больших изменений: используйте без параметров (полный деплой)
 
 param(
     [Parameter(Mandatory=$false)]
@@ -34,13 +26,7 @@ param(
     [switch]$Init,  # Флаг для первоначальной установки
     
     [Parameter(Mandatory=$false)]
-    [switch]$SkipBackup,  # Пропустить бэкап БД
-    
-    [Parameter(Mandatory=$false)]
-    [switch]$SkipMigrations,  # Пропустить применение миграций (если БД уже настроена)
-    
-    [Parameter(Mandatory=$false)]
-    [switch]$AppOnly  # Деплой только приложения (без пересборки БД)
+    [switch]$SkipBackup  # Пропустить бэкап БД
 )
 
 $ErrorActionPreference = "Stop"
@@ -188,7 +174,6 @@ function Backup-Database {
     $backupFile = "$RemoteBackupDir/$backupFileName"
     
     Write-Info "Сохранение бэкапа на сервере: $backupFile..."
-    Write-Warn "Это может занять несколько минут для больших баз данных..."
     
     # Создаем бэкап на сервере
     & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres pg_dump -U postgres -d postgres --clean --if-exists > $backupFile"
@@ -196,10 +181,10 @@ function Backup-Database {
     if ($LASTEXITCODE -eq 0) {
         # Проверяем размер бэкапа на сервере
         $sizeBytes = & $SshPath $Server "stat -c %s $backupFile 2>/dev/null || stat -f %z $backupFile 2>/dev/null || echo 0"
-        $sizeMB = [math]::Round([int]$sizeBytes / 1MB, 2)
+        $sizeKB = [math]::Round([int]$sizeBytes / 1KB, 2)
         
-        if ($sizeMB -gt 0.01) {
-            Write-Success "Бэкап создан на сервере: $backupFile ($sizeMB MB)"
+        if ($sizeKB -gt 0.1) {
+            Write-Success "Бэкап создан на сервере: $backupFile ($sizeKB KB)"
         } else {
             Write-Warn "Бэкап создан, но файл пустой или очень маленький"
         }
@@ -230,11 +215,6 @@ function Update-Repository {
 }
 
 function Invoke-Migrations {
-    if ($SkipMigrations) {
-        Write-Warn "Миграции БД пропущены (флаг -SkipMigrations)"
-        return
-    }
-    
     Write-Step "Применение миграций БД"
     
     # Проверяем, запущен ли контейнер БД
@@ -245,21 +225,60 @@ function Invoke-Migrations {
         return
     }
     
-    # Создаем таблицу миграций (простой CREATE TABLE IF NOT EXISTS)
-    Write-Info "Проверка/создание таблицы schema_migrations..."
-    $initTableCommand = "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -c 'CREATE TABLE IF NOT EXISTS schema_migrations (name VARCHAR(255) PRIMARY KEY, applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())' 2>&1 | grep -v NOTICE || true"
-    $null = & $SshPath $Server $initTableCommand 2>&1
+    # Создаем/нормализуем таблицу миграций (через heredoc, чтобы избежать проблем с кавычками)
+    $initTableCommand = @"
+cd $RemotePath
+docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'schema_migrations'
+  ) THEN
+    CREATE TABLE schema_migrations (
+      name VARCHAR(255) PRIMARY KEY,
+      applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+  ELSE
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'schema_migrations' AND column_name = 'name'
+    ) THEN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'schema_migrations' AND column_name = 'migration'
+      ) THEN
+        ALTER TABLE schema_migrations RENAME COLUMN migration TO name;
+      ELSIF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'schema_migrations' AND column_name = 'version'
+      ) THEN
+        ALTER TABLE schema_migrations RENAME COLUMN version TO name;
+      ELSE
+        ALTER TABLE schema_migrations ADD COLUMN name VARCHAR(255);
+      END IF;
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'schema_migrations' AND column_name = 'applied_at'
+    ) THEN
+      ALTER TABLE schema_migrations ADD COLUMN applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+    END IF;
+  END IF;
+END
+$$;
+SQL
+"@
+    & $SshPath $Server $initTableCommand
     
-    # Получаем список миграций на сервере (только .sql файлы)
-    $migrations = & $SshPath $Server "cd $RemotePath && find migrations -maxdepth 1 -name '*.sql' -type f 2>/dev/null | sort || echo ''"
+    # Получаем список миграций на сервере
+    $migrations = & $SshPath $Server "cd $RemotePath && ls migrations/*.sql 2>/dev/null || echo ''"
     
     if ([string]::IsNullOrWhiteSpace($migrations)) {
-        Write-Info "Миграции не найдены (папка пуста или содержит только документацию)"
+        Write-Info "Папка migrations/ пуста или не найдена"
         return
     }
-    
-    $migrationCount = ($migrations -split "`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count
-    Write-Info "Найдено миграций: $migrationCount"
     
     foreach ($migrationPath in $migrations -split "`n") {
         if ([string]::IsNullOrWhiteSpace($migrationPath)) { continue }
@@ -280,25 +299,14 @@ SQL
             Write-Info "  [SKIP] $migrationName (уже применена)"
         } else {
             Write-Info "  [APPLY] $migrationName"
-            # Используем cat для передачи содержимого файла в контейнер через stdin
-            $applyCommand = @"
-cd $RemotePath
-cat $migrationPath | docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1
-"@
-            & $SshPath $Server $applyCommand
-            
-            if ($LASTEXITCODE -eq 0) {
-                $insertCommand = @"
+            & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f $migrationPath"
+            $insertCommand = @"
 cd $RemotePath
 docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
 INSERT INTO schema_migrations (name) VALUES ('$migrationName');
 SQL
 "@
-                & $SshPath $Server $insertCommand
-                Write-Success "  Миграция $migrationName применена"
-            } else {
-                Write-Err "  Ошибка при применении миграции $migrationName"
-            }
+            & $SshPath $Server $insertCommand
         }
     }
     
@@ -308,44 +316,19 @@ SQL
 function Restart-Containers {
     Write-Step "Перезапуск Docker контейнеров"
     
-    if ($AppOnly) {
-        Write-Info "Режим: только приложение (БД не пересобирается)"
-        
-        Write-Info "Останавливаем контейнер приложения..."
-        & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile stop app"
-        
-        Write-Info "Пересобираем контейнер приложения..."
-        & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile build --no-cache app"
-        
-        Write-Info "Запускаем контейнер приложения..."
-        & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile up -d --no-deps app"
-        
-        if ($LASTEXITCODE -ne 0) {
-            Write-Err "Ошибка при перезапуске контейнера приложения"
-            exit 1
-        }
-        
-        Write-Info "Ожидание запуска (10 сек)..."
-        Start-Sleep -Seconds 10
-        
-        Write-Success "База данных продолжает работать без перезапуска ✅"
-    } else {
-        Write-Info "Режим: полный деплой (все контейнеры)"
-        
-        Write-Info "Останавливаем контейнеры..."
-        & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile down"
-        
-        Write-Info "Собираем и запускаем контейнеры..."
-        & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile up -d --build"
-        
-        if ($LASTEXITCODE -ne 0) {
-            Write-Err "Ошибка при перезапуске контейнеров"
-            exit 1
-        }
-        
-        Write-Info "Ожидание запуска (15 сек)..."
-        Start-Sleep -Seconds 15
+    Write-Info "Останавливаем контейнеры..."
+    & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile down"
+    
+    Write-Info "Собираем и запускаем контейнеры..."
+    & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile up -d --build"
+    
+    if ($LASTEXITCODE -ne 0) {
+        Write-Err "Ошибка при перезапуске контейнеров"
+        exit 1
     }
+    
+    Write-Info "Ожидание запуска (15 сек)..."
+    Start-Sleep -Seconds 15
     
     Write-Info "Статус контейнеров:"
     & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile ps"
@@ -371,11 +354,6 @@ function Main {
     Write-Info "Сервер: $Server"
     Write-Info "Путь: $RemotePath"
     Write-Info "Ветка: $Branch"
-    if ($AppOnly) {
-        Write-Info "Режим: ⚡ Быстрый деплой (только приложение)"
-    } else {
-        Write-Info "Режим: 🔄 Полный деплой (все контейнеры)"
-    }
     Write-Host ""
     
     # 1. Проверка подключения
