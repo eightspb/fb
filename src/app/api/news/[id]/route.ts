@@ -27,6 +27,7 @@ function transformNewsFromDB(row: any, images: any[], tags: any[], videos: any[]
     documents: documents.sort((a, b) => (a.order || 0) - (b.order || 0)).map(doc => doc.document_url),
     tags: tags.map(tag => tag.tag),
     status: row.status || 'published',
+    imageFocalPoint: row.image_focal_point || 'center 30%',
   };
 }
 
@@ -190,7 +191,7 @@ export async function PUT(
     const body = await request.json();
     const {
       title, shortDescription, fullDescription, date, year, 
-      category, location, author, status,
+      category, location, author, status, imageFocalPoint,
       images, tags, videos, documents 
     } = body;
 
@@ -207,15 +208,16 @@ export async function PUT(
       const updateQuery = `
         UPDATE news 
         SET title = $1, short_description = $2, full_description = $3, 
-            date = $4, year = $5, category = $6, location = $7, author = $8, status = $9, updated_at = NOW()
-        WHERE id = $10 OR id = $11
+            date = $4, year = $5, category = $6, location = $7, author = $8, status = $9, 
+            image_focal_point = $10, updated_at = NOW()
+        WHERE id = $11 OR id = $12
         RETURNING id
       `;
       
       const updateResult = await client.query(updateQuery, [
         title, shortDescription, fullDescription, date, parsedYear, 
         category || null, location || null, author || null, status || 'published',
-        id, decodedId
+        imageFocalPoint || 'center 30%', id, decodedId
       ]);
 
       if (updateResult.rows.length === 0) {

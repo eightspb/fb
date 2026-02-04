@@ -27,6 +27,7 @@ function transformNewsFromDB(row: any, images: any[], tags: any[], videos: any[]
     documents: documents.sort((a, b) => a.order - b.order).map(doc => doc.document_url),
     tags: tags.map(tag => tag.tag),
     status: row.status || 'published',
+    imageFocalPoint: row.image_focal_point || 'center 30%',
   };
 }
 
@@ -249,7 +250,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       id, title, shortDescription, fullDescription, date, year, 
-      category, location, author, status,
+      category, location, author, status, imageFocalPoint,
       images, tags, videos, documents 
     } = body;
 
@@ -266,14 +267,15 @@ export async function POST(request: Request) {
 
       // Insert news
       const insertNewsQuery = `
-        INSERT INTO news (id, title, short_description, full_description, date, year, category, location, author, status)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        INSERT INTO news (id, title, short_description, full_description, date, year, category, location, author, status, image_focal_point)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *
       `;
       
       await client.query(insertNewsQuery, [
         newsId, title, shortDescription, fullDescription, date, parsedYear, 
-        category || null, location || null, author || null, status || 'published'
+        category || null, location || null, author || null, status || 'published',
+        imageFocalPoint || 'center 30%'
       ]);
 
       // Insert related data...

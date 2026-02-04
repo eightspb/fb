@@ -33,8 +33,19 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
     images: initialData?.images || [],
     videos: initialData?.videos || [],
     documents: initialData?.documents || [],
-    tags: initialData?.tags || []
+    tags: initialData?.tags || [],
+    imageFocalPoint: initialData?.imageFocalPoint || 'center 30%'
   });
+
+  // Варианты позиционирования изображения
+  const focalPointOptions = [
+    { value: 'top', label: 'Верх', description: 'Лица/головы сверху' },
+    { value: 'center 20%', label: 'Верхняя часть', description: 'Ближе к верху' },
+    { value: 'center 30%', label: 'По умолчанию', description: 'Оптимально для людей' },
+    { value: 'center', label: 'Центр', description: 'Объект в центре' },
+    { value: 'center 70%', label: 'Нижняя часть', description: 'Ближе к низу' },
+    { value: 'bottom', label: 'Низ', description: 'Важное внизу' },
+  ];
 
   const [newTag, setNewTag] = useState('');
   const [newImage, setNewImage] = useState('');
@@ -246,6 +257,55 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
               <FileUpload onUpload={(data) => setNewImage(data)} folder="news/images" mode="base64" />
               <Button type="button" onClick={() => handleArrayAdd('images', newImage, setNewImage)}><Plus className="w-4 h-4" /></Button>
             </div>
+            
+            {/* Focal Point Selection - показываем если есть изображения */}
+            {formData.images.length > 0 && (
+              <div className="mb-6 p-4 bg-slate-50 rounded-lg border">
+                <Label className="mb-3 block font-medium">Точка фокуса (для карточки новости)</Label>
+                <p className="text-xs text-slate-500 mb-3">
+                  Выберите, какая часть изображения будет видна в карточке новости
+                </p>
+                <div className="flex flex-col md:flex-row gap-4">
+                  {/* Preview */}
+                  <div className="relative w-full md:w-48 aspect-[4/3] bg-slate-200 rounded-lg overflow-hidden border-2 border-slate-300">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img 
+                      src={formData.images[0]} 
+                      alt="Preview"
+                      className="w-full h-full object-cover transition-all duration-300"
+                      style={{ objectPosition: formData.imageFocalPoint }}
+                    />
+                    <div className="absolute top-2 left-2 bg-black/70 text-white text-[10px] px-2 py-1 rounded">
+                      Превью карточки
+                    </div>
+                  </div>
+                  
+                  {/* Options */}
+                  <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {focalPointOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, imageFocalPoint: option.value }))}
+                        className={`p-2 rounded-lg border text-left transition-all ${
+                          formData.imageFocalPoint === option.value
+                            ? 'border-teal-500 bg-teal-50 ring-2 ring-teal-500/20'
+                            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className={`block text-sm font-medium ${
+                          formData.imageFocalPoint === option.value ? 'text-teal-700' : 'text-slate-700'
+                        }`}>
+                          {option.label}
+                        </span>
+                        <span className="block text-[10px] text-slate-500">{option.description}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
               {formData.images.map((img: string, i: number) => (
                 <div key={i} className="group relative aspect-video bg-slate-100 rounded-lg overflow-hidden border">
@@ -268,6 +328,7 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
                   </div>
                   <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1">
                     <p className="text-[10px] text-white truncate px-1">
+                      {i === 0 && <span className="text-teal-400 mr-1">★</span>}
                       {img.startsWith('data:') ? 'Новое изображение' : img.split('/').pop()}
                     </p>
                   </div>

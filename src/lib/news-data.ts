@@ -13,6 +13,7 @@ export interface NewsItem {
   location?: string;
   category?: string;
   status?: string;
+  imageFocalPoint?: string; // Точка фокуса для главного изображения: 'top', 'center', 'bottom', 'center 30%' и т.д.
 }
 
 // ⚠️ УСТАРЕЛО: Этот файл используется только как fallback для разработки

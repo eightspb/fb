@@ -372,13 +372,14 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
               {paginatedNews.map((news) => (
                 <Card key={news.id} className="group hover:shadow-lg transition-all border-slate-200 bg-white flex flex-col overflow-hidden h-full">
                   {/* Image Section */}
-                  <div className="relative h-64 w-full overflow-hidden bg-slate-100">
+                  <div className="relative w-full aspect-[4/3] overflow-hidden bg-slate-100">
                     {news.images && news.images.length > 0 ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img 
                         src={news.images[0]} 
                         alt={news.title}
-                        className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        style={{ objectPosition: news.imageFocalPoint || 'center 30%' }}
                       />
                     ) : (
                       <NewsPlaceholder />
