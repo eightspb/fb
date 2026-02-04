@@ -65,13 +65,8 @@ function Write-Step { Write-Host "`n=== $args ===" -ForegroundColor Magenta }
 # ═══════════════════════════════════════════════════════════════════════════════
 
 $ComposeFile = "docker-compose.production.yml"
-$BackupDir = Join-Path (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)) "backups"
+$RemoteBackupDir = "$RemotePath/backups"  # Папка для бэкапов на сервере
 $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-
-# Создание директории для бэкапов
-if (-not (Test-Path $BackupDir)) {
-    New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null
-}
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ФУНКЦИИ
@@ -172,15 +167,27 @@ function Backup-Database {
         return
     }
     
-    $backupFile = Join-Path $BackupDir "db_backup_$Timestamp.sql"
+    # Создаем папку для бэкапов на сервере
+    & $SshPath $Server "mkdir -p $RemoteBackupDir"
     
-    Write-Info "Сохранение бэкапа в $backupFile..."
+    $backupFileName = "db_backup_$Timestamp.sql"
+    $backupFile = "$RemoteBackupDir/$backupFileName"
     
-    & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres pg_dump -U postgres -d postgres --clean --if-exists" | Out-File -FilePath $backupFile -Encoding UTF8
+    Write-Info "Сохранение бэкапа на сервере: $backupFile..."
     
-    if ($LASTEXITCODE -eq 0 -and (Test-Path $backupFile) -and (Get-Item $backupFile).Length -gt 100) {
-        $sizeKB = [math]::Round((Get-Item $backupFile).Length / 1KB, 2)
-        Write-Success "Бэкап создан: $backupFile ($sizeKB KB)"
+    # Создаем бэкап на сервере
+    & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres pg_dump -U postgres -d postgres --clean --if-exists > $backupFile"
+    
+    if ($LASTEXITCODE -eq 0) {
+        # Проверяем размер бэкапа на сервере
+        $sizeBytes = & $SshPath $Server "stat -c %s $backupFile 2>/dev/null || stat -f %z $backupFile 2>/dev/null || echo 0"
+        $sizeKB = [math]::Round([int]$sizeBytes / 1KB, 2)
+        
+        if ($sizeKB -gt 0.1) {
+            Write-Success "Бэкап создан на сервере: $backupFile ($sizeKB KB)"
+        } else {
+            Write-Warn "Бэкап создан, но файл пустой или очень маленький"
+        }
     } else {
         Write-Warn "Не удалось создать бэкап (возможно БД пуста или не запущена)"
     }
@@ -385,8 +392,8 @@ function Main {
     Write-Host "╚═══════════════════════════════════════════════════════════════╝" -ForegroundColor Green
     Write-Host ""
     
-    if (Test-Path (Join-Path $BackupDir "db_backup_$Timestamp.sql")) {
-        Write-Info "Бэкап БД: backups\db_backup_$Timestamp.sql"
+    if (-not $SkipBackup) {
+        Write-Info "Бэкап БД на сервере: $RemoteBackupDir/db_backup_$Timestamp.sql"
     }
     
     # Получаем IP сервера
