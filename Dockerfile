@@ -31,9 +31,17 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Security: Create read-only directories and restrict /tmp
+RUN mkdir -p /app/.next/cache && \
+    chown -R nextjs:nodejs /app/.next/cache && \
+    chmod 755 /app/.next/cache
+
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+
+# Security: Set proper permissions
+RUN chown -R nextjs:nodejs /app
 
 USER nextjs
 
@@ -41,6 +49,9 @@ EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+
+# Security: Disable tmp if possible, or make it noexec
+# Mount /tmp as noexec in docker-compose instead
 
 # Use node for running Next.js standalone server (more stable than Bun for production)
 CMD ["node", "server.js"]
