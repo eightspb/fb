@@ -51,7 +51,7 @@ export default function Patients() {
 
         {/* Hero Message - Emotional Introduction */}
         <section className="mb-20">
-          <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-3xl p-8 md:p-12 border border-slate-200">
+          <div className="bg-gradient-to-br from-blue-100 to-teal-100 rounded-3xl p-8 md:p-12 border border-blue-200">
             <div className="max-w-4xl mx-auto text-center">
               <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-6">
                 ВАБ — это не просто диагностика.<br/>Это полноценная альтернатива операции.
@@ -426,6 +426,10 @@ export default function Patients() {
             </div>
           </div>
           
+          <div className="text-center mb-8">
+            <h3 className="text-2xl font-bold text-slate-900">Этапы проведения вакуумно-аспирационной биопсии</h3>
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               { title: "Выявление", desc: "Врач определяет образование по УЗИ", img: "/images/vab-steps/step-1.png" },
@@ -450,8 +454,8 @@ export default function Patients() {
                   </div>
                 </div>
                 <CardContent className="p-4">
-                  <h3 className="font-bold text-slate-900 mb-1">{step.title}</h3>
-                  <p className="text-sm text-slate-500 leading-snug">{step.desc}</p>
+                  <h3 className="font-bold text-lg text-slate-900 mb-1">{step.title}</h3>
+                  <p className="text-base text-slate-600 leading-snug">{step.desc}</p>
                 </CardContent>
               </Card>
             ))}
@@ -460,7 +464,7 @@ export default function Patients() {
 
         {/* Benefits Section */}
         <section className="mb-20">
-          <div className="bg-slate-900 text-white rounded-3xl p-8 md:p-12 overflow-hidden relative">
+          <div className="bg-gradient-to-br from-slate-700 to-slate-800 text-white rounded-3xl p-8 md:p-12 overflow-hidden relative">
             <div className="relative z-10">
               <h2 className="text-3xl font-bold text-center mb-12">Преимущества метода</h2>
               <div className="grid md:grid-cols-4 gap-8">
@@ -526,13 +530,15 @@ export default function Patients() {
                 </div>
               </div>
             </div>
-            <div className="order-1 md:order-2 rounded-3xl aspect-square relative overflow-hidden">
-               <Image 
-                 src="/images/vab-alternative.png" 
-                 alt="ВАБ — признанная альтернатива традиционной операции" 
-                 fill 
-                 className="object-cover" 
-               />
+            <div className="order-1 md:order-2 rounded-3xl aspect-square relative overflow-hidden flex items-center justify-center">
+               <div className="relative w-[80%] h-[80%]">
+                 <Image 
+                   src="/images/vab-alternative.png" 
+                   alt="ВАБ — признанная альтернатива традиционной операции" 
+                   fill 
+                   className="object-contain" 
+                 />
+               </div>
             </div>
           </div>
         </section>
