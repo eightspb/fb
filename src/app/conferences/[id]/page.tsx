@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -187,10 +188,13 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
       <div className="relative pt-16">
         {conference.cover_image ? (
           <div className="relative h-[300px] md:h-[400px]">
-            <img 
-              src={conference.cover_image} 
+            <Image
+              src={conference.cover_image}
               alt={conference.title}
-              className="w-full h-full object-cover"
+              fill
+              sizes="100vw"
+              className="object-cover"
+              unoptimized
             />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/40 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12">
@@ -266,11 +270,16 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
                           {/* Photo */}
                           <div className="sm:w-32 md:w-40 flex-shrink-0">
                             {speaker.photo ? (
-                              <img 
-                                src={speaker.photo} 
-                                alt={speaker.name}
-                                className="w-full h-32 sm:h-full object-cover"
-                              />
+                              <div className="relative w-full h-32 sm:h-full">
+                                <Image
+                                  src={speaker.photo}
+                                  alt={speaker.name}
+                                  fill
+                                  sizes="(max-width: 640px) 128px, 160px"
+                                  className="object-cover"
+                                  unoptimized
+                                />
+                              </div>
                             ) : (
                               <div className="w-full h-32 sm:h-full bg-slate-100 flex items-center justify-center">
                                 <User className="w-12 h-12 text-slate-300" />

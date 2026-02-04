@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { generateSlug, isValidSlug } from '@/lib/slug';
 import { Button } from '@/components/ui/button';
@@ -335,10 +336,13 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
           <div className="flex gap-4 items-start">
             {formData.cover_image && (
               <div className="relative">
-                <img 
-                  src={formData.cover_image} 
-                  alt="Обложка" 
+                <Image
+                  src={formData.cover_image}
+                  alt="Обложка"
+                  width={192}
+                  height={128}
                   className="w-48 h-32 object-cover rounded-lg border"
+                  unoptimized
                 />
                 <Button
                   type="button"
@@ -389,10 +393,13 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
                     <div className="flex-shrink-0">
                       {speaker.photo ? (
                         <div className="relative">
-                          <img 
-                            src={speaker.photo} 
-                            alt={speaker.name || 'Спикер'} 
+                          <Image
+                            src={speaker.photo}
+                            alt={speaker.name || 'Спикер'}
+                            width={96}
+                            height={96}
                             className="w-24 h-24 object-cover rounded-lg border"
+                            unoptimized
                           />
                           <Button
                             type="button"

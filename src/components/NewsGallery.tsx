@@ -72,7 +72,6 @@ export function NewsGallery({ images, title }: NewsGalleryProps) {
               <NewsImage
                 src={imagePath}
                 alt={`${title} - фото ${index + 1}`}
-                index={index}
               />
             </div>
           );

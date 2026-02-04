@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -144,10 +145,13 @@ export default function AdminConferencesList() {
                 {/* Cover Image Preview */}
                 {item.cover_image ? (
                   <div className="relative h-36 overflow-hidden">
-                    <img 
-                      src={item.cover_image} 
+                    <Image
+                      src={item.cover_image}
                       alt={item.title}
-                      className="w-full h-full object-cover"
+                      fill
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      className="object-cover"
+                      unoptimized
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                     <Badge 

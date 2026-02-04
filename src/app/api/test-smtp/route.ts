@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createEmailTransporter, verifyConnection, getSenderEmail, getTargetEmail } from '@/lib/email';
-import nodemailer from 'nodemailer';
+import { createEmailTransporter, getSenderEmail, getTargetEmail } from '@/lib/email';
 
 export async function GET() {
   try {

@@ -7,10 +7,9 @@ import { NewsPlaceholder } from '@/components/NewsPlaceholder';
 interface NewsImageProps {
   src: string;
   alt: string;
-  index: number;
 }
 
-export function NewsImage({ src, alt, index: _index }: NewsImageProps) {
+export function NewsImage({ src, alt }: NewsImageProps) {
   const [error, setError] = useState(false);
 
   if (error) {

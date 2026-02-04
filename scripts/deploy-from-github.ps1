@@ -80,7 +80,7 @@ if (-not (Test-Path $BackupDir)) {
 function Test-Connection {
     Write-Step "Проверка подключения к серверу"
     
-    $result = & $SshPath -o ConnectTimeout=10 -o BatchMode=yes $Server "echo OK" 2>&1
+    $null = & $SshPath -o ConnectTimeout=10 -o BatchMode=yes $Server "echo OK" 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Err "Не удалось подключиться к серверу $Server"
         Write-Err "Убедитесь, что:"
@@ -207,7 +207,7 @@ function Update-Repository {
     Write-Success "Код обновлен"
 }
 
-function Apply-Migrations {
+function Invoke-Migrations {
     Write-Step "Применение миграций БД"
     
     # Проверяем, запущен ли контейнер БД
@@ -218,9 +218,14 @@ function Apply-Migrations {
         return
     }
     
-    # Создаем таблицу миграций если не существует
-    $createTable = "CREATE TABLE IF NOT EXISTS schema_migrations (name VARCHAR(255) PRIMARY KEY, applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW());"
-    & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -c `"$createTable`""
+    # Создаем таблицу миграций если не существует (через heredoc, чтобы избежать проблем с кавычками)
+    $createTableCommand = @"
+cd $RemotePath
+docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+CREATE TABLE IF NOT EXISTS schema_migrations (name VARCHAR(255) PRIMARY KEY, applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW());
+SQL
+"@
+    & $SshPath $Server $createTableCommand
     
     # Получаем список миграций на сервере
     $migrations = & $SshPath $Server "cd $RemotePath && ls migrations/*.sql 2>/dev/null || echo ''"
@@ -236,14 +241,26 @@ function Apply-Migrations {
         $migrationName = [System.IO.Path]::GetFileNameWithoutExtension($migrationPath.Trim())
         
         # Проверяем, применена ли миграция
-        $applied = & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -tAc `"SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE name = '$migrationName');`""
+        $checkCommand = @"
+cd $RemotePath
+docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -tA <<'SQL'
+SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE name = '$migrationName');
+SQL
+"@
+        $applied = (& $SshPath $Server $checkCommand).Trim()
         
         if ($applied -match "t") {
             Write-Info "  [SKIP] $migrationName (уже применена)"
         } else {
             Write-Info "  [APPLY] $migrationName"
-            & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres < $migrationPath"
-            & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -c `"INSERT INTO schema_migrations (name) VALUES ('$migrationName');`""
+            & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f $migrationPath"
+            $insertCommand = @"
+cd $RemotePath
+docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+INSERT INTO schema_migrations (name) VALUES ('$migrationName');
+SQL
+"@
+            & $SshPath $Server $insertCommand
         }
     }
     
@@ -314,7 +331,7 @@ function Main {
     Update-Repository
     
     # 5. Применение миграций
-    Apply-Migrations
+    Invoke-Migrations
     
     # 6. Перезапуск контейнеров
     Restart-Containers

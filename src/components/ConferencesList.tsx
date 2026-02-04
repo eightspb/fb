@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -127,10 +128,13 @@ export function ConferencesList() {
         {/* Cover Image */}
         {event.cover_image && (
           <div className="relative h-48 overflow-hidden">
-            <img 
-              src={event.cover_image} 
+            <Image
+              src={event.cover_image}
               alt={event.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              fill
+              sizes="(max-width: 768px) 100vw, 33vw"
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
+              unoptimized
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
             <Badge className="absolute top-4 left-4 bg-teal-500 text-white border-0 px-3 py-1">
@@ -196,7 +200,14 @@ export function ConferencesList() {
                     title={speaker.name}
                   >
                     {speaker.photo ? (
-                      <img src={speaker.photo} alt={speaker.name} className="w-full h-full object-cover" />
+                      <Image
+                        src={speaker.photo}
+                        alt={speaker.name}
+                        width={32}
+                        height={32}
+                        className="w-full h-full object-cover"
+                        unoptimized
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-xs font-medium text-slate-500">
                         {speaker.name?.charAt(0) || '?'}
