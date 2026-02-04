@@ -4,22 +4,9 @@ const nextConfig: NextConfig = {
   output: 'standalone', // Для Docker - создает оптимизированную standalone сборку
   serverExternalPackages: ['jose'], // Include jose in standalone build
   
-  // Подавляем предупреждения о fs/zlib при сборке
-  // Эти модули используются только на сервере (telegram-bot.ts, file-utils.ts)
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      // Для клиентской сборки заменяем Node.js модули на пустые заглушки
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        zlib: false,
-        path: false,
-        stream: false,
-        crypto: false,
-      };
-    }
-    return config;
-  },
+  // Пустой turbopack конфиг - требуется для Next.js 16+ чтобы подавить предупреждение
+  // о конфликте webpack/turbopack конфигов
+  turbopack: {},
   
   images: {
     remotePatterns: [],
