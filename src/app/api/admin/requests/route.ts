@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { Pool } from 'pg';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
@@ -27,7 +27,7 @@ async function verifyAdminSession(): Promise<boolean> {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Auth check using cookie-based JWT (same as admin auth)
     const isAuthenticated = await verifyAdminSession();

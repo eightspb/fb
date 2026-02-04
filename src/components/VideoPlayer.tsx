@@ -11,7 +11,6 @@ interface VideoPlayerProps {
 
 export function VideoPlayer({ src, title = "Демонстрация работы системы DK-B-MS", duration }: VideoPlayerProps) {
   const [hasStarted, setHasStarted] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const handleOverlayClick = (e: React.MouseEvent) => {
@@ -20,23 +19,13 @@ export function VideoPlayer({ src, title = "Демонстрация работ�
     if (videoRef.current && !hasStarted) {
       videoRef.current.play().catch(console.error);
       setHasStarted(true);
-      setIsPlaying(true);
     }
   };
 
   const handlePlay = () => {
-    setIsPlaying(true);
     if (!hasStarted) {
       setHasStarted(true);
     }
-  };
-
-  const handlePause = () => {
-    setIsPlaying(false);
-  };
-
-  const handleEnded = () => {
-    setIsPlaying(false);
   };
 
   return (
@@ -47,8 +36,6 @@ export function VideoPlayer({ src, title = "Демонстрация работ�
         className="w-full h-full object-cover"
         controls={hasStarted}
         onPlay={handlePlay}
-        onPause={handlePause}
-        onEnded={handleEnded}
         playsInline
         preload="metadata"
       />
