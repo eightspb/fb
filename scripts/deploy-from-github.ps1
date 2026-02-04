@@ -2,12 +2,17 @@
 # Запускается локально, разворачивает проект на сервере через git pull
 #
 # Использование:
-#   .\scripts\deploy-from-github.ps1              # деплой с настройками по умолчанию
-#   .\scripts\deploy-from-github.ps1 -SkipBackup  # быстрый деплой без бэкапа БД
+#   .\scripts\deploy-from-github.ps1              # полный деплой (все контейнеры)
+#   .\scripts\deploy-from-github.ps1 -AppOnly     # быстрый деплой (только приложение, БД не перезапускается)
+#   .\scripts\deploy-from-github.ps1 -SkipBackup  # деплой без бэкапа БД
 #   .\scripts\deploy-from-github.ps1 -Branch dev  # деплой из другой ветки
 #
 # Первый запуск (клонирование репозитория на сервер):
 #   .\scripts\deploy-from-github.ps1 -Init
+#
+# Рекомендуется:
+#   - Для обновления кода приложения: используйте -AppOnly (быстро, БД работает)
+#   - Для миграций БД или первого деплоя: используйте без параметров (полный деплой)
 
 param(
     [Parameter(Mandatory=$false)]
@@ -26,7 +31,10 @@ param(
     [switch]$Init,  # Флаг для первоначальной установки
     
     [Parameter(Mandatory=$false)]
-    [switch]$SkipBackup  # Пропустить бэкап БД
+    [switch]$SkipBackup,  # Пропустить бэкап БД
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$AppOnly  # Деплой только приложения (без пересборки БД)
 )
 
 $ErrorActionPreference = "Stop"
@@ -317,19 +325,44 @@ SQL
 function Restart-Containers {
     Write-Step "Перезапуск Docker контейнеров"
     
-    Write-Info "Останавливаем контейнеры..."
-    & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile down"
-    
-    Write-Info "Собираем и запускаем контейнеры..."
-    & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile up -d --build"
-    
-    if ($LASTEXITCODE -ne 0) {
-        Write-Err "Ошибка при перезапуске контейнеров"
-        exit 1
+    if ($AppOnly) {
+        Write-Info "Режим: только приложение (БД не пересобирается)"
+        
+        Write-Info "Останавливаем контейнер приложения..."
+        & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile stop app"
+        
+        Write-Info "Пересобираем контейнер приложения..."
+        & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile build --no-cache app"
+        
+        Write-Info "Запускаем контейнер приложения..."
+        & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile up -d --no-deps app"
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Err "Ошибка при перезапуске контейнера приложения"
+            exit 1
+        }
+        
+        Write-Info "Ожидание запуска (10 сек)..."
+        Start-Sleep -Seconds 10
+        
+        Write-Success "База данных продолжает работать без перезапуска ✅"
+    } else {
+        Write-Info "Режим: полный деплой (все контейнеры)"
+        
+        Write-Info "Останавливаем контейнеры..."
+        & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile down"
+        
+        Write-Info "Собираем и запускаем контейнеры..."
+        & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile up -d --build"
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Err "Ошибка при перезапуске контейнеров"
+            exit 1
+        }
+        
+        Write-Info "Ожидание запуска (15 сек)..."
+        Start-Sleep -Seconds 15
     }
-    
-    Write-Info "Ожидание запуска (15 сек)..."
-    Start-Sleep -Seconds 15
     
     Write-Info "Статус контейнеров:"
     & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile ps"
@@ -355,6 +388,11 @@ function Main {
     Write-Info "Сервер: $Server"
     Write-Info "Путь: $RemotePath"
     Write-Info "Ветка: $Branch"
+    if ($AppOnly) {
+        Write-Info "Режим: ⚡ Быстрый деплой (только приложение)"
+    } else {
+        Write-Info "Режим: 🔄 Полный деплой (все контейнеры)"
+    }
     Write-Host ""
     
     # 1. Проверка подключения
