@@ -174,6 +174,7 @@ function Backup-Database {
     $backupFile = "$RemoteBackupDir/$backupFileName"
     
     Write-Info "Сохранение бэкапа на сервере: $backupFile..."
+    Write-Warn "Это может занять несколько минут для больших баз данных..."
     
     # Создаем бэкап на сервере
     & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres pg_dump -U postgres -d postgres --clean --if-exists > $backupFile"
@@ -181,10 +182,10 @@ function Backup-Database {
     if ($LASTEXITCODE -eq 0) {
         # Проверяем размер бэкапа на сервере
         $sizeBytes = & $SshPath $Server "stat -c %s $backupFile 2>/dev/null || stat -f %z $backupFile 2>/dev/null || echo 0"
-        $sizeKB = [math]::Round([int]$sizeBytes / 1KB, 2)
+        $sizeMB = [math]::Round([int]$sizeBytes / 1MB, 2)
         
-        if ($sizeKB -gt 0.1) {
-            Write-Success "Бэкап создан на сервере: $backupFile ($sizeKB KB)"
+        if ($sizeMB -gt 0.01) {
+            Write-Success "Бэкап создан на сервере: $backupFile ($sizeMB MB)"
         } else {
             Write-Warn "Бэкап создан, но файл пустой или очень маленький"
         }
