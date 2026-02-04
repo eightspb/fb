@@ -1,12 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { FileText, Calendar, Inbox } from 'lucide-react';
+import ActiveSessions from '@/components/admin/ActiveSessions';
+import VisitStats from '@/components/admin/VisitStats';
 
 export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-slate-900">Обзор</h1>
       
+      {/* Быстрые ссылки */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Link href="/admin/requests" className="block">
           <Card className="hover:shadow-lg transition-all cursor-pointer h-full">
@@ -53,6 +56,12 @@ export default function AdminDashboard() {
           </Card>
         </Link>
       </div>
+
+      {/* Активные сессии */}
+      <ActiveSessions />
+
+      {/* Статистика посещений */}
+      <VisitStats />
     </div>
   );
 }
