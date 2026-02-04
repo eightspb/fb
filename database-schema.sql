@@ -114,6 +114,10 @@ CREATE INDEX IF NOT EXISTS idx_news_images_news_id ON news_images(news_id);
 CREATE INDEX IF NOT EXISTS idx_news_videos_news_id ON news_videos(news_id);
 CREATE INDEX IF NOT EXISTS idx_news_documents_news_id ON news_documents(news_id);
 
+-- Дополнительные поля для новостей
+-- Точка фокуса изображения для карточек (CSS object-position)
+ALTER TABLE news ADD COLUMN IF NOT EXISTS image_focal_point VARCHAR(50) DEFAULT 'center 30%';
+
 -- =====================================================
 -- Таблицы для аналитики посещений сайта
 -- =====================================================
