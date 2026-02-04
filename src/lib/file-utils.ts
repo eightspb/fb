@@ -293,6 +293,76 @@ export function generateNewsId(title: string, date: Date): string {
 }
 
 /**
+ * Геокодирует адрес в координаты через Yandex Geocoder API
+ */
+export async function geocodeLocation(
+  query: string
+): Promise<{ latitude: number; longitude: number; address: string } | null> {
+  console.log(`[FILE] 🌍 Геокодирование адреса: "${query}"`);
+  
+  const apiKey = process.env.YANDEX_GEOCODER_API_KEY;
+  
+  if (!apiKey) {
+    console.warn('[FILE] ⚠️ YANDEX_GEOCODER_API_KEY не установлен');
+    return null;
+  }
+
+  try {
+    const url = 'https://geocode-maps.yandex.ru/1.x/';
+    const params = new URLSearchParams({
+      apikey: apiKey,
+      geocode: query,
+      format: 'json',
+      results: '1',
+    });
+
+    console.log('[FILE] 📤 Запрос к Yandex Geocoder API...');
+    const response = await axios.get(`${url}?${params.toString()}`);
+
+    const geoObject = response.data?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject;
+
+    if (!geoObject) {
+      console.log('[FILE] ℹ️ Адрес не найден');
+      return null;
+    }
+
+    // Получаем координаты (формат: "longitude latitude")
+    const coordsStr = geoObject.Point?.pos;
+    if (!coordsStr) {
+      console.log('[FILE] ℹ️ Координаты не найдены в ответе');
+      return null;
+    }
+
+    const [longitudeStr, latitudeStr] = coordsStr.split(' ');
+    const longitude = parseFloat(longitudeStr);
+    const latitude = parseFloat(latitudeStr);
+
+    if (isNaN(latitude) || isNaN(longitude)) {
+      console.log('[FILE] ⚠️ Некорректные координаты в ответе');
+      return null;
+    }
+
+    // Получаем отформатированный адрес
+    const address = geoObject.metaDataProperty?.GeocoderMetaData?.text || query;
+
+    console.log(`[FILE] ✅ Координаты найдены: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+    console.log(`[FILE] 📍 Адрес: ${address}`);
+
+    return {
+      latitude,
+      longitude,
+      address,
+    };
+  } catch (error) {
+    console.error('[FILE] ❌ Ошибка при геокодировании:', error);
+    if (error instanceof Error) {
+      console.error('[FILE] Сообщение об ошибке:', error.message);
+    }
+    return null;
+  }
+}
+
+/**
  * Извлекает расширение файла из имени или MIME типа
  */
 export function getFileExtension(filename: string, mimeType?: string): string {
