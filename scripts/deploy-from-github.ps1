@@ -322,14 +322,25 @@ SQL
             Write-Info "  [SKIP] $migrationName (уже применена)"
         } else {
             Write-Info "  [APPLY] $migrationName"
-            & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f $migrationPath"
-            $insertCommand = @"
+            # Используем cat для передачи содержимого файла в контейнер через stdin
+            $applyCommand = @"
+cd $RemotePath
+cat $migrationPath | docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1
+"@
+            & $SshPath $Server $applyCommand
+            
+            if ($LASTEXITCODE -eq 0) {
+                $insertCommand = @"
 cd $RemotePath
 docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
 INSERT INTO schema_migrations (name) VALUES ('$migrationName');
 SQL
 "@
-            & $SshPath $Server $insertCommand
+                & $SshPath $Server $insertCommand
+                Write-Success "  Миграция $migrationName применена"
+            } else {
+                Write-Err "  Ошибка при применении миграции $migrationName"
+            }
         }
     }
     
