@@ -37,17 +37,38 @@ interface Conference {
   additional_info?: string;
 }
 
+interface NewsItem {
+  id: string;
+  title: string;
+  shortDescription: string;
+  fullDescription: string;
+  date: string;
+  year: string;
+  images?: string[];
+  category?: string;
+  status?: string;
+}
+
 export function ConferencesList() {
   const [conferences, setConferences] = useState<Conference[]>([]);
+  const [pastNews, setPastNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const response = await fetch('/api/conferences?status=published');
-        if (response.ok) {
-          const data = await response.json();
-          setConferences(data);
+        // Загружаем предстоящие конференции из таблицы conferences
+        const confResponse = await fetch('/api/conferences?status=published');
+        if (confResponse.ok) {
+          const confData = await confResponse.json();
+          setConferences(confData);
+        }
+
+        // Загружаем прошедшие конференции из таблицы news
+        const newsResponse = await fetch('/api/news?category=Конференции');
+        if (newsResponse.ok) {
+          const newsData = await newsResponse.json();
+          setPastNews(newsData);
         }
       } catch (error) {
         console.error('Failed to load conferences:', error);
@@ -244,7 +265,7 @@ export function ConferencesList() {
     );
   };
 
-  // Компактная карточка для прошедших мероприятий
+  // Компактная карточка для прошедших конференций из таблицы conferences
   const renderPastCard = (event: Conference) => {
     const speakersCount = event.speakers?.length || 0;
     const conferenceUrl = event.slug || event.id;
@@ -368,6 +389,72 @@ export function ConferencesList() {
     );
   };
 
+  // Компактная карточка для прошедших конференций из таблицы news
+  const renderPastNewsCard = (news: NewsItem) => {
+    const mainImage = news.images && news.images.length > 0 ? news.images[0] : null;
+    
+    return (
+      <Card key={news.id} className="group hover:shadow-lg transition-all border-slate-200 bg-white flex flex-col overflow-hidden h-full">
+        {/* Image Section */}
+        <div className="relative w-full aspect-[4/3] overflow-hidden bg-slate-100">
+          {mainImage ? (
+            <Image
+              src={mainImage}
+              alt={news.title}
+              fill
+              sizes="(max-width: 768px) 100vw, 33vw"
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              style={{ objectPosition: 'center 30%' }}
+              unoptimized
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+              <Calendar className="w-12 h-12 text-slate-300" />
+            </div>
+          )}
+          
+          {/* Date Badge */}
+          <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold text-slate-700 shadow-sm">
+            {news.date}
+          </div>
+        </div>
+
+        <CardContent className="p-6 flex flex-col flex-grow">
+          {/* Category */}
+          {news.category && (
+            <div className="mb-4">
+              <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-200 border-0">
+                {news.category}
+              </Badge>
+            </div>
+          )}
+          
+          <Link href={`/news/${news.id}`} className="block group-hover:text-teal-600 transition-colors mb-3">
+            <h3 className="text-xl font-bold text-slate-900 line-clamp-3">
+              {news.title}
+            </h3>
+          </Link>
+          
+          {news.shortDescription && (
+            <p className="text-slate-600 text-sm line-clamp-4 mb-4 flex-grow">
+              {news.shortDescription}
+            </p>
+          )}
+
+          {/* Footer */}
+          <div className="flex items-center justify-end pt-4 mt-auto border-t border-slate-100">
+            <Link 
+              href={`/news/${news.id}`} 
+              className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
+            >
+              Подробнее
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="w-full space-y-16">
       {/* Предстоящие конференции - широкие тизеры */}
@@ -384,20 +471,23 @@ export function ConferencesList() {
       )}
 
       {/* Прошедшие мероприятия - компактные карточки */}
-      {past.length > 0 && (
+      {(past.length > 0 || pastNews.length > 0) && (
         <section className="space-y-8">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-slate-900 mb-2">Прошедшие мероприятия</h2>
             <p className="text-slate-600">Архив конференций и мастер-классов</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Прошедшие из таблицы conferences */}
             {past.map((event) => renderPastCard(event))}
+            {/* Прошедшие из таблицы news */}
+            {pastNews.map((news) => renderPastNewsCard(news))}
           </div>
         </section>
       )}
 
       {/* Если нет ни предстоящих, ни прошедших */}
-      {upcoming.length === 0 && past.length === 0 && (
+      {upcoming.length === 0 && past.length === 0 && pastNews.length === 0 && (
         <div className="text-center py-16 text-slate-500">
           <Calendar className="w-16 h-16 mx-auto mb-4 text-slate-300" />
           <p className="text-lg mb-2">Мероприятий пока нет</p>
