@@ -18,7 +18,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgres-prod-db-data:/var/lib/postgresql/data
+      - postgres-prod-data:/var/lib/postgresql/data
       - ./database-schema.sql:/docker-entrypoint-initdb.d/00-init-schema.sql:ro
     networks:
       - fb-net-prod-network
@@ -49,6 +49,16 @@ services:
     networks:
       - fb-net-prod-network
     restart: always
+    # Security enhancements
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100M
+    read_only: false  # Cannot be true due to Next.js cache requirements
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
 
   # Nginx Reverse Proxy with SSL
   nginx:
@@ -66,6 +76,16 @@ services:
     networks:
       - fb-net-prod-network
     restart: always
+    # Security enhancements
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETGID
+      - SETUID
 
   # Certbot for SSL certificate renewal
   certbot:
@@ -81,7 +101,7 @@ services:
     restart: always
 
 volumes:
-  postgres-prod-db-data:
+  postgres-prod-data:
 
 networks:
   fb-net-prod-network:
