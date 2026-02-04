@@ -2,11 +2,13 @@
 
 ## Текущий статус
 
-Доступные миграции:
-- `add-image-focal-point.sql` - добавление поля `image_focal_point` для настройки позиционирования изображений в карточках новостей
-- `analytics-tables.sql` - таблицы для аналитики
+Все миграции уже применены к production БД. SQL файлы удалены.
 
-Ранее все миграции были перенесены в основной файл `database-schema.sql`.
+Применённые миграции:
+- `add-image-focal-point` - добавление поля `image_focal_point` для настройки позиционирования изображений в карточках новостей
+- `analytics-tables` - таблицы для аналитики (`visitor_sessions`, `page_visits`, `ip_geolocation_cache`)
+
+Эти изменения также добавлены в основной файл `database-schema.sql`.
 
 ## Почему?
 
