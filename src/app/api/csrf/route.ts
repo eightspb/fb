@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'crypto';
 import { CSRF_COOKIE_NAME } from '@/lib/csrf';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const cookieStore = await cookies();
   let token = cookieStore.get(CSRF_COOKIE_NAME)?.value;
 
@@ -14,7 +14,12 @@ export async function GET() {
 
   // Генерируем новый токен
   token = randomUUID();
-  const isSecure = process.env.NODE_ENV === 'production';
+  
+  // Определяем secure на основе реального протокола запроса, а не NODE_ENV
+  // Это важно когда production работает через HTTP (без SSL)
+  const forwardedProto = request.headers.get('x-forwarded-proto');
+  const isSecure = forwardedProto === 'https' || 
+    (process.env.NODE_ENV === 'production' && process.env.FORCE_HTTPS === 'true');
   
   // В Next.js 15+ нужно использовать NextResponse для установки cookies
   const response = NextResponse.json({ csrfToken: token });
