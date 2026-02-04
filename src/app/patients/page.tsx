@@ -526,14 +526,13 @@ export default function Patients() {
                 </div>
               </div>
             </div>
-            <div className="order-1 md:order-2 bg-slate-100 rounded-3xl aspect-square relative overflow-hidden">
-               {/* Placeholder for decorative image or abstract shape */}
-               <div className="absolute inset-0 bg-gradient-to-br from-teal-100 to-blue-100 opacity-50"></div>
-               <div className="absolute inset-0 flex items-center justify-center">
-                 <div className="w-32 h-32 bg-white rounded-full shadow-xl flex items-center justify-center animate-pulse">
-                    <Heart className="w-12 h-12 text-teal-500" />
-                 </div>
-               </div>
+            <div className="order-1 md:order-2 rounded-3xl aspect-square relative overflow-hidden">
+               <Image 
+                 src="/images/vab-alternative.png" 
+                 alt="ВАБ — признанная альтернатива традиционной операции" 
+                 fill 
+                 className="object-cover" 
+               />
             </div>
           </div>
         </section>
