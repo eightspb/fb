@@ -3,6 +3,21 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 
+// Генерация UUID (fallback для HTTP)
+function generateUUID(): string {
+  // Используем crypto.randomUUID если доступен (HTTPS)
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  
+  // Fallback для HTTP или старых браузеров
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 // Генерация или получение session ID
 function getSessionId(): string {
   if (typeof window === 'undefined') return '';
@@ -10,7 +25,7 @@ function getSessionId(): string {
   let sessionId = localStorage.getItem('visitor_session_id');
   
   if (!sessionId) {
-    sessionId = crypto.randomUUID();
+    sessionId = generateUUID();
     localStorage.setItem('visitor_session_id', sessionId);
   }
   
