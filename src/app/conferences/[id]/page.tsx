@@ -256,6 +256,25 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
               </section>
             )}
 
+            {/* Program */}
+            {conference.program && conference.program.length > 0 && (
+              <section>
+                <h2 className="text-2xl font-bold text-slate-900 mb-6">Программа</h2>
+                <Card>
+                  <CardContent className="p-6">
+                    <ul className="space-y-3">
+                      {conference.program.map((item, index) => (
+                        <li key={index} className="flex items-start gap-3">
+                          <CheckCircle className="w-5 h-5 text-teal-500 mt-0.5 flex-shrink-0" />
+                          <span className="text-slate-700">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              </section>
+            )}
+
             {/* Speakers */}
             {conference.speakers && conference.speakers.length > 0 && (
               <section>
@@ -267,29 +286,29 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
                   {conference.speakers.map((speaker, index) => (
                     <Card key={speaker.id || index} className="overflow-hidden">
                       <CardContent className="p-0">
-                        <div className="flex flex-col sm:flex-row">
-                          {/* Photo */}
-                          <div className="sm:w-32 md:w-40 flex-shrink-0">
+                        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 sm:p-6">
+                          {/* Photo - круглое изображение */}
+                          <div className="flex-shrink-0">
                             {speaker.photo ? (
-                              <div className="relative w-full h-32 sm:h-full">
+                              <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-4 border-slate-100">
                                 <Image
                                   src={speaker.photo}
                                   alt={speaker.name}
                                   fill
-                                  sizes="(max-width: 640px) 128px, 160px"
+                                  sizes="112px"
                                   className="object-cover"
                                   unoptimized
                                 />
                               </div>
                             ) : (
-                              <div className="w-full h-32 sm:h-full bg-slate-100 flex items-center justify-center">
+                              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-100">
                                 <User className="w-12 h-12 text-slate-300" />
                               </div>
                             )}
                           </div>
                           
                           {/* Info */}
-                          <div className="p-4 sm:p-6 flex-1">
+                          <div className="flex-1 text-center sm:text-left">
                             <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
                               <h3 className="text-lg font-bold text-slate-900">{speaker.name}</h3>
                               {speaker.report_time && (
@@ -314,25 +333,6 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
                     </Card>
                   ))}
                 </div>
-              </section>
-            )}
-
-            {/* Program */}
-            {conference.program && conference.program.length > 0 && (
-              <section>
-                <h2 className="text-2xl font-bold text-slate-900 mb-6">Программа</h2>
-                <Card>
-                  <CardContent className="p-6">
-                    <ul className="space-y-3">
-                      {conference.program.map((item, index) => (
-                        <li key={index} className="flex items-start gap-3">
-                          <CheckCircle className="w-5 h-5 text-teal-500 mt-0.5 flex-shrink-0" />
-                          <span className="text-slate-700">{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
               </section>
             )}
 
