@@ -8,13 +8,20 @@ import {
   handleTextMessage,
   handlePhotoMessage,
   handleVideoMessage,
+  handleVoiceMessage,
   handleDoneCommand,
   handleCancelCommand,
   handleStartCommand,
   handleListCommand,
+  handleDateCommand,
+  handleLocationCommand,
   sendNewsActionsMenu,
   getAllNewsFromDB,
   sendNewsListPage,
+  finishNewsCreation,
+  publishNewsFromPreview,
+  handleEditFieldText,
+  regenerateAIContent,
 } from '@/lib/telegram-bot';
 import { Pool } from 'pg';
 
@@ -121,6 +128,91 @@ export async function POST(request: NextRequest) {
           await sendNewsListPage(chatId, pages[0], 0, pages.length);
           await bot.answerCallbackQuery(callbackQuery.id, { text: 'Список новостей' });
         }
+        return NextResponse.json({ ok: true });
+      }
+
+      // Обработка кнопок сбора материалов и предпросмотра
+      if (callbackData === 'finish_news') {
+        console.log('[WEBHOOK] ✅ Завершение создания новости');
+        await bot.answerCallbackQuery(callbackQuery.id, { text: 'Генерирую новость...' });
+        await finishNewsCreation(chatId);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (callbackData === 'cancel_news') {
+        console.log('[WEBHOOK] ❌ Отмена создания новости');
+        const { handleCancelCommand: cancel } = await import('@/lib/telegram-bot');
+        await cancel({ chat: { id: chatId } } as any);
+        await bot.answerCallbackQuery(callbackQuery.id, { text: 'Отменено' });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (callbackData === 'set_date') {
+        await bot.answerCallbackQuery(callbackQuery.id);
+        await bot.sendMessage(
+          chatId,
+          'Отправьте дату в формате:\n/date ДД.ММ.ГГГГ\n\nПример: /date 15.02.2026'
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      if (callbackData === 'set_location') {
+        await bot.answerCallbackQuery(callbackQuery.id);
+        await bot.sendMessage(
+          chatId,
+          'Отправьте локацию:\n' +
+          '/location 55.751244,37.618423\n' +
+          'или\n' +
+          '/location Москва, ул. Тверская 1'
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      // Обработка предпросмотра и редактирования
+      if (callbackData === 'publish_news') {
+        console.log('[WEBHOOK] 📰 Публикация новости');
+        await bot.answerCallbackQuery(callbackQuery.id, { text: 'Публикую...' });
+        await publishNewsFromPreview(chatId);
+        return NextResponse.json({ ok: true });
+      }
+
+      if (callbackData === 'edit_title') {
+        const { pendingNews } = await import('@/lib/telegram-bot');
+        const pending = (pendingNews as any).get(chatId);
+        if (pending) {
+          pending.waitingForEdit = 'title';
+          await bot.answerCallbackQuery(callbackQuery.id);
+          await bot.sendMessage(chatId, 'Отправьте новое название:');
+        }
+        return NextResponse.json({ ok: true });
+      }
+
+      if (callbackData === 'edit_short') {
+        const { pendingNews } = await import('@/lib/telegram-bot');
+        const pending = (pendingNews as any).get(chatId);
+        if (pending) {
+          pending.waitingForEdit = 'short';
+          await bot.answerCallbackQuery(callbackQuery.id);
+          await bot.sendMessage(chatId, 'Отправьте новое краткое описание:');
+        }
+        return NextResponse.json({ ok: true });
+      }
+
+      if (callbackData === 'edit_full') {
+        const { pendingNews } = await import('@/lib/telegram-bot');
+        const pending = (pendingNews as any).get(chatId);
+        if (pending) {
+          pending.waitingForEdit = 'full';
+          await bot.answerCallbackQuery(callbackQuery.id);
+          await bot.sendMessage(chatId, 'Отправьте новое полное описание:');
+        }
+        return NextResponse.json({ ok: true });
+      }
+
+      if (callbackData === 'regenerate_ai') {
+        console.log('[WEBHOOK] 🔄 Перегенерация AI контента');
+        await bot.answerCallbackQuery(callbackQuery.id, { text: 'Перегенерирую...' });
+        await regenerateAIContent(chatId);
         return NextResponse.json({ ok: true });
       }
 
@@ -262,6 +354,20 @@ export async function POST(request: NextRequest) {
           console.log('[WEBHOOK] ✅ Команда /list обработана');
           return NextResponse.json({ ok: true });
         }
+
+        if (text.startsWith('/date')) {
+          console.log('[WEBHOOK] 📅 Команда /date');
+          await handleDateCommand(msg);
+          console.log('[WEBHOOK] ✅ Команда /date обработана');
+          return NextResponse.json({ ok: true });
+        }
+
+        if (text.startsWith('/location')) {
+          console.log('[WEBHOOK] 📍 Команда /location');
+          await handleLocationCommand(msg);
+          console.log('[WEBHOOK] ✅ Команда /location обработана');
+          return NextResponse.json({ ok: true });
+        }
       }
 
       // Обрабатываем фото
@@ -280,8 +386,27 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // Обрабатываем голосовые сообщения
+      if (msg.voice) {
+        console.log('[WEBHOOK] 🎤 Обработка голосового сообщения');
+        await handleVoiceMessage(msg);
+        console.log('[WEBHOOK] ✅ Голосовое сообщение обработано');
+        return NextResponse.json({ ok: true });
+      }
+
       // Обрабатываем текстовые сообщения
       if (msg.text) {
+        // Проверяем, ожидается ли редактирование поля
+        const { pendingNews } = await import('@/lib/telegram-bot');
+        const pending = (pendingNews as any).get(msg.chat.id);
+        
+        if (pending && pending.waitingForEdit) {
+          console.log('[WEBHOOK] ✏️ Обработка редактирования поля');
+          await handleEditFieldText(msg.chat.id, msg.text);
+          console.log('[WEBHOOK] ✅ Редактирование обработано');
+          return NextResponse.json({ ok: true });
+        }
+        
         console.log('[WEBHOOK] 📝 Обработка текстового сообщения');
         await handleTextMessage(msg);
         console.log('[WEBHOOK] ✅ Текстовое сообщение обработано');
