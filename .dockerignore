@@ -11,4 +11,5 @@ yarn-error.log*
 coverage
 .vercel
 public/images/trainings
+backups
 
