@@ -3,6 +3,24 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: 'standalone', // Для Docker - создает оптимизированную standalone сборку
   serverExternalPackages: ['jose'], // Include jose in standalone build
+  
+  // Подавляем предупреждения о fs/zlib при сборке
+  // Эти модули используются только на сервере (telegram-bot.ts, file-utils.ts)
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Для клиентской сборки заменяем Node.js модули на пустые заглушки
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        zlib: false,
+        path: false,
+        stream: false,
+        crypto: false,
+      };
+    }
+    return config;
+  },
+  
   images: {
     remotePatterns: [],
     formats: ['image/avif', 'image/webp'],
