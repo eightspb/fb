@@ -25,17 +25,14 @@ export default function Home() {
 
       {/* Hero Section */}
       <section className="relative min-h-screen w-full flex items-center justify-center overflow-hidden pt-32 pb-16 lg:pt-32">
-        {/* Background Image */}
-        <div className="absolute inset-0">
-          <Image
-            src="/images/background.png"
-            alt="Background"
-            fill
-            className="object-cover"
-            priority
-            quality={90}
-          />
-        </div>
+        {/* Background Image - без оптимизации для максимального качества */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: 'url(/images/background.png)',
+            imageRendering: 'high-quality',
+          }}
+        />
         
         <div className="relative z-10 container mx-auto px-4 md:px-6 lg:px-8 flex flex-col items-center text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-teal-100 shadow-sm mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
