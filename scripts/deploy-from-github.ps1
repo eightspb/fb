@@ -247,8 +247,8 @@ function Invoke-Migrations {
     
     # Создаем таблицу миграций (простой CREATE TABLE IF NOT EXISTS)
     Write-Info "Проверка/создание таблицы schema_migrations..."
-    $initTableCommand = "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -c 'CREATE TABLE IF NOT EXISTS schema_migrations (name VARCHAR(255) PRIMARY KEY, applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())'"
-    & $SshPath $Server $initTableCommand 2>&1 | Out-Null
+    $initTableCommand = "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -c 'CREATE TABLE IF NOT EXISTS schema_migrations (name VARCHAR(255) PRIMARY KEY, applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW())' 2>&1 | grep -v NOTICE || true"
+    $null = & $SshPath $Server $initTableCommand 2>&1
     
     # Получаем список миграций на сервере (только .sql файлы)
     $migrations = & $SshPath $Server "cd $RemotePath && find migrations -maxdepth 1 -name '*.sql' -type f 2>/dev/null | sort || echo ''"
