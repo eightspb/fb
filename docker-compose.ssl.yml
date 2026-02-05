@@ -41,6 +41,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_ADMIN_CHAT_ID: ${TELEGRAM_ADMIN_CHAT_ID:-}
+      TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
       # Important for Next.js to know it's behind a proxy
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
     depends_on:
