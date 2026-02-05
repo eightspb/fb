@@ -14,7 +14,10 @@ const ratelimit = hasUpstashConfig
   : null;
 
 // Пути, исключённые из CSRF-проверки (публичные API)
-const CSRF_EXEMPT_PATHS = ['/api/analytics/track'];
+const CSRF_EXEMPT_PATHS = [
+  '/api/analytics/track',
+  '/api/telegram/webhook',  // Telegram Bot API не отправляет CSRF токены
+];
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
