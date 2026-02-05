@@ -70,7 +70,23 @@ function Write-Step { Write-Host "`n=== $args ===" -ForegroundColor Magenta }
 # КОНФИГУРАЦИЯ
 # ═══════════════════════════════════════════════════════════════════════════════
 
-$ComposeFile = "docker-compose.production.yml"
+# Автоматически определяем, какой docker-compose файл использовать
+# Проверяем наличие SSL сертификата на сервере
+function Get-ComposeFile {
+    param([string]$Server, [string]$RemotePath, [string]$SshPath)
+    
+    # Проверяем наличие SSL сертификата
+    $certExists = & $SshPath $Server "test -d $RemotePath/certbot/conf/live/fibroadenoma.net && echo 'YES' || echo 'NO'"
+    
+    if ($certExists -match "YES") {
+        Write-Info "SSL сертификат найден, используем docker-compose.ssl.yml"
+        return "docker-compose.ssl.yml"
+    } else {
+        Write-Info "SSL сертификат не найден, используем docker-compose.production.yml"
+        return "docker-compose.production.yml"
+    }
+}
+
 $RemoteBackupDir = "$RemotePath/backups"  # Папка для бэкапов на сервере
 $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 
@@ -158,6 +174,8 @@ function Initialize-Server {
 }
 
 function Backup-Database {
+    param([string]$ComposeFile)
+    
     if ($SkipBackup) {
         Write-Warn "Бэкап БД пропущен (флаг -SkipBackup)"
         return
@@ -221,6 +239,8 @@ function Update-Repository {
 }
 
 function Invoke-Migrations {
+    param([string]$ComposeFile)
+    
     if ($SkipMigrations) {
         Write-Warn "Миграции БД пропущены (флаг -SkipMigrations)"
         return
@@ -325,6 +345,8 @@ SQL
 }
 
 function Restart-Containers {
+    param([string]$ComposeFile)
+    
     Write-Step "Перезапуск Docker контейнеров"
     
     if ($AppOnly) {
@@ -373,6 +395,8 @@ function Restart-Containers {
 }
 
 function Show-Logs {
+    param([string]$ComposeFile)
+    
     Write-Step "Последние логи приложения"
     & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile logs --tail=20 app 2>/dev/null || true"
 }
@@ -400,6 +424,10 @@ function Main {
     # 1. Проверка подключения
     Test-Connection
     
+    # 1.5. Определяем правильный docker-compose файл
+    $script:ComposeFile = Get-ComposeFile -Server $Server -RemotePath $RemotePath -SshPath $SshPath
+    Write-Info "Используется конфигурация: $script:ComposeFile"
+    
     # 2. Первоначальная установка или обновление
     if ($Init) {
         Initialize-Server
@@ -412,19 +440,19 @@ function Main {
     }
     
     # 3. Бэкап БД
-    Backup-Database
+    Backup-Database -ComposeFile $script:ComposeFile
     
     # 4. Обновление кода
     Update-Repository
     
     # 5. Применение миграций
-    Invoke-Migrations
+    Invoke-Migrations -ComposeFile $script:ComposeFile
     
     # 6. Перезапуск контейнеров
-    Restart-Containers
+    Restart-Containers -ComposeFile $script:ComposeFile
     
     # 7. Показать логи
-    Show-Logs
+    Show-Logs -ComposeFile $script:ComposeFile
     
     # Итог
     Write-Host ""
@@ -439,7 +467,13 @@ function Main {
     
     # Получаем IP сервера
     $serverHost = $Server -replace '^.*@', ''
-    Write-Info "Сайт: http://${serverHost}:3000"
+    
+    # Определяем URL в зависимости от конфигурации
+    if ($script:ComposeFile -match "ssl") {
+        Write-Info "Сайт: https://fibroadenoma.net"
+    } else {
+        Write-Info "Сайт: http://${serverHost}:3000"
+    }
     Write-Host ""
 }
 
