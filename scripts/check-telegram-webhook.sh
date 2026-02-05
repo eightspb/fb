@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# Скрипт проверки и настройки Telegram webhook для Linux
-
 echo ""
 echo "╔═══════════════════════════════════════════════════════════════╗"
 echo "║         ПРОВЕРКА TELEGRAM WEBHOOK                            ║"
@@ -12,8 +10,11 @@ echo ""
 if [ -f .env ]; then
     export $(grep -v '^#' .env | xargs)
     echo "[OK] .env файл загружен"
+elif [ -f .env.local ]; then
+    export $(grep -v '^#' .env.local | xargs)
+    echo "[OK] .env.local файл загружен"
 else
-    echo "[ERROR] .env файл не найден!"
+    echo "[ERROR] .env или .env.local файл не найден!"
     exit 1
 fi
 
@@ -30,103 +31,93 @@ echo "[INFO] Bot Token: ${BOT_TOKEN:0:15}..."
 echo "[INFO] Webhook URL: $WEBHOOK_URL"
 echo ""
 
-# Проверяем текущий webhook
+# 1. Проверяем текущий webhook
 echo "[1] Проверка текущего webhook..."
-response=$(curl -s "https://api.telegram.org/bot$BOT_TOKEN/getWebhookInfo")
+WEBHOOK_INFO=$(curl -s "https://api.telegram.org/bot$BOT_TOKEN/getWebhookInfo")
+echo "$WEBHOOK_INFO" | jq '.'
 
-if [ $? -eq 0 ]; then
-    url=$(echo $response | grep -o '"url":"[^"]*' | cut -d'"' -f4)
-    pending=$(echo $response | grep -o '"pending_update_count":[0-9]*' | cut -d':' -f2)
-    last_error=$(echo $response | grep -o '"last_error_message":"[^"]*' | cut -d'"' -f4)
-    
-    echo ""
-    echo "[OK] Ответ получен:"
-    echo "   URL: $url"
-    echo "   Pending Updates: $pending"
-    if [ -n "$last_error" ]; then
-        echo "   Last Error: $last_error"
-    fi
-    
-    if [ -z "$url" ] || [ "$url" = "null" ]; then
-        echo ""
-        echo "[WARNING] Webhook не настроен!"
-    elif [ "$url" != "$WEBHOOK_URL" ]; then
-        echo ""
-        echo "[WARNING] Webhook указывает на другой URL!"
-        echo "   Текущий: $url"
-        echo "   Ожидаемый: $WEBHOOK_URL"
-    else
-        echo ""
-        echo "[OK] Webhook настроен правильно!"
-    fi
-else
-    echo "[ERROR] Ошибка при проверке webhook"
-    exit 1
+CURRENT_URL=$(echo "$WEBHOOK_INFO" | jq -r '.result.url')
+PENDING_COUNT=$(echo "$WEBHOOK_INFO" | jq -r '.result.pending_update_count')
+LAST_ERROR=$(echo "$WEBHOOK_INFO" | jq -r '.result.last_error_message')
+
+echo ""
+echo "[INFO] Текущий webhook URL: $CURRENT_URL"
+echo "[INFO] Необработанных сообщений: $PENDING_COUNT"
+if [ "$LAST_ERROR" != "null" ]; then
+    echo "[WARNING] Последняя ошибка: $LAST_ERROR"
 fi
 
-# Спрашиваем, нужно ли установить webhook
+# 2. Проверяем доступность endpoint
+if [ -n "$WEBHOOK_URL" ]; then
+    echo ""
+    echo "[2] Проверка доступности endpoint..."
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$WEBHOOK_URL")
+    if [ "$HTTP_CODE" = "200" ]; then
+        echo "[OK] Endpoint доступен (HTTP $HTTP_CODE)"
+    else
+        echo "[ERROR] Endpoint недоступен (HTTP $HTTP_CODE)"
+        echo "[INFO] Проверьте, запущен ли сервер и доступен ли по URL: $WEBHOOK_URL"
+    fi
+fi
+
+# 3. Спрашиваем, нужно ли установить webhook
 echo ""
 read -p "[?] Установить/обновить webhook? (y/n): " answer
 
 if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
     echo ""
-    echo "[2] Установка webhook..."
+    echo "[3] Установка webhook..."
     
     if [ -z "$WEBHOOK_URL" ]; then
         echo "[ERROR] TELEGRAM_WEBHOOK_URL не установлен в .env!"
         echo "[INFO] Добавьте в .env строку:"
-        echo "   TELEGRAM_WEBHOOK_URL=https://ваш-домен.com/api/telegram/webhook"
+        echo "   TELEGRAM_WEBHOOK_URL=https://fibroadenoma.net/api/telegram/webhook"
         exit 1
     fi
     
-    response=$(curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/setWebhook" \
+    RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/setWebhook" \
         -H "Content-Type: application/json" \
         -d "{\"url\": \"$WEBHOOK_URL\", \"drop_pending_updates\": false, \"allowed_updates\": [\"message\", \"callback_query\"]}")
     
-    ok=$(echo $response | grep -o '"ok":[^,]*' | cut -d':' -f2)
-    description=$(echo $response | grep -o '"description":"[^"]*' | cut -d'"' -f4)
+    echo "$RESPONSE" | jq '.'
     
-    if [ "$ok" = "true" ]; then
+    SUCCESS=$(echo "$RESPONSE" | jq -r '.ok')
+    if [ "$SUCCESS" = "true" ]; then
+        echo ""
         echo "[OK] Webhook установлен успешно!"
-        if [ -n "$description" ]; then
-            echo "   Description: $description"
-        fi
     else
+        echo ""
         echo "[ERROR] Не удалось установить webhook!"
-        echo "   $description"
         exit 1
     fi
     
     # Проверяем ещё раз
     echo ""
-    echo "[3] Повторная проверка..."
+    echo "[4] Повторная проверка..."
     sleep 2
     
-    response=$(curl -s "https://api.telegram.org/bot$BOT_TOKEN/getWebhookInfo")
-    url=$(echo $response | grep -o '"url":"[^"]*' | cut -d'"' -f4)
-    if [ -n "$url" ] && [ "$url" != "null" ]; then
-        echo "[OK] Webhook URL: $url"
-    fi
+    WEBHOOK_INFO=$(curl -s "https://api.telegram.org/bot$BOT_TOKEN/getWebhookInfo")
+    NEW_URL=$(echo "$WEBHOOK_INFO" | jq -r '.result.url')
+    echo "[OK] Webhook URL: $NEW_URL"
 fi
 
-# Проверяем pending updates
+# 4. Проверяем pending updates
 echo ""
-echo "[4] Проверка необработанных сообщений..."
-response=$(curl -s "https://api.telegram.org/bot$BOT_TOKEN/getUpdates?limit=1")
+echo "[5] Проверка необработанных сообщений..."
+UPDATES=$(curl -s "https://api.telegram.org/bot$BOT_TOKEN/getUpdates?limit=1")
+UPDATE_COUNT=$(echo "$UPDATES" | jq -r '.result | length')
 
-if [ $? -eq 0 ]; then
-    result_count=$(echo $response | grep -o '"result":\[.*\]' | grep -o 'update_id' | wc -l)
-    if [ "$result_count" -gt 0 ]; then
-        echo "[WARNING] Есть необработанные сообщения"
-        echo "[INFO] Проверьте через Telegram API или отправьте /start боту"
-    else
-        echo "[OK] Нет необработанных сообщений"
-    fi
+if [ "$UPDATE_COUNT" -gt 0 ]; then
+    echo "[WARNING] Есть необработанные сообщения: $UPDATE_COUNT"
+    echo "[INFO] Последнее сообщение:"
+    echo "$UPDATES" | jq '.result[0]'
+else
+    echo "[OK] Нет необработанных сообщений"
 fi
 
-# Тестовое сообщение
+# 5. Тестовое сообщение
 echo ""
-read -p "[5] Отправить тестовое сообщение себе? (y/n): " answer
+read -p "[?] Отправить тестовое сообщение себе? (y/n): " answer
 
 if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
     ADMIN_CHAT_ID=$TELEGRAM_ADMIN_CHAT_ID
@@ -136,16 +127,19 @@ if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
         exit 1
     fi
     
-    current_time=$(date '+%Y-%m-%d %H:%M:%S')
-    response=$(curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
-        -H "Content-Type: application/json" \
-        -d "{\"chat_id\": $ADMIN_CHAT_ID, \"text\": \"🤖 Тест Telegram бота\\n\\nБот работает корректно!\\nВремя: $current_time\", \"parse_mode\": \"Markdown\"}")
+    TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+    MESSAGE="🤖 Тест Telegram бота\n\nБот работает корректно!\nВремя: $TIMESTAMP"
     
-    ok=$(echo $response | grep -o '"ok":[^,]*' | cut -d':' -f2)
-    if [ "$ok" = "true" ]; then
+    RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
+        -H "Content-Type: application/json" \
+        -d "{\"chat_id\": \"$ADMIN_CHAT_ID\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\"}")
+    
+    SUCCESS=$(echo "$RESPONSE" | jq -r '.ok')
+    if [ "$SUCCESS" = "true" ]; then
         echo "[OK] Тестовое сообщение отправлено!"
     else
-        echo "[ERROR] Ошибка при отправке"
+        echo "[ERROR] Ошибка при отправке:"
+        echo "$RESPONSE" | jq '.'
     fi
 fi
 
@@ -154,7 +148,6 @@ echo "╔═══════════════════════�
 echo "║                  ПРОВЕРКА ЗАВЕРШЕНА                           ║"
 echo "╚═══════════════════════════════════════════════════════════════╝"
 echo ""
-
 echo "[INFO] Если бот не отвечает, проверьте:"
 echo "   1. Webhook URL доступен из интернета (не localhost)"
 echo "   2. Сервер запущен и работает"

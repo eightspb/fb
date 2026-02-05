@@ -220,11 +220,18 @@ function Backup-Database {
 function Update-Repository {
     Write-Step "Обновление кода из GitHub"
     
-    # Сохраняем локальные изменения
-    & $SshPath $Server "cd $RemotePath && git stash --include-untracked 2>/dev/null || true"
+    # Защищаем важные директории от случайного удаления
+    # (certbot содержит SSL сертификаты, их нельзя удалять)
+    & $SshPath $Server "cd $RemotePath && if [ -d certbot ]; then chmod -R 700 certbot 2>/dev/null || true; fi"
+    
+    # Сохраняем локальные изменения (но не трогаем certbot и .env)
+    & $SshPath $Server "cd $RemotePath && git stash push --keep-index -m 'temp-stash' 2>/dev/null || git stash --include-untracked 2>/dev/null || true"
     
     # Получаем последние изменения
     & $SshPath $Server "cd $RemotePath && git fetch origin $Branch && git checkout $Branch && git pull origin $Branch"
+    
+    # Восстанавливаем права на certbot
+    & $SshPath $Server "cd $RemotePath && if [ -d certbot ]; then chmod -R 755 certbot 2>/dev/null || true; fi"
     
     if ($LASTEXITCODE -ne 0) {
         Write-Err "Ошибка при обновлении репозитория"
