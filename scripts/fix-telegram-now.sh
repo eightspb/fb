@@ -2,10 +2,60 @@
 
 # Быстрое исправление Telegram webhook
 
+set -e  # Прерывать при критических ошибках (но не в curl)
+
 echo ""
 echo "🔧 БЫСТРОЕ ИСПРАВЛЕНИЕ TELEGRAM БОТА"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
+
+# ═══════════════════════════════════════════════════════════════════
+# ПРОВЕРКА ЗАВИСИМОСТЕЙ
+# ═══════════════════════════════════════════════════════════════════
+
+# Проверяем jq, если нет - предлагаем установить
+if ! command -v jq &> /dev/null; then
+    echo "⚠️  jq не установлен (требуется для красивого вывода JSON)"
+    echo ""
+    read -p "Установить jq автоматически? (y/n): " install_jq
+    
+    if [ "$install_jq" = "y" ] || [ "$install_jq" = "Y" ]; then
+        echo "Установка jq..."
+        if command -v apt-get &> /dev/null; then
+            apt-get update && apt-get install -y jq
+        elif command -v yum &> /dev/null; then
+            yum install -y jq
+        elif command -v dnf &> /dev/null; then
+            dnf install -y jq
+        else
+            echo "❌ Не удалось определить менеджер пакетов"
+            echo "   Установите jq вручную: apt-get install jq"
+            echo ""
+            echo "   Продолжаю без jq (вывод JSON будет без форматирования)..."
+            echo ""
+        fi
+    else
+        echo "   Продолжаю без jq (вывод JSON будет без форматирования)..."
+        echo ""
+    fi
+fi
+
+# Функция для парсинга JSON (работает с jq и без него)
+parse_json() {
+    local json="$1"
+    local key="$2"
+    
+    if command -v jq &> /dev/null; then
+        echo "$json" | jq -r "$key" 2>/dev/null || echo ""
+    else
+        # Простой парсинг без jq (работает для простых случаев)
+        echo "$json" | grep -o "\"$key\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | head -1 | sed 's/.*"\([^"]*\)"/\1/'
+    fi
+}
+
+# ═══════════════════════════════════════════════════════════════════
+# ЗАГРУЗКА ПЕРЕМЕННЫХ ОКРУЖЕНИЯ
+# ═══════════════════════════════════════════════════════════════════
 
 # Загружаем переменные окружения
 if [ -f .env ]; then
@@ -58,7 +108,7 @@ fi
 echo ""
 echo "2️⃣ Удаление старого webhook..."
 DELETE_RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/deleteWebhook")
-DELETE_OK=$(echo "$DELETE_RESPONSE" | jq -r '.ok')
+DELETE_OK=$(parse_json "$DELETE_RESPONSE" "ok")
 
 if [ "$DELETE_OK" = "true" ]; then
     echo "✅ Старый webhook удалён"
@@ -80,15 +130,21 @@ SET_RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/setWebhoo
         \"allowed_updates\": [\"message\", \"callback_query\"]
     }")
 
-SET_OK=$(echo "$SET_RESPONSE" | jq -r '.ok')
-SET_DESCRIPTION=$(echo "$SET_RESPONSE" | jq -r '.description')
+SET_OK=$(parse_json "$SET_RESPONSE" "ok")
+SET_DESCRIPTION=$(parse_json "$SET_RESPONSE" "description")
 
 if [ "$SET_OK" = "true" ]; then
     echo "✅ Webhook установлен успешно!"
-    echo "   $SET_DESCRIPTION"
+    if [ -n "$SET_DESCRIPTION" ]; then
+        echo "   $SET_DESCRIPTION"
+    fi
 else
     echo "❌ Ошибка установки webhook:"
-    echo "$SET_RESPONSE" | jq '.'
+    if command -v jq &> /dev/null; then
+        echo "$SET_RESPONSE" | jq '.'
+    else
+        echo "$SET_RESPONSE"
+    fi
     exit 1
 fi
 
@@ -99,13 +155,20 @@ sleep 2
 echo ""
 echo "4️⃣ Проверка установки..."
 CHECK_RESPONSE=$(curl -s "https://api.telegram.org/bot$BOT_TOKEN/getWebhookInfo")
-CURRENT_URL=$(echo "$CHECK_RESPONSE" | jq -r '.result.url')
-PENDING=$(echo "$CHECK_RESPONSE" | jq -r '.result.pending_update_count')
+CURRENT_URL=$(parse_json "$CHECK_RESPONSE" ".result.url")
+PENDING=$(parse_json "$CHECK_RESPONSE" ".result.pending_update_count")
+
+# Если не удалось распарсить с jq, пробуем без точки
+if [ -z "$CURRENT_URL" ]; then
+    CURRENT_URL=$(parse_json "$CHECK_RESPONSE" "url")
+fi
 
 if [ "$CURRENT_URL" = "$WEBHOOK_URL" ]; then
     echo "✅ Webhook установлен правильно!"
     echo "   URL: $CURRENT_URL"
-    echo "   Pending updates: $PENDING"
+    if [ -n "$PENDING" ] && [ "$PENDING" != "null" ]; then
+        echo "   Pending updates: $PENDING"
+    fi
 else
     echo "❌ Что-то пошло не так!"
     echo "   Ожидалось: $WEBHOOK_URL"
@@ -137,12 +200,16 @@ if [ -n "$TELEGRAM_ADMIN_CHAT_ID" ]; then
                 \"text\": \"$TEST_MSG\"
             }")
         
-        SEND_OK=$(echo "$SEND_RESPONSE" | jq -r '.ok')
+        SEND_OK=$(parse_json "$SEND_RESPONSE" "ok")
         if [ "$SEND_OK" = "true" ]; then
             echo "✅ Тестовое сообщение отправлено!"
         else
             echo "⚠️  Не удалось отправить сообщение:"
-            echo "$SEND_RESPONSE" | jq '.'
+            if command -v jq &> /dev/null; then
+                echo "$SEND_RESPONSE" | jq '.'
+            else
+                echo "$SEND_RESPONSE"
+            fi
         fi
     fi
 else

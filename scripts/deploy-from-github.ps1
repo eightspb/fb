@@ -408,6 +408,42 @@ function Show-Logs {
     & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile logs --tail=20 app 2>/dev/null || true"
 }
 
+function Setup-ServerDependencies {
+    Write-Step "Проверка и установка зависимостей сервера"
+    
+    Write-Info "Запуск скрипта установки зависимостей..."
+    $result = & $SshPath $Server "cd $RemotePath && bash scripts/setup-server-dependencies.sh 2>&1"
+    
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warn "Не удалось автоматически установить все зависимости"
+        Write-Info "Подробности:"
+        Write-Host $result
+        Write-Info "Продолжаю деплой..."
+    } else {
+        Write-Success "Зависимости проверены и установлены"
+    }
+}
+
+function Setup-TelegramWebhook {
+    Write-Step "Настройка Telegram webhook"
+    
+    Write-Info "Запуск скрипта настройки Telegram бота..."
+    $result = & $SshPath $Server "cd $RemotePath && bash scripts/fix-telegram-now.sh 2>&1"
+    
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warn "Не удалось автоматически настроить Telegram webhook"
+        Write-Info "Подробности:"
+        Write-Host $result
+        Write-Info ""
+        Write-Info "Настройте webhook вручную на сервере:"
+        Write-Info "  ssh $Server"
+        Write-Info "  cd $RemotePath"
+        Write-Info "  bash scripts/fix-telegram-now.sh"
+    } else {
+        Write-Success "Telegram webhook настроен успешно"
+    }
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # ОСНОВНОЙ ПРОЦЕСС
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -452,13 +488,19 @@ function Main {
     # 4. Обновление кода
     Update-Repository
     
+    # 4.5. Установка зависимостей сервера
+    Setup-ServerDependencies
+    
     # 5. Применение миграций
     Invoke-Migrations -ComposeFile $script:ComposeFile
     
     # 6. Перезапуск контейнеров
     Restart-Containers -ComposeFile $script:ComposeFile
     
-    # 7. Показать логи
+    # 7. Настройка Telegram webhook
+    Setup-TelegramWebhook
+    
+    # 8. Показать логи
     Show-Logs -ComposeFile $script:ComposeFile
     
     # Итог
