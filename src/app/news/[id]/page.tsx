@@ -395,7 +395,7 @@ export async function generateMetadata({ params }: NewsPageProps): Promise<impor
   }
 
   return {
-    title: `${news.title} | FB.NET`,
+    title: `${news.title} | Компания Зенит`,
     description: news.shortDescription,
     openGraph: {
       title: news.title,
