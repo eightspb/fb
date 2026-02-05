@@ -132,11 +132,19 @@ sleep 10
 # Step 5: Obtain SSL certificate
 print_step "Obtaining SSL certificate from Let's Encrypt..."
 
+# Get network name from running containers
+NETWORK_NAME=$(docker inspect fb-net-nginx 2>/dev/null | grep -A 20 "Networks" | grep -o '"fb-net[^"]*"' | head -1 | tr -d '"')
+if [ -z "$NETWORK_NAME" ]; then
+    NETWORK_NAME="fb-net-prod-network"
+fi
+
+print_step "Using network: $NETWORK_NAME"
+
 if [ -n "$EMAIL" ]; then
     docker run --rm \
         -v "$(pwd)/certbot/www:/var/www/certbot" \
         -v "$(pwd)/certbot/conf:/etc/letsencrypt" \
-        --network fb-net-prod-network \
+        --network "$NETWORK_NAME" \
         certbot/certbot certonly \
         --webroot \
         --webroot-path=/var/www/certbot \
@@ -148,7 +156,7 @@ else
     docker run --rm \
         -v "$(pwd)/certbot/www:/var/www/certbot" \
         -v "$(pwd)/certbot/conf:/etc/letsencrypt" \
-        --network fb-net-prod-network \
+        --network "$NETWORK_NAME" \
         certbot/certbot certonly \
         --webroot \
         --webroot-path=/var/www/certbot \
