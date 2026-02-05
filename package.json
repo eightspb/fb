@@ -11,7 +11,7 @@
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
     "docker:psql": "docker exec -it fb-net-postgres psql -U postgres -d postgres",
-    "docker:prod": "docker-compose -f docker-compose.prod.yml up -d --build",
+    "docker:prod": "docker-compose -f docker-compose.production.yml up -d --build",
     "bun:install": "bun install",
     "bun:update": "bun update",
     "bun:check": "bun pm ls"
