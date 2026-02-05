@@ -173,8 +173,10 @@ if [ -z "$TELEGRAM_ADMIN_CHAT_ID" ]; then
     MISSING_VARS+=("TELEGRAM_ADMIN_CHAT_ID")
 fi
 
-if [ -z "$DATABASE_URL" ]; then
-    MISSING_VARS+=("DATABASE_URL")
+# DATABASE_URL формируется в docker-compose из POSTGRES_PASSWORD
+# Проверяем POSTGRES_PASSWORD вместо DATABASE_URL
+if [ -z "$POSTGRES_PASSWORD" ]; then
+    MISSING_VARS+=("POSTGRES_PASSWORD")
 fi
 
 # Проверяем и добавляем TELEGRAM_WEBHOOK_URL если отсутствует
