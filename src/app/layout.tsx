@@ -15,14 +15,14 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "FB.NET - Официальный дистрибьютор ВАБ завода Сишань в РФ",
-    template: "%s | FB.NET",
+    default: "Компания Зенит - Официальный дистрибьютор ВАБ завода Сишань в РФ",
+    template: "%s | Компания Зенит",
   },
   description: "Официальный дистрибьютор оборудования для вакуумной аспирационной биопсии (ВАБ) молочной железы. Клиническая ценность и передовые технологии для медицинских специалистов.",
   keywords: ["ВАБ", "вакуумная аспирационная биопсия", "медицинское оборудование", "маммология", "биопсия молочной железы", "DK-B-MS", "Сишань"],
-  authors: [{ name: "FB.NET" }],
-  creator: "FB.NET",
-  publisher: "FB.NET",
+  authors: [{ name: "Компания Зенит" }],
+  creator: "Компания Зенит",
+  publisher: "Компания Зенит",
   formatDetection: {
     email: false,
     address: false,
@@ -36,13 +36,13 @@ export const metadata: Metadata = {
     type: "website",
     locale: "ru_RU",
     url: "/",
-    siteName: "FB.NET",
-    title: "FB.NET - Официальный дистрибьютор ВАБ завода Сишань в РФ",
+    siteName: "Компания Зенит",
+    title: "Компания Зенит - Официальный дистрибьютор ВАБ завода Сишань в РФ",
     description: "Официальный дистрибьютор оборудования для вакуумной аспирационной биопсии (ВАБ) молочной железы. Клиническая ценность и передовые технологии для медицинских специалистов.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "FB.NET - Официальный дистрибьютор ВАБ завода Сишань в РФ",
+    title: "Компания Зенит - Официальный дистрибьютор ВАБ завода Сишань в РФ",
     description: "Официальный дистрибьютор оборудования для вакуумной аспирационной биопсии (ВАБ) молочной железы.",
   },
   robots: {
@@ -66,7 +66,7 @@ export default function RootLayout({
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: 'FB.NET',
+    name: 'Компания Зенит',
     description: 'Официальный дистрибьютор ВАБ завода Сишань в РФ',
     url: process.env.NEXT_PUBLIC_SITE_URL || 'https://fb.net',
     logo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fb.net'}/logo.png`,

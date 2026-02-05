@@ -152,7 +152,7 @@ ${contextInfo.length > 0 ? `Дополнительная информация:\n
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-          'X-Title': 'FB.NET News Bot',
+          'X-Title': 'Компания Зенит News Bot',
           'Content-Type': 'application/json',
         },
       }
@@ -270,7 +270,7 @@ export async function transcribeAudioWithAI(
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-          'X-Title': 'FB.NET News Bot',
+          'X-Title': 'Компания Зенит News Bot',
           ...formData.getHeaders(),
         },
         maxBodyLength: Infinity,
@@ -339,7 +339,7 @@ export async function improveDescriptionWithAI(text: string): Promise<string> {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-          'X-Title': 'FB.NET News Bot',
+          'X-Title': 'Компания Зенит News Bot',
           'Content-Type': 'application/json',
         },
       }
