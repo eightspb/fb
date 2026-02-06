@@ -903,22 +903,13 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
                     </div>
                     <div>
                       <Label className="text-xs">Путь к видео файлу</Label>
-                      <div className="flex gap-2">
-                        <Input 
-                          value={video.video_url}
-                          onChange={(e) => updateVideo(video.id, 'video_url', e.target.value)}
-                          placeholder="/videos/conferences/sms3_video1.mp4"
-                          className="flex-1"
-                        />
-                        <FileUpload 
-                          onUpload={(url) => updateVideo(video.id, 'video_url', url)} 
-                          folder="conferences/videos" 
-                          mode="url"
-                          accept="video/*"
-                        />
-                      </div>
+                      <Input 
+                        value={video.video_url}
+                        onChange={(e) => updateVideo(video.id, 'video_url', e.target.value)}
+                        placeholder="/videos/conferences/sms3_video1.mp4"
+                      />
                       <p className="text-xs text-slate-500 mt-1">
-                        Загрузите видео файл или укажите путь к файлу на сервере
+                        Укажите путь к видео файлу на сервере (например: /videos/conferences/sms3_video1.mp4)
                       </p>
                     </div>
                     <div className="flex justify-end gap-1">
