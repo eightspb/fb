@@ -8,7 +8,7 @@ import { FeaturesSection } from "@/components/FeaturesSection";
 import { PartnersSection } from "@/components/PartnersSection";
 import { Footer } from "@/components/Footer";
 import { RequestCPModal } from "@/components/RequestCPModal";
-import { ConferencePopup } from "@/components/ConferencePopup";
+// import { ConferencePopup } from "@/components/ConferencePopup";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { ArrowRight, Microscope, Heart, Brain } from "lucide-react";
 
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <div className="min-h-screen bg-slate-50 w-full font-sans selection:bg-teal-100 selection:text-teal-900">
-      <ConferencePopup />
+      {/* <ConferencePopup /> */}
       <Header />
 
       {/* Hero Section */}
