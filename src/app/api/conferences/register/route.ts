@@ -125,15 +125,15 @@ export async function POST(request: NextRequest) {
         await transporter.sendMail({
           from: senderEmail,
           to: body.email,
-          subject: 'Регистрация на конференцию получена | ЗЕНИТ МЕД',
+          subject: 'Регистрация на конференцию получена | Компания ЗЕНИТ',
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <h2>Здравствуйте, ${safeName}!</h2>
               <p>Мы получили вашу регистрацию на конференцию "${safeConference}".</p>
-              <p>Наш менеджер свяжется с вами в ближайшее время для подтверждения регистрации.</p>
+              <p>Благодарим за регистрацию и ждём вас!</p>
               <br>
-              <p>С уважением,<br>Команда ЗЕНИТ МЕД</p>
-              <p><a href="https://zenitmed.ru">zenitmed.ru</a></p>
+              <p>С уважением,<br>Компания ЗЕНИТ</p>
+              <p><a href="https://fibroadenoma.net">fibroadenoma.net</a></p>
             </div>
           `,
         });
