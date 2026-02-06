@@ -21,6 +21,8 @@ services:
       - postgres-prod-data:/var/lib/postgresql/data
       # Database schema initialization on first run (only for new installs)
       - ./database-schema.sql:/docker-entrypoint-initdb.d/00-init-schema.sql:ro
+      # Migrations folder for manual application
+      - ./migrations:/migrations:ro
     networks:
       - fb-net-prod-network
     restart: always

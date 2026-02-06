@@ -20,6 +20,8 @@ services:
     volumes:
       - postgres-prod-data:/var/lib/postgresql/data
       - ./database-schema.sql:/docker-entrypoint-initdb.d/00-init-schema.sql:ro
+      # Migrations folder for manual application
+      - ./migrations:/migrations:ro
     networks:
       - fb-net-prod-network
     restart: always
