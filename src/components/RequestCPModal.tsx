@@ -30,8 +30,9 @@ export function RequestCPModal({
   formType = 'cp'
 }: RequestCPModalProps) {
   const [open, setOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isSuccess, setIsSuccess] = useState(false)
+  const [isLoading, setIsLoading] = useState(falseбьи рр  рп д яап                   )
+  эюбжьдььььр ипо 6го п  Ф
+  const [isSuccess, setIsSuccess] = useState(false) ffgdhfjhkz
   const [error, setError] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
