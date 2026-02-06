@@ -312,6 +312,15 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
     setLoading(true);
 
     try {
+      // Устанавливаем порядок спикеров на основе их позиции в массиве
+      const dataToSubmit = {
+        ...formData,
+        speakers: formData.speakers.map((speaker, index) => ({
+          ...speaker,
+          order: index
+        }))
+      };
+
       const url = isEditing ? `/api/conferences/${initialData.id}` : '/api/conferences';
       const method = isEditing ? 'PUT' : 'POST';
 
@@ -320,7 +329,7 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
         method,
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(dataToSubmit)
       });
 
       // Если ошибка CSRF, пробуем обновить токен и повторить запрос
@@ -331,7 +340,7 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
           method,
           credentials: 'include',
           headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
-          body: JSON.stringify(formData)
+          body: JSON.stringify(dataToSubmit)
         });
       }
 
