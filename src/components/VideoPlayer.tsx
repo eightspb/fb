@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { PlayCircle } from "lucide-react";
 
 interface VideoPlayerProps {
@@ -13,12 +13,46 @@ export function VideoPlayer({ src, title = "Демонстрация работ�
   const [hasStarted, setHasStarted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  // Установка дополнительных атрибутов для мобильных устройств
+  useEffect(() => {
+    if (videoRef.current) {
+      // Для iOS Safari
+      videoRef.current.setAttribute('webkit-playsinline', 'true');
+      // Для Android браузеров (WeChat, QQ Browser)
+      videoRef.current.setAttribute('x5-playsinline', 'true');
+    }
+  }, []);
+
+  const startPlayback = () => {
     if (videoRef.current && !hasStarted) {
       videoRef.current.play().catch(console.error);
       setHasStarted(true);
+    }
+  };
+
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    startPlayback();
+  };
+
+  const handleOverlayTouch = (e: React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    startPlayback();
+  };
+
+  const handleVideoClick = (e: React.MouseEvent) => {
+    if (!hasStarted) {
+      e.preventDefault();
+      startPlayback();
+    }
+  };
+
+  const handleVideoTouch = (e: React.TouchEvent) => {
+    if (!hasStarted) {
+      e.preventDefault();
+      startPlayback();
     }
   };
 
@@ -36,6 +70,8 @@ export function VideoPlayer({ src, title = "Демонстрация работ�
         className="w-full h-full object-cover"
         controls={hasStarted}
         onPlay={handlePlay}
+        onClick={handleVideoClick}
+        onTouchStart={handleVideoTouch}
         playsInline
         preload="metadata"
       />
@@ -43,8 +79,9 @@ export function VideoPlayer({ src, title = "Демонстрация работ�
       {!hasStarted && (
         <>
           <div 
-            className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors cursor-pointer z-10"
+            className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors cursor-pointer z-10 touch-manipulation"
             onClick={handleOverlayClick}
+            onTouchStart={handleOverlayTouch}
           >
             <div className="w-20 h-20 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
               <PlayCircle className="w-10 h-10 text-white fill-white/20" />
