@@ -10,9 +10,10 @@ export interface Speaker {
   name: string;
   photo: string;
   credentials: string;
-  institution: string;      // Organization/city (e.g., "МНИОИ им. П.А. Герцена, Москва")
-  is_presidium: boolean;    // Flag for presidium members
-  order: number;            // Display order
+  institution?: string;     // Organization/city (e.g., "МНИОИ им. П.А. Герцена, Москва")
+  is_speaker?: boolean;     // Flag for speakers (gives talks) - default: true for backward compatibility
+  is_presidium?: boolean;   // Flag for presidium members - default: false
+  order?: number;           // Display order (default: 0)
   
   // Legacy fields (for backward compatibility)
   report_title?: string;    // Deprecated: moved to program
@@ -89,12 +90,30 @@ export function isStructuredProgram(program: ProgramItem[] | string[]): program 
 }
 
 /**
- * Helper function to get speakers by type
+ * Helper function to get speakers (people who give talks)
+ * Treats undefined/null is_speaker as true for backward compatibility
+ */
+export function getSpeakers(speakers: Speaker[] = []): Speaker[] {
+  return speakers
+    .filter(s => (s.is_speaker ?? true) === true)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+
+/**
+ * Helper function to get presidium members
+ * Treats undefined/null is_presidium as false
+ */
+export function getPresidiumMembers(speakers: Speaker[] = []): Speaker[] {
+  return speakers
+    .filter(s => (s.is_presidium ?? false) === true)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+
+/**
+ * @deprecated Use getSpeakers() and getPresidiumMembers() instead
  */
 export function getSpeakersByType(speakers: Speaker[] = [], isPresidium: boolean): Speaker[] {
-  return speakers
-    .filter(s => s.is_presidium === isPresidium)
-    .sort((a, b) => (a.order || 0) - (b.order || 0));
+  return isPresidium ? getPresidiumMembers(speakers) : getSpeakers(speakers);
 }
 
 /**

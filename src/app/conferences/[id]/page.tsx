@@ -13,7 +13,7 @@ import { SpeakerCard } from '@/components/SpeakerCard';
 import { ConferenceSchedule } from '@/components/ConferenceSchedule';
 import { ConferenceVideos } from '@/components/ConferenceVideos';
 import { isUUID } from '@/lib/slug';
-import { getSpeakersByType, isStructuredProgram } from '@/lib/types/conference';
+import { getSpeakers, getPresidiumMembers, isStructuredProgram } from '@/lib/types/conference';
 import type { Conference, ProgramItem } from '@/lib/types/conference';
 import { 
   Calendar, 
@@ -226,27 +226,27 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
 
             {/* Speakers Section - 4 cards per row */}
             {conference.speakers && conference.speakers.length > 0 && (() => {
-              const regularSpeakers = getSpeakersByType(conference.speakers, false);
-              const presidiumMembers = getSpeakersByType(conference.speakers, true);
+              const speakers = getSpeakers(conference.speakers);
+              const presidiumMembers = getPresidiumMembers(conference.speakers);
               
               return (
                 <>
-                  {/* Regular Speakers */}
-                  {regularSpeakers.length > 0 && (
+                  {/* Speakers (people who give talks) */}
+                  {speakers.length > 0 && (
                     <section>
                       <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
                         <Users className="w-6 h-6 text-teal-600" />
                         Докладчики конференции
                       </h2>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {regularSpeakers.map((speaker) => (
+                        {speakers.map((speaker) => (
                           <SpeakerCard key={speaker.id} speaker={speaker} />
                         ))}
                       </div>
                     </section>
                   )}
 
-                  {/* Presidium */}
+                  {/* Presidium members */}
                   {presidiumMembers.length > 0 && (
                     <section>
                       <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">

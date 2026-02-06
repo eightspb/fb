@@ -30,9 +30,15 @@
 --   "photo": "string",
 --   "credentials": "string",
 --   "institution": "string",     -- NEW: organization/city
---   "is_presidium": boolean,     -- NEW: flag for presidium members
+--   "is_speaker": boolean,       -- NEW: flag for speakers (gives talks) - default: true
+--   "is_presidium": boolean,     -- NEW: flag for presidium members - default: false
 --   "order": number              -- NEW: display order
 -- }
+--
+-- IMPORTANT: A person can be:
+-- - Only a speaker (is_speaker: true, is_presidium: false)
+-- - Only a presidium member (is_speaker: false, is_presidium: true)
+-- - Both speaker and presidium (is_speaker: true, is_presidium: true)
 
 -- ============================================================================
 -- NEW STRUCTURE: program (JSONB)
@@ -119,6 +125,7 @@ INSERT INTO conferences (
       "photo": "/images/speakers/odintsov.jpg",
       "credentials": "Д.м.н., профессор, главный врач Клиники доктора Одинцова",
       "institution": "Клиника Одинцова, г. Санкт-Петербург",
+      "is_speaker": true,
       "is_presidium": true,
       "order": 1
     },
@@ -128,8 +135,19 @@ INSERT INTO conferences (
       "photo": "/images/speakers/prokopenko.jpg",
       "credentials": "к.м.н., заведующий отделением",
       "institution": "МНИОИ им. П.А. Герцена, Москва",
+      "is_speaker": true,
       "is_presidium": false,
       "order": 2
+    },
+    {
+      "id": "speaker-3",
+      "name": "Иванов Иван Иванович",
+      "photo": "/images/speakers/ivanov.jpg",
+      "credentials": "к.м.н., профессор",
+      "institution": "НИИ Онкологии, Москва",
+      "is_speaker": false,
+      "is_presidium": true,
+      "order": 3
     }
   ]'::jsonb,
   '[

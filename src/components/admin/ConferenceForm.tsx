@@ -18,9 +18,10 @@ interface Speaker {
   name: string;
   photo: string;
   credentials: string;
-  institution: string;
-  is_presidium: boolean;
-  order: number;
+  institution?: string;
+  is_speaker?: boolean;
+  is_presidium?: boolean;
+  order?: number;
   // Legacy fields (for backward compatibility)
   report_title?: string;
   report_time?: string;
@@ -262,6 +263,7 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
       photo: '',
       credentials: '',
       institution: '',
+      is_speaker: true,
       is_presidium: false,
       order: formData.speakers.length + 1
     };
@@ -597,17 +599,31 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
                           className="min-h-[60px]"
                         />
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <input 
-                          type="checkbox" 
-                          id={`presidium-${speaker.id}`}
-                          checked={speaker.is_presidium} 
-                          onChange={(e) => updateSpeaker(speaker.id, 'is_presidium', e.target.checked)}
-                          className="h-4 w-4 rounded border-gray-300"
-                        />
-                        <Label htmlFor={`presidium-${speaker.id}`} className="text-sm font-normal cursor-pointer">
-                          Член президиума конференции
-                        </Label>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center space-x-2">
+                          <input 
+                            type="checkbox" 
+                            id={`speaker-${speaker.id}`}
+                            checked={speaker.is_speaker ?? true} 
+                            onChange={(e) => updateSpeaker(speaker.id, 'is_speaker', e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          <Label htmlFor={`speaker-${speaker.id}`} className="text-sm font-normal cursor-pointer">
+                            Докладчик (выступает с докладом)
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input 
+                            type="checkbox" 
+                            id={`presidium-${speaker.id}`}
+                            checked={speaker.is_presidium ?? false} 
+                            onChange={(e) => updateSpeaker(speaker.id, 'is_presidium', e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          <Label htmlFor={`presidium-${speaker.id}`} className="text-sm font-normal cursor-pointer">
+                            Член президиума конференции
+                          </Label>
+                        </div>
                       </div>
                     </div>
 
