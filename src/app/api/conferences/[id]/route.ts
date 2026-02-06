@@ -67,7 +67,8 @@ export async function PUT(
       cover_image,
       speakers,
       organizer_contacts,
-      additional_info
+      additional_info,
+      videos
     } = body;
 
     // Обработка slug
@@ -110,8 +111,8 @@ export async function PUT(
          SET slug = $1, title = $2, date = $3, date_end = $4, description = $5, type = $6, 
              location = $7, speaker = $8, cme_hours = $9, program = $10, materials = $11, 
              status = $12, cover_image = $13, speakers = $14, organizer_contacts = $15, 
-             additional_info = $16, updated_at = NOW()
-         WHERE id = $17
+             additional_info = $16, videos = $17, updated_at = NOW()
+         WHERE id = $18
          RETURNING *`,
         [
           slug,
@@ -130,6 +131,7 @@ export async function PUT(
           JSON.stringify(speakers || []),
           JSON.stringify(organizer_contacts || {}),
           additional_info || null,
+          JSON.stringify(videos || []),
           conferenceId
         ]
       );
