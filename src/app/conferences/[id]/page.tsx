@@ -158,7 +158,7 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
       {/* Hero Section */}
       <div className="relative pt-16">
         {conference.cover_image ? (
-          <div className="relative h-[300px] md:h-[400px]">
+          <div className="relative h-[600px] md:h-[800px]">
             <Image
               src={conference.cover_image}
               alt={conference.title}
@@ -387,6 +387,60 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
             </Card>
           </section>
         )}
+
+        {/* Organizers Section */}
+        <section className="mt-16">
+          <h2 className="text-2xl font-bold text-slate-900 mb-8 text-center">
+            Организаторы конференции
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 items-center justify-items-center">
+            <div className="flex items-center justify-center w-full h-24">
+              <Image
+                src="/images/xishan-logo-new.png"
+                alt="Xishan"
+                width={180}
+                height={80}
+                className="object-contain"
+              />
+            </div>
+            <div className="flex items-center justify-center w-full h-24">
+              <Image
+                src="/images/logo.png"
+                alt="Зенит"
+                width={180}
+                height={80}
+                className="object-contain"
+              />
+            </div>
+            <div className="flex items-center justify-center w-full h-24">
+              <Image
+                src="/images/new_logo_clinic.png"
+                alt="Клиника доктора Одинцова"
+                width={180}
+                height={80}
+                className="object-contain"
+              />
+            </div>
+            <div className="flex items-center justify-center w-full h-24">
+              <Image
+                src="/images/mknclogo.png"
+                alt="Московский клинический научный центр"
+                width={180}
+                height={80}
+                className="object-contain"
+              />
+            </div>
+            <div className="flex items-center justify-center w-full h-24 col-span-2 md:col-span-3 lg:col-span-1">
+              <Image
+                src="/images/moologo.png"
+                alt="Московское онкологическое общество"
+                width={180}
+                height={80}
+                className="object-contain"
+              />
+            </div>
+          </div>
+        </section>
 
         {/* Navigation */}
         <div className="mt-12 pt-8 border-t border-slate-200">
