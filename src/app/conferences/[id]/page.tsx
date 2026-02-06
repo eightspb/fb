@@ -158,7 +158,7 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
       {/* Hero Section */}
       <div className="relative pt-16">
         {conference.cover_image ? (
-          <div className="relative h-[600px] md:h-[800px]">
+          <div className="relative h-[1200px] md:h-[1600px]">
             <Image
               src={conference.cover_image}
               alt={conference.title}
