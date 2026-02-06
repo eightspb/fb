@@ -12,7 +12,6 @@ import { CountdownTimer } from '@/components/CountdownTimer';
 import { SpeakerCard } from '@/components/SpeakerCard';
 import { ConferenceSchedule } from '@/components/ConferenceSchedule';
 import { ConferenceVideos } from '@/components/ConferenceVideos';
-import { isUUID } from '@/lib/slug';
 import { getSpeakers, getPresidiumMembers, isStructuredProgram } from '@/lib/types/conference';
 import type { Conference, ProgramItem } from '@/lib/types/conference';
 import { 
@@ -23,16 +22,14 @@ import {
   CheckCircle, 
   ChevronLeft,
   Phone,
-  Mail,
-  MessageCircle,
   User
 } from 'lucide-react';
 
-interface ConferencePageProps {
-  params: Promise<{ id: string }>;
+interface SlugPageProps {
+  params: Promise<{ slug: string }>;
 }
 
-async function getConference(idOrSlug: string): Promise<Conference | null> {
+async function getConferenceBySlug(slug: string): Promise<Conference | null> {
   try {
     if (process.env.DATABASE_URL) {
       const { Pool } = await import('pg');
@@ -42,19 +39,10 @@ async function getConference(idOrSlug: string): Promise<Conference | null> {
       
       const client = await pool.connect();
       try {
-        // Поиск по UUID или slug
-        let result;
-        if (isUUID(idOrSlug)) {
-          result = await client.query(
-            'SELECT * FROM conferences WHERE id = $1',
-            [idOrSlug]
-          );
-        } else {
-          result = await client.query(
-            'SELECT * FROM conferences WHERE slug = $1',
-            [idOrSlug]
-          );
-        }
+        const result = await client.query(
+          'SELECT * FROM conferences WHERE slug = $1',
+          [slug]
+        );
         
         if (result.rows.length > 0) {
           const row = result.rows[0];
@@ -85,7 +73,7 @@ async function getConference(idOrSlug: string): Promise<Conference | null> {
       }
     } else {
       const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-      const response = await fetch(`${baseUrl}/api/conferences/${idOrSlug}`, {
+      const response = await fetch(`${baseUrl}/api/conferences/${slug}`, {
         cache: 'no-store'
       });
       
@@ -136,9 +124,9 @@ function isUpcoming(date: string, dateEnd?: string): boolean {
   return endDate >= today;
 }
 
-export default async function ConferencePage({ params }: ConferencePageProps) {
-  const { id } = await params;
-  const conference = await getConference(id);
+export default async function SlugPage({ params }: SlugPageProps) {
+  const { slug } = await params;
+  const conference = await getConferenceBySlug(slug);
 
   if (!conference) {
     notFound();
@@ -403,9 +391,9 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
   );
 }
 
-export async function generateMetadata({ params }: ConferencePageProps): Promise<import('next').Metadata> {
-  const { id } = await params;
-  const conference = await getConference(id);
+export async function generateMetadata({ params }: SlugPageProps): Promise<import('next').Metadata> {
+  const { slug } = await params;
+  const conference = await getConferenceBySlug(slug);
 
   if (!conference) {
     return {
