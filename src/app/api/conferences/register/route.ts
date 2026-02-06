@@ -17,9 +17,6 @@ interface ConferenceRegistrationData {
   conference: string;
 }
 
-// Название третьей конференции
-const THIRD_CONFERENCE_NAME = 'Миниинвазивная хирургия / Молочная железа 2026';
-
 export async function POST(request: NextRequest) {
   try {
     const body: ConferenceRegistrationData = await request.json();
@@ -88,74 +85,82 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
 
-    // Отправка email для третьей конференции
-    const isThirdConference = body.conference === THIRD_CONFERENCE_NAME;
-    
-    if (isThirdConference) {
-      try {
-        // Configure transporter
-        const transporter = createEmailTransporter();
-        const targetEmail = getTargetEmail();
-        const senderEmail = getSenderEmail();
+    // Отправка email для всех конференций
+    try {
+      console.log('[Conference Register] Начало отправки email...');
+      // Configure transporter
+      const transporter = createEmailTransporter();
+      const targetEmail = getTargetEmail();
+      const senderEmail = getSenderEmail();
 
-        // Отправка уведомления на info@zenitmed.ru
-        const safeConference = escapeHtml(body.conference);
-        const safeName = escapeHtml(body.name);
-        const safeEmail = escapeHtml(body.email);
-        const safePhone = escapeHtml(body.phone);
-        const safeInstitution = body.institution ? escapeHtml(body.institution) : '';
+      console.log('[Conference Register] Email настройки:', {
+        from: senderEmail,
+        to: targetEmail,
+        userEmail: body.email,
+        conference: body.conference,
+      });
 
-        await transporter.sendMail({
-          from: senderEmail,
-          to: targetEmail,
-          subject: `Регистрация на конференцию: ${safeName}`,
-          html: `
-            <h2>Новая регистрация на конференцию</h2>
-            <p><strong>Конференция:</strong> ${safeConference}</p>
-            <p><strong>ФИО:</strong> ${safeName}</p>
-            <p><strong>Email:</strong> ${safeEmail}</p>
-            <p><strong>Телефон:</strong> ${safePhone}</p>
-            ${safeInstitution ? `<p><strong>Учреждение:</strong> ${safeInstitution}</p>` : ''}
-            <p><strong>Нужен сертификат:</strong> ${body.certificate ? 'Да' : 'Нет'}</p>
-            <p><strong>Дата регистрации:</strong> ${new Date().toLocaleString('ru-RU')}</p>
-          `,
-        });
+      // Отправка уведомления на info@zenitmed.ru
+      const safeConference = escapeHtml(body.conference);
+      const safeName = escapeHtml(body.name);
+      const safeEmail = escapeHtml(body.email);
+      const safePhone = escapeHtml(body.phone);
+      const safeInstitution = body.institution ? escapeHtml(body.institution) : '';
 
-        // Отправка подтверждения пользователю
-        await transporter.sendMail({
-          from: senderEmail,
-          to: body.email,
-          subject: 'Регистрация на конференцию получена | Компания ЗЕНИТ',
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2>Здравствуйте, ${safeName}!</h2>
-              <p>Мы получили вашу регистрацию на конференцию "${safeConference}".</p>
-              <p>Благодарим за регистрацию и ждём вас!</p>
-              <br>
-              <p>С уважением,<br>Компания ЗЕНИТ</p>
-              <p><a href="https://fibroadenoma.net">fibroadenoma.net</a></p>
-            </div>
-          `,
-        });
-      } catch (emailError: any) {
-        // Логируем ошибку отправки email
-        console.error('Error sending registration email:', emailError);
-        const errorMessage = emailError?.message || 'Неизвестная ошибка при отправке email';
-        
-        // Если это ошибка конфигурации SMTP, возвращаем ошибку
-        if (errorMessage.includes('не установлен') || errorMessage.includes('SMTP')) {
-          return NextResponse.json(
-            { error: 'Ошибка конфигурации почтового сервера. Обратитесь к администратору.' },
-            { status: 500 }
-          );
-        }
-        
-        // Для других ошибок отправки email возвращаем общее сообщение
+      console.log('[Conference Register] Отправка уведомления администратору...');
+      await transporter.sendMail({
+        from: senderEmail,
+        to: targetEmail,
+        subject: `Регистрация на конференцию: ${safeName}`,
+        html: `
+          <h2>Новая регистрация на конференцию</h2>
+          <p><strong>Конференция:</strong> ${safeConference}</p>
+          <p><strong>ФИО:</strong> ${safeName}</p>
+          <p><strong>Email:</strong> ${safeEmail}</p>
+          <p><strong>Телефон:</strong> ${safePhone}</p>
+          ${safeInstitution ? `<p><strong>Учреждение:</strong> ${safeInstitution}</p>` : ''}
+          <p><strong>Нужен сертификат:</strong> ${body.certificate ? 'Да' : 'Нет'}</p>
+          <p><strong>Дата регистрации:</strong> ${new Date().toLocaleString('ru-RU')}</p>
+        `,
+      });
+      console.log('[Conference Register] Уведомление администратору отправлено');
+
+      // Отправка подтверждения пользователю
+      console.log('[Conference Register] Отправка подтверждения пользователю...');
+      await transporter.sendMail({
+        from: senderEmail,
+        to: body.email,
+        subject: 'Регистрация на конференцию получена | Компания ЗЕНИТ',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Здравствуйте, ${safeName}!</h2>
+            <p>Мы получили вашу регистрацию на конференцию "${safeConference}".</p>
+            <p>Благодарим за регистрацию и ждём вас!</p>
+            <br>
+            <p>С уважением,<br>Компания ЗЕНИТ</p>
+            <p><a href="https://fibroadenoma.net">fibroadenoma.net</a></p>
+          </div>
+        `,
+      });
+      console.log('[Conference Register] Подтверждение пользователю отправлено');
+    } catch (emailError: any) {
+      // Логируем ошибку отправки email
+      console.error('[Conference Register] Ошибка отправки email:', emailError);
+      const errorMessage = emailError?.message || 'Неизвестная ошибка при отправке email';
+      
+      // Если это ошибка конфигурации SMTP, возвращаем ошибку
+      if (errorMessage.includes('не установлен') || errorMessage.includes('SMTP')) {
         return NextResponse.json(
-          { error: 'Не удалось отправить регистрацию. Пожалуйста, попробуйте позже или свяжитесь с нами по телефону.' },
+          { error: 'Ошибка конфигурации почтового сервера. Обратитесь к администратору.' },
           { status: 500 }
         );
       }
+      
+      // Для других ошибок отправки email возвращаем общее сообщение
+      return NextResponse.json(
+        { error: 'Не удалось отправить регистрацию. Пожалуйста, попробуйте позже или свяжитесь с нами по телефону.' },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json(
