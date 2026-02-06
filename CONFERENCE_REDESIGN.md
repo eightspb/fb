@@ -23,17 +23,24 @@ interface Speaker {
   name: string;
   photo: string;
   credentials: string;
-  institution: string;      // НОВОЕ: организация/город
-  is_presidium: boolean;    // НОВОЕ: флаг президиума
-  order: number;            // НОВОЕ: порядок отображения
+  institution?: string;     // НОВОЕ: организация/город
+  is_speaker?: boolean;     // НОВОЕ: флаг докладчика (default: true)
+  is_presidium?: boolean;   // НОВОЕ: флаг президиума (default: false)
+  order?: number;           // НОВОЕ: порядок отображения
 }
 ```
 
 **Изменения:**
 - ✅ Добавлено поле `institution` - организация и город спикера
-- ✅ Добавлено поле `is_presidium` - флаг принадлежности к президиуму
+- ✅ Добавлено поле `is_speaker` - флаг докладчика (выступает с докладом)
+- ✅ Добавлено поле `is_presidium` - флаг члена президиума
 - ✅ Добавлено поле `order` - порядок отображения
 - ❌ Убраны поля `report_title` и `report_time` (перенесены в расписание)
+
+**ВАЖНО:** Человек может быть:
+- Только докладчиком (`is_speaker: true`, `is_presidium: false`)
+- Только членом президиума (`is_speaker: false`, `is_presidium: true`)
+- И докладчиком И членом президиума (`is_speaker: true`, `is_presidium: true`)
 
 ### 2. Расписание (program)
 
@@ -142,7 +149,10 @@ import { ConferenceVideos } from '@/components/ConferenceVideos';
 - Организация, город
 - Регалии, должность
 - Фото
+- ☑ Докладчик (выступает с докладом)
 - ☑ Член президиума конференции
+
+**Важно:** Можно отметить оба чекбокса одновременно - человек может быть и докладчиком и членом президиума.
 
 **Убраны поля:**
 - ❌ Время доклада (теперь в расписании)
