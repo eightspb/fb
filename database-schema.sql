@@ -2,9 +2,8 @@
 CREATE TABLE IF NOT EXISTS form_submissions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
   form_type TEXT NOT NULL, -- 'contact', 'cp', 'training', 'conference_registration'
-  status TEXT DEFAULT 'new', -- new, in_progress, processed, archived
+  status TEXT DEFAULT 'new', -- new, processed, archived
   name TEXT NOT NULL,
   email TEXT NOT NULL,
   phone TEXT NOT NULL,
@@ -12,18 +11,8 @@ CREATE TABLE IF NOT EXISTS form_submissions (
   institution TEXT,
   city TEXT,
   page_url TEXT, -- where the form was submitted from
-  metadata JSONB DEFAULT '{}'::jsonb, -- for any extra fields
-  notes TEXT, -- внутренние заметки/комментарии менеджера
-  assigned_to TEXT, -- кому назначена заявка (для будущего)
-  priority TEXT DEFAULT 'normal' -- low, normal, high, urgent
+  metadata JSONB DEFAULT '{}'::jsonb -- for any extra fields
 );
-
--- Триггер для автоматического обновления updated_at
-DROP TRIGGER IF EXISTS update_form_submissions_updated_at ON form_submissions;
-CREATE TRIGGER update_form_submissions_updated_at
-  BEFORE UPDATE ON form_submissions
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
 
 -- Индексы для form_submissions
 CREATE INDEX IF NOT EXISTS idx_form_submissions_created_at ON form_submissions(created_at DESC);
