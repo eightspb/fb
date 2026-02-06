@@ -9,7 +9,12 @@ import { Footer } from '@/components/Footer';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { ConferenceRegistrationForm } from '@/components/ConferenceRegistrationForm';
 import { CountdownTimer } from '@/components/CountdownTimer';
+import { SpeakerCard } from '@/components/SpeakerCard';
+import { ConferenceSchedule } from '@/components/ConferenceSchedule';
+import { ConferenceVideos } from '@/components/ConferenceVideos';
 import { isUUID } from '@/lib/slug';
+import { getSpeakersByType, isStructuredProgram } from '@/lib/types/conference';
+import type { Conference, ProgramItem } from '@/lib/types/conference';
 import { 
   Calendar, 
   MapPin, 
@@ -22,42 +27,6 @@ import {
   MessageCircle,
   User
 } from 'lucide-react';
-
-interface Speaker {
-  id: string;
-  name: string;
-  photo: string;
-  credentials: string;
-  report_title: string;
-  report_time: string;
-}
-
-interface OrganizerContacts {
-  name?: string;
-  phone?: string;
-  email?: string;
-  additional?: string;
-}
-
-interface Conference {
-  id: string;
-  slug?: string;
-  title: string;
-  date: string;
-  date_end?: string;
-  description: string;
-  type: string;
-  location: string | null;
-  speaker: string | null;
-  cme_hours: number | null;
-  program: string[];
-  materials: string[];
-  status: string;
-  cover_image?: string;
-  speakers?: Speaker[];
-  organizer_contacts?: OrganizerContacts;
-  additional_info?: string;
-}
 
 interface ConferencePageProps {
   params: Promise<{ id: string }>;
@@ -107,6 +76,7 @@ async function getConference(idOrSlug: string): Promise<Conference | null> {
             speakers: Array.isArray(row.speakers) ? row.speakers : (typeof row.speakers === 'string' ? JSON.parse(row.speakers) : []),
             organizer_contacts: typeof row.organizer_contacts === 'object' ? row.organizer_contacts : (typeof row.organizer_contacts === 'string' ? JSON.parse(row.organizer_contacts) : {}),
             additional_info: row.additional_info || undefined,
+            videos: Array.isArray(row.videos) ? row.videos : (typeof row.videos === 'string' ? JSON.parse(row.videos) : []),
           };
         }
       } finally {
@@ -239,10 +209,8 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
         </div>
       )}
 
-      <main className="container mx-auto px-4 md:px-6 py-12 max-w-5xl">
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
+      <main className="container mx-auto px-4 md:px-6 py-12 max-w-6xl">
+        <div className="space-y-12">
             {/* Description */}
             {conference.description && (
               <section>
@@ -256,84 +224,135 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
               </section>
             )}
 
-            {/* Program */}
+            {/* Speakers Section - 4 cards per row */}
+            {conference.speakers && conference.speakers.length > 0 && (() => {
+              const regularSpeakers = getSpeakersByType(conference.speakers, false);
+              const presidiumMembers = getSpeakersByType(conference.speakers, true);
+              
+              return (
+                <>
+                  {/* Regular Speakers */}
+                  {regularSpeakers.length > 0 && (
+                    <section>
+                      <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+                        <Users className="w-6 h-6 text-teal-600" />
+                        Докладчики конференции
+                      </h2>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {regularSpeakers.map((speaker) => (
+                          <SpeakerCard key={speaker.id} speaker={speaker} />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Presidium */}
+                  {presidiumMembers.length > 0 && (
+                    <section>
+                      <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+                        <Users className="w-6 h-6 text-teal-600" />
+                        Президиум конференции
+                      </h2>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {presidiumMembers.map((speaker) => (
+                          <SpeakerCard key={speaker.id} speaker={speaker} />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </>
+              );
+            })()}
+
+            {/* Program Schedule - Structured or Legacy */}
             {conference.program && conference.program.length > 0 && (
               <section>
-                <h2 className="text-2xl font-bold text-slate-900 mb-6">Программа</h2>
-                <Card>
-                  <CardContent className="p-6">
-                    <ul className="space-y-3">
-                      {conference.program.map((item, index) => (
-                        <li key={index} className="flex items-start gap-3">
-                          <CheckCircle className="w-5 h-5 text-teal-500 mt-0.5 flex-shrink-0" />
-                          <span className="text-slate-700">{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
+                <h2 className="text-2xl font-bold text-slate-900 mb-6">Программа конференции</h2>
+                {isStructuredProgram(conference.program) ? (
+                  <ConferenceSchedule 
+                    program={conference.program as ProgramItem[]} 
+                    speakers={conference.speakers || []} 
+                  />
+                ) : (
+                  <Card>
+                    <CardContent className="p-6">
+                      <ul className="space-y-3">
+                        {(conference.program as string[]).map((item, index) => (
+                          <li key={index} className="flex items-start gap-3">
+                            <CheckCircle className="w-5 h-5 text-teal-500 mt-0.5 flex-shrink-0" />
+                            <span className="text-slate-700">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                )}
               </section>
             )}
 
-            {/* Speakers */}
-            {conference.speakers && conference.speakers.length > 0 && (
-              <section>
-                <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-                  <Users className="w-6 h-6 text-teal-600" />
-                  Спикеры
-                </h2>
-                <div className="grid gap-4">
-                  {conference.speakers.map((speaker, index) => (
-                    <Card key={speaker.id || index} className="overflow-hidden">
-                      <CardContent className="p-0">
-                        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 sm:p-6">
-                          {/* Photo - круглое изображение */}
-                          <div className="flex-shrink-0">
-                            {speaker.photo ? (
-                              <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-4 border-slate-100">
-                                <Image
-                                  src={speaker.photo}
-                                  alt={speaker.name}
-                                  fill
-                                  sizes="112px"
-                                  className="object-cover"
-                                  unoptimized
-                                />
-                              </div>
-                            ) : (
-                              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-100">
-                                <User className="w-12 h-12 text-slate-300" />
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Info */}
-                          <div className="flex-1 text-center sm:text-left">
-                            <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-                              <h3 className="text-lg font-bold text-slate-900">{speaker.name}</h3>
-                              {speaker.report_time && (
-                                <Badge variant="outline" className="text-xs">
-                                  <Clock className="w-3 h-3 mr-1" />
-                                  {speaker.report_time}
-                                </Badge>
-                              )}
-                            </div>
-                            {speaker.credentials && (
-                              <p className="text-sm text-slate-500 mb-3">{speaker.credentials}</p>
-                            )}
-                            {speaker.report_title && (
-                              <div className="bg-slate-50 rounded-lg p-3">
-                                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Тема доклада</p>
-                                <p className="text-slate-700 font-medium">{speaker.report_title}</p>
-                              </div>
-                            )}
-                          </div>
+            {/* Event Details - Inline */}
+            <section>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="flex items-center gap-3 text-slate-700">
+                      <Calendar className="w-5 h-5 text-teal-600 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs text-slate-400 uppercase">Дата</p>
+                        <p className="font-medium">{formatDateRange(conference.date, conference.date_end)}</p>
+                      </div>
+                    </div>
+
+                    {conference.location && (
+                      <div className="flex items-center gap-3 text-slate-700">
+                        <MapPin className="w-5 h-5 text-teal-600 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs text-slate-400 uppercase">Место</p>
+                          <p className="font-medium">{conference.location}</p>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                      </div>
+                    )}
+
+                    {conference.cme_hours && conference.cme_hours > 0 && (
+                      <div className="flex items-center gap-3 text-slate-700">
+                        <Clock className="w-5 h-5 text-teal-600 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs text-slate-400 uppercase">Часы CME</p>
+                          <p className="font-medium">{conference.cme_hours} часов</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {hasContacts && conference.organizer_contacts?.phone && (
+                      <div className="flex items-center gap-3 text-slate-700">
+                        <Phone className="w-5 h-5 text-teal-600 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs text-slate-400 uppercase">Контакты</p>
+                          <a 
+                            href={`tel:${conference.organizer_contacts.phone}`}
+                            className="font-medium hover:text-teal-600 transition-colors"
+                          >
+                            {conference.organizer_contacts.phone}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* Countdown Timer for upcoming events */}
+            {upcoming && (
+              <section className="text-center">
+                <h3 className="text-lg font-bold text-slate-900 mb-4">До начала мероприятия</h3>
+                <CountdownTimer targetDate={parseDate(conference.date)} />
               </section>
+            )}
+
+            {/* Videos from previous events */}
+            {conference.videos && conference.videos.length > 0 && (
+              <ConferenceVideos videos={conference.videos} />
             )}
 
             {/* Additional Info */}
@@ -353,110 +372,6 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
                 </Card>
               </section>
             )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Countdown Timer for upcoming events */}
-            {upcoming && (
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 mb-4 text-center">До начала мероприятия</h3>
-                <CountdownTimer targetDate={parseDate(conference.date)} />
-              </div>
-            )}
-            
-            {/* Event Details Card */}
-            <Card className="sticky top-24">
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-center gap-3 text-slate-700">
-                  <Calendar className="w-5 h-5 text-teal-600" />
-                  <div>
-                    <p className="text-xs text-slate-400 uppercase">Дата</p>
-                    <p className="font-medium">{formatDateRange(conference.date, conference.date_end)}</p>
-                  </div>
-                </div>
-
-                {conference.location && (
-                  <div className="flex items-center gap-3 text-slate-700">
-                    <MapPin className="w-5 h-5 text-teal-600" />
-                    <div>
-                      <p className="text-xs text-slate-400 uppercase">Место</p>
-                      <p className="font-medium">{conference.location}</p>
-                    </div>
-                  </div>
-                )}
-
-                {conference.cme_hours && conference.cme_hours > 0 && (
-                  <div className="flex items-center gap-3 text-slate-700">
-                    <Clock className="w-5 h-5 text-teal-600" />
-                    <div>
-                      <p className="text-xs text-slate-400 uppercase">Часы CME</p>
-                      <p className="font-medium">{conference.cme_hours} часов</p>
-                    </div>
-                  </div>
-                )}
-
-                {conference.speakers && conference.speakers.length > 0 && (
-                  <div className="flex items-center gap-3 text-slate-700">
-                    <Users className="w-5 h-5 text-teal-600" />
-                    <div>
-                      <p className="text-xs text-slate-400 uppercase">Спикеры</p>
-                      <p className="font-medium">{conference.speakers.length} {conference.speakers.length === 1 ? 'спикер' : conference.speakers.length < 5 ? 'спикера' : 'спикеров'}</p>
-                    </div>
-                  </div>
-                )}
-
-                {upcoming && (
-                  <div className="pt-4 border-t">
-                    <Button asChild className="w-full bg-teal-600 hover:bg-teal-700 text-white">
-                      <a href="#register">Зарегистрироваться</a>
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Organizer Contacts */}
-            {hasContacts && (
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="font-bold text-slate-900 mb-4">Контакты организаторов</h3>
-                  <div className="space-y-3">
-                    {conference.organizer_contacts?.name && (
-                      <div className="flex items-center gap-2 text-slate-700">
-                        <User className="w-4 h-4 text-slate-400" />
-                        <span>{conference.organizer_contacts.name}</span>
-                      </div>
-                    )}
-                    {conference.organizer_contacts?.phone && (
-                      <a 
-                        href={`tel:${conference.organizer_contacts.phone}`}
-                        className="flex items-center gap-2 text-slate-700 hover:text-teal-600 transition-colors"
-                      >
-                        <Phone className="w-4 h-4 text-slate-400" />
-                        <span>{conference.organizer_contacts.phone}</span>
-                      </a>
-                    )}
-                    {conference.organizer_contacts?.email && (
-                      <a 
-                        href={`mailto:${conference.organizer_contacts.email}`}
-                        className="flex items-center gap-2 text-slate-700 hover:text-teal-600 transition-colors"
-                      >
-                        <Mail className="w-4 h-4 text-slate-400" />
-                        <span>{conference.organizer_contacts.email}</span>
-                      </a>
-                    )}
-                    {conference.organizer_contacts?.additional && (
-                      <div className="flex items-center gap-2 text-slate-700">
-                        <MessageCircle className="w-4 h-4 text-slate-400" />
-                        <span>{conference.organizer_contacts.additional}</span>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
         </div>
 
         {/* Registration Form */}

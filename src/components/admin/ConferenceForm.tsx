@@ -11,15 +11,39 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileUpload } from '@/components/admin/FileUpload';
-import { Loader2, Plus, X, User, Image as ImageIcon, ChevronUp, ChevronDown, Link2, RefreshCw } from 'lucide-react';
+import { Loader2, Plus, X, User, Image as ImageIcon, ChevronUp, ChevronDown, Link2, RefreshCw, Clock, Video } from 'lucide-react';
 
 interface Speaker {
   id: string;
   name: string;
   photo: string;
   credentials: string;
-  report_title: string;
-  report_time: string;
+  institution: string;
+  is_presidium: boolean;
+  order: number;
+  // Legacy fields (for backward compatibility)
+  report_title?: string;
+  report_time?: string;
+}
+
+interface ProgramItem {
+  id: string;
+  time_start: string;
+  time_end: string;
+  speaker_id?: string;
+  speaker_name?: string;
+  title: string;
+  description?: string;
+  type: 'talk' | 'break' | 'other';
+  order: number;
+}
+
+interface ConferenceVideo {
+  id: string;
+  title: string;
+  video_url: string;
+  duration?: string;
+  order: number;
 }
 
 interface OrganizerContacts {
@@ -52,7 +76,7 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
     speaker: initialData?.speaker || '', // legacy field
     cme_hours: initialData?.cme_hours || 0,
     status: initialData?.status || 'published',
-    program: initialData?.program || [],
+    program: (initialData?.program || []) as (ProgramItem[] | string[]),
     materials: initialData?.materials || [],
     cover_image: initialData?.cover_image || '',
     speakers: (initialData?.speakers || []) as Speaker[],
@@ -62,10 +86,114 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
       email: '',
       additional: ''
     }) as OrganizerContacts,
-    additional_info: initialData?.additional_info || ''
+    additional_info: initialData?.additional_info || '',
+    videos: (initialData?.videos || []) as ConferenceVideo[]
   });
 
+  const [useStructuredProgram, setUseStructuredProgram] = useState(
+    Array.isArray(initialData?.program) && 
+    initialData.program.length > 0 && 
+    typeof initialData.program[0] === 'object' &&
+    'time_start' in initialData.program[0]
+  );
+
   const [newProgramItem, setNewProgramItem] = useState('');
+  
+  // Program Item management (structured)
+  const addProgramItem = () => {
+    const programArray = formData.program as ProgramItem[];
+    const newItem: ProgramItem = {
+      id: generateId(),
+      time_start: '10:00',
+      time_end: '10:30',
+      speaker_id: '',
+      speaker_name: '',
+      title: '',
+      description: '',
+      type: 'talk',
+      order: programArray.length + 1
+    };
+    setFormData(prev => ({
+      ...prev,
+      program: [...programArray, newItem]
+    }));
+  };
+
+  const updateProgramItem = (id: string, field: keyof ProgramItem, value: string | number) => {
+    const programArray = formData.program as ProgramItem[];
+    setFormData(prev => ({
+      ...prev,
+      program: programArray.map(item => 
+        item.id === id ? { ...item, [field]: value } : item
+      )
+    }));
+  };
+
+  const removeProgramItem = (id: string) => {
+    const programArray = formData.program as ProgramItem[];
+    setFormData(prev => ({
+      ...prev,
+      program: programArray.filter(item => item.id !== id)
+    }));
+  };
+
+  const moveProgramItem = (index: number, direction: 'up' | 'down') => {
+    const programArray = formData.program as ProgramItem[];
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= programArray.length) return;
+    
+    const newProgram = [...programArray];
+    [newProgram[index], newProgram[newIndex]] = [newProgram[newIndex], newProgram[index]];
+    // Update order
+    newProgram.forEach((item, idx) => {
+      item.order = idx + 1;
+    });
+    setFormData(prev => ({ ...prev, program: newProgram }));
+  };
+
+  // Video management
+  const addVideo = () => {
+    const newVideo: ConferenceVideo = {
+      id: generateId(),
+      title: '',
+      video_url: '',
+      duration: '',
+      order: formData.videos.length + 1
+    };
+    setFormData(prev => ({
+      ...prev,
+      videos: [...prev.videos, newVideo]
+    }));
+  };
+
+  const updateVideo = (id: string, field: keyof ConferenceVideo, value: string | number) => {
+    setFormData(prev => ({
+      ...prev,
+      videos: prev.videos.map(v => 
+        v.id === id ? { ...v, [field]: value } : v
+      )
+    }));
+  };
+
+  const removeVideo = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      videos: prev.videos.filter(v => v.id !== id)
+    }));
+  };
+
+  const moveVideo = (index: number, direction: 'up' | 'down') => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= formData.videos.length) return;
+    
+    const newVideos = [...formData.videos];
+    [newVideos[index], newVideos[newIndex]] = [newVideos[newIndex], newVideos[index]];
+    // Update order
+    newVideos.forEach((video, idx) => {
+      video.order = idx + 1;
+    });
+    setFormData(prev => ({ ...prev, videos: newVideos }));
+  };
 
   // Автогенерация slug из названия (только если не редактировался вручную)
   useEffect(() => {
@@ -101,17 +229,19 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
 
   const handleProgramAdd = () => {
     if (!newProgramItem.trim()) return;
+    const programArray = formData.program as string[];
     setFormData(prev => ({
       ...prev,
-      program: [...prev.program, newProgramItem]
+      program: [...programArray, newProgramItem]
     }));
     setNewProgramItem('');
   };
 
   const handleProgramRemove = (index: number) => {
+    const programArray = formData.program as string[];
     setFormData(prev => ({
       ...prev,
-      program: prev.program.filter((_: any, i: number) => i !== index)
+      program: programArray.filter((_: any, i: number) => i !== index)
     }));
   };
 
@@ -131,8 +261,9 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
       name: '',
       photo: '',
       credentials: '',
-      report_title: '',
-      report_time: ''
+      institution: '',
+      is_presidium: false,
+      order: formData.speakers.length + 1
     };
     setFormData(prev => ({
       ...prev,
@@ -140,7 +271,7 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
     }));
   };
 
-  const updateSpeaker = (id: string, field: keyof Speaker, value: string) => {
+  const updateSpeaker = (id: string, field: keyof Speaker, value: string | boolean | number) => {
     setFormData(prev => ({
       ...prev,
       speakers: prev.speakers.map(s => 
@@ -449,11 +580,11 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
                           />
                         </div>
                         <div>
-                          <Label className="text-xs">Время доклада</Label>
+                          <Label className="text-xs">Организация, город</Label>
                           <Input 
-                            value={speaker.report_time} 
-                            onChange={(e) => updateSpeaker(speaker.id, 'report_time', e.target.value)}
-                            placeholder="10:00 - 10:30"
+                            value={speaker.institution} 
+                            onChange={(e) => updateSpeaker(speaker.id, 'institution', e.target.value)}
+                            placeholder="МНИОИ им. П.А. Герцена, Москва"
                           />
                         </div>
                       </div>
@@ -466,13 +597,17 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
                           className="min-h-[60px]"
                         />
                       </div>
-                      <div>
-                        <Label className="text-xs">Название доклада</Label>
-                        <Input 
-                          value={speaker.report_title} 
-                          onChange={(e) => updateSpeaker(speaker.id, 'report_title', e.target.value)}
-                          placeholder="Тема выступления"
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="checkbox" 
+                          id={`presidium-${speaker.id}`}
+                          checked={speaker.is_presidium} 
+                          onChange={(e) => updateSpeaker(speaker.id, 'is_presidium', e.target.checked)}
+                          className="h-4 w-4 rounded border-gray-300"
                         />
+                        <Label htmlFor={`presidium-${speaker.id}`} className="text-sm font-normal cursor-pointer">
+                          Член президиума конференции
+                        </Label>
                       </div>
                     </div>
 
@@ -514,72 +649,314 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
         </CardContent>
       </Card>
 
-      {/* Program and Materials */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardContent className="pt-6">
-            <Label className="mb-2 block">Программа</Label>
-            <div className="flex gap-2 mb-4">
-              <Input 
-                value={newProgramItem} 
-                onChange={(e) => setNewProgramItem(e.target.value)} 
-                placeholder="Пункт программы"
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleProgramAdd())}
-              />
-              <Button type="button" onClick={handleProgramAdd}><Plus className="w-4 h-4" /></Button>
+      {/* Program Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Программа конференции
+            </span>
+            <div className="flex gap-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm"
+                onClick={() => setUseStructuredProgram(!useStructuredProgram)}
+              >
+                {useStructuredProgram ? 'Простой список' : 'Структурированное расписание'}
+              </Button>
+              {useStructuredProgram ? (
+                <Button type="button" onClick={addProgramItem} size="sm">
+                  <Plus className="w-4 h-4 mr-1" /> Добавить пункт
+                </Button>
+              ) : (
+                <Button type="button" onClick={handleProgramAdd} size="sm">
+                  <Plus className="w-4 h-4 mr-1" /> Добавить
+                </Button>
+              )}
             </div>
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {formData.program.map((item: string, i: number) => (
-                <div key={i} className="flex items-center gap-2 text-sm bg-slate-50 p-2 rounded">
-                  <span className="text-slate-400 w-6">{i + 1}.</span>
-                  <span className="truncate flex-1">{item}</span>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => handleProgramRemove(i)}>
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {useStructuredProgram ? (
+            // Structured program
+            <>
+              {(formData.program as ProgramItem[]).length === 0 ? (
+                <p className="text-slate-500 text-center py-4">Нет добавленных пунктов расписания</p>
+              ) : (
+                (formData.program as ProgramItem[]).map((item, index) => (
+                  <Card key={item.id} className="bg-slate-50">
+                    <CardContent className="pt-4">
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <Label className="text-xs">Время начала</Label>
+                            <Input 
+                              type="time"
+                              value={item.time_start}
+                              onChange={(e) => updateProgramItem(item.id, 'time_start', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Время окончания</Label>
+                            <Input 
+                              type="time"
+                              value={item.time_end}
+                              onChange={(e) => updateProgramItem(item.id, 'time_end', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Тип</Label>
+                            <select 
+                              value={item.type}
+                              onChange={(e) => updateProgramItem(item.id, 'type', e.target.value)}
+                              className="w-full border rounded-md p-2 bg-white text-sm"
+                            >
+                              <option value="talk">Доклад</option>
+                              <option value="break">Перерыв</option>
+                              <option value="other">Другое</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs">Спикер</Label>
+                            <select 
+                              value={item.speaker_id || ''}
+                              onChange={(e) => updateProgramItem(item.id, 'speaker_id', e.target.value)}
+                              className="w-full border rounded-md p-2 bg-white text-sm"
+                            >
+                              <option value="">Не выбран</option>
+                              {formData.speakers.map(speaker => (
+                                <option key={speaker.id} value={speaker.id}>
+                                  {speaker.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Или имя спикера (если нет в списке)</Label>
+                            <Input 
+                              value={item.speaker_name || ''}
+                              onChange={(e) => updateProgramItem(item.id, 'speaker_name', e.target.value)}
+                              placeholder="Имя спикера"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Название доклада/события</Label>
+                          <Input 
+                            value={item.title}
+                            onChange={(e) => updateProgramItem(item.id, 'title', e.target.value)}
+                            placeholder="Тема доклада или название события"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Описание (опционально)</Label>
+                          <Textarea 
+                            value={item.description || ''}
+                            onChange={(e) => updateProgramItem(item.id, 'description', e.target.value)}
+                            placeholder="Дополнительная информация"
+                            className="min-h-[60px]"
+                          />
+                        </div>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => moveProgramItem(index, 'up')}
+                            disabled={index === 0}
+                          >
+                            <ChevronUp className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => moveProgramItem(index, 'down')}
+                            disabled={index === (formData.program as ProgramItem[]).length - 1}
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeProgramItem(item.id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </>
+          ) : (
+            // Simple program list
+            <>
+              <div className="flex gap-2 mb-4">
+                <Input 
+                  value={newProgramItem} 
+                  onChange={(e) => setNewProgramItem(e.target.value)} 
+                  placeholder="Пункт программы"
+                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleProgramAdd())}
+                />
+              </div>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {(formData.program as string[]).map((item: string, i: number) => (
+                  <div key={i} className="flex items-center gap-2 text-sm bg-slate-50 p-2 rounded">
+                    <span className="text-slate-400 w-6">{i + 1}.</span>
+                    <span className="truncate flex-1">{item}</span>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => handleProgramRemove(i)}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardContent className="pt-6">
-            <Label className="mb-4 block">Доступные материалы</Label>
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <input 
-                  type="checkbox" 
-                  id="mat-video" 
-                  checked={formData.materials.includes('video')} 
-                  onChange={() => toggleMaterial('video')} 
-                  className="h-4 w-4 rounded border-gray-300"
-                />
-                <label htmlFor="mat-video">Видео</label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input 
-                  type="checkbox" 
-                  id="mat-photo" 
-                  checked={formData.materials.includes('photo')} 
-                  onChange={() => toggleMaterial('photo')} 
-                  className="h-4 w-4 rounded border-gray-300"
-                />
-                <label htmlFor="mat-photo">Фото</label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input 
-                  type="checkbox" 
-                  id="mat-doc" 
-                  checked={formData.materials.includes('doc')} 
-                  onChange={() => toggleMaterial('doc')} 
-                  className="h-4 w-4 rounded border-gray-300"
-                />
-                <label htmlFor="mat-doc">Отчет (Документ)</label>
-              </div>
+      {/* Materials */}
+      <Card>
+        <CardContent className="pt-6">
+          <Label className="mb-4 block">Доступные материалы</Label>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <input 
+                type="checkbox" 
+                id="mat-video" 
+                checked={formData.materials.includes('video')} 
+                onChange={() => toggleMaterial('video')} 
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <label htmlFor="mat-video">Видео</label>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="flex items-center space-x-2">
+              <input 
+                type="checkbox" 
+                id="mat-photo" 
+                checked={formData.materials.includes('photo')} 
+                onChange={() => toggleMaterial('photo')} 
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <label htmlFor="mat-photo">Фото</label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input 
+                type="checkbox" 
+                id="mat-doc" 
+                checked={formData.materials.includes('doc')} 
+                onChange={() => toggleMaterial('doc')} 
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <label htmlFor="mat-doc">Отчет (Документ)</label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Videos Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Video className="w-5 h-5" />
+              Видео с предыдущих мероприятий ({formData.videos.length})
+            </span>
+            <Button type="button" onClick={addVideo} size="sm">
+              <Plus className="w-4 h-4 mr-1" /> Добавить видео
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {formData.videos.length === 0 ? (
+            <p className="text-slate-500 text-center py-4">Нет добавленных видео</p>
+          ) : (
+            formData.videos.map((video, index) => (
+              <Card key={video.id} className="bg-slate-50">
+                <CardContent className="pt-4">
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">Название видео *</Label>
+                        <Input 
+                          value={video.title}
+                          onChange={(e) => updateVideo(video.id, 'title', e.target.value)}
+                          placeholder="Отчетное видео с конференции 2025"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Длительность (опционально)</Label>
+                        <Input 
+                          value={video.duration || ''}
+                          onChange={(e) => updateVideo(video.id, 'duration', e.target.value)}
+                          placeholder="5:30"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Путь к видео файлу</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          value={video.video_url}
+                          onChange={(e) => updateVideo(video.id, 'video_url', e.target.value)}
+                          placeholder="/videos/conferences/sms3_video1.mp4"
+                          className="flex-1"
+                        />
+                        <FileUpload 
+                          onUpload={(url) => updateVideo(video.id, 'video_url', url)} 
+                          folder="conferences/videos" 
+                          mode="url"
+                          accept="video/*"
+                        />
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Загрузите видео файл или укажите путь к файлу на сервере
+                      </p>
+                    </div>
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => moveVideo(index, 'up')}
+                        disabled={index === 0}
+                      >
+                        <ChevronUp className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => moveVideo(index, 'down')}
+                        disabled={index === formData.videos.length - 1}
+                      >
+                        <ChevronDown className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeVideo(video.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       {/* Organizer Contacts */}
       <Card>
