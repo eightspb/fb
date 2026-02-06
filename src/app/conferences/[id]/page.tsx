@@ -467,15 +467,39 @@ export async function generateMetadata({ params }: ConferencePageProps): Promise
     };
   }
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fb.net';
+  const defaultImage = `${siteUrl}/images/logo.png`;
+  
+  // Если cover_image относительный путь, делаем его абсолютным
+  let ogImage = defaultImage;
+  if (conference.cover_image) {
+    ogImage = conference.cover_image.startsWith('http') 
+      ? conference.cover_image 
+      : `${siteUrl}${conference.cover_image.startsWith('/') ? '' : '/'}${conference.cover_image}`;
+  }
+
   return {
     title: `${conference.title} | Мероприятия`,
     description: conference.description || `${conference.type}: ${conference.title}`,
     openGraph: {
       title: conference.title,
       description: conference.description || undefined,
-      images: conference.cover_image ? [conference.cover_image] : undefined,
+      images: [
+        {
+          url: ogImage,
+          width: 1200,
+          height: 630,
+          alt: conference.title,
+        },
+      ],
       type: 'article',
       locale: 'ru_RU',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: conference.title,
+      description: conference.description || undefined,
+      images: [ogImage],
     },
   };
 }

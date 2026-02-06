@@ -394,13 +394,28 @@ export async function generateMetadata({ params }: NewsPageProps): Promise<impor
     };
   }
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fb.net';
+  const defaultImage = `${siteUrl}/images/logo.png`;
+  
+  // Используем первое изображение новости или изображение по умолчанию
+  const ogImages = news.images && news.images.length > 0
+    ? news.images.map((img: string) => 
+        img.startsWith('http') ? img : `${siteUrl}${img.startsWith('/') ? '' : '/'}${img}`
+      )
+    : [defaultImage];
+
   return {
     title: `${news.title} | Компания Зенит`,
     description: news.shortDescription,
     openGraph: {
       title: news.title,
       description: news.shortDescription,
-      images: news.images,
+      images: ogImages.map((url: string) => ({
+        url,
+        width: 1200,
+        height: 630,
+        alt: news.title,
+      })),
       type: 'article',
       publishedTime: news.date,
       authors: news.author ? [news.author] : undefined,
@@ -410,7 +425,7 @@ export async function generateMetadata({ params }: NewsPageProps): Promise<impor
       card: 'summary_large_image',
       title: news.title,
       description: news.shortDescription,
-      images: news.images,
+      images: ogImages,
     },
   };
 }
