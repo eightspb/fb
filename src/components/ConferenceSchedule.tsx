@@ -24,7 +24,7 @@ export function ConferenceSchedule({ program, speakers }: ConferenceScheduleProp
   const sortedProgram = [...program].sort((a, b) => (a.order || 0) - (b.order || 0));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {sortedProgram.map((item) => {
         const speaker = item.speaker_id ? getSpeakerById(speakers, item.speaker_id) : null;
         const isBreak = item.type === 'break';
@@ -42,7 +42,7 @@ export function ConferenceSchedule({ program, speakers }: ConferenceScheduleProp
             <CardContent className="p-0">
               <div className="flex flex-col md:flex-row">
                 {/* Time Column */}
-                <div className={`relative flex items-center justify-center md:justify-start p-6 md:w-40 flex-shrink-0 ${
+                <div className={`relative flex items-center justify-center md:justify-start py-3 px-4 md:w-40 flex-shrink-0 ${
                   isBreak 
                     ? 'bg-gradient-to-br from-slate-100 to-slate-200' 
                     : 'bg-gradient-to-br from-teal-500 to-teal-600'
@@ -53,21 +53,21 @@ export function ConferenceSchedule({ program, speakers }: ConferenceScheduleProp
                   }`} />
                   
                   <div className="text-center md:text-left relative z-10">
-                    <div className={`flex items-center justify-center md:justify-start gap-2 mb-2 ${
+                    <div className={`flex items-center justify-center md:justify-start gap-2 mb-1 ${
                       isBreak ? 'text-slate-500' : 'text-teal-100'
                     }`}>
                       {isBreak ? (
-                        <Coffee className="w-5 h-5" />
+                        <Coffee className="w-4 h-4" />
                       ) : (
-                        <Clock className="w-5 h-5" />
+                        <Clock className="w-4 h-4" />
                       )}
                     </div>
-                    <div className={`text-2xl font-bold mb-1 ${
+                    <div className={`text-xl font-bold mb-0.5 ${
                       isBreak ? 'text-slate-700' : 'text-white'
                     }`}>
                       {item.time_start}
                     </div>
-                    <div className={`text-sm font-medium ${
+                    <div className={`text-xs font-medium ${
                       isBreak ? 'text-slate-500' : 'text-teal-100'
                     }`}>
                       {item.time_end}
@@ -76,25 +76,25 @@ export function ConferenceSchedule({ program, speakers }: ConferenceScheduleProp
                 </div>
 
                 {/* Content Column */}
-                <div className="flex-1 p-6">
-                  <div className="flex items-start gap-5">
+                <div className="flex-1 py-3 px-4">
+                  <div className="flex items-start gap-3">
                     {/* Speaker Photo (only for talks with speaker) */}
                     {isTalk && speaker && (
                       <div className="hidden sm:block flex-shrink-0">
                         {speaker.photo ? (
-                          <div className="relative w-16 h-16 rounded-full overflow-hidden ring-4 ring-teal-100 shadow-lg">
+                          <div className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-teal-100 shadow-md">
                             <Image
                               src={speaker.photo}
                               alt={speaker.name}
                               fill
-                              sizes="64px"
+                              sizes="48px"
                               className="object-cover"
                               unoptimized
                             />
                           </div>
                         ) : (
-                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-teal-100 to-teal-200 flex items-center justify-center ring-4 ring-teal-50 shadow-lg">
-                            <User className="w-8 h-8 text-teal-600" />
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-100 to-teal-200 flex items-center justify-center ring-2 ring-teal-50 shadow-md">
+                            <User className="w-6 h-6 text-teal-600" />
                           </div>
                         )}
                       </div>
@@ -102,8 +102,8 @@ export function ConferenceSchedule({ program, speakers }: ConferenceScheduleProp
 
                     {/* Talk/Event Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <h3 className={`text-lg font-bold leading-tight ${
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <h3 className={`text-base font-bold leading-tight ${
                           isBreak ? 'text-slate-700' : 'text-slate-900'
                         }`}>
                           {item.title}
@@ -111,7 +111,7 @@ export function ConferenceSchedule({ program, speakers }: ConferenceScheduleProp
                         {item.type && (
                           <Badge 
                             variant={isBreak ? 'secondary' : 'default'}
-                            className={`flex-shrink-0 px-3 py-1 text-xs font-semibold ${
+                            className={`flex-shrink-0 px-2 py-0.5 text-xs font-semibold ${
                               isBreak 
                                 ? 'bg-slate-200 text-slate-700 border-0' 
                                 : 'bg-gradient-to-r from-teal-500 to-teal-600 text-white border-0 shadow-sm'
@@ -124,17 +124,17 @@ export function ConferenceSchedule({ program, speakers }: ConferenceScheduleProp
 
                       {/* Speaker Name */}
                       {speaker && (
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-1 h-4 bg-teal-500 rounded-full" />
-                          <p className="text-sm text-slate-700 font-semibold">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <div className="w-1 h-3 bg-teal-500 rounded-full" />
+                          <p className="text-xs text-slate-700 font-semibold">
                             {speaker.name}
                           </p>
                         </div>
                       )}
                       {!speaker && item.speaker_name && (
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-1 h-4 bg-teal-500 rounded-full" />
-                          <p className="text-sm text-slate-700 font-semibold">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <div className="w-1 h-3 bg-teal-500 rounded-full" />
+                          <p className="text-xs text-slate-700 font-semibold">
                             {item.speaker_name}
                           </p>
                         </div>
@@ -142,7 +142,7 @@ export function ConferenceSchedule({ program, speakers }: ConferenceScheduleProp
 
                       {/* Description */}
                       {item.description && (
-                        <p className="text-sm text-slate-600 leading-relaxed mt-3 pl-3 border-l-2 border-slate-200">
+                        <p className="text-xs text-slate-600 leading-relaxed mt-1 pl-2 border-l-2 border-slate-200">
                           {item.description}
                         </p>
                       )}
