@@ -5,9 +5,17 @@
 
 import { Pool } from 'pg';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
-});
+// Ленивая инициализация для избежания проблем с Edge Runtime
+let pool: Pool | null = null;
+
+function getPool(): Pool {
+  if (pool === null) {
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
+    });
+  }
+  return pool;
+}
 
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
@@ -43,7 +51,7 @@ let isInitialized = false;
  */
 async function saveLog(log: LogEntry): Promise<void> {
   try {
-    const client = await pool.connect();
+    const client = await getPool().connect();
     try {
       await client.query(
         `INSERT INTO app_logs (level, message, context, metadata, ip_address, user_agent, path)
@@ -77,7 +85,7 @@ async function flushLogs(): Promise<void> {
   logQueue = [];
 
   try {
-    const client = await pool.connect();
+    const client = await getPool().connect();
     try {
       // Используем batch insert для производительности
       const values = logsToFlush.map((log, index) => {
@@ -319,7 +327,7 @@ export async function getLogs(options: {
   } = options;
 
   try {
-    const client = await pool.connect();
+    const client = await getPool().connect();
     try {
       const conditions: string[] = [];
       const params: any[] = [];
