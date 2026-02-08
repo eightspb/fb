@@ -34,11 +34,7 @@
 ### Установка зависимостей
 
 ```bash
-# С Bun (рекомендуется - быстрее в 10 раз)
 bun install
-
-# Или с npm
-npm install
 ```
 
 ### Настройка окружения
@@ -69,17 +65,13 @@ TARGET_EMAIL=target_email@domain.com
 ### Запуск базы данных
 
 ```bash
-npm run docker:up
+bun run docker:up
 ```
 
 ### Запуск приложения
 
 ```bash
-# С Bun (быстрее)
 bun run dev
-
-# Или с npm
-npm run dev
 ```
 
 Сайт будет доступен по адресу: **http://localhost:3000**
@@ -106,6 +98,14 @@ npm run dev
 - Nodemailer (SMTP)
 - OpenRouter AI
 
+### Тестирование & CI/CD
+- **Vitest** - Unit тесты
+- **Playwright** - E2E тесты
+- **MSW** - Mock Service Worker для моков API
+- **Testcontainers** - Docker контейнеры для тестов
+- **GitHub Actions** - CI/CD pipeline
+- **Docker** - Контейнеризация и деплой
+
 ---
 
 ## 📁 Структура проекта
@@ -122,19 +122,40 @@ fb.net/
 │   │   └── admin/            # Компоненты админ-панели
 │   ├── lib/                   # Утилиты и бизнес-логика
 │   └── styles/                # Стили
+├── tests/                     # Тесты
+│   ├── unit/                  # Unit тесты (Vitest)
+│   │   ├── components.test.tsx
+│   │   ├── api.test.ts
+│   │   └── services.test.ts
+│   ├── e2e/                   # E2E тесты (Playwright)
+│   │   ├── auth.spec.ts
+│   │   ├── forms.spec.ts
+│   │   └── database.spec.ts
+│   ├── fixtures/              # MSW handlers для моков
+│   ├── helpers/               # Вспомогательные функции
+│   └── setup.ts               # Глобальная настройка тестов
+├── .github/workflows/         # GitHub Actions
+│   ├── ci.yml                 # CI pipeline
+│   └── deploy.yml             # Deploy pipeline
 ├── scripts/                   # PowerShell скрипты
 │   ├── commit-and-push.ps1   # Коммит и push в GitHub
 │   ├── deploy-from-github.ps1 # Деплой с GitHub
 │   └── backup-database.ps1    # Бэкап БД
 ├── public/                    # Статические файлы
-└── docker-compose*.yml        # Docker конфигурации
+├── Dockerfile                 # Production Dockerfile
+├── Dockerfile.test            # Test Dockerfile
+├── docker-compose.yml         # Development
+├── docker-compose.test.yml    # Testing
+├── docker-compose.production.yml # Production
+├── vitest.config.ts           # Vitest конфигурация
+└── playwright.config.ts       # Playwright конфигурация
 ```
 
 ---
 
 ## 🔧 Команды разработки
 
-### С Bun (рекомендуется)
+### С Bun
 ```bash
 bun run dev              # Запуск dev сервера
 bun run build            # Сборка для продакшна
@@ -142,27 +163,93 @@ bun run start            # Запуск продакшн сервера
 bun run lint             # Проверка кода
 ```
 
-### С npm
-```bash
-npm run dev              # Запуск dev сервера
-npm run build            # Сборка для продакшна
-npm run start            # Запуск продакшн сервера
-npm run lint             # Проверка кода
-```
-
 ### Docker команды
 ```bash
-npm run docker:up        # Запустить PostgreSQL
-npm run docker:down      # Остановить контейнеры
-npm run docker:logs      # Просмотр логов
-npm run docker:psql      # Подключиться к PostgreSQL
+bun run docker:up        # Запустить PostgreSQL
+bun run docker:down      # Остановить контейнеры
+bun run docker:logs      # Просмотр логов
+bun run docker:psql      # Подключиться к PostgreSQL
+bun run docker:test      # Запустить тесты в Docker
+bun run docker:test:down # Остановить тестовые контейнеры
 ```
+
+### Тестирование
+```bash
+# Unit тесты (Vitest)
+bun run test:unit              # Запустить unit тесты
+bun run test:unit:watch        # Запустить в watch режиме
+bun run test:unit:coverage     # С coverage отчетом
+
+# E2E тесты (Playwright)
+bun run test:e2e               # Запустить E2E тесты
+bun run test:e2e:ui            # Запустить с UI
+bun run test:e2e:debug         # Запустить в debug режиме
+
+# Полный CI локально
+bun run test:ci                # Линт + типы + unit + E2E
+
+# Тесты в Docker (с Testcontainers)
+bun run docker:test            # Запустить все тесты в изолированном окружении
+```
+
+---
+
+## 🧪 Тестирование
+
+Проект включает полную систему тестирования:
+
+### Unit тесты (Vitest)
+- **Компоненты**: React компоненты с Radix UI и Framer Motion
+- **API Routes**: Next.js API endpoints с моками
+- **Сервисы**: Telegram Bot, OpenRouter AI, Email с MSW моками
+- **Утилиты**: Вспомогательные функции
+
+### E2E тесты (Playwright)
+- **Авторизация**: JWT логин/логаут flow
+- **Формы**: Отправка форм с интеграциями
+- **База данных**: Тесты с Testcontainers (реальная PostgreSQL)
+
+### CI/CD Pipeline (GitHub Actions)
+- **Линтинг**: ESLint + TypeScript проверка
+- **Unit тесты**: С coverage отчетом
+- **Build**: Проверка сборки Next.js
+- **Docker**: Build и security scan
+- **E2E**: Тесты с PostgreSQL в services
+- **Deploy**: Автоматический деплой на VPS с rollback
+
+### Запуск тестов локально
+
+```bash
+# Все тесты
+bun run test:ci
+
+# Только unit тесты
+bun run test:unit
+
+# Только E2E тесты (требуется запущенное приложение)
+bun run test:e2e
+
+# Тесты в Docker (изолированное окружение)
+bun run docker:test
+```
+
+**Подробнее:** См. [docs/tests.md](./docs/tests.md)
 
 ---
 
 ## 🚀 Деплой на продакшен
 
-### Типичный процесс:
+### Автоматический деплой через GitHub Actions
+
+При push в `main` ветку автоматически запускается:
+1. ✅ Линтинг и проверка типов
+2. ✅ Unit тесты
+3. ✅ Build приложения
+4. ✅ Docker build и security scan
+5. ✅ E2E тесты
+6. ✅ Deploy на VPS с health check и rollback
+
+### Ручной деплой
 
 ```powershell
 # 1. Коммит и push в GitHub
@@ -247,7 +334,7 @@ npm run docker:psql      # Подключиться к PostgreSQL
 
 ```bash
 # Локально
-npm run docker:psql
+bun run docker:psql
 
 # На сервере
 docker exec -it fb-net-db psql -U postgres -d postgres

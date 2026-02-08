@@ -6,6 +6,23 @@ interface CountdownTimerProps {
   targetDate: Date;
 }
 
+const formatNumber = (num: number) => {
+  return num.toString().padStart(2, '0');
+};
+
+function TimeUnit({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <div className="bg-white text-slate-900 rounded-xl shadow-sm border border-slate-100 w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center mb-2">
+        <span className="text-3xl sm:text-4xl font-bold font-mono tracking-tighter">
+          {formatNumber(value)}
+        </span>
+      </div>
+      <span className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">{label}</span>
+    </div>
+  );
+}
+
 export function CountdownTimer({ targetDate }: CountdownTimerProps) {
   const [timeLeft, setTimeLeft] = useState({
     days: 0,
@@ -37,21 +54,6 @@ export function CountdownTimer({ targetDate }: CountdownTimerProps) {
 
     return () => clearInterval(interval);
   }, [targetDate]);
-
-  const formatNumber = (num: number) => {
-    return num.toString().padStart(2, '0');
-  };
-
-  const TimeUnit = ({ value, label }: { value: number; label: string }) => (
-    <div className="flex flex-col items-center">
-      <div className="bg-white text-slate-900 rounded-xl shadow-sm border border-slate-100 w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center mb-2">
-        <span className="text-3xl sm:text-4xl font-bold font-mono tracking-tighter">
-          {formatNumber(value)}
-        </span>
-      </div>
-      <span className="text-xs sm:text-sm font-medium text-slate-500 uppercase tracking-wider">{label}</span>
-    </div>
-  );
 
   return (
     <div className="mb-12">

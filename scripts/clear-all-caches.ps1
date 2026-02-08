@@ -34,17 +34,8 @@ if (Test-Path node_modules) {
     Write-Host "   ℹ️  node_modules не найден" -ForegroundColor Gray
 }
 
-# 4. Очистка npm кеша
-Write-Host "4️⃣ Очистка npm кеша..." -ForegroundColor Yellow
-try {
-    npm cache clean --force 2>&1 | Out-Null
-    Write-Host "   ✅ npm кеш очищен" -ForegroundColor Green
-} catch {
-    Write-Host "   ⚠️  Не удалось очистить npm кеш: $_" -ForegroundColor Yellow
-}
-
-# 5. Очистка bun кеша (если установлен)
-Write-Host "5️⃣ Очистка bun кеша..." -ForegroundColor Yellow
+# 4. Очистка bun кеша (если установлен)
+Write-Host "4️⃣ Очистка bun кеша..." -ForegroundColor Yellow
 try {
     bun pm cache rm 2>&1 | Out-Null
     Write-Host "   ✅ bun кеш очищен" -ForegroundColor Green
@@ -52,8 +43,8 @@ try {
     Write-Host "   ℹ️  bun не установлен или кеш уже пуст" -ForegroundColor Gray
 }
 
-# 6. Очистка Docker кешей (если Docker запущен)
-Write-Host "6️⃣ Очистка Docker кешей..." -ForegroundColor Yellow
+# 5. Очистка Docker кешей (если Docker запущен)
+Write-Host "5️⃣ Очистка Docker кешей..." -ForegroundColor Yellow
 try {
     $dockerRunning = docker info 2>&1
     if ($LASTEXITCODE -eq 0) {
@@ -87,8 +78,8 @@ try {
     Write-Host "   ℹ️  Docker не установлен или недоступен" -ForegroundColor Gray
 }
 
-# 7. Очистка временных файлов TypeScript
-Write-Host "7️⃣ Очистка временных файлов TypeScript..." -ForegroundColor Yellow
+# 6. Очистка временных файлов TypeScript
+Write-Host "6️⃣ Очистка временных файлов TypeScript..." -ForegroundColor Yellow
 $tsBuildInfoFiles = Get-ChildItem -Path . -Filter "*.tsbuildinfo" -Recurse -ErrorAction SilentlyContinue
 if ($tsBuildInfoFiles) {
     $tsBuildInfoFiles | Remove-Item -Force
@@ -97,8 +88,8 @@ if ($tsBuildInfoFiles) {
     Write-Host "   ℹ️  TypeScript build info файлы не найдены" -ForegroundColor Gray
 }
 
-# 8. Очистка кеша ESLint
-Write-Host "8️⃣ Очистка кеша ESLint..." -ForegroundColor Yellow
+# 7. Очистка кеша ESLint
+Write-Host "7️⃣ Очистка кеша ESLint..." -ForegroundColor Yellow
 if (Test-Path .eslintcache) {
     Remove-Item -Force .eslintcache
     Write-Host "   ✅ .eslintcache удален" -ForegroundColor Green
@@ -106,8 +97,8 @@ if (Test-Path .eslintcache) {
     Write-Host "   ℹ️  .eslintcache не найден" -ForegroundColor Gray
 }
 
-# 9. Очистка кеша Vercel (если используется)
-Write-Host "9️⃣ Очистка кеша Vercel..." -ForegroundColor Yellow
+# 8. Очистка кеша Vercel (если используется)
+Write-Host "8️⃣ Очистка кеша Vercel..." -ForegroundColor Yellow
 if (Test-Path .vercel) {
     Remove-Item -Recurse -Force .vercel
     Write-Host "   ✅ .vercel удален" -ForegroundColor Green
@@ -125,4 +116,4 @@ Write-Host "     - Facebook: https://developers.facebook.com/tools/debug/" -Fore
 Write-Host "     - Twitter: https://cards-dev.twitter.com/validator" -ForegroundColor White
 Write-Host "     - LinkedIn: https://www.linkedin.com/post-inspector/" -ForegroundColor White
 Write-Host ""
-Write-Host "💡 Для пересборки проекта выполните: npm run build" -ForegroundColor Yellow
+Write-Host "💡 Для пересборки проекта выполните: bun run build" -ForegroundColor Yellow

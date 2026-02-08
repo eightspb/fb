@@ -222,7 +222,7 @@ export async function GET(request: Request) {
     if (error?.code === 'ECONNREFUSED' || error?.message?.includes('connect')) {
       errorMessage = 'Не удалось подключиться к базе данных. Убедитесь, что база данных запущена.';
     } else if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
-      errorMessage = 'Таблицы не найдены. Выполните npm run setup для создания схемы базы данных.';
+      errorMessage = 'Таблицы не найдены. Выполните bun run setup для создания схемы базы данных.';
     } else if (error?.message) {
       errorMessage = error.message;
     }

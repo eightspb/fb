@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Facebook, Twitter, Linkedin, Mail, Phone, Globe } from "lucide-react";
+import { Facebook, Twitter, Linkedin, Mail, Phone, Globe, MapPin } from "lucide-react";
 
 export function Footer() {
   return (
@@ -33,19 +33,25 @@ export function Footer() {
             <h4 className="font-semibold text-slate-900 mb-6">Контакты</h4>
             <ul className="space-y-4">
               <li className="flex items-start gap-3">
-                <Phone className="w-5 h-5 text-teal-500 mt-0.5" />
+                <MapPin className="w-5 h-5 text-teal-500 mt-0.5 shrink-0" />
+                <span className="text-slate-600 text-sm">
+                  197348, г. Санкт-Петербург, Богатырский проспект, 22
+                </span>
+              </li>
+              <li className="flex items-start gap-3">
+                <Phone className="w-5 h-5 text-teal-500 mt-0.5 shrink-0" />
                 <a href="tel:+78127482213" className="text-slate-600 hover:text-teal-600 transition-colors text-sm">
                   +7 (812) 748-22-13
                 </a>
               </li>
               <li className="flex items-start gap-3">
-                <Mail className="w-5 h-5 text-teal-500 mt-0.5" />
+                <Mail className="w-5 h-5 text-teal-500 mt-0.5 shrink-0" />
                 <a href="mailto:info@zenitmed.ru" className="text-slate-600 hover:text-teal-600 transition-colors text-sm">
                   info@zenitmed.ru
                 </a>
               </li>
               <li className="flex items-start gap-3">
-                <Globe className="w-5 h-5 text-teal-500 mt-0.5" />
+                <Globe className="w-5 h-5 text-teal-500 mt-0.5 shrink-0" />
                 {(() => {
                   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fibroadenoma.net';
                   const siteHostname = siteUrl.startsWith('http') ? new URL(siteUrl).hostname : 'fibroadenoma.net';

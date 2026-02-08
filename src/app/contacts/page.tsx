@@ -4,16 +4,51 @@ import { Header } from "@/components/Header";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Footer } from "@/components/Footer";
 import { ContactForm } from "@/components/ContactForm";
-import { Phone, Mail, Building2, Shield, FileText } from "lucide-react";
+import { Phone, Mail, Shield, FileText, MapPin } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Контакты",
-  description: "Свяжитесь с нами: ООО «ЗЕНИТ» - официальный дистрибьютор ВАБ завода Сишань в РФ. Телефон, email, форма обратной связи.",
+  title: "Контакты ООО «ЗЕНИТ» | Дистрибьютор Xishan в РФ",
+  description: "Свяжитесь с нами: официальный дистрибьютор систем ВАБ Xishan. Адрес: Санкт-Петербург, Богатырский пр., 22. Телефон: +7 (812) 748-22-13. Email: info@zenitmed.ru.",
+  keywords: "контакты Зенит, купить ВАБ, офис Xishan Россия, телефон Зенит мед, адрес компании Зенит",
+  openGraph: {
+    title: "Контакты ООО «ЗЕНИТ» | Официальный дистрибьютор Xishan",
+    description: "Контактная информация, адрес офиса, реквизиты и форма обратной связи.",
+    url: "/contacts",
+    type: "website",
+  },
 };
 
 export default function Contacts() {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'MedicalOrganization',
+    'name': 'ООО «ЗЕНИТ»',
+    'description': 'Официальный дистрибьютор завода Xishan в РФ',
+    'url': 'https://fibroadenoma.net/contacts',
+    'logo': 'https://fibroadenoma.net/images/logo.png',
+    'contactPoint': {
+      '@type': 'ContactPoint',
+      'telephone': '+7-812-748-22-13',
+      'contactType': 'sales',
+      'email': 'info@zenitmed.ru',
+      'areaServed': 'RU',
+      'availableLanguage': 'Russian'
+    },
+    'address': {
+      '@type': 'PostalAddress',
+      'streetAddress': 'Богатырский проспект, 22',
+      'addressLocality': 'Санкт-Петербург',
+      'postalCode': '197348',
+      'addressCountry': 'RU'
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-teal-100 selection:text-teal-900">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Header />
 
       <div className="pt-24 pb-12 bg-white border-b border-slate-200">
@@ -23,7 +58,7 @@ export default function Contacts() {
             Свяжитесь с нами
           </h1>
           <p className="text-xl text-slate-600 max-w-3xl">
-            Мы всегда открыты для сотрудничества. Ответим на любые вопросы о продукции и партнерстве.
+            Мы всегда открыты для сотрудничества. Ответим на любые вопросы о продукции, обучении и партнерстве.
           </p>
         </div>
       </div>
@@ -68,13 +103,13 @@ export default function Contacts() {
               <Card className="mt-4 border-slate-200 shadow-sm bg-slate-50">
                 <CardContent className="p-6 flex items-start gap-4">
                   <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 shrink-0">
-                    <Building2 className="w-5 h-5" />
+                    <MapPin className="w-5 h-5" />
                   </div>
                   <div>
                     <p className="text-sm text-slate-500 font-medium mb-1">Центральный офис</p>
                     <p className="font-semibold text-slate-900 mb-1">ООО «ЗЕНИТ»</p>
                     <p className="text-slate-600 text-sm mb-2">Официальный дистрибьютор завода Xishan в РФ</p>
-                    <p className="text-slate-600 text-sm">Санкт-Петербург, Богатырский проспект, 22</p>
+                    <p className="text-slate-600 text-sm">197348, г. Санкт-Петербург, Богатырский проспект, 22</p>
                   </div>
                 </CardContent>
               </Card>

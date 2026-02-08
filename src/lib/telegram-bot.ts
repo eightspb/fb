@@ -62,9 +62,6 @@ interface PendingNews {
 // Хранилище незавершенных новостей (в продакшене лучше использовать Redis или БД)
 export const pendingNews = new Map<number, PendingNews>();
 
-// Хранилище для группировки медиа
-const mediaGroups = new Map<string, NodeJS.Timeout>();
-
 /**
  * Обрабатывает текстовое сообщение
  */
@@ -640,7 +637,7 @@ export async function publishNewsFromPreview(chatId: number): Promise<void> {
     const { title, shortDescription, fullDescription } = pending.aiGenerated;
 
     // Определяем дату (ручная или из EXIF или текущая)
-    let date = pending.manualDate || pending.date;
+    const date = pending.manualDate || pending.date;
     
     // Определяем локацию
     let location = pending.manualLocation 

@@ -30,15 +30,32 @@ export default function Patients() {
     { q: "Может ли опухоль появиться снова?", a: "ВАБ удаляет образование полностью, но риск появления новых образований остается (как и после обычной операции). Поэтому регулярное обследование молочных желез обязательно — минимум раз в год." }
   ];
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    'mainEntity': faqItems.map(item => ({
+      '@type': 'Question',
+      'name': item.q,
+      'acceptedAnswer': {
+        '@type': 'Answer',
+        'text': item.a
+      }
+    }))
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-teal-100 selection:text-teal-900">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Header />
 
       <div className="pt-24 pb-12 bg-white border-b border-slate-200">
         <div className="container mx-auto px-4 md:px-6">
           <Breadcrumbs items={[{ label: "Пациентам" }]} />
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mt-6 mb-4">
-            Пациентам
+            Удаление фиброаденомы методом ВАБ: Без шрамов и боли
           </h1>
           <p className="text-xl text-slate-600 max-w-3xl">
             Вакуумная аспирационная биопсия (ВАБ) — современная альтернатива традиционной операции. 

@@ -18,7 +18,6 @@ import {
   Eye,
   Mail,
   Phone,
-  Calendar,
   AlertCircle,
   CheckCircle2,
   Clock,
@@ -293,11 +292,6 @@ export default function AdminRequestsPage() {
   const getStatusColor = (status: string) => {
     const option = statusOptions.find(s => s.value === status);
     return option?.color || 'bg-gray-100 text-gray-800';
-  };
-
-  const getPriorityColor = (priority: string) => {
-    const option = priorityOptions.find(p => p.value === priority);
-    return option?.color || '';
   };
 
   return (
@@ -670,7 +664,7 @@ export default function AdminRequestsPage() {
                               },
                               body: JSON.stringify({ status: newStatus })
                             });
-                          } catch (error) {
+                          } catch {
                             loadRequests(); // Откат при ошибке
                           }
                         }}

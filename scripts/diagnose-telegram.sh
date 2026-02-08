@@ -118,7 +118,7 @@ if command -v docker &> /dev/null; then
             echo "$WEBHOOK_ERRORS"
         fi
     else
-        echo "⚠️  Контейнер не найден (возможно, используется npm)"
+        echo "⚠️  Контейнер не найден (возможно, используется bun run dev)"
     fi
 fi
 

@@ -4,7 +4,7 @@
 # Автоматически устанавливать peer dependencies
 auto = true
 
-# Использовать точные версии (как npm ci)
+# Использовать точные версии (как bun install --frozen-lockfile)
 exact = false
 
 # Кеш

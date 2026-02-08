@@ -48,5 +48,5 @@ if (Test-Path .env) {
 }
 
 Write-Host ""
-Write-Host "Для запуска сервера используйте: npm run dev" -ForegroundColor Green
+Write-Host "Для запуска сервера используйте: bun run dev" -ForegroundColor Green
 Write-Host "Для проверки SMTP откройте: http://localhost:3000/api/test-smtp" -ForegroundColor Green

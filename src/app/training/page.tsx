@@ -7,27 +7,53 @@ import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/Header";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Footer } from "@/components/Footer";
-import { GraduationCap, Users, Calendar, Award, CheckCircle, Activity, Microscope, Clock, MapPin, UserCheck, Stethoscope } from "lucide-react";
+import { GraduationCap, Users, Calendar, Award, CheckCircle, Activity, Microscope, Clock, UserCheck, Stethoscope } from "lucide-react";
 import { PastEvents } from "@/components/PastEvents";
 
 export const metadata: Metadata = {
-  title: "Обучение и Мероприятия - Интервенционная маммология",
-  description: "Курс повышения квалификации по интервенционной маммологии, 36 академических часов. Практическое обучение ВАБ, ТАБ и малоинвазивным вмешательствам под руководством д.м.н. Одинцова В.А.",
+  title: "Обучение ВАБ и интервенционной маммологии | Курсы для врачей",
+  description: "Курс повышения квалификации по вакуумной биопсии (ВАБ) и ТАБ. 36 ак. часов. Практика на фантомах и в клинике. Преподаватель д.м.н. Одинцов В.А. Выдача удостоверения.",
+  keywords: ["обучение ВАБ", "курсы маммологии", "интервенционная маммология обучение", "вакуумная биопсия обучение", "Одинцов В.А. курсы", "повышение квалификации маммологов", "мастер-класс биопсия"],
 };
 
 export default function Training() {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Course',
+    'name': 'Интервенционная маммология. Диагностика и лечение',
+    'description': 'Комплексная программа повышения квалификации для врачей УЗД, хирургов и онкологов по методам ВАБ и ТАБ.',
+    'provider': {
+      '@type': 'Organization',
+      'name': 'Учебный центр Xishan-Зенит',
+      'sameAs': 'https://fibroadenoma.net'
+    },
+    'instructor': {
+      '@type': 'Person',
+      'name': 'Одинцов Владислав Александрович',
+      'description': 'Д.м.н., онколог, хирург, врач УЗД, ведущий эксперт в области интервенционной маммологии'
+    },
+    'courseMode': 'in-person',
+    'educationalCredentialAwarded': 'Удостоверение о повышении квалификации государственного образца',
+    'timeRequired': 'P5D',
+    'offers': {
+      '@type': 'Offer',
+      'category': 'Paid'
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-teal-100 selection:text-teal-900">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Header />
 
       <div className="pt-24 pb-12 bg-white border-b border-slate-200">
         <div className="container mx-auto px-4 md:px-6">
           <Breadcrumbs items={[{ label: "Обучение" }]} />
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mt-6 mb-4 leading-tight">
-            Учебный центр <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-blue-600">
-              Xishan-Зенит
-            </span>
+            Обучение ВАБ: Курс интервенционной маммологии
           </h1>
           <p className="text-xl text-slate-600 max-w-3xl leading-relaxed">
             Повышение квалификации для врачей-маммологов, онкологов и хирургов. 
@@ -1015,7 +1041,6 @@ export default function Training() {
 
         {/* CTA Section */}
         <section className="mt-24 text-center py-16 bg-slate-900 rounded-3xl relative overflow-hidden">
-          <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
           <div className="relative z-10 container mx-auto px-4">
             <h2 className="text-3xl font-bold mb-4 text-white">Хотите организовать выездной цикл?</h2>
             <p className="text-lg text-slate-300 mb-8 max-w-2xl mx-auto">

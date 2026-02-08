@@ -179,7 +179,7 @@
 - [ ] Прочитать [README.md](./README.md)
 - [ ] Установить зависимости (`bun install`)
 - [ ] Создать `.env.local` файл
-- [ ] Запустить Docker (`npm run docker:up`)
+- [ ] Запустить Docker (`bun run docker:up`)
 - [ ] Запустить приложение (`bun run dev`)
 - [ ] Открыть http://localhost:3000
 - [ ] Прочитать [DEVELOPMENT.md](./DEVELOPMENT.md)

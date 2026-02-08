@@ -145,7 +145,7 @@ Invoke-RestMethod -Uri "https://api.telegram.org/bot$BOT_TOKEN/getWebhookInfo"
 # 3. Проверьте логи
 docker-compose logs -f app
 # или для локальной разработки
-npm run dev
+bun run dev
 ```
 
 ## Отладка
@@ -156,7 +156,7 @@ npm run dev
    ```bash
    docker-compose logs -f app | grep -i webhook
    # или
-   npm run dev
+   bun run dev
    ```
 
 2. **Проверьте, доступен ли endpoint:**

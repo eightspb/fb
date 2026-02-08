@@ -58,7 +58,7 @@ export default function LoginPage() {
           <CardTitle className="text-2xl">Вход в админ-панель</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4" data-testid="login-form">
             <div className="space-y-2">
               <Label htmlFor="password">Пароль</Label>
               <Input

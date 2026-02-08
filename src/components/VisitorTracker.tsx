@@ -76,7 +76,7 @@ async function sendTrackingData(data: {
 
 export default function VisitorTracker() {
   const pathname = usePathname();
-  const pageStartTime = useRef<number>(Date.now());
+  const pageStartTime = useRef<number>(0);
   const heartbeatInterval = useRef<NodeJS.Timeout | null>(null);
   const lastPathname = useRef<string>('');
 

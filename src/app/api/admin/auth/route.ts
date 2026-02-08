@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
-const JWT_SECRET = process.env.JWT_SECRET;
 const FALLBACK_JWT_SECRET = 'default-secret-change-me';
 const COOKIE_NAME = 'admin-session';
 const SESSION_DURATION = 7 * 24 * 60 * 60; // 7 days in seconds
@@ -40,14 +38,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!ADMIN_PASSWORD) {
+    const adminPassword = getAdminPassword();
+    if (!adminPassword) {
       return NextResponse.json(
         { error: 'ADMIN_PASSWORD не настроен в переменных окружения' },
         { status: 500 }
       );
     }
 
-    if (password !== ADMIN_PASSWORD) {
+    if (password !== adminPassword) {
       return NextResponse.json(
         { error: 'Неверный пароль' },
         { status: 401 }
@@ -119,11 +118,15 @@ export async function DELETE(request: NextRequest) {
 }
 
 function getJwtSecret(): string {
-  if (JWT_SECRET) {
-    return JWT_SECRET;
+  if (process.env.JWT_SECRET) {
+    return process.env.JWT_SECRET;
   }
   if (process.env.NODE_ENV === 'production') {
     throw new Error('JWT_SECRET is required in production');
   }
   return FALLBACK_JWT_SECRET;
+}
+
+function getAdminPassword(): string {
+  return process.env.ADMIN_PASSWORD || '';
 }

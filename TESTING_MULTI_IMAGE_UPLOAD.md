@@ -2,7 +2,7 @@
 
 ## ✅ Что уже проверено
 
-1. **TypeScript компиляция** - ✅ Успешно (npm run build прошел без ошибок)
+1. **TypeScript компиляция** - ✅ Успешно (bun run build прошел без ошибок)
 2. **ESLint проверка** - ✅ Нет ошибок линтера
 3. **Сборка проекта** - ✅ Успешно собрано
 
@@ -14,7 +14,7 @@
 
 ```powershell
 cd C:\WORK_PROGRAMMING\fb.net
-npm run dev
+bun run dev
 ```
 
 Или если используете Docker:
