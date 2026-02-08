@@ -1,4 +1,0 @@
-{"runId":"lint-debug-1","hypothesisId":"A","location":"ConferencePopup.tsx:20","message":"useEffect mounted, hasSeenPopup read","data":{"hasSeenPopup":"true","open":false},"timestamp":1770551264072}
-{"runId":"lint-debug-1","hypothesisId":"A","location":"ConferencePopup.tsx:20","message":"useEffect mounted, hasSeenPopup read","data":{"hasSeenPopup":null,"open":false},"timestamp":1770551264142}
-{"runId":"lint-debug-1","hypothesisId":"A","location":"ConferencePopup.tsx:20","message":"useEffect mounted, hasSeenPopup read","data":{"hasSeenPopup":null,"open":false},"timestamp":1770551294174}
-{"runId":"lint-debug-1","hypothesisId":"A","location":"ConferencePopup.tsx:20","message":"useEffect mounted, hasSeenPopup read","data":{"hasSeenPopup":null,"open":false},"timestamp":1770551324201}
