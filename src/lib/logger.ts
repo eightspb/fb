@@ -380,7 +380,7 @@ export async function getLogs(options: {
         level: row.level,
         message: row.message,
         context: row.context,
-        metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
+        metadata: row.metadata, // PostgreSQL driver уже автоматически парсит JSON
         ip: row.ip_address,
         userAgent: row.user_agent,
         path: row.path,
