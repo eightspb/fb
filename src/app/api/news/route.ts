@@ -17,7 +17,7 @@ const pool = new Pool({
 pool.on('error', (err) => {
   const errorDetails = {
     message: err?.message,
-    code: err?.code,
+    code: (err as any)?.code,
     name: err?.name,
     stack: err?.stack
   };
