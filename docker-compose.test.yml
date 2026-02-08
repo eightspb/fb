@@ -1,0 +1,86 @@
+# Docker Compose для тестирования
+# Используется для запуска тестов в изолированном окружении
+
+services:
+  # PostgreSQL для тестов
+  postgres:
+    image: postgres:15
+    container_name: fb-net-test-postgres
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: test_db
+    ports:
+      - "54323:5432"
+    volumes:
+      - test-postgres-data:/var/lib/postgresql/data
+      # Применяем схему БД для тестов
+      - ./database-schema.sql:/docker-entrypoint-initdb.d/00-init-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d test_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - test-network
+
+  # Redis для rate limiting (если используется)
+  redis:
+    image: redis:7-alpine
+    container_name: fb-net-test-redis
+    ports:
+      - "63790:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - test-network
+
+  # Приложение для тестов
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: fb-net-test-app
+    environment:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://test_user:test_password@postgres:5432/test_db
+      JWT_SECRET: test-jwt-secret-key-for-testing-only
+      ADMIN_PASSWORD: test-admin-password
+      TELEGRAM_BOT_TOKEN: mock-telegram-token
+      OPENROUTER_API_KEY: mock-openrouter-key
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      # Redis для rate limiting
+      UPSTASH_REDIS_REST_URL: http://redis:6379
+      UPSTASH_REDIS_REST_TOKEN: mock-token
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - test-network
+    # Команда запуска тестов
+    command: >
+      sh -c "
+        echo '🧪 Запуск unit тестов...' &&
+        bun run test:unit &&
+        echo '✅ Unit тесты пройдены' &&
+        echo '🧪 Запуск E2E тестов...' &&
+        bun run test:e2e &&
+        echo '✅ Все тесты пройдены'
+      "
+    volumes:
+      # Монтируем код для hot reload в тестах (опционально)
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+
+volumes:
+  test-postgres-data:
+
+networks:
+  test-network:
+    driver: bridge

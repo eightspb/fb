@@ -311,7 +311,7 @@ export default function AdminNewsList() {
             <ul className="text-xs text-red-500 list-disc list-inside space-y-1 mb-4">
               <li>База данных не запущена (проверьте Docker контейнеры)</li>
               <li>Переменные окружения не настроены (создайте .env.local)</li>
-              <li>Таблицы не созданы (выполните npm run setup)</li>
+              <li>Таблицы не созданы (выполните bun run setup)</li>
             </ul>
             <Button onClick={loadNews} variant="outline" size="sm">
               Попробовать снова

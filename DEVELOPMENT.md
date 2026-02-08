@@ -266,7 +266,7 @@ import { ActiveSessions } from "@/components/admin/ActiveSessions";
 
 ```bash
 # Запустить БД
-npm run docker:up
+bun run docker:up
 
 # Запустить приложение
 bun run dev
@@ -502,7 +502,7 @@ docker compose -f docker-compose.production.yml logs app --tail=50
 
 ```bash
 # Локально
-npm run docker:psql
+bun run docker:psql
 
 # На сервере
 docker exec -it fb-net-db psql -U postgres -d postgres

@@ -51,7 +51,7 @@ export default async function SlugPage({ params }: SlugPageProps) {
   notFound();
 }
 
-export async function generateMetadata({ params }: SlugPageProps): Promise<import('next').Metadata> {
+export async function generateMetadata(): Promise<import('next').Metadata> {
   // Метаданные не нужны, так как происходит редирект
   return {
     title: 'Перенаправление...',

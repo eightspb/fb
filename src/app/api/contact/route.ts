@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createEmailTransporter, getSenderEmail, getTargetEmail } from '@/lib/email';
 import { escapeHtml } from '@/lib/sanitize';
-import { getRenderedEmailTemplate, TemplateVariables } from '@/lib/email-templates';
+import { getRenderedEmailTemplate } from '@/lib/email-templates';
 import { Pool } from 'pg';
 
 const pool = new Pool({

@@ -19,7 +19,7 @@
 
 ### 1. **PostHog** (Рекомендуется)
 ```bash
-npm install posthog-js
+bun add posthog-js
 ```
 
 **Преимущества:**
@@ -46,7 +46,7 @@ if (typeof window !== 'undefined') {
 
 ### 2. **Plausible Analytics**
 ```bash
-npm install plausible-tracker
+bun add plausible-tracker
 ```
 
 **Преимущества:**
@@ -70,7 +70,7 @@ export { plausible }
 
 ### 3. **Vercel Analytics** (Если используете Vercel)
 ```bash
-npm install @vercel/analytics
+bun add @vercel/analytics
 ```
 
 **Преимущества:**
@@ -97,7 +97,7 @@ export default function RootLayout({ children }) {
 
 ### 4. **Google Analytics 4 (GA4)**
 ```bash
-npm install @next/third-parties
+bun add @next/third-parties
 ```
 
 **Преимущества:**
@@ -110,7 +110,7 @@ npm install @next/third-parties
 ### Шаг 1: Применить SQL схему
 ```bash
 # Через Docker
-npm run docker:psql
+bun run docker:psql
 # Затем выполните содержимое scripts/add-views-tracking.sql
 
 # Или через команду (для production):

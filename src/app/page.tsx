@@ -13,13 +13,81 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import { ArrowRight, Microscope, Heart, Brain } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Главная",
-  description: "Официальный дистрибьютор ВАБ завода Сишань в РФ. Клиническая ценность и передовые технологии для медицинских специалистов.",
+  title: "Удаление фиброаденомы (ВАБ): Система Xishan | Цена и Обучение",
+  description: "Без шрамов, 15 минут. Вакуумная биопсия (ВАБ) фиброаденомы системой Xishan DK-B-MS. Официальный дистрибьютор в РФ. Узнать цену и записаться на обучение.",
+  keywords: ["удаление фиброаденомы", "вакуумная биопсия", "ВАБ Xishan", "фиброаденома цена", "биопсия молочной железы", "DK-B-MS", "лечение фиброаденомы без операции"],
 };
 
 export default function Home() {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'MedicalOrganization',
+        'name': 'Компания Зенит',
+        'description': 'Официальный дистрибьютор систем вакуумной биопсии Xishan в РФ',
+        'url': process.env.NEXT_PUBLIC_SITE_URL || 'https://fibroadenoma.net',
+        'logo': `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fibroadenoma.net'}/images/logo.png`,
+        'contactPoint': {
+          '@type': 'ContactPoint',
+          'telephone': '+7-812-748-22-13',
+          'contactType': 'sales',
+          'areaServed': 'RU',
+          'availableLanguage': 'Russian'
+        }
+      },
+      {
+        '@type': 'MedicalProcedure',
+        'name': 'Вакуумная аспирационная биопсия (ВАБ)',
+        'alternateName': 'Удаление фиброаденомы без шрамов',
+        'description': 'Минимально инвазивная процедура удаления доброкачественных новообразований молочной железы под контролем УЗИ.',
+        'bodyLocation': 'Breast',
+        'status': 'Minimally invasive',
+        'painLevel': 'Low'
+      },
+      {
+        '@type': 'Product',
+        'name': 'Xishan DK-B-MS',
+        'description': 'Система для вакуумной аспирационной биопсии молочной железы',
+        'brand': {
+          '@type': 'Brand',
+          'name': 'Xishan'
+        },
+        'manufacturer': {
+          '@type': 'Organization',
+          'name': 'Chongqing Xishan Science & Technology Co., Ltd.'
+        }
+      },
+      {
+        '@type': 'FAQPage',
+        'mainEntity': [
+          {
+            '@type': 'Question',
+            'name': 'Больно ли удалять фиброаденому методом ВАБ?',
+            'acceptedAnswer': {
+              '@type': 'Answer',
+              'text': 'Процедура проводится под местной анестезией. Пациент чувствует только укол обезболивающего. Во время самой биопсии боли нет.'
+            }
+          },
+          {
+            '@type': 'Question',
+            'name': 'Остается ли шрам после вакуумной биопсии?',
+            'acceptedAnswer': {
+              '@type': 'Answer',
+              'text': 'Нет, шрамов не остается. Прокол составляет всего 3-5 мм и заживает бесследно, в отличие от разреза при обычной операции.'
+            }
+          }
+        ]
+      }
+    ]
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 w-full font-sans selection:bg-teal-100 selection:text-teal-900">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* <ConferencePopup /> */}
       <Header />
 
@@ -42,22 +110,21 @@ export default function Home() {
             <span className="text-sm text-slate-600 font-medium tracking-wide uppercase">Инновации в маммологии</span>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-slate-900 mb-6 max-w-4xl animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
-            Официальный дистрибьютор <br className="hidden md:block" />
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-slate-900 mb-6 max-w-5xl animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
+            Удаление фиброаденомы методом ВАБ: <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-blue-600">
-              ВАБ системы Xishan
+              Система Xishan DK-B-MS
             </span>
-            {" "}в РФ
           </h1>
 
           <p className="text-lg sm:text-xl text-slate-600 mb-10 leading-relaxed max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
-            Передовые технологии вакуумной аспирационной биопсии для точной диагностики и бережного лечения. Клиническая ценность для врачей и комфорт для пациентов.
+            Передовые технологии вакуумной аспирационной биопсии (ВАБ) для точной диагностики и удаления фиброаденом без шрамов. Клиническая ценность для врачей и комфорт для пациентов.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
             <RequestCPModal>
               <Button size="lg" className="rounded-full bg-slate-900 hover:bg-slate-800 text-white px-8 h-14 text-lg shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all duration-300">
-                Запросить КП
+                Узнать цену / КП
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </RequestCPModal>
@@ -94,7 +161,6 @@ export default function Home() {
 
         {/* Video Spotlight */}
         <section className="w-full py-24 bg-slate-900 text-white overflow-hidden relative">
-          <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2"></div>
           <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-teal-500/20 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2"></div>
           
@@ -105,13 +171,13 @@ export default function Home() {
                   Технология
                 </Badge>
                 <h2 className="text-3xl md:text-4xl font-bold leading-tight">
-                  Как работает система <br />
+                  Почему ВАБ лучше операции? <br />
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-blue-400">
-                    Вакуумной Биопсии
+                    (Без шрамов и боли)
                   </span>
                 </h2>
                 <p className="text-slate-300 text-lg leading-relaxed">
-                  Уникальная конструкция зонда обеспечивает получение качественных образцов ткани при минимальной травматизации. Процедура проходит под местной анестезией и занимает всего 15-20 минут.
+                  Система Xishan DK-B-MS обеспечивает удаление фиброаденомы через прокол 3-5 мм. Процедура проходит под местной анестезией, занимает всего 15-20 минут и не оставляет шрамов. Высокая точность благодаря апертуре 1мм и вакуумному контролю гарантирует безопасность.
                 </p>
                 <div className="flex flex-wrap gap-4">
                   <div className="flex items-center gap-2 text-slate-300">
@@ -142,9 +208,9 @@ export default function Home() {
           <div className="container mx-auto px-4">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div>
-                <h2 className="text-3xl font-bold text-slate-900 mb-4">Академия Xishan</h2>
+                <h2 className="text-3xl font-bold text-slate-900 mb-4">Обучение врачей: Как делать ВАБ без осложнений?</h2>
                 <p className="text-slate-600 text-lg max-w-2xl mb-6">
-                  Регулярные обучающие мероприятия, мастер-классы и конференции для специалистов
+                  Академия Xishan проводит регулярные мастер-классы и конференции для специалистов. Узнайте тонкости работы с системой DK-B-MS от ведущих экспертов.
                 </p>
                 <div className="text-slate-600 bg-white/50 p-6 rounded-2xl border border-slate-100 mb-6">
                   <p className="mb-3 font-medium text-slate-900">
@@ -188,7 +254,7 @@ export default function Home() {
         {/* Expert Reviews */}
         <section className="w-full py-24 bg-white">
           <div className="container mx-auto px-4">
-            <h2 className="text-3xl font-bold text-center text-slate-900 mb-16">Мнение экспертов</h2>
+            <h2 className="text-3xl font-bold text-center text-slate-900 mb-16">Отзывы врачей о системе Xishan DK-B-MS</h2>
             
             <div className="grid md:grid-cols-3 gap-8">
               {[

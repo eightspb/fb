@@ -13,7 +13,6 @@
 Этот скрипт очищает:
 - ✅ Next.js кеш (`.next`)
 - ✅ Turbopack кеш (`.turbo`)
-- ✅ npm кеш
 - ✅ bun кеш
 - ✅ Docker кеши (если Docker запущен)
 - ✅ TypeScript build info файлы
@@ -52,8 +51,8 @@ chmod +x scripts/clear-server-caches.sh
 # Удалить папку .next
 Remove-Item -Recurse -Force .next
 
-# Или через npm
-npm run build -- --no-cache
+# Или через Bun
+bun run build -- --no-cache
 ```
 
 ### 2. node_modules (полная переустановка)
@@ -63,8 +62,6 @@ npm run build -- --no-cache
 Remove-Item -Recurse -Force node_modules
 
 # Переустановить зависимости
-npm install
-# или
 bun install
 ```
 
@@ -84,13 +81,7 @@ docker volume prune -f        # Удалить неиспользуемые то
 docker builder prune -a -f    # Очистить build кеш
 ```
 
-### 4. npm кеш
-
-```powershell
-npm cache clean --force
-```
-
-### 5. bun кеш
+### 4. bun кеш
 
 ```powershell
 bun pm cache rm
@@ -148,12 +139,12 @@ Telegram кеширует превью ссылок. Для очистки:
 
 1. **Пересоберите проект:**
    ```powershell
-   npm run build
+   bun run build
    ```
 
 2. **Перезапустите dev сервер:**
    ```powershell
-   npm run dev
+   bun run dev
    ```
 
 3. **Если используете Docker:**
@@ -165,7 +156,7 @@ Telegram кеширует превью ссылок. Для очистки:
 
 ### На локальной машине:
 ```powershell
-.\scripts\clear-all-caches.ps1; npm run build
+.\scripts\clear-all-caches.ps1; bun run build
 ```
 
 ### На сервере:

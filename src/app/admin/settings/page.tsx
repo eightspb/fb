@@ -26,10 +26,6 @@ const formTypes = [
   { value: 'conference_registration', label: 'Регистрация на конференцию' },
 ];
 
-const emailTypeLabels = {
-  admin: 'Администратору',
-  user: 'Пользователю',
-};
 
 const templateVariables = {
   contact: {
@@ -67,19 +63,29 @@ export default function SettingsPage() {
         credentials: 'include',
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Ошибка загрузки шаблонов');
+        const errorMessage = data.error || 'Ошибка загрузки шаблонов';
+        if (errorMessage.includes('не найдена') || errorMessage.includes('миграцию')) {
+          alert(`⚠️ ${errorMessage}\n\nПримените миграцию:\nmigrations/005_add_email_templates.sql`);
+        } else {
+          throw new Error(errorMessage);
+        }
+        setLoading(false);
+        return;
       }
 
-      const data = await response.json();
       const templatesMap: Record<string, Record<string, EmailTemplate>> = {};
 
-      data.templates.forEach((template: EmailTemplate) => {
-        if (!templatesMap[template.form_type]) {
-          templatesMap[template.form_type] = {};
-        }
-        templatesMap[template.form_type][template.email_type] = template;
-      });
+      if (data.templates && Array.isArray(data.templates)) {
+        data.templates.forEach((template: EmailTemplate) => {
+          if (!templatesMap[template.form_type]) {
+            templatesMap[template.form_type] = {};
+          }
+          templatesMap[template.form_type][template.email_type] = template;
+        });
+      }
 
       setTemplates(templatesMap);
     } catch (error: any) {
@@ -92,7 +98,16 @@ export default function SettingsPage() {
 
   const saveTemplate = async (formType: string, emailType: 'admin' | 'user') => {
     const template = templates[formType]?.[emailType];
-    if (!template) return;
+    if (!template) {
+      alert('Шаблон не найден');
+      return;
+    }
+
+    // Валидация
+    if (!template.subject || !template.html_body) {
+      alert('Тема и содержимое письма обязательны для заполнения');
+      return;
+    }
 
     setSaving(`${formType}-${emailType}`);
     try {
@@ -111,13 +126,36 @@ export default function SettingsPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Ошибка сохранения шаблона');
+        const errorData = await response.json().catch(() => ({ error: 'Неизвестная ошибка' }));
+        const errorMessage = errorData.error || errorData.details || `HTTP ${response.status}: ${response.statusText}`;
+        
+        // Специальная обработка для случая отсутствия таблицы
+        if (errorMessage.includes('не найдена') || errorMessage.includes('миграцию')) {
+          alert(`⚠️ ${errorMessage}\n\nПримените миграцию:\nmigrations/005_add_email_templates.sql\n\nИли выполните:\ndocker exec -i <container> psql -U postgres -d postgres -f /migrations/005_add_email_templates.sql`);
+          return;
+        }
+        
+        throw new Error(errorMessage);
       }
 
+      const result = await response.json();
       alert('Шаблон успешно сохранен');
+      
+      // Обновляем шаблон из ответа сервера
+      if (result.template) {
+        setTemplates((prev) => {
+          const newTemplates = { ...prev };
+          if (!newTemplates[formType]) {
+            newTemplates[formType] = {};
+          }
+          newTemplates[formType][emailType] = result.template;
+          return newTemplates;
+        });
+      }
     } catch (error: any) {
       console.error('Ошибка сохранения шаблона:', error);
-      alert('Ошибка сохранения шаблона: ' + (error.message || 'Неизвестная ошибка'));
+      const errorMessage = error.message || 'Неизвестная ошибка';
+      alert(`Ошибка сохранения шаблона: ${errorMessage}\n\nПроверьте консоль браузера для деталей.`);
     } finally {
       setSaving(null);
     }
@@ -148,14 +186,6 @@ export default function SettingsPage() {
     });
   };
 
-  const getCurrentTemplate = (): EmailTemplate | null => {
-    return templates[activeFormType]?.[activeEmailType] || null;
-  };
-
-  const getAvailableVariables = (): string[] => {
-    return templateVariables[activeFormType as keyof typeof templateVariables]?.[activeEmailType] || [];
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -163,9 +193,6 @@ export default function SettingsPage() {
       </div>
     );
   }
-
-  const currentTemplate = getCurrentTemplate();
-  const availableVars = getAvailableVariables();
 
   return (
     <div className="space-y-6">

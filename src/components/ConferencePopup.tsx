@@ -15,10 +15,8 @@ import { Calendar, MapPin } from "lucide-react"
 
 export function ConferencePopup() {
   const [open, setOpen] = useState(false)
-  const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
-    setIsMounted(true)
     // Check if the user has already seen the popup
     const hasSeenPopup = localStorage.getItem("conference_popup_seen_v3")
     
@@ -38,8 +36,6 @@ export function ConferencePopup() {
     }
     setOpen(open)
   }
-
-  if (!isMounted) return null
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

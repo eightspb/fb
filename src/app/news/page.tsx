@@ -5,8 +5,15 @@ import { Footer } from "@/components/Footer";
 import { NewsList } from "@/components/NewsList";
 
 export const metadata: Metadata = {
-  title: "Новости",
-  description: "Новости и события компании Зенит: конференции, выставки, обучение, новое оборудование, партнерство с заводом Сишань. Будьте в курсе последних событий.",
+  title: "Новости компании Зенит | ВАБ Xishan",
+  description: "Актуальные новости о вакуумной биопсии, новинки оборудования Xishan, отчеты с выставок и конференций. Будьте в курсе событий в мире интервенционной маммологии.",
+  keywords: "новости медицины, маммология новости, Xishan оборудование, выставки здравоохранение, компания Зенит новости",
+  openGraph: {
+    title: "Новости и события | Компания Зенит",
+    description: "Последние новости компании, анонсы мероприятий и обзоры нового оборудования для ВАБ.",
+    url: "/news",
+    type: "website",
+  },
 };
 
 interface NewsPageProps {
@@ -18,8 +25,24 @@ export default async function News({ searchParams }: NewsPageProps) {
   const initialYear = params.year || undefined;
   const initialCategory = params.category || undefined;
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    'name': 'Новости компании',
+    'description': 'Лента новостей и событий компании Зенит - дистрибьютора медицинского оборудования.',
+    'provider': {
+      '@type': 'Organization',
+      'name': 'Компания Зенит',
+      'url': 'https://fibroadenoma.net'
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-teal-100 selection:text-teal-900">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Header />
 
       <div className="pt-24 pb-12 bg-white border-b border-slate-200">
@@ -29,7 +52,7 @@ export default async function News({ searchParams }: NewsPageProps) {
             Новости и события
           </h1>
           <p className="text-xl text-slate-600 max-w-3xl">
-            Будьте в курсе последних обновлений компании, мероприятий и новинок оборудования.
+            Будьте в курсе последних обновлений компании, мероприятий и новинок оборудования для вакуумной биопсии.
           </p>
         </div>
       </div>

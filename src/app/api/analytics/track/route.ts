@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
@@ -140,7 +140,13 @@ export async function POST(request: NextRequest) {
     const browser = getBrowser(userAgent);
     const os = getOS(userAgent);
 
-    const client = await pool.connect();
+    let client: PoolClient;
+    try {
+      client = await pool.connect();
+    } catch (error: any) {
+      console.error('[Analytics] Ошибка подключения к БД:', error.message);
+      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 });
+    }
     
     try {
       // Получаем геолокацию

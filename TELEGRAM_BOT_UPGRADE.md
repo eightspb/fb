@@ -159,8 +159,6 @@ interface PendingNews {
 ## Установка зависимостей
 
 ```bash
-npm install
-# или
 bun install
 ```
 

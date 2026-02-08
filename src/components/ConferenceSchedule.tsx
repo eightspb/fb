@@ -3,7 +3,7 @@ import { Clock, Coffee, User } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { ProgramItem, Speaker } from '@/lib/types/conference';
-import { getSpeakerById, formatTimeRange } from '@/lib/types/conference';
+import { getSpeakerById } from '@/lib/types/conference';
 
 interface ConferenceScheduleProps {
   program: ProgramItem[];

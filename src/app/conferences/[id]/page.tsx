@@ -23,9 +23,6 @@ import {
   CheckCircle, 
   ChevronLeft,
   Phone,
-  Mail,
-  MessageCircle,
-  User
 } from 'lucide-react';
 
 interface ConferencePageProps {

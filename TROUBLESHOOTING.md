@@ -26,7 +26,7 @@ docker logs fb-net-postgres
 docker compose down -v
 
 # Запустите заново
-npm run docker:up
+bun run docker:up
 ```
 
 ### Порт уже занят
@@ -52,7 +52,7 @@ netstat -ano | findstr :54322
 **Решение:**
 1. Убедитесь что Docker запущен: `docker ps`
 2. Проверьте контейнер БД: `docker ps | grep postgres`
-3. Перезапустите: `npm run docker:up`
+3. Перезапустите: `bun run docker:up`
 4. Проверьте `DATABASE_URL` в `.env.local`
 
 ### Таблицы не найдены
@@ -76,7 +76,7 @@ cat database-schema.sql | docker compose exec -T postgres psql -U postgres -d po
 **Решение:**
 ```bash
 # Подключитесь к БД
-npm run docker:psql
+bun run docker:psql
 
 # Проверьте таблицу миграций
 SELECT * FROM schema_migrations;
@@ -225,7 +225,7 @@ curl http://localhost:3000/api/test-smtp
 **Решение:**
 ```sql
 -- Подключитесь к БД
-npm run docker:psql
+bun run docker:psql
 
 -- Проверьте наличие данных
 SELECT id, image_url, LENGTH(image_data) as data_size 
@@ -371,11 +371,11 @@ docker ps
 docker logs fb-net-postgres --tail=50
 
 # Подключиться к БД
-npm run docker:psql
+bun run docker:psql
 
 # Перезапустить всё
-npm run docker:down
-npm run docker:up
+bun run docker:down
+bun run docker:up
 bun run dev
 ```
 
@@ -452,8 +452,8 @@ docker compose -f docker-compose.production.yml logs app --tail=100
 # Локально
 rm -rf node_modules .next
 bun install
-npm run docker:down -v
-npm run docker:up
+bun run docker:down -v
+bun run docker:up
 bun run dev
 ```
 

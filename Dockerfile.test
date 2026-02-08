@@ -1,0 +1,49 @@
+# Dockerfile для тестирования
+# Multi-stage build для оптимизации размера образа
+
+FROM oven/bun:1-alpine AS base
+RUN apk add --no-cache libc6-compat
+
+# Stage 1: Dependencies
+FROM base AS deps
+WORKDIR /app
+
+# Копируем файлы зависимостей
+COPY package.json bun.lock* ./
+RUN bun install --frozen-lockfile
+
+# Stage 2: Builder (для тестов не нужен production build)
+FROM base AS builder
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Устанавливаем переменные окружения для тестов
+ENV NODE_ENV=test
+ENV DATABASE_URL=postgresql://test_user:test_password@postgres:5432/test_db
+
+# Stage 3: Test runner
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=test
+
+# Создаем non-root пользователя
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 testuser
+
+# Копируем зависимости и исходный код
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Устанавливаем права
+RUN chown -R testuser:nodejs /app
+
+USER testuser
+
+# Expose порт для тестов (если нужен)
+EXPOSE 3000
+
+# Команда по умолчанию (переопределяется в docker-compose)
+CMD ["bun", "run", "test:ci"]
