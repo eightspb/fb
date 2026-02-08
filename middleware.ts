@@ -24,6 +24,22 @@ const CSRF_EXEMPT_PATHS = [
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  // Устанавливаем информацию о запросе для логгера
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  const realIp = request.headers.get('x-real-ip');
+  const cfConnectingIp = request.headers.get('cf-connecting-ip');
+  const ip = cfConnectingIp || forwardedFor?.split(',')[0]?.trim() || realIp || '127.0.0.1';
+  const userAgent = request.headers.get('user-agent') || '';
+
+  // Сохраняем в глобальный контекст для логгера
+  if (typeof global !== 'undefined') {
+    (global as any).__currentRequest = {
+      ip,
+      userAgent,
+      path: pathname,
+    };
+  }
+
   // Redirect unauthenticated users from admin pages
   if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
     const adminSession = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;

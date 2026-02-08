@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
 import crypto from 'crypto';
 
+// Явно указываем Node.js runtime для работы с PostgreSQL
+export const runtime = 'nodejs';
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
+  connectionTimeoutMillis: 10000, // 10 секунд таймаут подключения
+  idleTimeoutMillis: 30000,
+  max: 20,
 });
 
 /**

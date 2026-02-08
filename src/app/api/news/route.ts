@@ -3,8 +3,35 @@ import { Pool } from 'pg';
 import { NewsItem } from '@/lib/news-data';
 import { checkApiAuth } from '@/lib/auth';
 
+// Явно указываем Node.js runtime для работы с PostgreSQL
+export const runtime = 'nodejs';
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
+  connectionTimeoutMillis: 10000, // 10 секунд таймаут подключения
+  idleTimeoutMillis: 30000,
+  max: 20,
+});
+
+// Обработка ошибок пула подключений
+pool.on('error', (err) => {
+  const errorDetails = {
+    message: err?.message,
+    code: err?.code,
+    name: err?.name,
+    stack: err?.stack
+  };
+  console.error('[DB Pool] Unexpected error on idle client:', JSON.stringify(errorDetails, null, 2));
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/news/route.ts:15',message:'DB Pool error event',data:errorDetails,timestamp:Date.now(),runId:'debug-connection',hypothesisId:'H4'})}).catch(()=>{});
+  // #endregion
+});
+
+pool.on('connect', () => {
+  console.log('[DB Pool] New client connected');
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/news/route.ts:22',message:'DB Pool connect event',data:{},timestamp:Date.now(),runId:'debug-connection',hypothesisId:'H4'})}).catch(()=>{});
+  // #endregion
 });
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -45,8 +72,39 @@ export async function GET(request: Request) {
     const includeAll = searchParams.get('includeAll') === 'true';
 
     console.log('[API News] GET Request received');
+    const dbUrl = process.env.DATABASE_URL;
+    console.log('[API News] DATABASE_URL:', dbUrl ? 'SET' : 'NOT SET');
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/news/route.ts:62',message:'API News GET request started',data:{hasDbUrl:!!dbUrl,dbUrlLength:dbUrl?.length||0},timestamp:Date.now(),runId:'debug-connection',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
 
-    const client = await pool.connect();
+    let client;
+    try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/news/route.ts:67',message:'Attempting database connection',data:{poolExists:!!pool},timestamp:Date.now(),runId:'debug-connection',hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
+      client = await pool.connect();
+      console.log('[API News] Database connection established');
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/news/route.ts:70',message:'Database connection successful',data:{clientExists:!!client},timestamp:Date.now(),runId:'debug-connection',hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
+    } catch (connectError: any) {
+      const errorDetails = {
+        message: connectError?.message,
+        code: connectError?.code,
+        errno: connectError?.errno,
+        syscall: connectError?.syscall,
+        address: connectError?.address,
+        port: connectError?.port,
+        name: connectError?.name,
+        stack: connectError?.stack
+      };
+      console.error('[API News] Failed to connect to database:', JSON.stringify(errorDetails, null, 2));
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/news/route.ts:78',message:'Database connection failed',data:errorDetails,timestamp:Date.now(),runId:'debug-connection',hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
+      throw connectError;
+    }
 
     try {
       // Проверяем наличие колонки status
@@ -210,22 +268,45 @@ export async function GET(request: Request) {
 
       return NextResponse.json(news);
     } finally {
-      client.release();
+      if (client) {
+        client.release();
+      }
     }
   } catch (error: any) {
-    console.error('[API News] Error fetching news:', error);
-    console.error('[API News] Error details:', {
+    const errorDetails = {
       message: error?.message,
       code: error?.code,
+      errno: error?.errno,
+      syscall: error?.syscall,
+      address: error?.address,
+      port: error?.port,
+      name: error?.name,
       stack: error?.stack
-    });
+    };
+    console.error('[API News] Error fetching news:', JSON.stringify(errorDetails, null, 2));
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/news/route.ts:247',message:'API News error caught',data:errorDetails,timestamp:Date.now(),runId:'debug-connection',hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
     
     // Более понятные сообщения об ошибках
     let errorMessage = 'Failed to fetch news';
-    if (error?.code === 'ECONNREFUSED' || error?.message?.includes('connect')) {
-      errorMessage = 'Не удалось подключиться к базе данных. Убедитесь, что база данных запущена.';
+    let statusCode = 500;
+    
+    if (error?.code === 'ECONNREFUSED' || error?.code === 'ETIMEDOUT' || error?.message?.includes('connect')) {
+      errorMessage = 'Не удалось подключиться к базе данных. Проверьте доступность сервера БД.';
+      statusCode = 503; // Service Unavailable
+    } else if (error?.code === 'ENOTFOUND' || error?.code === 'EAI_AGAIN') {
+      errorMessage = 'Не удалось найти сервер базы данных. Проверьте правильность адреса в DATABASE_URL.';
+      statusCode = 503;
     } else if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
       errorMessage = 'Таблицы не найдены. Выполните bun run setup для создания схемы базы данных.';
+      statusCode = 500;
+    } else if (error?.code === '28P01' || error?.message?.includes('password authentication failed')) {
+      errorMessage = 'Ошибка аутентификации в базе данных. Проверьте учетные данные в DATABASE_URL.';
+      statusCode = 500;
+    } else if (error?.code === '3D000' || error?.message?.includes('database') && error?.message?.includes('does not exist')) {
+      errorMessage = 'База данных не найдена. Проверьте имя базы данных в DATABASE_URL.';
+      statusCode = 500;
     } else if (error?.message) {
       errorMessage = error.message;
     }
@@ -233,10 +314,17 @@ export async function GET(request: Request) {
     return NextResponse.json(
       { 
         error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error?.message : undefined,
+        details: process.env.NODE_ENV === 'development' ? {
+          message: error?.message,
+          code: error?.code,
+          errno: error?.errno,
+          syscall: error?.syscall,
+          address: error?.address,
+          port: error?.port,
+        } : undefined,
         code: error?.code
       },
-      { status: 500 }
+      { status: statusCode }
     );
   }
 }

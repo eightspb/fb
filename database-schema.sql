@@ -298,6 +298,49 @@ VALUES (
 <p><strong>Дата:</strong> {{date}}</p>'
 ) ON CONFLICT (form_type, email_type) DO NOTHING;
 
+-- =====================================================
+-- Таблица логов приложения для админ панели
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS app_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  level TEXT NOT NULL CHECK (level IN ('info', 'warn', 'error', 'debug')),
+  message TEXT NOT NULL,
+  context TEXT, -- Контекст лога (например, 'API', 'Auth', 'Database')
+  metadata JSONB, -- Дополнительные данные в формате JSON
+  ip_address TEXT,
+  user_agent TEXT,
+  path TEXT, -- Путь запроса
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Индексы для быстрого поиска
+CREATE INDEX IF NOT EXISTS idx_app_logs_created_at ON app_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_app_logs_level ON app_logs(level);
+CREATE INDEX IF NOT EXISTS idx_app_logs_context ON app_logs(context);
+CREATE INDEX IF NOT EXISTS idx_app_logs_path ON app_logs(path);
+
+-- RLS для app_logs
+ALTER TABLE app_logs ENABLE ROW LEVEL SECURITY;
+
+-- Разрешаем вставку для всех (для логирования)
+DROP POLICY IF EXISTS "Allow insert on app_logs" ON app_logs;
+CREATE POLICY "Allow insert on app_logs" ON app_logs
+  FOR INSERT WITH CHECK (true);
+
+-- Разрешаем чтение только для postgres (админ панель)
+DROP POLICY IF EXISTS "Allow read for postgres on app_logs" ON app_logs;
+CREATE POLICY "Allow read for postgres on app_logs" ON app_logs
+  FOR SELECT TO postgres USING (true);
+
+-- Функция для очистки старых логов (старше 30 дней)
+CREATE OR REPLACE FUNCTION cleanup_old_logs()
+RETURNS void AS $$
+BEGIN
+  DELETE FROM app_logs WHERE created_at < NOW() - INTERVAL '30 days';
+END;
+$$ LANGUAGE plpgsql;
+
 -- Контактная форма - пользователю
 INSERT INTO email_templates (form_type, email_type, subject, html_body)
 VALUES (
