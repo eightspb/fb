@@ -263,38 +263,8 @@ function Invoke-Migrations {
         return
     }
     
-    # Инициализируем таблицу миграций через отдельный bash-скрипт
-    & $SshPath $Server "cd $RemotePath && bash scripts/init-migrations-table.sh $ComposeFile"
-    
-    # Получаем список миграций на сервере
-    $migrations = & $SshPath $Server "cd $RemotePath && ls migrations/*.sql 2>/dev/null || echo ''"
-    
-    if ([string]::IsNullOrWhiteSpace($migrations)) {
-        Write-Info "Папка migrations/ пуста или не найдена"
-        return
-    }
-    
-    foreach ($migrationPath in $migrations -split "`n") {
-        if ([string]::IsNullOrWhiteSpace($migrationPath)) { continue }
-        
-        $migrationName = [System.IO.Path]::GetFileNameWithoutExtension($migrationPath.Trim())
-        
-        # Проверяем, применена ли миграция
-        $appliedRaw = & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -tAc `"SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE name = '$migrationName');`""
-        $applied = if ($null -eq $appliedRaw) { '' } else { ($appliedRaw | Out-String).Trim() }
-        
-        if ($applied -match "t") {
-            Write-Info "  [SKIP] $migrationName (уже применена)"
-        } else {
-            Write-Info "  [APPLY] $migrationName"
-            & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f $migrationPath"
-            if ($LASTEXITCODE -eq 0) {
-                & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres psql -U postgres -d postgres -c `"INSERT INTO schema_migrations (name) VALUES ('$migrationName');`""
-            }
-        }
-    }
-    
-    Write-Success "Миграции обработаны"
+    # Применяем миграции через bash-скрипт (избегаем проблем с экранированием в PowerShell)
+    & $SshPath $Server "cd $RemotePath && bash scripts/apply-migrations-remote.sh $ComposeFile"
 }
 
 function Restart-Containers {
