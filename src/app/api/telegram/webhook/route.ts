@@ -25,6 +25,9 @@ import {
 } from '@/lib/telegram-bot';
 import { Pool } from 'pg';
 
+// Явно указываем Node.js runtime для работы с PostgreSQL и Telegram Bot API
+export const runtime = 'nodejs';
+
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
 if (!botToken) {

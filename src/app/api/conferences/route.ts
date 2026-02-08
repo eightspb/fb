@@ -3,6 +3,9 @@ import { Pool } from 'pg';
 import { checkApiAuth } from '@/lib/auth';
 import { generateSlug, isValidSlug } from '@/lib/slug';
 
+// Явно указываем Node.js runtime для работы с PostgreSQL
+export const runtime = 'nodejs';
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
 });

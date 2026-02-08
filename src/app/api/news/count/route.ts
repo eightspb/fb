@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { Pool } from 'pg';
 
+// Явно указываем Node.js runtime для работы с PostgreSQL
+export const runtime = 'nodejs';
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+  max: 20,
 });
 
 export async function GET(request: Request) {
@@ -10,7 +16,26 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const filter = searchParams.get('filter');
 
-    const client = await pool.connect();
+    console.log('[API News Count] GET Request received');
+    console.log('[API News Count] DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
+    
+    let client;
+    try {
+      client = await pool.connect();
+      console.log('[API News Count] Database connection established');
+    } catch (connectError: any) {
+      const errorDetails = {
+        message: connectError?.message,
+        code: connectError?.code,
+        errno: connectError?.errno,
+        syscall: connectError?.syscall,
+        address: connectError?.address,
+        port: connectError?.port,
+        name: connectError?.name,
+      };
+      console.error('[API News Count] Failed to connect to database:', JSON.stringify(errorDetails, null, 2));
+      throw connectError;
+    }
 
     try {
       // Проверяем наличие колонки status
@@ -51,22 +76,36 @@ export async function GET(request: Request) {
 
       return NextResponse.json({ count });
     } finally {
-      client.release();
+      if (client) {
+        client.release();
+      }
     }
   } catch (error: any) {
-    console.error('[API News Count] Error fetching count:', error);
-    console.error('[API News Count] Error details:', {
+    const errorDetails = {
       message: error?.message,
       code: error?.code,
+      errno: error?.errno,
+      syscall: error?.syscall,
+      address: error?.address,
+      port: error?.port,
+      name: error?.name,
       stack: error?.stack
-    });
+    };
+    console.error('[API News Count] Error fetching count:', JSON.stringify(errorDetails, null, 2));
     
     // Более понятные сообщения об ошибках
     let errorMessage = 'Failed to fetch count';
-    if (error?.code === 'ECONNREFUSED' || error?.message?.includes('connect')) {
-      errorMessage = 'Не удалось подключиться к базе данных. Убедитесь, что база данных запущена.';
+    let statusCode = 500;
+    
+    if (error?.code === 'ECONNREFUSED' || error?.code === 'ETIMEDOUT' || error?.message?.includes('connect')) {
+      errorMessage = 'Не удалось подключиться к базе данных.';
+      statusCode = 503;
+    } else if (error?.code === 'ENOTFOUND' || error?.code === 'EAI_AGAIN') {
+      errorMessage = 'Не удалось найти сервер базы данных.';
+      statusCode = 503;
     } else if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
       errorMessage = 'Таблицы не найдены. Выполните bun run setup для создания схемы базы данных.';
+      statusCode = 500;
     } else if (error?.message) {
       errorMessage = error.message;
     }
@@ -74,10 +113,14 @@ export async function GET(request: Request) {
     return NextResponse.json(
       { 
         error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error?.message : undefined,
+        details: process.env.NODE_ENV === 'development' ? {
+          message: error?.message,
+          code: error?.code,
+          errno: error?.errno,
+        } : undefined,
         code: error?.code
       },
-      { status: 500 }
+      { status: statusCode }
     );
   }
 }

@@ -4,6 +4,7 @@
  */
 
 import { notifyAdminAboutError } from './src/lib/telegram-notifications';
+import { initializeLogger } from './src/lib/logger';
 
 // Флаг для предотвращения множественных инициализаций
 let errorHandlersInitialized = false;
@@ -145,5 +146,6 @@ function initializeErrorHandlers() {
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     initializeErrorHandlers();
+    initializeLogger();
   }
 }
