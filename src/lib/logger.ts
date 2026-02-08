@@ -364,13 +364,13 @@ export async function getLogs(options: {
       );
       const total = parseInt(countResult.rows[0].total, 10);
 
-      // Получаем логи
+      // Получаем логи (старые сверху, новые внизу)
       params.push(limit, offset);
       const logsResult = await client.query(
         `SELECT id, level, message, context, metadata, ip_address, user_agent, path, created_at
          FROM app_logs
          ${whereClause}
-         ORDER BY created_at DESC
+         ORDER BY created_at ASC
          LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
         params
       );
