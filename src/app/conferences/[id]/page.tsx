@@ -467,7 +467,7 @@ export async function generateMetadata({ params }: ConferencePageProps): Promise
     };
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fb.net';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fibroadenoma.net';
   const defaultImage = `${siteUrl}/images/logo.png`;
   
   // Если cover_image относительный путь, делаем его абсолютным

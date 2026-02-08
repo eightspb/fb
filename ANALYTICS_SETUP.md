@@ -61,7 +61,7 @@ npm install plausible-tracker
 import Plausible from 'plausible-tracker'
 
 const plausible = Plausible({
-  domain: 'fb.net',
+  domain: 'fibroadenoma.net',
   apiHost: 'https://plausible.io'
 })
 

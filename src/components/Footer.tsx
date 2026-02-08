@@ -46,9 +46,15 @@ export function Footer() {
               </li>
               <li className="flex items-start gap-3">
                 <Globe className="w-5 h-5 text-teal-500 mt-0.5" />
-                <a href="https://fibroadenoma.net" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-teal-600 transition-colors text-sm">
-                  fibroadenoma.net
-                </a>
+                {(() => {
+                  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fibroadenoma.net';
+                  const siteHostname = siteUrl.startsWith('http') ? new URL(siteUrl).hostname : 'fibroadenoma.net';
+                  return (
+                    <a href={siteUrl} target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-teal-600 transition-colors text-sm">
+                      {siteHostname}
+                    </a>
+                  );
+                })()}
               </li>
             </ul>
           </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createEmailTransporter, getSenderEmail, getTargetEmail } from '@/lib/email';
 import { escapeHtml } from '@/lib/sanitize';
+import { getRenderedEmailTemplate, TemplateVariables } from '@/lib/email-templates';
 import { Pool } from 'pg';
 
 const pool = new Pool({
@@ -81,44 +82,67 @@ export async function POST(request: NextRequest) {
         userEmail: body.email,
       });
 
-      // Send notification to info@zenitmed.ru
-      console.log('[Contact Form] Отправка уведомления администратору...');
+      // Подготовка переменных для шаблонов
       const safeName = escapeHtml(body.name);
       const safeEmail = escapeHtml(body.email);
       const safePhone = escapeHtml(body.phone);
       const safeMessage = escapeHtml(body.message).replace(/\n/g, '<br>');
+      const dateStr = new Date().toLocaleString('ru-RU');
+
+      // Получаем и рендерим шаблон для администратора
+      const adminTemplate = await getRenderedEmailTemplate('contact', 'admin', {
+        name: safeName,
+        email: safeEmail,
+        phone: safePhone,
+        message: safeMessage,
+        date: dateStr,
+      });
+
+      // Отправка уведомления администратору
+      console.log('[Contact Form] Отправка уведомления администратору...');
+      const adminSubject = adminTemplate?.subject || `Новое сообщение с сайта от ${safeName}`;
+      const adminHtml = adminTemplate?.html || `
+        <h2>Новое сообщение с сайта</h2>
+        <p><strong>Имя:</strong> ${safeName}</p>
+        <p><strong>Email:</strong> ${safeEmail}</p>
+        <p><strong>Телефон:</strong> ${safePhone}</p>
+        <p><strong>Сообщение:</strong></p>
+        <p>${safeMessage}</p>
+        <p><strong>Дата:</strong> ${dateStr}</p>
+      `;
 
       const adminResult = await transporter.sendMail({
         from: senderEmail,
         to: targetEmail,
-        subject: `Новое сообщение с сайта от ${safeName}`,
-        html: `
-          <h2>Новое сообщение с сайта</h2>
-          <p><strong>Имя:</strong> ${safeName}</p>
-          <p><strong>Email:</strong> ${safeEmail}</p>
-          <p><strong>Телефон:</strong> ${safePhone}</p>
-          <p><strong>Сообщение:</strong></p>
-          <p>${safeMessage}</p>
-          <p><strong>Дата:</strong> ${new Date().toLocaleString('ru-RU')}</p>
-        `,
+        subject: adminSubject,
+        html: adminHtml,
       });
       console.log('[Contact Form] Уведомление администратору отправлено:', adminResult.messageId);
 
-      // Send confirmation to the user
+      // Получаем и рендерим шаблон для пользователя
+      const userTemplate = await getRenderedEmailTemplate('contact', 'user', {
+        name: safeName,
+        date: dateStr,
+      });
+
+      // Отправка подтверждения пользователю
       console.log('[Contact Form] Отправка подтверждения пользователю...');
+      const userSubject = userTemplate?.subject || 'Ваше сообщение получено | ЗЕНИТ МЕД';
+      const userHtml = userTemplate?.html || `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Здравствуйте, ${safeName}!</h2>
+          <p>Мы получили ваше сообщение и свяжемся с вами в ближайшее время.</p>
+          <br>
+          <p>С уважением,<br>Команда ЗЕНИТ МЕД</p>
+          <p><a href="https://zenitmed.ru">zenitmed.ru</a></p>
+        </div>
+      `;
+
       const userResult = await transporter.sendMail({
         from: senderEmail,
         to: body.email,
-        subject: 'Ваше сообщение получено | ЗЕНИТ МЕД',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Здравствуйте, ${safeName}!</h2>
-            <p>Мы получили ваше сообщение и свяжемся с вами в ближайшее время.</p>
-            <br>
-            <p>С уважением,<br>Команда ЗЕНИТ МЕД</p>
-            <p><a href="https://zenitmed.ru">zenitmed.ru</a></p>
-          </div>
-        `,
+        subject: userSubject,
+        html: userHtml,
       });
       console.log('[Contact Form] Подтверждение пользователю отправлено:', userResult.messageId);
       console.log('[Contact Form] Все письма успешно отправлены');

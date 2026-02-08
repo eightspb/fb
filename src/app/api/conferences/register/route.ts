@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createEmailTransporter, getSenderEmail, getTargetEmail } from '@/lib/email';
 import { escapeHtml } from '@/lib/sanitize';
+import { getRenderedEmailTemplate } from '@/lib/email-templates';
 import { Pool } from 'pg';
 
 const pool = new Pool({
@@ -100,47 +101,76 @@ export async function POST(request: NextRequest) {
         conference: body.conference,
       });
 
-      // Отправка уведомления на info@zenitmed.ru
+      // Подготовка переменных
       const safeConference = escapeHtml(body.conference);
       const safeName = escapeHtml(body.name);
       const safeEmail = escapeHtml(body.email);
       const safePhone = escapeHtml(body.phone);
       const safeInstitution = body.institution ? escapeHtml(body.institution) : '';
+      const dateStr = new Date().toLocaleString('ru-RU');
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fibroadenoma.net';
+      const siteHostname = siteUrl.startsWith('http') ? new URL(siteUrl).hostname : 'fibroadenoma.net';
 
+      // Получаем и рендерим шаблон для администратора
+      const adminTemplate = await getRenderedEmailTemplate('conference_registration', 'admin', {
+        conference: safeConference,
+        name: safeName,
+        email: safeEmail,
+        phone: safePhone,
+        institution: safeInstitution,
+        certificate: body.certificate ? 'Да' : 'Нет',
+        date: dateStr,
+      });
+
+      // Отправка уведомления администратору
       console.log('[Conference Register] Отправка уведомления администратору...');
+      const adminSubject = adminTemplate?.subject || `Регистрация на конференцию: ${safeName}`;
+      const adminHtml = adminTemplate?.html || `
+        <h2>Новая регистрация на конференцию</h2>
+        <p><strong>Конференция:</strong> ${safeConference}</p>
+        <p><strong>ФИО:</strong> ${safeName}</p>
+        <p><strong>Email:</strong> ${safeEmail}</p>
+        <p><strong>Телефон:</strong> ${safePhone}</p>
+        ${safeInstitution ? `<p><strong>Учреждение:</strong> ${safeInstitution}</p>` : ''}
+        <p><strong>Нужен сертификат:</strong> ${body.certificate ? 'Да' : 'Нет'}</p>
+        <p><strong>Дата регистрации:</strong> ${dateStr}</p>
+      `;
+
       await transporter.sendMail({
         from: senderEmail,
         to: targetEmail,
-        subject: `Регистрация на конференцию: ${safeName}`,
-        html: `
-          <h2>Новая регистрация на конференцию</h2>
-          <p><strong>Конференция:</strong> ${safeConference}</p>
-          <p><strong>ФИО:</strong> ${safeName}</p>
-          <p><strong>Email:</strong> ${safeEmail}</p>
-          <p><strong>Телефон:</strong> ${safePhone}</p>
-          ${safeInstitution ? `<p><strong>Учреждение:</strong> ${safeInstitution}</p>` : ''}
-          <p><strong>Нужен сертификат:</strong> ${body.certificate ? 'Да' : 'Нет'}</p>
-          <p><strong>Дата регистрации:</strong> ${new Date().toLocaleString('ru-RU')}</p>
-        `,
+        subject: adminSubject,
+        html: adminHtml,
       });
       console.log('[Conference Register] Уведомление администратору отправлено');
 
+      // Получаем и рендерим шаблон для пользователя
+      const userTemplate = await getRenderedEmailTemplate('conference_registration', 'user', {
+        name: safeName,
+        conference: safeConference,
+        siteUrl,
+        siteHostname,
+      });
+
       // Отправка подтверждения пользователю
       console.log('[Conference Register] Отправка подтверждения пользователю...');
+      const userSubject = userTemplate?.subject || 'Регистрация на конференцию получена | Компания ЗЕНИТ';
+      const userHtml = userTemplate?.html || `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Здравствуйте, ${safeName}!</h2>
+          <p>Мы получили вашу регистрацию на конференцию "${safeConference}".</p>
+          <p>Благодарим за регистрацию и ждём вас!</p>
+          <br>
+          <p>С уважением,<br>Компания ЗЕНИТ</p>
+          <p><a href="${siteUrl}">${siteHostname}</a></p>
+        </div>
+      `;
+
       await transporter.sendMail({
         from: senderEmail,
         to: body.email,
-        subject: 'Регистрация на конференцию получена | Компания ЗЕНИТ',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Здравствуйте, ${safeName}!</h2>
-            <p>Мы получили вашу регистрацию на конференцию "${safeConference}".</p>
-            <p>Благодарим за регистрацию и ждём вас!</p>
-            <br>
-            <p>С уважением,<br>Компания ЗЕНИТ</p>
-            <p><a href="https://fibroadenoma.net">fibroadenoma.net</a></p>
-          </div>
-        `,
+        subject: userSubject,
+        html: userHtml,
       });
       console.log('[Conference Register] Подтверждение пользователю отправлено');
     } catch (emailError: any) {
