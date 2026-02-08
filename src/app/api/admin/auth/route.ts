@@ -47,12 +47,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (password !== adminPassword) {
+      console.log('[Auth] ❌ Попытка входа с неверным паролем');
       return NextResponse.json(
         { error: 'Неверный пароль' },
         { status: 401 }
       );
     }
 
+    console.log('[Auth] ✅ Успешный вход в админ панель');
     const token = await createToken();
     const isSecure =
       request.headers.get('x-forwarded-proto') === 'https' ||

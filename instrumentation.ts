@@ -144,8 +144,24 @@ async function initializeErrorHandlers() {
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { initializeLogger } = await import('./src/lib/logger');
+    const { initializeLogger, log } = await import('./src/lib/logger');
     await initializeErrorHandlers();
     initializeLogger();
+    
+    // Логируем запуск сервера
+    log('info', 'Сервер запущен', {
+      nodeVersion: process.version,
+      platform: process.platform,
+      env: process.env.NODE_ENV || 'development',
+      pid: process.pid,
+    }, 'System');
+    
+    // Логируем завершение работы сервера
+    const shutdownHandler = () => {
+      log('info', 'Сервер останавливается', { reason: 'SIGTERM' }, 'System');
+    };
+    
+    process.on('SIGTERM', shutdownHandler);
+    process.on('SIGINT', shutdownHandler);
   }
 }

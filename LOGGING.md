@@ -1,10 +1,23 @@
 # Система логирования
 
-Система логирования для админ панели, которая автоматически перехватывает все логи из консоли и сохраняет их в базу данных для просмотра в реальном времени.
+Комплексная система логирования для автоматической записи всех событий и действий в приложении.
 
 ## Возможности
 
-- ✅ Автоматический перехват `console.log`, `console.error`, `console.warn`, `console.debug`
+### Автоматическое логирование
+
+- ✅ **Console API**: Автоматический перехват `console.log`, `console.error`, `console.warn`, `console.debug`
+- ✅ **HTTP запросы**: Все входящие запросы (метод, путь, параметры, IP, User-Agent)
+- ✅ **Действия пользователей**: Create/Update/Delete операции с данными
+- ✅ **Безопасность**: Попытки несанкционированного доступа, CSRF нарушения, превышение лимитов
+- ✅ **Авторизация**: Успешные и неуспешные попытки входа
+- ✅ **Системные события**: Старт/стоп сервера, ошибки приложения
+- ✅ **Email**: Отправка писем (успех/ошибка)
+- ✅ **Формы**: Отправка форм пользователями
+- ✅ **Экспорт**: Экспорт данных администраторами
+
+### Просмотр и анализ
+
 - ✅ Сохранение логов в PostgreSQL с метаданными (IP, User-Agent, путь запроса)
 - ✅ Просмотр логов в реальном времени через Server-Sent Events (SSE)
 - ✅ Фильтрация по уровню (info, warn, error, debug) и контексту
@@ -125,6 +138,39 @@ log('info', 'Пользователь залогинился', { userId: 123 }, 
 log('error', 'Ошибка подключения к БД', { error: error.message }, 'Database');
 ```
 
+### Логирование действий пользователей
+
+```typescript
+import { 
+  logDataAction, 
+  logUnauthorizedAttempt, 
+  logApiError,
+  logFormSubmission,
+  logEmailSent,
+  logDataExport
+} from '@/lib/user-actions-logger';
+
+// Логирование CRUD операций
+logDataAction(request, 'create', 'news', newsId, { title: 'Новая статья' });
+logDataAction(request, 'update', 'conference', confId, { status: 'published' });
+logDataAction(request, 'delete', 'user', userId);
+
+// Логирование ошибок безопасности
+logUnauthorizedAttempt(request, 'Нет действительной сессии');
+
+// Логирование ошибок API
+logApiError(request, error, 'Create news');
+
+// Логирование форм
+logFormSubmission(request, 'contact_form', true, { name: 'John' });
+
+// Логирование email
+logEmailSent('user@example.com', 'Welcome', true);
+
+// Логирование экспорта
+logDataExport(request, 'requests_csv', 150);
+```
+
 ### Получение логов
 
 ```typescript
@@ -155,12 +201,26 @@ interface LogEntry {
 
 ## Контексты
 
-Система автоматически извлекает контекст из сообщений в формате `[Context]`:
+Система автоматически извлекает контекст из сообщений в формате `[Context]` или устанавливает его программно:
 
 ```typescript
 console.log('[API] Запрос получен');  // context = 'API'
 console.error('[Auth] Ошибка входа'); // context = 'Auth'
 ```
+
+### Стандартные контексты
+
+- `HTTP` - HTTP запросы
+- `Auth` - Авторизация и аутентификация
+- `UserAction` - Действия пользователей (CRUD)
+- `Security` - События безопасности
+- `API` - Ошибки API
+- `Form` - Отправка форм
+- `Email` - Отправка email
+- `Export` - Экспорт данных
+- `System` - Системные события
+- `RateLimit` - Превышение лимитов
+- `Database` - Работа с БД
 
 ## Производительность
 

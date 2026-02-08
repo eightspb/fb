@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { logDataAction, logUnauthorizedAttempt, logApiError } from '@/lib/user-actions-logger';
 
 // Явно указываем Node.js runtime для работы с PostgreSQL
 export const runtime = 'nodejs';
@@ -74,6 +75,7 @@ export async function PATCH(
     const isAuthenticated = await verifyAdminSession();
 
     if (!isAuthenticated) {
+      logUnauthorizedAttempt(request, 'Нет действительной сессии администратора');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -114,12 +116,17 @@ export async function PATCH(
         return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
 
+      logDataAction(request, 'update', 'form_submission', id, {
+        updatedFields: Object.keys(body).filter(k => allowedFields.includes(k)),
+      });
+
       return NextResponse.json(result.rows[0]);
     } finally {
       client.release();
     }
   } catch (error: any) {
     console.error('Error updating request:', error);
+    logApiError(request, error, 'Update form submission');
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -133,6 +140,7 @@ export async function DELETE(
     const isAuthenticated = await verifyAdminSession();
 
     if (!isAuthenticated) {
+      logUnauthorizedAttempt(request, 'Нет действительной сессии администратора');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -149,12 +157,15 @@ export async function DELETE(
         return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
 
+      logDataAction(request, 'delete', 'form_submission', id);
+
       return NextResponse.json({ success: true, deleted: id });
     } finally {
       client.release();
     }
   } catch (error: any) {
     console.error('Error deleting request:', error);
+    logApiError(request, error, 'Delete form submission');
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
