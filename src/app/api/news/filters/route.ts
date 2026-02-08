@@ -10,11 +10,24 @@ export async function GET() {
     const client = await pool.connect();
 
     try {
+      // Проверяем наличие колонки status
+      const columnCheck = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name='news' AND column_name='status'
+      `);
+      
+      const hasStatusColumn = columnCheck.rows.length > 0;
+      
       // Получаем только категории из опубликованных новостей
+      const statusCondition = hasStatusColumn
+        ? "AND (status = 'published' OR status IS NULL)"
+        : "";
+      
       const categoriesResult = await client.query(
         `SELECT DISTINCT category FROM news 
          WHERE category IS NOT NULL 
-         AND (status = 'published' OR status IS NULL)`
+         ${statusCondition}`
       );
       const categories = categoriesResult.rows.map(row => row.category);
 

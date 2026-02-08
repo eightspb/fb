@@ -13,9 +13,20 @@ export async function GET(request: Request) {
     const client = await pool.connect();
 
     try {
+      // Проверяем наличие колонки status
+      const columnCheck = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name='news' AND column_name='status'
+      `);
+      
+      const hasStatusColumn = columnCheck.rows.length > 0;
+      
       let count = 0;
       // Условие для опубликованных новостей
-      const publishedCondition = "(n.status = 'published' OR n.status IS NULL)";
+      const publishedCondition = hasStatusColumn
+        ? "(n.status = 'published' OR n.status IS NULL)"
+        : "1=1";
 
       if (!filter) {
         // Общее количество опубликованных новостей
@@ -42,10 +53,30 @@ export async function GET(request: Request) {
     } finally {
       client.release();
     }
-  } catch (error) {
-    console.error('Error fetching count:', error);
+  } catch (error: any) {
+    console.error('[API News Count] Error fetching count:', error);
+    console.error('[API News Count] Error details:', {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack
+    });
+    
+    // Более понятные сообщения об ошибках
+    let errorMessage = 'Failed to fetch count';
+    if (error?.code === 'ECONNREFUSED' || error?.message?.includes('connect')) {
+      errorMessage = 'Не удалось подключиться к базе данных. Убедитесь, что база данных запущена.';
+    } else if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      errorMessage = 'Таблицы не найдены. Выполните bun run setup для создания схемы базы данных.';
+    } else if (error?.message) {
+      errorMessage = error.message;
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to fetch count' },
+      { 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error?.message : undefined,
+        code: error?.code
+      },
       { status: 500 }
     );
   }
