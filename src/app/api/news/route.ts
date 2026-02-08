@@ -168,7 +168,10 @@ export async function GET(request: Request) {
       console.log(`[API News] Found ${result.rows.length} rows`);
       if (result.rows.length === 0) {
         // Проверяем, есть ли вообще новости в базе
-        const totalCheck = await client.query('SELECT COUNT(*) as total, COUNT(CASE WHEN status IS DISTINCT FROM \'draft\' THEN 1 END) as published FROM news');
+        const totalCheckQuery = hasStatusColumn
+          ? 'SELECT COUNT(*) as total, COUNT(CASE WHEN status IS DISTINCT FROM \'draft\' THEN 1 END) as published FROM news'
+          : 'SELECT COUNT(*) as total, COUNT(*) as published FROM news';
+        const totalCheck = await client.query(totalCheckQuery);
         console.log('[API News] Total news in DB:', totalCheck.rows[0]);
       }
 

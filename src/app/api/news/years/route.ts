@@ -13,12 +13,25 @@ export async function GET() {
     const client = await pool.connect();
 
     try {
+      // Проверяем наличие колонки status
+      const columnCheck = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name='news' AND column_name='status'
+      `);
+      
+      const hasStatusColumn = columnCheck.rows.length > 0;
+      
       // Показываем годы только из опубликованных новостей
-      const result = await client.query(
-        `SELECT DISTINCT year FROM news 
-         WHERE status = 'published' OR status IS NULL
-         ORDER BY year DESC`
-      );
+      const statusCondition = hasStatusColumn 
+        ? "WHERE (status = 'published' OR status IS NULL)"
+        : "";
+      
+      const query = statusCondition
+        ? `SELECT DISTINCT year FROM news ${statusCondition} ORDER BY year DESC`
+        : `SELECT DISTINCT year FROM news ORDER BY year DESC`;
+      
+      const result = await client.query(query);
 
       const years = result.rows
         .map(row => Number(row.year))
