@@ -3,6 +3,7 @@ import { createEmailTransporter, getSenderEmail, getTargetEmail } from '@/lib/em
 import { escapeHtml } from '@/lib/sanitize';
 import { getRenderedEmailTemplate } from '@/lib/email-templates';
 import { notifyAdminAboutFormSubmission, notifyAdminAboutError } from '@/lib/telegram-notifications';
+import { withApiLogging } from '@/lib/api-logger';
 import { Pool } from 'pg';
 
 // Явно указываем Node.js runtime для работы с PostgreSQL
@@ -20,7 +21,7 @@ interface ContactFormData {
   consent: boolean;
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withApiLogging('/api/contact', async (request: NextRequest) => {
   console.log('[Contact Form API] Получен запрос на отправку формы');
   try {
     const body: ContactFormData = await request.json();
@@ -276,5 +277,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 

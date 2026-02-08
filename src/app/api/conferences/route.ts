@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { Pool } from 'pg';
 import { checkApiAuth } from '@/lib/auth';
 import { generateSlug, isValidSlug } from '@/lib/slug';
+import { withApiLogging } from '@/lib/api-logger';
 
 // Явно указываем Node.js runtime для работы с PostgreSQL
 export const runtime = 'nodejs';
@@ -10,7 +11,7 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
 });
 
-export async function GET(request: Request) {
+export const GET = withApiLogging('/api/conferences', async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
@@ -40,9 +41,9 @@ export async function GET(request: Request) {
     console.error('Error fetching conferences:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withApiLogging('/api/conferences', async (request: NextRequest) => {
   try {
     // Auth check
     const { isAuthenticated } = await checkApiAuth(request);
@@ -131,4 +132,4 @@ export async function POST(request: Request) {
     console.error('Error creating conference:', error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
-}
+});

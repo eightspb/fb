@@ -3,6 +3,7 @@ import { createEmailTransporter, getSenderEmail, getTargetEmail } from '@/lib/em
 import { escapeHtml } from '@/lib/sanitize';
 import { getRenderedEmailTemplate } from '@/lib/email-templates';
 import { notifyAdminAboutFormSubmission, notifyAdminAboutError } from '@/lib/telegram-notifications';
+import { withApiLogging } from '@/lib/api-logger';
 import { Pool } from 'pg';
 
 // Явно указываем Node.js runtime для работы с PostgreSQL
@@ -12,7 +13,7 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
 });
 
-export async function POST(request: NextRequest) {
+export const POST = withApiLogging('/api/request-cp', async (request: NextRequest) => {
   console.log('[Request CP API] Получен запрос на отправку формы');
   console.log('[Request CP API] NODE_ENV:', process.env.NODE_ENV);
   
@@ -283,4 +284,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

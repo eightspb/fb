@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { Pool } from 'pg';
 import { NewsItem } from '@/lib/news-data';
 import { checkApiAuth } from '@/lib/auth';
+import { withApiLogging } from '@/lib/api-logger';
 
 // Явно указываем Node.js runtime для работы с PostgreSQL
 export const runtime = 'nodejs';
@@ -58,7 +59,7 @@ function transformNewsFromDB(row: any, images: any[], tags: any[], videos: any[]
   };
 }
 
-export async function GET(request: Request) {
+export const GET = withApiLogging('/api/news', async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url);
     const yearParam = searchParams.get('year');
@@ -327,9 +328,9 @@ export async function GET(request: Request) {
       { status: statusCode }
     );
   }
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withApiLogging('/api/news', async (request: NextRequest) => {
   try {
     // Auth check
     const { isAuthenticated } = await checkApiAuth(request);
@@ -491,7 +492,7 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
-}
+});
 
 function parseYear(value: unknown): number | null {
   if (value === undefined || value === null || value === '') {
