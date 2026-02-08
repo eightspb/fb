@@ -5,29 +5,43 @@
 import TelegramBot from 'node-telegram-bot-api';
 import { Pool } from 'pg';
 
-const botToken = process.env.TELEGRAM_BOT_TOKEN;
-const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+// Ленивая инициализация для избежания проблем с Edge Runtime
+let bot: TelegramBot | null = null;
+let pool: Pool | null = null;
+let adminChatIdNumber: number | null = null;
 
-// Преобразуем adminChatId в число
-const adminChatIdNumber = adminChatId ? parseInt(adminChatId, 10) : null;
+function initializeBot() {
+  if (bot !== null) return;
+  
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
 
-if (!botToken) {
-  console.warn('[NOTIFY] ⚠️ TELEGRAM_BOT_TOKEN не установлен');
-} else {
-  console.log('[NOTIFY] ✅ TELEGRAM_BOT_TOKEN найден');
+  // Преобразуем adminChatId в число
+  adminChatIdNumber = adminChatId ? parseInt(adminChatId, 10) : null;
+
+  if (!botToken) {
+    console.warn('[NOTIFY] ⚠️ TELEGRAM_BOT_TOKEN не установлен');
+  } else {
+    console.log('[NOTIFY] ✅ TELEGRAM_BOT_TOKEN найден');
+  }
+
+  if (!adminChatIdNumber) {
+    console.warn('[NOTIFY] ⚠️ TELEGRAM_ADMIN_CHAT_ID не установлен или неверный');
+  } else {
+    console.log(`[NOTIFY] ✅ TELEGRAM_ADMIN_CHAT_ID найден: ${adminChatIdNumber}`);
+  }
+
+  bot = botToken ? new TelegramBot(botToken, { polling: false }) : null;
 }
 
-if (!adminChatIdNumber) {
-  console.warn('[NOTIFY] ⚠️ TELEGRAM_ADMIN_CHAT_ID не установлен или неверный');
-} else {
-  console.log(`[NOTIFY] ✅ TELEGRAM_ADMIN_CHAT_ID найден: ${adminChatIdNumber}`);
+function getPool() {
+  if (pool === null) {
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
+    });
+  }
+  return pool;
 }
-
-const bot = botToken ? new TelegramBot(botToken, { polling: false }) : null;
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
-});
 
 interface NewsPreview {
   title: string;
@@ -43,6 +57,7 @@ export async function notifyAdminAboutDraft(
   preview: NewsPreview,
   imagesCount: number = 0
 ): Promise<void> {
+  initializeBot();
   console.log(`[NOTIFY] 📤 Отправка уведомления администратору о новости: ${newsId}`);
   
   if (!bot || !adminChatIdNumber) {
@@ -53,7 +68,7 @@ export async function notifyAdminAboutDraft(
   try {
     // Получаем первое изображение для превью (если есть)
     console.log('[NOTIFY] 🔍 Получение превью изображения...');
-    const client = await pool.connect();
+    const client = await getPool().connect();
     let firstImageUrl: string | null = null;
 
     try {
@@ -186,6 +201,7 @@ export async function notifyAdminAboutDraft(
  * Отправляет подтверждение о публикации
  */
 export async function notifyPublishConfirmation(newsId: string): Promise<void> {
+  initializeBot();
   if (!bot || !adminChatIdNumber) {
     return;
   }
@@ -205,6 +221,7 @@ export async function notifyPublishConfirmation(newsId: string): Promise<void> {
  * Отправляет уведомление об отклонении
  */
 export async function notifyRejection(newsId: string): Promise<void> {
+  initializeBot();
   if (!bot || !adminChatIdNumber) {
     return;
   }
@@ -239,6 +256,7 @@ interface FormSubmissionData {
  * Отправляет уведомление администратору о новой заявке
  */
 export async function notifyAdminAboutFormSubmission(data: FormSubmissionData): Promise<void> {
+  initializeBot();
   console.log(`[NOTIFY] 📤 Отправка уведомления о новой заявке: ${data.formType}`);
   
   if (!bot || !adminChatIdNumber) {
@@ -334,6 +352,7 @@ export async function notifyAdminAboutError(
     additionalInfo?: Record<string, any>;
   }
 ): Promise<void> {
+  initializeBot();
   console.log('[NOTIFY] 📤 Отправка уведомления об ошибке');
   
   if (!bot || !adminChatIdNumber) {

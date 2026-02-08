@@ -3,16 +3,15 @@
  * Выполняется при старте сервера для настройки глобальных обработчиков
  */
 
-import { notifyAdminAboutError } from './src/lib/telegram-notifications';
-import { initializeLogger } from './src/lib/logger';
-
 // Флаг для предотвращения множественных инициализаций
 let errorHandlersInitialized = false;
 
 /**
  * Инициализирует глобальные обработчики ошибок
  */
-function initializeErrorHandlers() {
+async function initializeErrorHandlers() {
+  // Динамический импорт для избежания загрузки в Edge Runtime
+  const { notifyAdminAboutError } = await import('./src/lib/telegram-notifications');
   if (errorHandlersInitialized) {
     return;
   }
@@ -145,7 +144,8 @@ function initializeErrorHandlers() {
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    initializeErrorHandlers();
+    const { initializeLogger } = await import('./src/lib/logger');
+    await initializeErrorHandlers();
     initializeLogger();
   }
 }
