@@ -48,6 +48,10 @@ RUN if [ -f ./public/images/background.png ]; then \
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
+# Копируем instrumentation для логирования (Next.js standalone не всегда включает его)
+COPY --from=builder /app/instrumentation.js ./instrumentation.js 2>/dev/null || true
+COPY --from=builder /app/.next/server/instrumentation.js ./.next/server/instrumentation.js 2>/dev/null || true
+
 # Security: Set proper permissions
 RUN chown -R nextjs:nodejs /app
 
