@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@/lib/csrf';
+import fs from 'fs';
 
 const hasUpstashConfig = !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
 const ADMIN_SESSION_COOKIE = 'admin-session';
@@ -59,7 +60,6 @@ export async function middleware(request: NextRequest) {
     const headerToken = request.headers.get(CSRF_HEADER_NAME);
     
     // #region agent log
-    const fs = require('fs');
     const logPath = 'c:\\WORK_PROGRAMMING\\fb.net\\.cursor\\debug.log';
     const logEntry = JSON.stringify({
       location: 'middleware.ts:58',
@@ -78,7 +78,7 @@ export async function middleware(request: NextRequest) {
       runId: 'run1',
       hypothesisId: 'A',
     }) + '\n';
-    try { fs.appendFileSync(logPath, logEntry, 'utf8'); } catch (e) {}
+    try { fs.appendFileSync(logPath, logEntry, 'utf8'); } catch {}
     // #endregion
     
     if (!cookieToken || !headerToken || cookieToken !== headerToken) {
@@ -97,7 +97,7 @@ export async function middleware(request: NextRequest) {
         runId: 'run1',
         hypothesisId: 'A',
       }) + '\n';
-      try { fs.appendFileSync(logPath, failLogEntry, 'utf8'); } catch (e) {}
+      try { fs.appendFileSync(logPath, failLogEntry, 'utf8'); } catch {}
       // #endregion
       return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
     }
@@ -111,7 +111,7 @@ export async function middleware(request: NextRequest) {
       runId: 'run1',
       hypothesisId: 'A',
     }) + '\n';
-    try { fs.appendFileSync(logPath, successLogEntry, 'utf8'); } catch (e) {}
+    try { fs.appendFileSync(logPath, successLogEntry, 'utf8'); } catch {}
     // #endregion
   }
 

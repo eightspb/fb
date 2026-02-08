@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "@/components/Header";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
@@ -118,14 +119,14 @@ export default function Contacts() {
             <section>
                <h2 className="text-2xl font-bold text-slate-900 mb-6">Документы</h2>
                <div className="grid sm:grid-cols-2 gap-4">
-                 <a href="#" className="flex items-center p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 transition-all group">
+                 <Link href="/privacy" className="flex items-center p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 transition-all group">
                    <Shield className="w-5 h-5 text-slate-400 mr-3 group-hover:text-slate-600" />
                    <span className="text-sm font-medium text-slate-700">Политика конфиденциальности</span>
-                 </a>
-                 <a href="#" className="flex items-center p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 transition-all group">
+                 </Link>
+                 <Link href="/terms" className="flex items-center p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 transition-all group">
                    <FileText className="w-5 h-5 text-slate-400 mr-3 group-hover:text-slate-600" />
-                   <span className="text-sm font-medium text-slate-700">Реквизиты компании</span>
-                 </a>
+                   <span className="text-sm font-medium text-slate-700">Условия использования</span>
+                 </Link>
                </div>
             </section>
           </div>

@@ -8,7 +8,7 @@
 
 - ✅ Webhook endpoint работает локально: `http://localhost:3000/api/telegram/webhook`
 - ✅ Сервер работает на: `http://155.212.217.60:3000`
-- ❌ Ngrok не запущен: `https://protrusive-amaya-overmellowly.ngrok-free.dev`
+- ❌ Ngrok не запущен: `https://your-ngrok-url.ngrok-free.dev`
 - ⚠️ 3 необработанных сообщения в очереди
 
 ## Решения

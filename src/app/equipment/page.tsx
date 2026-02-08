@@ -182,14 +182,14 @@ export default function Equipment() {
       {/* Technical Advantages Grid */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4 md:px-6">
-          <div className="text-center mb-16">
+          <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-slate-900 mb-4">Технические характеристики Xishan DK-B-MS</h2>
             <p className="text-slate-700 max-w-2xl mx-auto">
               Технологическое превосходство системы для эффективной вакуумной аспирационной резекции
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { icon: Settings, title: "Плавная регулировка", desc: "Шаг настройки апертуры 1 мм", color: "text-blue-600", bg: "bg-blue-50" },
               { icon: VolumeX, title: "Тихая работа", desc: "Комфорт для врача и пациента", color: "text-teal-600", bg: "bg-teal-50" },
@@ -203,13 +203,13 @@ export default function Equipment() {
               <motion.div
                 key={i}
                 whileHover={{ y: -5 }}
-                className="p-6 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300"
+                className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300"
               >
-                <div className={`w-12 h-12 rounded-xl ${item.bg} flex items-center justify-center mb-4`}>
+                <div className={`w-12 h-12 rounded-xl ${item.bg} flex items-center justify-center mb-3`}>
                   <item.icon className={`w-6 h-6 ${item.color}`} />
                 </div>
-                <h3 className="font-bold text-slate-900 mb-2">{item.title}</h3>
-                <p className="text-sm text-slate-700">{item.desc}</p>
+                <h3 className="font-bold text-slate-900 mb-1.5 text-lg">{item.title}</h3>
+                <p className="text-base text-slate-700">{item.desc}</p>
               </motion.div>
             ))}
           </div>
@@ -226,17 +226,17 @@ export default function Equipment() {
                 Система вакуумной биопсии Xishan DK-B-MS включает эргономичную консоль управления, легкую рукоятку и мощную вакуумную аспирационную помпу.
               </p>
               
-              <div className="space-y-6">
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex gap-4">
+              <div className="space-y-4">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex gap-3">
                   <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
                     <Settings className="w-6 h-6 text-blue-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900 mb-1">Консоль управления</h3>
-                    <p className="text-slate-700 text-sm mb-2">
+                    <h3 className="text-xl font-bold text-slate-900 mb-1">Консоль управления</h3>
+                    <p className="text-slate-700 text-base mb-2">
                       Сенсорный экран с интуитивным интерфейсом ПО Xishan DK-B-MS.
                     </p>
-                    <div className="flex gap-4 text-sm font-mono text-slate-800 bg-slate-100 p-2 rounded-lg inline-block">
+                    <div className="flex gap-4 text-base font-mono text-slate-800 bg-slate-100 p-2 rounded-lg inline-block">
                       <span>60 × 50 × 140 см</span>
                       <span className="text-slate-400">|</span>
                       <span>40 кг</span>
@@ -244,25 +244,25 @@ export default function Equipment() {
                   </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex gap-4">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex gap-3">
                   <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
                     <Target className="w-6 h-6 text-purple-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900 mb-1">Эргономичная рукоятка</h3>
-                    <p className="text-slate-700 text-sm">
+                    <h3 className="text-xl font-bold text-slate-900 mb-1">Эргономичная рукоятка</h3>
+                    <p className="text-slate-700 text-base">
                       Легкая и удобная, с кнопками управления отбором (SAMPLE) и вакуумом (VAC). Кабель 3 метра для свободы движений.
                     </p>
                   </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex gap-4">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex gap-3">
                   <div className="w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center shrink-0">
                     <RefreshCw className="w-6 h-6 text-teal-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900 mb-1">Ножной переключатель</h3>
-                    <p className="text-slate-700 text-sm">
+                    <h3 className="text-xl font-bold text-slate-900 mb-1">Ножной переключатель</h3>
+                    <p className="text-slate-700 text-base">
                       Водонепроницаемость IPX8. Позволяет управлять процессом без помощи рук, сохраняя стерильность.
                     </p>
                   </div>
@@ -287,8 +287,8 @@ export default function Equipment() {
       {/* Procedure Steps */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4 md:px-6">
-          <h2 className="text-3xl font-bold text-slate-900 text-center mb-16">Этапы вакуумной аспирационной биопсии</h2>
-          <div className="grid md:grid-cols-4 gap-8 relative">
+          <h2 className="text-3xl font-bold text-slate-900 text-center mb-12">Этапы вакуумной аспирационной биопсии</h2>
+          <div className="grid md:grid-cols-4 gap-6 relative">
             {/* Connecting Line */}
             <div className="hidden md:block absolute top-8 left-[12%] right-[12%] h-0.5 bg-slate-100 z-0"></div>
             
@@ -299,11 +299,11 @@ export default function Equipment() {
               { step: "04", title: "Забор", desc: "Вакуумная транспортировка образца" },
             ].map((item, i) => (
               <div key={i} className="relative z-10 flex flex-col items-center text-center group">
-                <div className="w-16 h-16 rounded-2xl bg-white border-2 border-slate-100 shadow-sm flex items-center justify-center text-xl font-bold text-slate-900 mb-6 group-hover:border-[#34D399] group-hover:text-[#34D399] transition-colors duration-300">
+                <div className="w-16 h-16 rounded-2xl bg-white border-2 border-slate-100 shadow-sm flex items-center justify-center text-xl font-bold text-slate-900 mb-4 group-hover:border-[#34D399] group-hover:text-[#34D399] transition-colors duration-300">
                   {item.step}
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">{item.title}</h3>
-                <p className="text-slate-500 text-sm">{item.desc}</p>
+                <h3 className="text-xl font-bold text-slate-900 mb-1.5">{item.title}</h3>
+                <p className="text-slate-500 text-base">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -313,23 +313,23 @@ export default function Equipment() {
       {/* Clinical Value Cards */}
       <section className="py-20 bg-slate-50">
         <div className="container mx-auto px-4 md:px-6">
-          <h2 className="text-3xl font-bold text-slate-900 text-center mb-12">Преимущества для клиники</h2>
-          <div className="grid md:grid-cols-2 gap-8">
+          <h2 className="text-3xl font-bold text-slate-900 text-center mb-8">Преимущества для клиники</h2>
+          <div className="grid md:grid-cols-2 gap-6">
             <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="p-8">
-                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-6">
+              <CardContent className="p-6">
+                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-4">
                   <Maximize2 className="w-6 h-6 text-blue-600" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-4">Регулировка апертуры</h3>
-                <ul className="space-y-3">
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">Регулировка апертуры</h3>
+                <ul className="space-y-2">
                   {[
                     "Точность регулировки 1 мм",
                     "Длина образца от 5 мм до 30 мм",
                     "Минимальная длина всего 5 мм",
                     "Максимальное сохранение здоровых тканей"
                   ].map((text, i) => (
-                    <li key={i} className="flex items-start gap-3 text-slate-700">
-                      <Check className="w-5 h-5 text-blue-600 shrink-0" />
+                    <li key={i} className="flex items-start gap-3 text-slate-700 text-base">
+                      <Check className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                       <span>{text}</span>
                     </li>
                   ))}
@@ -338,20 +338,20 @@ export default function Equipment() {
             </Card>
 
             <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="p-8">
-                <div className="w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center mb-6">
+              <CardContent className="p-6">
+                <div className="w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center mb-4">
                   <Scissors className="w-6 h-6 text-teal-600" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-4">Тройная заточка</h3>
-                <ul className="space-y-3">
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">Тройная заточка</h3>
+                <ul className="space-y-2">
                   {[
                     "Более острый и безопасный прокол",
                     "Плавная ротационная резка",
                     "Полная обработка образцов",
                     "Однонаправленный вращающийся нож"
                   ].map((text, i) => (
-                    <li key={i} className="flex items-start gap-3 text-slate-700">
-                      <Check className="w-5 h-5 text-teal-600 shrink-0" />
+                    <li key={i} className="flex items-start gap-3 text-slate-700 text-base">
+                      <Check className="w-5 h-5 text-teal-600 shrink-0 mt-0.5" />
                       <span>{text}</span>
                     </li>
                   ))}
@@ -365,7 +365,7 @@ export default function Equipment() {
       {/* Detailed Tech Specs (Light Table) */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4 md:px-6">
-          <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+          <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-6">
             <div>
               <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Спецификации биопсийных зондов</h2>
               <p className="text-slate-700 max-w-xl">
@@ -383,11 +383,11 @@ export default function Equipment() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="p-6 text-slate-900 font-semibold">Модель</th>
-                    <th className="p-6 text-slate-900 font-semibold">Калибр (G)</th>
-                    <th className="p-6 text-slate-900 font-semibold">Диаметр (мм)</th>
-                    <th className="p-6 text-slate-900 font-semibold">Длина (мм)</th>
-                    <th className="p-6 text-slate-900 font-semibold">Апертура (мм)</th>
+                    <th className="p-4 text-slate-900 font-semibold text-base">Модель</th>
+                    <th className="p-4 text-slate-900 font-semibold text-base">Калибр (G)</th>
+                    <th className="p-4 text-slate-900 font-semibold text-base">Диаметр (мм)</th>
+                    <th className="p-4 text-slate-900 font-semibold text-base">Длина (мм)</th>
+                    <th className="p-4 text-slate-900 font-semibold text-base">Апертура (мм)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -398,11 +398,11 @@ export default function Equipment() {
                     { model: "HJZX12A", g: "12G", d: "3.2", l: "110", a: "14-21" },
                   ].map((row, i) => (
                     <tr key={i} className="hover:bg-slate-50 transition-colors group">
-                      <td className="p-6 font-mono text-blue-700 font-bold">{row.model}</td>
-                      <td className="p-6 text-slate-800 font-medium">{row.g}</td>
-                      <td className="p-6 text-slate-700">{row.d}</td>
-                      <td className="p-6 text-slate-700">{row.l}</td>
-                      <td className="p-6 text-slate-700">{row.a}</td>
+                      <td className="p-4 font-mono text-blue-700 font-bold text-base">{row.model}</td>
+                      <td className="p-4 text-slate-800 font-medium text-base">{row.g}</td>
+                      <td className="p-4 text-slate-700 text-base">{row.d}</td>
+                      <td className="p-4 text-slate-700 text-base">{row.l}</td>
+                      <td className="p-4 text-slate-700 text-base">{row.a}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createEmailTransporter, getSenderEmail, getTargetEmail } from '@/lib/email';
 import { escapeHtml } from '@/lib/sanitize';
 import { getRenderedEmailTemplate } from '@/lib/email-templates';
+import { notifyAdminAboutFormSubmission, notifyAdminAboutError } from '@/lib/telegram-notifications';
 import { Pool } from 'pg';
 
 const pool = new Pool({
@@ -31,9 +32,17 @@ export async function POST(request: NextRequest) {
     );
   }
   
+  // Объявляем переменные вне блока try для использования в catch
+  let formType = 'cp';
+  let name: string | undefined;
+  let phone: string | undefined;
+  let email: string | undefined;
+  let city: string | undefined;
+  let institution: string | undefined;
+  
   try {
     const body = await request.json();
-    const { name, phone, email, city, institution, formType = 'cp' } = body;
+    ({ name, phone, email, city, institution, formType = 'cp' } = body);
     console.log('[Request CP API] Данные формы получены:', {
       name,
       email,
@@ -71,11 +80,40 @@ export async function POST(request: NextRequest) {
           ]
         );
         console.log('[Request CP] Заявка сохранена в БД');
+        
+        // Отправляем уведомление в Telegram
+        notifyAdminAboutFormSubmission({
+          formType,
+          name,
+          email,
+          phone,
+          city,
+          institution,
+          pageUrl: request.headers.get('referer') || undefined,
+        }).catch(err => {
+          console.error('[Request CP] Ошибка отправки уведомления в Telegram:', err);
+        });
       } finally {
         client.release();
       }
     } catch (dbErr) {
       console.error('[Request CP] Критическая ошибка сохранения в БД:', dbErr);
+      // Отправляем уведомление об ошибке
+      notifyAdminAboutError(
+        dbErr instanceof Error ? dbErr : new Error(String(dbErr)),
+        {
+          location: '/api/request-cp',
+          requestUrl: request.url,
+          requestMethod: 'POST',
+          additionalInfo: {
+            formType,
+            name,
+            email,
+          },
+        }
+      ).catch(err => {
+        console.error('[Request CP] Ошибка отправки уведомления об ошибке:', err);
+      });
     }
 
     console.log('[Request CP] Начало отправки email...');
@@ -202,7 +240,25 @@ export async function POST(request: NextRequest) {
       stack: error?.stack,
       name: error?.name,
     });
+    
     const errorMessage = error?.message || 'Неизвестная ошибка при отправке email';
+    
+    // Отправляем уведомление об ошибке в Telegram
+    notifyAdminAboutError(
+      error instanceof Error ? error : new Error(errorMessage),
+      {
+        location: '/api/request-cp',
+        requestUrl: request.url,
+        requestMethod: 'POST',
+        additionalInfo: {
+          formType,
+          errorCode: error?.code,
+          errorResponseCode: error?.responseCode,
+        },
+      }
+    ).catch(err => {
+      console.error('[Request CP] Ошибка отправки уведомления об ошибке:', err);
+    });
     
     // Если это ошибка конфигурации SMTP, возвращаем понятное сообщение
     if (errorMessage.includes('не установлен') || errorMessage.includes('SMTP') || errorMessage.includes('SMTP_USER') || errorMessage.includes('SMTP_PASSWORD')) {

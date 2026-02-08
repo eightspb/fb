@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createEmailTransporter, getSenderEmail, getTargetEmail } from '@/lib/email';
 import { escapeHtml } from '@/lib/sanitize';
 import { getRenderedEmailTemplate } from '@/lib/email-templates';
+import { notifyAdminAboutFormSubmission, notifyAdminAboutError } from '@/lib/telegram-notifications';
 import { Pool } from 'pg';
 
 const pool = new Pool({
@@ -62,11 +63,39 @@ export async function POST(request: NextRequest) {
           ['contact', body.name, body.email, body.phone, body.message, 'new', request.headers.get('referer') || '']
         );
         console.log('[Contact Form] Заявка сохранена в БД');
+        
+        // Отправляем уведомление в Telegram
+        notifyAdminAboutFormSubmission({
+          formType: 'contact',
+          name: body.name,
+          email: body.email,
+          phone: body.phone,
+          message: body.message,
+          pageUrl: request.headers.get('referer') || undefined,
+        }).catch(err => {
+          console.error('[Contact Form] Ошибка отправки уведомления в Telegram:', err);
+        });
       } finally {
         client.release();
       }
     } catch (dbErr) {
       console.error('[Contact Form] Критическая ошибка сохранения в БД:', dbErr);
+      // Отправляем уведомление об ошибке
+      notifyAdminAboutError(
+        dbErr instanceof Error ? dbErr : new Error(String(dbErr)),
+        {
+          location: '/api/contact',
+          requestUrl: request.url,
+          requestMethod: 'POST',
+          additionalInfo: {
+            formType: 'contact',
+            name: body.name,
+            email: body.email,
+          },
+        }
+      ).catch(err => {
+        console.error('[Contact Form] Ошибка отправки уведомления об ошибке:', err);
+      });
     }
 
     // Send email notification
@@ -158,6 +187,23 @@ export async function POST(request: NextRequest) {
       
       const errorMessage = emailError?.message || 'Неизвестная ошибка при отправке email';
       
+      // Отправляем уведомление об ошибке в Telegram
+      notifyAdminAboutError(
+        emailError instanceof Error ? emailError : new Error(errorMessage),
+        {
+          location: '/api/contact - email sending',
+          requestUrl: request.url,
+          requestMethod: 'POST',
+          additionalInfo: {
+            formType: 'contact',
+            emailCode: emailError?.code,
+            emailResponseCode: emailError?.responseCode,
+          },
+        }
+      ).catch(err => {
+        console.error('[Contact Form] Ошибка отправки уведомления об ошибке:', err);
+      });
+      
       // Если это ошибка конфигурации SMTP, возвращаем понятное сообщение
       if (errorMessage.includes('не установлен') || errorMessage.includes('SMTP')) {
         return NextResponse.json(
@@ -199,6 +245,23 @@ export async function POST(request: NextRequest) {
       name: error?.name,
       cause: error?.cause,
     });
+    
+    // Отправляем уведомление об ошибке в Telegram
+    notifyAdminAboutError(
+      error instanceof Error ? error : new Error(error?.message || 'Неизвестная ошибка'),
+      {
+        location: '/api/contact',
+        requestUrl: request.url,
+        requestMethod: 'POST',
+        additionalInfo: {
+          errorName: error?.name,
+          errorCause: error?.cause,
+        },
+      }
+    ).catch(err => {
+      console.error('[Contact Form] Ошибка отправки уведомления об ошибке:', err);
+    });
+    
     return NextResponse.json(
       { 
         error: 'Произошла ошибка при обработке запроса',

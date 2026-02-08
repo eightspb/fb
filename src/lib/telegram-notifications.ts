@@ -220,3 +220,192 @@ export async function notifyRejection(newsId: string): Promise<void> {
   }
 }
 
+/**
+ * Интерфейс данных заявки
+ */
+interface FormSubmissionData {
+  formType: string;
+  name: string;
+  email: string;
+  phone: string;
+  message?: string;
+  city?: string;
+  institution?: string;
+  pageUrl?: string;
+  metadata?: Record<string, any>;
+}
+
+/**
+ * Отправляет уведомление администратору о новой заявке
+ */
+export async function notifyAdminAboutFormSubmission(data: FormSubmissionData): Promise<void> {
+  console.log(`[NOTIFY] 📤 Отправка уведомления о новой заявке: ${data.formType}`);
+  
+  if (!bot || !adminChatIdNumber) {
+    console.warn('[NOTIFY] ⚠️ Бот или admin chat ID не настроены, пропускаем уведомление');
+    return;
+  }
+
+  try {
+    // Определяем тип заявки и формируем заголовок
+    let formTypeLabel = '';
+    let emoji = '📋';
+    
+    switch (data.formType) {
+      case 'contact':
+        formTypeLabel = 'Форма обратной связи';
+        emoji = '💬';
+        break;
+      case 'cp':
+        formTypeLabel = 'Запрос коммерческого предложения';
+        emoji = '💼';
+        break;
+      case 'training':
+        formTypeLabel = 'Заявка на обучение';
+        emoji = '🎓';
+        break;
+      case 'conference_registration':
+        formTypeLabel = 'Регистрация на конференцию';
+        emoji = '🎤';
+        break;
+      default:
+        formTypeLabel = 'Новая заявка';
+    }
+
+    // Формируем текст сообщения
+    let messageText = `${emoji} <b>${formTypeLabel}</b>\n\n`;
+    messageText += `👤 <b>Имя:</b> ${escapeHtml(data.name)}\n`;
+    messageText += `📧 <b>Email:</b> ${escapeHtml(data.email)}\n`;
+    messageText += `📞 <b>Телефон:</b> ${escapeHtml(data.phone)}\n`;
+    
+    if (data.city) {
+      messageText += `🏙️ <b>Город:</b> ${escapeHtml(data.city)}\n`;
+    }
+    
+    if (data.institution) {
+      messageText += `🏥 <b>Учреждение:</b> ${escapeHtml(data.institution)}\n`;
+    }
+    
+    if (data.message) {
+      const shortMessage = data.message.length > 200 
+        ? data.message.substring(0, 200) + '...' 
+        : data.message;
+      messageText += `\n💬 <b>Сообщение:</b>\n${escapeHtml(shortMessage)}\n`;
+    }
+    
+    if (data.metadata) {
+      if (data.metadata.conference) {
+        messageText += `\n🎤 <b>Конференция:</b> ${escapeHtml(data.metadata.conference)}\n`;
+      }
+      if (data.metadata.certificate !== undefined) {
+        messageText += `📜 <b>Сертификат:</b> ${data.metadata.certificate ? 'Да' : 'Нет'}\n`;
+      }
+    }
+    
+    messageText += `\n🕐 <b>Время:</b> ${new Date().toLocaleString('ru-RU')}\n`;
+    
+    if (data.pageUrl) {
+      messageText += `\n🔗 <b>Страница:</b> ${escapeHtml(data.pageUrl)}`;
+    }
+
+    // Отправляем сообщение
+    await bot.sendMessage(adminChatIdNumber, messageText, {
+      parse_mode: 'HTML',
+    });
+    console.log('[NOTIFY] ✅ Уведомление о заявке отправлено');
+  } catch (error) {
+    console.error('[NOTIFY] ❌ Ошибка при отправке уведомления о заявке:', error);
+    if (error instanceof Error) {
+      console.error('[NOTIFY] Сообщение об ошибке:', error.message);
+    }
+  }
+}
+
+/**
+ * Отправляет уведомление администратору об ошибке
+ */
+export async function notifyAdminAboutError(
+  error: Error | string,
+  context?: {
+    location?: string;
+    requestUrl?: string;
+    requestMethod?: string;
+    userId?: string;
+    additionalInfo?: Record<string, any>;
+  }
+): Promise<void> {
+  console.log('[NOTIFY] 📤 Отправка уведомления об ошибке');
+  
+  if (!bot || !adminChatIdNumber) {
+    console.warn('[NOTIFY] ⚠️ Бот или admin chat ID не настроены, пропускаем уведомление');
+    return;
+  }
+
+  try {
+    const errorMessage = typeof error === 'string' ? error : error.message;
+    const errorStack = typeof error === 'string' ? undefined : error.stack;
+    const errorName = typeof error === 'string' ? 'Error' : error.name;
+
+    // Формируем текст сообщения
+    let messageText = `🚨 <b>Ошибка в приложении</b>\n\n`;
+    messageText += `❌ <b>Тип:</b> ${escapeHtml(errorName)}\n`;
+    messageText += `📝 <b>Сообщение:</b> ${escapeHtml(errorMessage)}\n`;
+    
+    if (context?.location) {
+      messageText += `📍 <b>Место:</b> <code>${escapeHtml(context.location)}</code>\n`;
+    }
+    
+    if (context?.requestUrl) {
+      messageText += `🔗 <b>URL:</b> ${escapeHtml(context.requestUrl)}\n`;
+    }
+    
+    if (context?.requestMethod) {
+      messageText += `📡 <b>Метод:</b> ${escapeHtml(context.requestMethod)}\n`;
+    }
+    
+    if (context?.userId) {
+      messageText += `👤 <b>Пользователь:</b> ${escapeHtml(context.userId)}\n`;
+    }
+    
+    messageText += `\n🕐 <b>Время:</b> ${new Date().toLocaleString('ru-RU')}\n`;
+    
+    // Добавляем stack trace (ограничиваем длину)
+    if (errorStack) {
+      const shortStack = errorStack.length > 500 
+        ? errorStack.substring(0, 500) + '\n...' 
+        : errorStack;
+      messageText += `\n<pre>${escapeHtml(shortStack)}</pre>`;
+    }
+    
+    // Добавляем дополнительную информацию
+    if (context?.additionalInfo) {
+      messageText += `\n📋 <b>Доп. информация:</b>\n`;
+      for (const [key, value] of Object.entries(context.additionalInfo)) {
+        const valueStr = typeof value === 'object' ? JSON.stringify(value) : String(value);
+        const shortValue = valueStr.length > 100 ? valueStr.substring(0, 100) + '...' : valueStr;
+        messageText += `  • ${escapeHtml(key)}: ${escapeHtml(shortValue)}\n`;
+      }
+    }
+
+    // Отправляем сообщение
+    await bot.sendMessage(adminChatIdNumber, messageText, {
+      parse_mode: 'HTML',
+    });
+    console.log('[NOTIFY] ✅ Уведомление об ошибке отправлено');
+  } catch (notifyError) {
+    console.error('[NOTIFY] ❌ Критическая ошибка при отправке уведомления об ошибке:', notifyError);
+  }
+}
+
+/**
+ * Вспомогательная функция для экранирования HTML
+ */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
