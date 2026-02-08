@@ -57,9 +57,62 @@ export async function middleware(request: NextRequest) {
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && !isExempt) {
     const cookieToken = request.cookies.get(CSRF_COOKIE_NAME)?.value;
     const headerToken = request.headers.get(CSRF_HEADER_NAME);
+    
+    // #region agent log
+    const fs = require('fs');
+    const logPath = 'c:\\WORK_PROGRAMMING\\fb.net\\.cursor\\debug.log';
+    const logEntry = JSON.stringify({
+      location: 'middleware.ts:58',
+      message: 'CSRF validation check',
+      data: {
+        pathname,
+        method,
+        isExempt,
+        cookieTokenExists: !!cookieToken,
+        cookieTokenLength: cookieToken?.length || 0,
+        headerTokenExists: !!headerToken,
+        headerTokenLength: headerToken?.length || 0,
+        tokensMatch: cookieToken === headerToken,
+      },
+      timestamp: Date.now(),
+      runId: 'run1',
+      hypothesisId: 'A',
+    }) + '\n';
+    try { fs.appendFileSync(logPath, logEntry, 'utf8'); } catch (e) {}
+    // #endregion
+    
     if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+      // #region agent log
+      const failLogEntry = JSON.stringify({
+        location: 'middleware.ts:75',
+        message: 'CSRF validation failed',
+        data: {
+          pathname,
+          method,
+          reason: !cookieToken ? 'NO_COOKIE_TOKEN' : !headerToken ? 'NO_HEADER_TOKEN' : 'TOKENS_MISMATCH',
+          cookieTokenExists: !!cookieToken,
+          headerTokenExists: !!headerToken,
+        },
+        timestamp: Date.now(),
+        runId: 'run1',
+        hypothesisId: 'A',
+      }) + '\n';
+      try { fs.appendFileSync(logPath, failLogEntry, 'utf8'); } catch (e) {}
+      // #endregion
       return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
     }
+    
+    // #region agent log
+    const successLogEntry = JSON.stringify({
+      location: 'middleware.ts:88',
+      message: 'CSRF validation passed',
+      data: { pathname, method },
+      timestamp: Date.now(),
+      runId: 'run1',
+      hypothesisId: 'A',
+    }) + '\n';
+    try { fs.appendFileSync(logPath, successLogEntry, 'utf8'); } catch (e) {}
+    // #endregion
   }
 
   return NextResponse.next();

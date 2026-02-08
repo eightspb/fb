@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Save, Loader2, Mail } from 'lucide-react';
+import { getCsrfToken, refreshCsrfToken } from '@/lib/csrf-client';
 
 interface EmailTemplate {
   id: string;
@@ -111,10 +112,22 @@ export default function SettingsPage() {
 
     setSaving(`${formType}-${emailType}`);
     try {
+      // #region agent log
+      const cookieTokenBefore = document.cookie.split('; ').find(row => row.startsWith('csrf-token='))?.split('=')[1] || 'NOT_FOUND';
+      fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'settings/page.tsx:112',message:'Before fetch: checking CSRF token',data:{cookieTokenExists:!!cookieTokenBefore,cookieTokenLength:cookieTokenBefore.length,formType,emailType},timestamp:Date.now(),runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      let csrfToken = await getCsrfToken();
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'settings/page.tsx:116',message:'After getCsrfToken: token obtained',data:{csrfTokenLength:csrfToken?.length||0,csrfTokenPrefix:csrfToken?.substring(0,8)||'NONE'},timestamp:Date.now(),runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
       const response = await fetch('/api/admin/email-templates', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken,
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -124,10 +137,79 @@ export default function SettingsPage() {
           html_body: template.html_body,
         }),
       });
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'settings/page.tsx:130',message:'After fetch: response received',data:{status:response.status,statusText:response.statusText,ok:response.ok},timestamp:Date.now(),runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Неизвестная ошибка' }));
         const errorMessage = errorData.error || errorData.details || `HTTP ${response.status}: ${response.statusText}`;
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'settings/page.tsx:135',message:'Error response received',data:{status:response.status,errorMessage,errorData},timestamp:Date.now(),runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        
+        // Если ошибка CSRF, пробуем обновить токен и повторить запрос
+        if (response.status === 403 && errorMessage.includes('CSRF')) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'settings/page.tsx:140',message:'CSRF error detected, refreshing token',data:{},timestamp:Date.now(),runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
+          console.warn('[Settings] CSRF error, refreshing token and retrying...');
+          csrfToken = await refreshCsrfToken();
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'settings/page.tsx:145',message:'Retrying with refreshed token',data:{csrfTokenLength:csrfToken?.length||0},timestamp:Date.now(),runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
+          
+          const retryResponse = await fetch('/api/admin/email-templates', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-csrf-token': csrfToken,
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              form_type: formType,
+              email_type: emailType,
+              subject: template.subject,
+              html_body: template.html_body,
+            }),
+          });
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'settings/page.tsx:163',message:'Retry response received',data:{status:retryResponse.status,ok:retryResponse.ok},timestamp:Date.now(),runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
+          
+          if (!retryResponse.ok) {
+            const retryErrorData = await retryResponse.json().catch(() => ({ error: 'Неизвестная ошибка' }));
+            const retryErrorMessage = retryErrorData.error || retryErrorData.details || `HTTP ${retryResponse.status}: ${retryResponse.statusText}`;
+            
+            // Специальная обработка для случая отсутствия таблицы
+            if (retryErrorMessage.includes('не найдена') || retryErrorMessage.includes('миграцию')) {
+              alert(`⚠️ ${retryErrorMessage}\n\nПримените миграцию:\nmigrations/005_add_email_templates.sql\n\nИли выполните:\ndocker exec -i <container> psql -U postgres -d postgres -f /migrations/005_add_email_templates.sql`);
+              return;
+            }
+            
+            throw new Error(retryErrorMessage);
+          }
+          
+          const retryResult = await retryResponse.json();
+          alert('Шаблон успешно сохранен');
+          
+          // Обновляем шаблон из ответа сервера
+          if (retryResult.template) {
+            setTemplates((prev) => {
+              const newTemplates = { ...prev };
+              if (!newTemplates[formType]) {
+                newTemplates[formType] = {};
+              }
+              newTemplates[formType][emailType] = retryResult.template;
+              return newTemplates;
+            });
+          }
+          return;
+        }
         
         // Специальная обработка для случая отсутствия таблицы
         if (errorMessage.includes('не найдена') || errorMessage.includes('миграцию')) {
