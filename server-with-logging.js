@@ -23,7 +23,13 @@ async function initializeLogging() {
     console.log('[SERVER] ✅ Система логирования инициализирована');
     
     // Инициализируем обработчики ошибок
-    const { notifyAdminAboutError } = await import('./src/lib/telegram-notifications.js');
+    let notifyAdminAboutError = null;
+    try {
+      const telegram = await import('./src/lib/telegram-notifications.js');
+      notifyAdminAboutError = telegram.notifyAdminAboutError;
+    } catch (e) {
+      console.log('[SERVER] ⚠️  Telegram notifications недоступны:', e.message);
+    }
     
     // Обработчик необработанных исключений
     process.on('uncaughtException', (error) => {
@@ -32,10 +38,12 @@ async function initializeLogging() {
         stack: error.stack?.substring(0, 500),
       }, 'System');
       
-      notifyAdminAboutError(error, {
-        location: 'uncaughtException',
-        additionalInfo: { type: 'uncaught_exception' },
-      }).catch(() => {});
+      if (notifyAdminAboutError) {
+        notifyAdminAboutError(error, {
+          location: 'uncaughtException',
+          additionalInfo: { type: 'uncaught_exception' },
+        }).catch(() => {});
+      }
       
       setTimeout(() => process.exit(1), 1000);
     });
@@ -48,10 +56,12 @@ async function initializeLogging() {
         reason: String(reason).substring(0, 500),
       }, 'System');
       
-      notifyAdminAboutError(error, {
-        location: 'unhandledRejection',
-        additionalInfo: { type: 'unhandled_rejection' },
-      }).catch(() => {});
+      if (notifyAdminAboutError) {
+        notifyAdminAboutError(error, {
+          location: 'unhandledRejection',
+          additionalInfo: { type: 'unhandled_rejection' },
+        }).catch(() => {});
+      }
     });
     
     // Обработчик завершения
