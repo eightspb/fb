@@ -270,12 +270,14 @@ export function initializeLogger(): void {
     });
   };
 
-  // Сохраняем оставшиеся логи при завершении процесса
-  process.on('beforeExit', () => {
-    if (logQueue.length > 0) {
-      flushLogs().catch(() => {});
-    }
-  });
+  // Сохраняем оставшиеся логи при завершении процесса (только для Node.js)
+  if (typeof process !== 'undefined' && process.on) {
+    process.on('beforeExit', () => {
+      if (logQueue.length > 0) {
+        flushLogs().catch(() => {});
+      }
+    });
+  }
 
   originalConsoleLog('[Logger] ✅ Система логирования инициализирована');
 }
