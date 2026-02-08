@@ -40,10 +40,42 @@ export async function middleware(request: NextRequest) {
     };
   }
 
+  // Логируем HTTP запрос (кроме статических файлов)
+  const shouldLog = !pathname.startsWith('/_next') && 
+                    !pathname.startsWith('/favicon') &&
+                    !pathname.match(/\.(css|js|jpg|jpeg|png|gif|svg|webp|woff|woff2|ttf)$/);
+  
+  const startTime = Date.now();
+
+  // Асинхронно логируем запрос (не блокируем выполнение)
+  if (shouldLog) {
+    Promise.resolve().then(async () => {
+      try {
+        const { log } = await import('./src/lib/logger');
+        log('info', `${request.method} ${pathname}`, {
+          method: request.method,
+          path: pathname,
+          query: Object.fromEntries(request.nextUrl.searchParams),
+          ip,
+          userAgent: userAgent.substring(0, 200),
+        }, 'HTTP');
+      } catch (err) {
+        // Игнорируем ошибки логирования
+      }
+    });
+  }
+
   // Redirect unauthenticated users from admin pages
   if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
     const adminSession = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
     if (!adminSession) {
+      // Логируем попытку доступа без авторизации
+      Promise.resolve().then(async () => {
+        try {
+          const { log } = await import('./src/lib/logger');
+          log('warn', `Попытка доступа к админ панели без авторизации: ${pathname}`, { ip }, 'Auth');
+        } catch {}
+      });
       return NextResponse.redirect(new URL('/admin/login', request.url));
     }
   }
@@ -53,6 +85,19 @@ export async function middleware(request: NextRequest) {
     const identifier = getClientIdentifier(request);
     const result = await ratelimit.limit(`api_${identifier}`);
     if (!result.success) {
+      // Логируем превышение лимита
+      Promise.resolve().then(async () => {
+        try {
+          const { log } = await import('./src/lib/logger');
+          log('warn', `Rate limit exceeded для ${identifier}`, {
+            identifier,
+            path: pathname,
+            limit: result.limit,
+            remaining: result.remaining,
+          }, 'RateLimit');
+        } catch {}
+      });
+      
       return NextResponse.json(
         { error: 'Too Many Requests' },
         {
@@ -98,6 +143,21 @@ export async function middleware(request: NextRequest) {
     // #endregion
     
     if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+      const reason = !cookieToken ? 'NO_COOKIE_TOKEN' : !headerToken ? 'NO_HEADER_TOKEN' : 'TOKENS_MISMATCH';
+      
+      // Логируем CSRF нарушение
+      Promise.resolve().then(async () => {
+        try {
+          const { log } = await import('./src/lib/logger');
+          log('error', `CSRF validation failed: ${reason}`, {
+            path: pathname,
+            method,
+            reason,
+            ip,
+          }, 'Security');
+        } catch {}
+      });
+      
       // #region agent log
       const failLogEntry = JSON.stringify({
         location: 'middleware.ts:75',
@@ -105,7 +165,7 @@ export async function middleware(request: NextRequest) {
         data: {
           pathname,
           method,
-          reason: !cookieToken ? 'NO_COOKIE_TOKEN' : !headerToken ? 'NO_HEADER_TOKEN' : 'TOKENS_MISMATCH',
+          reason,
           cookieTokenExists: !!cookieToken,
           headerTokenExists: !!headerToken,
         },
