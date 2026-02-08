@@ -4,10 +4,7 @@ const nextConfig: NextConfig = {
   output: 'standalone', // Для Docker - создает оптимизированную standalone сборку
   serverExternalPackages: ['jose'], // Include jose in standalone build
   
-  // Включаем instrumentation hook для системы логирования
-  experimental: {
-    instrumentationHook: true,
-  },
+  // В Next.js 16+ instrumentation.ts работает автоматически
   
   // Пустой turbopack конфиг - требуется для Next.js 16+ чтобы подавить предупреждение
   // о конфликте webpack/turbopack конфигов

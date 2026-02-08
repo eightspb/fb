@@ -48,9 +48,11 @@ RUN if [ -f ./public/images/background.png ]; then \
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-# Копируем instrumentation для логирования (Next.js standalone не всегда включает его)
-COPY --from=builder /app/instrumentation.js ./instrumentation.js 2>/dev/null || true
-COPY --from=builder /app/.next/server/instrumentation.js ./.next/server/instrumentation.js 2>/dev/null || true
+# Копируем библиотеки для логирования (не включены в standalone)
+COPY --from=builder /app/src/lib ./src/lib
+
+# Копируем wrapper для инициализации логирования
+COPY --from=builder /app/server-with-logging.js ./server-with-logging.js
 
 # Security: Set proper permissions
 RUN chown -R nextjs:nodejs /app
@@ -65,6 +67,6 @@ ENV HOSTNAME="0.0.0.0"
 # Security: Disable tmp if possible, or make it noexec
 # Mount /tmp as noexec in docker-compose instead
 
-# Use node for running Next.js standalone server (more stable than Bun for production)
-CMD ["node", "server.js"]
+# Use node для запуска Next.js standalone server через обёртку с логированием
+CMD ["node", "server-with-logging.js"]
 
