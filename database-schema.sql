@@ -320,18 +320,13 @@ CREATE INDEX IF NOT EXISTS idx_app_logs_level ON app_logs(level);
 CREATE INDEX IF NOT EXISTS idx_app_logs_context ON app_logs(context);
 CREATE INDEX IF NOT EXISTS idx_app_logs_path ON app_logs(path);
 
--- RLS для app_logs
-ALTER TABLE app_logs ENABLE ROW LEVEL SECURITY;
+-- RLS для app_logs отключен, так как доступ контролируется через admin-session cookie в API
+-- ALTER TABLE app_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app_logs DISABLE ROW LEVEL SECURITY;
 
--- Разрешаем вставку для всех (для логирования)
+-- Удаляем старые политики
 DROP POLICY IF EXISTS "Allow insert on app_logs" ON app_logs;
-CREATE POLICY "Allow insert on app_logs" ON app_logs
-  FOR INSERT WITH CHECK (true);
-
--- Разрешаем чтение только для postgres (админ панель)
 DROP POLICY IF EXISTS "Allow read for postgres on app_logs" ON app_logs;
-CREATE POLICY "Allow read for postgres on app_logs" ON app_logs
-  FOR SELECT TO postgres USING (true);
 
 -- Функция для очистки старых логов (старше 30 дней)
 CREATE OR REPLACE FUNCTION cleanup_old_logs()
