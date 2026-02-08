@@ -394,7 +394,7 @@ export async function generateMetadata({ params }: NewsPageProps): Promise<impor
     };
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fb.net';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fibroadenoma.net';
   const defaultImage = `${siteUrl}/images/logo.png`;
   
   // Используем первое изображение новости или изображение по умолчанию

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createEmailTransporter, getSenderEmail, getTargetEmail } from '@/lib/email';
 import { escapeHtml } from '@/lib/sanitize';
+import { getRenderedEmailTemplate } from '@/lib/email-templates';
 import { Pool } from 'pg';
 
 const pool = new Pool({
@@ -122,53 +123,70 @@ export async function POST(request: NextRequest) {
     const safeEmail = escapeHtml(email);
     const safeCity = escapeHtml(city);
     const safeInstitution = escapeHtml(institution);
+    const dateStr = new Date().toLocaleString('ru-RU');
 
-    let subject = `Новый запрос КП: ${safeName} (${safeInstitution})`;
-    let header = 'Новый запрос коммерческого предложения';
-    let userSubject = 'Ваш запрос получен | ЗЕНИТ МЕД';
-    let userMessage = 'Мы получили ваш запрос на коммерческое предложение.';
+    // Получаем и рендерим шаблон для администратора
+    const adminTemplate = await getRenderedEmailTemplate(formType, 'admin', {
+      name: safeName,
+      phone: safePhone,
+      email: safeEmail,
+      city: safeCity,
+      institution: safeInstitution,
+      date: dateStr,
+    });
 
-    if (formType === 'training') {
-        subject = `Запись на обучение: ${safeName} (${safeInstitution})`;
-        header = 'Новая заявка на обучение';
-        userSubject = 'Заявка на обучение получена | ЗЕНИТ МЕД';
-        userMessage = 'Мы получили вашу заявку на обучение.';
-    }
-
-    // 1. Send notification to info@zenitmed.ru
+    // Отправка уведомления администратору
     console.log('[Request CP] Отправка уведомления администратору...');
+    const adminSubject = adminTemplate?.subject || 
+      (formType === 'training' 
+        ? `Запись на обучение: ${safeName} (${safeInstitution})`
+        : `Новый запрос КП: ${safeName} (${safeInstitution})`);
+    const adminHtml = adminTemplate?.html || `
+      <h2>${formType === 'training' ? 'Новая заявка на обучение' : 'Новый запрос коммерческого предложения'}</h2>
+      <p><strong>ФИО:</strong> ${safeName}</p>
+      <p><strong>Телефон:</strong> ${safePhone}</p>
+      <p><strong>Email:</strong> ${safeEmail}</p>
+      <p><strong>Город:</strong> ${safeCity}</p>
+      <p><strong>Медицинское учреждение:</strong> ${safeInstitution}</p>
+      <p><strong>Дата:</strong> ${dateStr}</p>
+    `;
+
     const adminResult = await transporter.sendMail({
       from: senderEmail,
       to: targetEmail,
-      subject: subject,
-      html: `
-        <h2>${header}</h2>
-        <p><strong>ФИО:</strong> ${safeName}</p>
-        <p><strong>Телефон:</strong> ${safePhone}</p>
-        <p><strong>Email:</strong> ${safeEmail}</p>
-        <p><strong>Город:</strong> ${safeCity}</p>
-        <p><strong>Медицинское учреждение:</strong> ${safeInstitution}</p>
-        <p><strong>Дата:</strong> ${new Date().toLocaleString('ru-RU')}</p>
-      `,
+      subject: adminSubject,
+      html: adminHtml,
     });
     console.log('[Request CP] Уведомление администратору отправлено:', adminResult.messageId);
 
-    // 2. Send confirmation to the user
+    // Получаем и рендерим шаблон для пользователя
+    const userTemplate = await getRenderedEmailTemplate(formType, 'user', {
+      name: safeName,
+      date: dateStr,
+    });
+
+    // Отправка подтверждения пользователю
     console.log('[Request CP] Отправка подтверждения пользователю...');
+    const userSubject = userTemplate?.subject || 
+      (formType === 'training' 
+        ? 'Заявка на обучение получена | ЗЕНИТ МЕД'
+        : 'Ваш запрос получен | ЗЕНИТ МЕД');
+    const userHtml = userTemplate?.html || `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Здравствуйте, ${safeName}!</h2>
+        <p>${formType === 'training' ? 'Мы получили вашу заявку на обучение.' : 'Мы получили ваш запрос на коммерческое предложение.'}</p>
+        <p>Наш менеджер свяжется с вами в ближайшее время для уточнения деталей.</p>
+        <br>
+        <p>С уважением,<br>Команда ЗЕНИТ МЕД</p>
+        <p><a href="https://zenitmed.ru">zenitmed.ru</a></p>
+      </div>
+    `;
+
     const userResult = await transporter.sendMail({
       from: senderEmail,
       to: email,
       subject: userSubject,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Здравствуйте, ${safeName}!</h2>
-          <p>${userMessage}</p>
-          <p>Наш менеджер свяжется с вами в ближайшее время для уточнения деталей.</p>
-          <br>
-          <p>С уважением,<br>Команда ЗЕНИТ МЕД</p>
-          <p><a href="https://zenitmed.ru">zenitmed.ru</a></p>
-        </div>
-      `,
+      html: userHtml,
     });
     console.log('[Request CP] Подтверждение пользователю отправлено:', userResult.messageId);
     console.log('[Request CP] Все письма успешно отправлены');

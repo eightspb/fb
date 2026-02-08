@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://fb.net"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://fibroadenoma.net"),
   alternates: {
     canonical: "/",
   },
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     description: "Официальный дистрибьютор оборудования для вакуумной аспирационной биопсии (ВАБ) молочной железы. Клиническая ценность и передовые технологии для медицинских специалистов.",
     images: [
       {
-        url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://fb.net"}/images/logo.png`,
+        url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://fibroadenoma.net"}/images/logo.png`,
         width: 1200,
         height: 630,
         alt: "Компания Зенит - Официальный дистрибьютор ВАБ завода Сишань",
@@ -76,8 +76,8 @@ export default function RootLayout({
     '@type': 'Organization',
     name: 'Компания Зенит',
     description: 'Официальный дистрибьютор ВАБ завода Сишань в РФ',
-    url: process.env.NEXT_PUBLIC_SITE_URL || 'https://fb.net',
-    logo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fb.net'}/logo.png`,
+    url: process.env.NEXT_PUBLIC_SITE_URL || 'https://fibroadenoma.net',
+    logo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fibroadenoma.net'}/logo.png`,
     contactPoint: {
       '@type': 'ContactPoint',
       telephone: '+7-812-748-22-13',
