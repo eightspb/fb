@@ -68,7 +68,7 @@ export default function Training() {
         <section className="mb-24">
            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
              <div className="grid lg:grid-cols-[1.4fr_1fr] gap-0">
-                <div className="p-8 md:p-16 flex flex-col justify-center relative z-10">
+                <div className="p-4 sm:p-6 md:p-8 lg:p-16 flex flex-col justify-center relative z-10">
                     <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-teal-50/50 via-white to-blue-50/50 -z-10"></div>
                     
                     <div className="flex flex-wrap gap-3 mb-8 self-start">
@@ -82,56 +82,56 @@ export default function Training() {
                         </div>
                     </div>
 
-                    <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6 leading-[1.1]">
-                        Интервенционная маммология. <br/>
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-slate-900 mb-6 leading-tight">
+                        Интервенционная маммология. <br className="hidden sm:block"/>
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-blue-600">
                             Диагностика и лечение
                         </span>
                     </h2>
                     
-                    <p className="text-lg text-slate-600 mb-6 leading-relaxed">
+                    <p className="text-base sm:text-lg text-slate-600 mb-6 leading-relaxed">
                         Комплексная программа повышения квалификации для врачей УЗД, хирургов и онкологов. 
                         Освойте передовые методики вакуумно-аспирационной биопсии и малоинвазивных вмешательств 
                         под контролем УЗИ под руководством ведущего эксперта в области интервенционной маммологии.
                     </p>
                     
-                    <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-5 mb-10">
-                        <div className="flex items-start gap-3">
-                            <UserCheck className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-                            <div className="text-sm text-slate-700 leading-relaxed">
+                    <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 sm:p-5 mb-6 sm:mb-10">
+                        <div className="flex items-start gap-2 sm:gap-3">
+                            <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 shrink-0 mt-0.5" />
+                            <div className="text-xs sm:text-sm text-slate-700 leading-relaxed">
                                 <span className="font-semibold">Целевая аудитория:</span> сертифицированные специалисты по специальностям 
                                 &quot;Ультразвуковая диагностика&quot;, &quot;Хирургия&quot;, &quot;Онкология&quot; с высшим медицинским образованием
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                         <RequestCPModal 
                             title="Запись на курс" 
                             description="Заполните форму для регистрации на курс. Наш менеджер свяжется с вами для подтверждения участия."
                             formType="training"
                         >
-                            <Button size="lg" className="h-14 px-8 text-lg rounded-full bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/20 transition-all hover:scale-105">
+                            <Button size="lg" className="h-12 sm:h-14 px-4 sm:px-6 md:px-8 text-base sm:text-lg rounded-full bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/20 transition-all hover:scale-105 w-full sm:w-auto">
                                 Записаться на курс
                             </Button>
                         </RequestCPModal>
-                        <Button size="lg" variant="outline" className="h-14 px-8 text-lg rounded-full border-slate-300 hover:bg-slate-50 transition-all" asChild>
+                        <Button size="lg" variant="outline" className="h-12 sm:h-14 px-4 sm:px-6 md:px-8 text-base sm:text-lg rounded-full border-slate-300 hover:bg-slate-50 transition-all w-full sm:w-auto" asChild>
                             <Link href="#program">Программа курса</Link>
                         </Button>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-6 mt-12 pt-12 border-t border-slate-200/60">
+                    <div className="grid grid-cols-3 gap-3 sm:gap-4 md:gap-6 mt-8 sm:mt-12 pt-8 sm:pt-12 border-t border-slate-200/60">
                         <div>
-                            <div className="text-3xl font-bold text-slate-900 mb-1">36</div>
-                            <div className="text-sm font-medium text-slate-500">ак. часов</div>
+                            <div className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1">36</div>
+                            <div className="text-xs sm:text-sm font-medium text-slate-500">ак. часов</div>
                         </div>
                         <div>
-                            <div className="text-3xl font-bold text-slate-900 mb-1">5</div>
-                            <div className="text-sm font-medium text-slate-500">дней обучения</div>
+                            <div className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1">5</div>
+                            <div className="text-xs sm:text-sm font-medium text-slate-500">дней обучения</div>
                         </div>
                         <div>
-                            <div className="text-3xl font-bold text-slate-900 mb-1">СПб</div>
-                            <div className="text-sm font-medium text-slate-500">очно</div>
+                            <div className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1">СПб</div>
+                            <div className="text-xs sm:text-sm font-medium text-slate-500">очно</div>
                         </div>
                     </div>
                 </div>
@@ -147,17 +147,17 @@ export default function Training() {
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-900 from-5% via-slate-900/60 via-25% to-transparent to-50%"></div>
                     <div className="absolute inset-0 hidden lg:block bg-gradient-to-l from-transparent to-slate-900/20"></div>
                     
-                    <div className="absolute bottom-8 left-8 right-8 text-white">
-                        <div className="flex items-center gap-4 mb-2">
-                             <div className="w-12 h-12 rounded-full border-2 border-white/30 overflow-hidden relative">
+                    <div className="absolute bottom-4 sm:bottom-8 left-4 sm:left-8 right-4 sm:right-8 text-white">
+                        <div className="flex items-center gap-2 sm:gap-4 mb-2">
+                             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-white/30 overflow-hidden relative">
                                 <Image src="/images/odintsov.jpg" alt="Одинцов В.А." fill className="object-cover" />
                              </div>
                              <div>
-                                 <div className="font-bold text-lg">Одинцов В.А.</div>
-                                 <div className="text-slate-300 text-sm">Автор курса, д.м.н.</div>
+                                 <div className="font-bold text-base sm:text-lg">Одинцов В.А.</div>
+                                 <div className="text-slate-300 text-xs sm:text-sm">Автор курса, д.м.н.</div>
                              </div>
                         </div>
-                        <p className="italic text-slate-200 text-sm pl-4 border-l-2 border-teal-500">
+                        <p className="italic text-slate-200 text-xs sm:text-sm pl-2 sm:pl-4 border-l-2 border-teal-500">
                             &quot;Мы даем не просто теорию, а ставим руку. Каждый курсант самостоятельно выполняет манипуляции.&quot;
                         </p>
                     </div>
@@ -264,25 +264,25 @@ export default function Training() {
             <div className="space-y-6">
                 {/* День 1 */}
                 <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden hover:border-teal-200 transition-colors shadow-md">
-                    <div className="bg-gradient-to-r from-teal-500 to-teal-600 px-8 py-6 text-white">
-                        <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center font-bold text-2xl border-2 border-white/30">1</div>
+                    <div className="bg-gradient-to-r from-teal-500 to-teal-600 px-4 sm:px-6 md:px-8 py-4 sm:py-6 text-white">
+                        <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center font-bold text-xl sm:text-2xl border-2 border-white/30">1</div>
                             <div>
-                                <div className="text-sm font-semibold uppercase tracking-wider opacity-90">День 1</div>
-                                <h4 className="text-2xl font-bold">Основы УЗ-диагностики и введение в интервенционную маммологию</h4>
+                                <div className="text-xs sm:text-sm font-semibold uppercase tracking-wider opacity-90">День 1</div>
+                                <h4 className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">Основы УЗ-диагностики и введение в интервенционную маммологию</h4>
                             </div>
                         </div>
                     </div>
-                    <div className="p-8">
-                        <div className="space-y-6">
-                            <div className="flex gap-4">
-                                <div className="shrink-0 w-20 text-sm font-bold text-teal-600 flex items-center gap-2">
+                    <div className="p-4 sm:p-6 md:p-8">
+                        <div className="space-y-4 sm:space-y-6">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                <div className="shrink-0 text-sm font-bold text-teal-600 flex items-center gap-2 sm:w-20">
                                     <Clock className="w-4 h-4" />
                                     10:00
                                 </div>
-                                <div>
-                                    <h5 className="font-bold text-slate-900 mb-2">Нормальная ультразвуковая анатомия молочной железы (мифы и реальность)</h5>
-                                    <ul className="space-y-2 text-slate-600">
+                                <div className="flex-1">
+                                    <h5 className="font-bold text-slate-900 mb-2 text-base sm:text-lg">Нормальная ультразвуковая анатомия молочной железы (мифы и реальность)</h5>
+                                    <ul className="space-y-2 text-slate-600 text-sm sm:text-base">
                                         <li className="flex items-start gap-2">
                                             <span className="text-teal-500 font-bold">•</span>
                                             <span>Сопоставление макрогистологического материала и УЗИ</span>
@@ -303,14 +303,14 @@ export default function Training() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-4">
-                                <div className="shrink-0 w-20 text-sm font-bold text-teal-600 flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                <div className="shrink-0 text-sm font-bold text-teal-600 flex items-center gap-2 sm:w-20">
                                     <Clock className="w-4 h-4" />
                                     11:00
                                 </div>
-                                <div>
-                                    <h5 className="font-bold text-slate-900 mb-2">Диффузные изменения молочных желёз</h5>
-                                    <ul className="space-y-2 text-slate-600">
+                                <div className="flex-1">
+                                    <h5 className="font-bold text-slate-900 mb-2 text-base sm:text-lg">Диффузные изменения молочных желёз</h5>
+                                    <ul className="space-y-2 text-slate-600 text-sm sm:text-base">
                                         <li className="flex items-start gap-2">
                                             <span className="text-teal-500 font-bold">•</span>
                                             <span>Возможности УЗ-диагностики при дисгормональных состояниях</span>
@@ -331,14 +331,14 @@ export default function Training() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-4">
-                                <div className="shrink-0 w-20 text-sm font-bold text-teal-600 flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                <div className="shrink-0 text-sm font-bold text-teal-600 flex items-center gap-2 sm:w-20">
                                     <Clock className="w-4 h-4" />
                                     12:00
                                 </div>
-                                <div>
-                                    <h5 className="font-bold text-slate-900 mb-2">Методы интервенционной диагностики и лечения</h5>
-                                    <ul className="space-y-2 text-slate-600">
+                                <div className="flex-1">
+                                    <h5 className="font-bold text-slate-900 mb-2 text-base sm:text-lg">Методы интервенционной диагностики и лечения</h5>
+                                    <ul className="space-y-2 text-slate-600 text-sm sm:text-base">
                                         <li className="flex items-start gap-2">
                                             <span className="text-teal-500 font-bold">•</span>
                                             <span>Техника выполнения тонкоигольной аспирационной биопсии (ТАБ) под УЗ-контролем</span>
@@ -363,18 +363,18 @@ export default function Training() {
                                 </div>
                             </div>
 
-                            <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-6 mt-6">
-                                <div className="flex gap-4">
-                                    <div className="shrink-0 w-20 text-sm font-bold text-orange-600 flex items-center gap-2">
+                            <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-4 sm:p-6 mt-4 sm:mt-6">
+                                <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                    <div className="shrink-0 text-sm font-bold text-orange-600 flex items-center gap-2 sm:w-20">
                                         <Activity className="w-4 h-4" />
                                         15:00
                                     </div>
                                     <div className="flex-grow">
-                                        <h5 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
+                                        <h5 className="font-bold text-slate-900 mb-2 flex flex-col sm:flex-row sm:items-center gap-2 text-base sm:text-lg">
                                             <span>Практическое занятие</span>
-                                            <Badge className="bg-orange-500 text-white">4 часа практики</Badge>
+                                            <Badge className="bg-orange-500 text-white w-fit">4 часа практики</Badge>
                                         </h5>
-                                        <ul className="space-y-2 text-slate-700">
+                                        <ul className="space-y-2 text-slate-700 text-sm sm:text-base">
                                             <li className="flex items-start gap-2">
                                                 <CheckCircle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
                                                 <span>Отработка навыков ТАБ на индивидуальных фантомах</span>
@@ -405,25 +405,25 @@ export default function Training() {
 
                 {/* День 2 */}
                 <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden hover:border-blue-200 transition-colors shadow-md">
-                    <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-6 text-white">
-                        <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center font-bold text-2xl border-2 border-white/30">2</div>
+                    <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 sm:px-6 md:px-8 py-4 sm:py-6 text-white">
+                        <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center font-bold text-xl sm:text-2xl border-2 border-white/30">2</div>
                             <div>
-                                <div className="text-sm font-semibold uppercase tracking-wider opacity-90">День 2</div>
-                                <h4 className="text-2xl font-bold">Полостные образования молочной железы</h4>
+                                <div className="text-xs sm:text-sm font-semibold uppercase tracking-wider opacity-90">День 2</div>
+                                <h4 className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">Полостные образования молочной железы</h4>
                             </div>
                         </div>
                     </div>
-                    <div className="p-8">
-                        <div className="space-y-6">
-                            <div className="flex gap-4">
-                                <div className="shrink-0 w-20 text-sm font-bold text-blue-600 flex items-center gap-2">
+                    <div className="p-4 sm:p-6 md:p-8">
+                        <div className="space-y-4 sm:space-y-6">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                <div className="shrink-0 text-sm font-bold text-blue-600 flex items-center gap-2 sm:w-20">
                                     <Clock className="w-4 h-4" />
                                     10:00
                                 </div>
-                                <div>
-                                    <h5 className="font-bold text-slate-900 mb-2">BI-RADS 2 — группа наблюдения или консервативного лечения</h5>
-                                    <ul className="space-y-2 text-slate-600">
+                                <div className="flex-1">
+                                    <h5 className="font-bold text-slate-900 mb-2 text-base sm:text-lg">BI-RADS 2 — группа наблюдения или консервативного лечения</h5>
+                                    <ul className="space-y-2 text-slate-600 text-sm sm:text-base">
                                         <li className="flex items-start gap-2">
                                             <span className="text-blue-500 font-bold">•</span>
                                             <span>Простые кисты: множественные микрокисты, многокамерные кисты, кластерные кисты</span>
@@ -440,14 +440,14 @@ export default function Training() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-4">
-                                <div className="shrink-0 w-20 text-sm font-bold text-blue-600 flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                <div className="shrink-0 text-sm font-bold text-blue-600 flex items-center gap-2 sm:w-20">
                                     <Clock className="w-4 h-4" />
                                     11:00
                                 </div>
-                                <div>
-                                    <h5 className="font-bold text-slate-900 mb-2">BI-RADS 3 — категория, требующая лечебно-диагностической пункции</h5>
-                                    <ul className="space-y-2 text-slate-600">
+                                <div className="flex-1">
+                                    <h5 className="font-bold text-slate-900 mb-2 text-base sm:text-lg">BI-RADS 3 — категория, требующая лечебно-диагностической пункции</h5>
+                                    <ul className="space-y-2 text-slate-600 text-sm sm:text-base">
                                         <li className="flex items-start gap-2">
                                             <span className="text-blue-500 font-bold">•</span>
                                             <span>Осложнённые кисты: со взвесью, с уровнем, с густым содержимым</span>
@@ -468,14 +468,14 @@ export default function Training() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-4">
-                                <div className="shrink-0 w-20 text-sm font-bold text-blue-600 flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                <div className="shrink-0 text-sm font-bold text-blue-600 flex items-center gap-2 sm:w-20">
                                     <Clock className="w-4 h-4" />
                                     12:00
                                 </div>
-                                <div>
-                                    <h5 className="font-bold text-slate-900 mb-2">BI-RADS 4 — обязательная гистологическая верификация</h5>
-                                    <ul className="space-y-2 text-slate-600">
+                                <div className="flex-1">
+                                    <h5 className="font-bold text-slate-900 mb-2 text-base sm:text-lg">BI-RADS 4 — обязательная гистологическая верификация</h5>
+                                    <ul className="space-y-2 text-slate-600 text-sm sm:text-base">
                                         <li className="flex items-start gap-2">
                                             <span className="text-blue-500 font-bold">•</span>
                                             <span>Комплексные кисты: апокриновые, с солидным включением</span>
@@ -492,14 +492,14 @@ export default function Training() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-4">
-                                <div className="shrink-0 w-20 text-sm font-bold text-blue-600 flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                <div className="shrink-0 text-sm font-bold text-blue-600 flex items-center gap-2 sm:w-20">
                                     <Clock className="w-4 h-4" />
                                     13:00
                                 </div>
-                                <div>
-                                    <h5 className="font-bold text-slate-900 mb-2">Демонстрация интервенционных методов лечения кист</h5>
-                                    <ul className="space-y-2 text-slate-600">
+                                <div className="flex-1">
+                                    <h5 className="font-bold text-slate-900 mb-2 text-base sm:text-lg">Демонстрация интервенционных методов лечения кист</h5>
+                                    <ul className="space-y-2 text-slate-600 text-sm sm:text-base">
                                         <li className="flex items-start gap-2">
                                             <span className="text-blue-500 font-bold">•</span>
                                             <span>Отработка навыка озонотерапии на фантомах</span>
@@ -520,18 +520,18 @@ export default function Training() {
                                 </div>
                             </div>
 
-                            <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-6 mt-6">
-                                <div className="flex gap-4">
-                                    <div className="shrink-0 w-20 text-sm font-bold text-orange-600 flex items-center gap-2">
+                            <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-4 sm:p-6 mt-4 sm:mt-6">
+                                <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                    <div className="shrink-0 text-sm font-bold text-orange-600 flex items-center gap-2 sm:w-20">
                                         <Activity className="w-4 h-4" />
                                         15:00
                                     </div>
                                     <div className="flex-grow">
-                                        <h5 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
+                                        <h5 className="font-bold text-slate-900 mb-2 flex flex-col sm:flex-row sm:items-center gap-2 text-base sm:text-lg">
                                             <span>Практическое занятие</span>
-                                            <Badge className="bg-orange-500 text-white">4 часа практики</Badge>
+                                            <Badge className="bg-orange-500 text-white w-fit">4 часа практики</Badge>
                                         </h5>
-                                        <ul className="space-y-2 text-slate-700">
+                                        <ul className="space-y-2 text-slate-700 text-sm sm:text-base">
                                             <li className="flex items-start gap-2">
                                                 <CheckCircle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
                                                 <span>Отработка ТАБ полостных образований на фантомах</span>
@@ -558,25 +558,25 @@ export default function Training() {
 
                 {/* День 3 */}
                 <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden hover:border-purple-200 transition-colors shadow-md">
-                    <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-8 py-6 text-white">
-                        <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center font-bold text-2xl border-2 border-white/30">3</div>
+                    <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-4 sm:px-6 md:px-8 py-4 sm:py-6 text-white">
+                        <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center font-bold text-xl sm:text-2xl border-2 border-white/30">3</div>
                             <div>
-                                <div className="text-sm font-semibold uppercase tracking-wider opacity-90">День 3</div>
-                                <h4 className="text-2xl font-bold">Патология протоков и мастодиния</h4>
+                                <div className="text-xs sm:text-sm font-semibold uppercase tracking-wider opacity-90">День 3</div>
+                                <h4 className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">Патология протоков и мастодиния</h4>
                             </div>
                         </div>
                     </div>
                     <div className="p-8">
                         <div className="space-y-6">
-                            <div className="flex gap-4">
-                                <div className="shrink-0 w-20 text-sm font-bold text-purple-600 flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                <div className="shrink-0 text-sm font-bold text-purple-600 flex items-center gap-2 sm:w-20">
                                     <Clock className="w-4 h-4" />
                                     10:00
                                 </div>
-                                <div>
-                                    <h5 className="font-bold text-slate-900 mb-2">Простая дуктэктазия, BI-RADS 2</h5>
-                                    <ul className="space-y-2 text-slate-600">
+                                <div className="flex-1">
+                                    <h5 className="font-bold text-slate-900 mb-2 text-base sm:text-lg">Простая дуктэктазия, BI-RADS 2</h5>
+                                    <ul className="space-y-2 text-slate-600 text-sm sm:text-base">
                                         <li className="flex items-start gap-2">
                                             <span className="text-purple-500 font-bold">•</span>
                                             <span>Физиологические выделения из сосков</span>
@@ -597,14 +597,14 @@ export default function Training() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-4">
-                                <div className="shrink-0 w-20 text-sm font-bold text-purple-600 flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                <div className="shrink-0 text-sm font-bold text-purple-600 flex items-center gap-2 sm:w-20">
                                     <Clock className="w-4 h-4" />
                                     11:00
                                 </div>
-                                <div>
-                                    <h5 className="font-bold text-slate-900 mb-2">Осложненная дуктэктазия, BI-RADS 3</h5>
-                                    <ul className="space-y-2 text-slate-600">
+                                <div className="flex-1">
+                                    <h5 className="font-bold text-slate-900 mb-2 text-base sm:text-lg">Осложненная дуктэктазия, BI-RADS 3</h5>
+                                    <ul className="space-y-2 text-slate-600 text-sm sm:text-base">
                                         <li className="flex items-start gap-2">
                                             <span className="text-purple-500 font-bold">•</span>
                                             <span>Мутно-цветные (дисбиотические) выделения из сосков</span>
@@ -625,14 +625,14 @@ export default function Training() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-4">
-                                <div className="shrink-0 w-20 text-sm font-bold text-purple-600 flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                <div className="shrink-0 text-sm font-bold text-purple-600 flex items-center gap-2 sm:w-20">
                                     <Clock className="w-4 h-4" />
                                     12:00
                                 </div>
-                                <div>
-                                    <h5 className="font-bold text-slate-900 mb-2">Комплексная дуктэктазия, BI-RADS 4</h5>
-                                    <ul className="space-y-2 text-slate-600">
+                                <div className="flex-1">
+                                    <h5 className="font-bold text-slate-900 mb-2 text-base sm:text-lg">Комплексная дуктэктазия, BI-RADS 4</h5>
+                                    <ul className="space-y-2 text-slate-600 text-sm sm:text-base">
                                         <li className="flex items-start gap-2">
                                             <span className="text-purple-500 font-bold">•</span>
                                             <span>Патологические выделения из сосков</span>
@@ -649,14 +649,14 @@ export default function Training() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-4">
-                                <div className="shrink-0 w-20 text-sm font-bold text-purple-600 flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                <div className="shrink-0 text-sm font-bold text-purple-600 flex items-center gap-2 sm:w-20">
                                     <Clock className="w-4 h-4" />
                                     13:00
                                 </div>
-                                <div>
-                                    <h5 className="font-bold text-slate-900 mb-2">Мастодиния — современный взгляд</h5>
-                                    <ul className="space-y-2 text-slate-600">
+                                <div className="flex-1">
+                                    <h5 className="font-bold text-slate-900 mb-2 text-base sm:text-lg">Мастодиния — современный взгляд</h5>
+                                    <ul className="space-y-2 text-slate-600 text-sm sm:text-base">
                                         <li className="flex items-start gap-2">
                                             <span className="text-purple-500 font-bold">•</span>
                                             <span>Роль пролактина и окситоцина при диффузной дуктэктазии</span>
@@ -681,18 +681,18 @@ export default function Training() {
                                 </div>
                             </div>
 
-                            <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-6 mt-6">
-                                <div className="flex gap-4">
-                                    <div className="shrink-0 w-20 text-sm font-bold text-orange-600 flex items-center gap-2">
+                            <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-4 sm:p-6 mt-4 sm:mt-6">
+                                <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                    <div className="shrink-0 text-sm font-bold text-orange-600 flex items-center gap-2 sm:w-20">
                                         <Activity className="w-4 h-4" />
                                         15:00
                                     </div>
                                     <div className="flex-grow">
-                                        <h5 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
+                                        <h5 className="font-bold text-slate-900 mb-2 flex flex-col sm:flex-row sm:items-center gap-2 text-base sm:text-lg">
                                             <span>Практическое занятие</span>
-                                            <Badge className="bg-orange-500 text-white">4 часа практики</Badge>
+                                            <Badge className="bg-orange-500 text-white w-fit">4 часа практики</Badge>
                                         </h5>
-                                        <ul className="space-y-2 text-slate-700">
+                                        <ul className="space-y-2 text-slate-700 text-sm sm:text-base">
                                             <li className="flex items-start gap-2">
                                                 <CheckCircle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
                                                 <span>Отработка ТАБ полостных образований на индивидуальных фантомах</span>
@@ -719,25 +719,25 @@ export default function Training() {
 
                 {/* День 4 */}
                 <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden hover:border-rose-200 transition-colors shadow-md">
-                    <div className="bg-gradient-to-r from-rose-500 to-rose-600 px-8 py-6 text-white">
-                        <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center font-bold text-2xl border-2 border-white/30">4</div>
+                    <div className="bg-gradient-to-r from-rose-500 to-rose-600 px-4 sm:px-6 md:px-8 py-4 sm:py-6 text-white">
+                        <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center font-bold text-xl sm:text-2xl border-2 border-white/30">4</div>
                             <div>
-                                <div className="text-sm font-semibold uppercase tracking-wider opacity-90">День 4</div>
-                                <h4 className="text-2xl font-bold">Солидные образования молочной железы</h4>
+                                <div className="text-xs sm:text-sm font-semibold uppercase tracking-wider opacity-90">День 4</div>
+                                <h4 className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">Солидные образования молочной железы</h4>
                             </div>
                         </div>
                     </div>
                     <div className="p-8">
                         <div className="space-y-6">
-                            <div className="flex gap-4">
-                                <div className="shrink-0 w-20 text-sm font-bold text-rose-600 flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                <div className="shrink-0 text-sm font-bold text-rose-600 flex items-center gap-2 sm:w-20">
                                     <Clock className="w-4 h-4" />
                                     10:00
                                 </div>
-                                <div>
-                                    <h5 className="font-bold text-slate-900 mb-2">Простые узлы, BI-RADS 2</h5>
-                                    <ul className="space-y-2 text-slate-600">
+                                <div className="flex-1">
+                                    <h5 className="font-bold text-slate-900 mb-2 text-base sm:text-lg">Простые узлы, BI-RADS 2</h5>
+                                    <ul className="space-y-2 text-slate-600 text-sm sm:text-base">
                                         <li className="flex items-start gap-2">
                                             <span className="text-rose-500 font-bold">•</span>
                                             <span>Доброкачественные образования без признаков злокачественности</span>
@@ -754,14 +754,14 @@ export default function Training() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-4">
-                                <div className="shrink-0 w-20 text-sm font-bold text-rose-600 flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                <div className="shrink-0 text-sm font-bold text-rose-600 flex items-center gap-2 sm:w-20">
                                     <Clock className="w-4 h-4" />
                                     11:00
                                 </div>
-                                <div>
-                                    <h5 className="font-bold text-slate-900 mb-2">Сомнительные узлы, BI-RADS 3</h5>
-                                    <ul className="space-y-2 text-slate-600">
+                                <div className="flex-1">
+                                    <h5 className="font-bold text-slate-900 mb-2 text-base sm:text-lg">Сомнительные узлы, BI-RADS 3</h5>
+                                    <ul className="space-y-2 text-slate-600 text-sm sm:text-base">
                                         <li className="flex items-start gap-2">
                                             <span className="text-rose-500 font-bold">•</span>
                                             <span>Клинические примеры сомнительных образований</span>
@@ -778,14 +778,14 @@ export default function Training() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-4">
-                                <div className="shrink-0 w-20 text-sm font-bold text-rose-600 flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                <div className="shrink-0 text-sm font-bold text-rose-600 flex items-center gap-2 sm:w-20">
                                     <Clock className="w-4 h-4" />
                                     12:00
                                 </div>
-                                <div>
-                                    <h5 className="font-bold text-slate-900 mb-2">Подозрительные узлы, BI-RADS 4 и 5</h5>
-                                    <ul className="space-y-2 text-slate-600">
+                                <div className="flex-1">
+                                    <h5 className="font-bold text-slate-900 mb-2 text-base sm:text-lg">Подозрительные узлы, BI-RADS 4 и 5</h5>
+                                    <ul className="space-y-2 text-slate-600 text-sm sm:text-base">
                                         <li className="flex items-start gap-2">
                                             <span className="text-rose-500 font-bold">•</span>
                                             <span>Солидные образования с высоким потенциалом злокачественности</span>
@@ -802,14 +802,14 @@ export default function Training() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-4">
-                                <div className="shrink-0 w-20 text-sm font-bold text-rose-600 flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                <div className="shrink-0 text-sm font-bold text-rose-600 flex items-center gap-2 sm:w-20">
                                     <Clock className="w-4 h-4" />
                                     13:00
                                 </div>
-                                <div>
-                                    <h5 className="font-bold text-slate-900 mb-2">Демонстрация Core-биопсии и ВАБ</h5>
-                                    <ul className="space-y-2 text-slate-600">
+                                <div className="flex-1">
+                                    <h5 className="font-bold text-slate-900 mb-2 text-base sm:text-lg">Демонстрация Core-биопсии и ВАБ</h5>
+                                    <ul className="space-y-2 text-slate-600 text-sm sm:text-base">
                                         <li className="flex items-start gap-2">
                                             <span className="text-rose-500 font-bold">•</span>
                                             <span>Техника Core-биопсии под УЗ-навигацией</span>
@@ -838,18 +838,18 @@ export default function Training() {
                                 </div>
                             </div>
 
-                            <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-6 mt-6">
-                                <div className="flex gap-4">
-                                    <div className="shrink-0 w-20 text-sm font-bold text-orange-600 flex items-center gap-2">
+                            <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-4 sm:p-6 mt-4 sm:mt-6">
+                                <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                    <div className="shrink-0 text-sm font-bold text-orange-600 flex items-center gap-2 sm:w-20">
                                         <Activity className="w-4 h-4" />
                                         15:00
                                     </div>
                                     <div className="flex-grow">
-                                        <h5 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
+                                        <h5 className="font-bold text-slate-900 mb-2 flex flex-col sm:flex-row sm:items-center gap-2 text-base sm:text-lg">
                                             <span>Практическое занятие</span>
-                                            <Badge className="bg-orange-500 text-white">4 часа практики</Badge>
+                                            <Badge className="bg-orange-500 text-white w-fit">4 часа практики</Badge>
                                         </h5>
-                                        <ul className="space-y-2 text-slate-700">
+                                        <ul className="space-y-2 text-slate-700 text-sm sm:text-base">
                                             <li className="flex items-start gap-2">
                                                 <CheckCircle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
                                                 <span>Отработка навыков ВАБ на индивидуальных фантомах</span>
@@ -876,25 +876,25 @@ export default function Training() {
 
                 {/* День 5 */}
                 <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden hover:border-emerald-200 transition-colors shadow-md">
-                    <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 px-8 py-6 text-white">
-                        <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center font-bold text-2xl border-2 border-white/30">5</div>
+                    <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 sm:px-6 md:px-8 py-4 sm:py-6 text-white">
+                        <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center font-bold text-xl sm:text-2xl border-2 border-white/30">5</div>
                             <div>
-                                <div className="text-sm font-semibold uppercase tracking-wider opacity-90">День 5</div>
-                                <h4 className="text-2xl font-bold">Итоговая аттестация и мультимодальная визуализация</h4>
+                                <div className="text-xs sm:text-sm font-semibold uppercase tracking-wider opacity-90">День 5</div>
+                                <h4 className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">Итоговая аттестация и мультимодальная визуализация</h4>
                             </div>
                         </div>
                     </div>
                     <div className="p-8">
                         <div className="space-y-6">
-                            <div className="flex gap-4">
-                                <div className="shrink-0 w-20 text-sm font-bold text-emerald-600 flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                <div className="shrink-0 text-sm font-bold text-emerald-600 flex items-center gap-2 sm:w-20">
                                     <Clock className="w-4 h-4" />
                                     10:00
                                 </div>
-                                <div>
-                                    <h5 className="font-bold text-slate-900 mb-2">Оценка навыков выполнения ВАБ под УЗ-навигацией</h5>
-                                    <ul className="space-y-2 text-slate-600">
+                                <div className="flex-1">
+                                    <h5 className="font-bold text-slate-900 mb-2 text-base sm:text-lg">Оценка навыков выполнения ВАБ под УЗ-навигацией</h5>
+                                    <ul className="space-y-2 text-slate-600 text-sm sm:text-base">
                                         <li className="flex items-start gap-2">
                                             <span className="text-emerald-500 font-bold">•</span>
                                             <span>Практическая демонстрация полученных навыков</span>
@@ -911,14 +911,14 @@ export default function Training() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-4">
-                                <div className="shrink-0 w-20 text-sm font-bold text-emerald-600 flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                <div className="shrink-0 text-sm font-bold text-emerald-600 flex items-center gap-2 sm:w-20">
                                     <Clock className="w-4 h-4" />
                                     12:00
                                 </div>
-                                <div>
-                                    <h5 className="font-bold text-slate-900 mb-2">Курс мультимодальной визуализации молочной железы</h5>
-                                    <ul className="space-y-2 text-slate-600">
+                                <div className="flex-1">
+                                    <h5 className="font-bold text-slate-900 mb-2 text-base sm:text-lg">Курс мультимодальной визуализации молочной железы</h5>
+                                    <ul className="space-y-2 text-slate-600 text-sm sm:text-base">
                                         <li className="flex items-start gap-2">
                                             <span className="text-emerald-500 font-bold">•</span>
                                             <span>Занятие на базе ФГБУ &quot;НМИЦ онкологии им. Н.Н. Петрова&quot;</span>
@@ -939,18 +939,18 @@ export default function Training() {
                                 </div>
                             </div>
 
-                            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-6 mt-6">
-                                <div className="flex gap-4">
-                                    <div className="shrink-0 w-20 text-sm font-bold text-emerald-600 flex items-center gap-2">
+                            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-4 sm:p-6 mt-4 sm:mt-6">
+                                <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                                    <div className="shrink-0 text-sm font-bold text-emerald-600 flex items-center gap-2 sm:w-20">
                                         <Award className="w-4 h-4" />
                                         18:00
                                     </div>
                                     <div className="flex-grow">
-                                        <h5 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
+                                        <h5 className="font-bold text-slate-900 mb-2 flex flex-col sm:flex-row sm:items-center gap-2 text-base sm:text-lg">
                                             <span>Круглый стол и завершение курса</span>
-                                            <Badge className="bg-emerald-500 text-white">Вручение сертификатов</Badge>
+                                            <Badge className="bg-emerald-500 text-white w-fit">Вручение сертификатов</Badge>
                                         </h5>
-                                        <ul className="space-y-2 text-slate-700">
+                                        <ul className="space-y-2 text-slate-700 text-sm sm:text-base">
                                             <li className="flex items-start gap-2">
                                                 <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                                                 <span>Обсуждение итогов обучения</span>

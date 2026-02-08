@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createEmailTransporter, getSenderEmail, getTargetEmail } from '@/lib/email';
 import { escapeHtml } from '@/lib/sanitize';
 import { getRenderedEmailTemplate } from '@/lib/email-templates';
+import { notifyAdminAboutFormSubmission, notifyAdminAboutError } from '@/lib/telegram-notifications';
 import { Pool } from 'pg';
 
 const pool = new Pool({
@@ -68,11 +69,43 @@ export async function POST(request: NextRequest) {
           ]
         );
         console.log('[Conference Register] Заявка сохранена в БД');
+        
+        // Отправляем уведомление в Telegram
+        notifyAdminAboutFormSubmission({
+          formType: 'conference_registration',
+          name: body.name,
+          email: body.email,
+          phone: body.phone,
+          institution: body.institution,
+          pageUrl: request.headers.get('referer') || undefined,
+          metadata: {
+            conference: body.conference,
+            certificate: body.certificate,
+          },
+        }).catch(err => {
+          console.error('[Conference Register] Ошибка отправки уведомления в Telegram:', err);
+        });
       } finally {
         client.release();
       }
     } catch (dbErr) {
       console.error('[Conference Register] Критическая ошибка сохранения в БД:', dbErr);
+      // Отправляем уведомление об ошибке
+      notifyAdminAboutError(
+        dbErr instanceof Error ? dbErr : new Error(String(dbErr)),
+        {
+          location: '/api/conferences/register',
+          requestUrl: request.url,
+          requestMethod: 'POST',
+          additionalInfo: {
+            formType: 'conference_registration',
+            name: body.name,
+            email: body.email,
+          },
+        }
+      ).catch(err => {
+        console.error('[Conference Register] Ошибка отправки уведомления об ошибке:', err);
+      });
     }
 
     // Log the registration (in production, save to database)
@@ -178,6 +211,23 @@ export async function POST(request: NextRequest) {
       console.error('[Conference Register] Ошибка отправки email:', emailError);
       const errorMessage = emailError?.message || 'Неизвестная ошибка при отправке email';
       
+      // Отправляем уведомление об ошибке в Telegram
+      notifyAdminAboutError(
+        emailError instanceof Error ? emailError : new Error(errorMessage),
+        {
+          location: '/api/conferences/register - email sending',
+          requestUrl: request.url,
+          requestMethod: 'POST',
+          additionalInfo: {
+            formType: 'conference_registration',
+            emailCode: emailError?.code,
+            emailResponseCode: emailError?.responseCode,
+          },
+        }
+      ).catch(err => {
+        console.error('[Conference Register] Ошибка отправки уведомления об ошибке:', err);
+      });
+      
       // Если это ошибка конфигурации SMTP, возвращаем ошибку
       if (errorMessage.includes('не установлен') || errorMessage.includes('SMTP')) {
         return NextResponse.json(
@@ -203,6 +253,22 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Error processing conference registration:', error);
     const errorMessage = error?.message || 'Неизвестная ошибка';
+    
+    // Отправляем уведомление об ошибке в Telegram
+    notifyAdminAboutError(
+      error instanceof Error ? error : new Error(errorMessage),
+      {
+        location: '/api/conferences/register',
+        requestUrl: request.url,
+        requestMethod: 'POST',
+        additionalInfo: {
+          errorName: error?.name,
+          errorCause: error?.cause,
+        },
+      }
+    ).catch(err => {
+      console.error('[Conference Register] Ошибка отправки уведомления об ошибке:', err);
+    });
     
     // Если это ошибка конфигурации SMTP, возвращаем понятное сообщение
     if (errorMessage.includes('не установлен') || errorMessage.includes('SMTP')) {

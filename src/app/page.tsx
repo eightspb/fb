@@ -10,6 +10,10 @@ import { Footer } from "@/components/Footer";
 import { RequestCPModal } from "@/components/RequestCPModal";
 // import { ConferencePopup } from "@/components/ConferencePopup";
 import { VideoPlayer } from "@/components/VideoPlayer";
+import { LatestNewsSection } from "@/components/LatestNewsSection";
+import { UpcomingConferencesSection } from "@/components/UpcomingConferencesSection";
+import { QuickLinksSection } from "@/components/QuickLinksSection";
+import { FAQPreviewSection } from "@/components/FAQPreviewSection";
 import { ArrowRight, Microscope, Heart, Brain } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -248,8 +252,20 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Latest News Section */}
+        <LatestNewsSection />
+
+        {/* Upcoming Conferences Section */}
+        <UpcomingConferencesSection />
+
         {/* Partners Section */}
         <PartnersSection />
+
+        {/* Quick Links Section */}
+        <QuickLinksSection />
+
+        {/* FAQ Preview Section */}
+        <FAQPreviewSection />
 
         {/* Expert Reviews */}
         <section className="w-full py-24 bg-white">
