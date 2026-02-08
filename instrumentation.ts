@@ -98,43 +98,46 @@ async function initializeErrorHandlers() {
     }
   };
 
-  // Обработчик необработанных исключений
-  process.on('uncaughtException', (error: Error) => {
-    console.error('[INSTRUMENTATION] ❌ Необработанное исключение:', error);
-    
-    notifyAdminAboutError(error, {
-      location: 'uncaughtException',
-      additionalInfo: {
-        type: 'uncaught_exception',
-      },
-    }).catch(() => {
-      // Игнорируем ошибки отправки
+  // Обработчики ошибок только для Node.js runtime (не для Edge)
+  if (typeof process !== 'undefined' && process.on) {
+    // Обработчик необработанных исключений
+    process.on('uncaughtException', (error: Error) => {
+      console.error('[INSTRUMENTATION] ❌ Необработанное исключение:', error);
+      
+      notifyAdminAboutError(error, {
+        location: 'uncaughtException',
+        additionalInfo: {
+          type: 'uncaught_exception',
+        },
+      }).catch(() => {
+        // Игнорируем ошибки отправки
+      });
+
+      // Даем время на отправку уведомления перед завершением процесса
+      setTimeout(() => {
+        process.exit(1);
+      }, 1000);
     });
 
-    // Даем время на отправку уведомления перед завершением процесса
-    setTimeout(() => {
-      process.exit(1);
-    }, 1000);
-  });
+    // Обработчик необработанных промисов
+    process.on('unhandledRejection', (reason: any) => {
+      console.error('[INSTRUMENTATION] ❌ Необработанный rejection:', reason);
+      
+      const error = reason instanceof Error 
+        ? reason 
+        : new Error(`Unhandled Rejection: ${String(reason)}`);
 
-  // Обработчик необработанных промисов
-  process.on('unhandledRejection', (reason: any) => {
-    console.error('[INSTRUMENTATION] ❌ Необработанный rejection:', reason);
-    
-    const error = reason instanceof Error 
-      ? reason 
-      : new Error(`Unhandled Rejection: ${String(reason)}`);
-
-    notifyAdminAboutError(error, {
-      location: 'unhandledRejection',
-      additionalInfo: {
-        type: 'unhandled_rejection',
-        reason: String(reason),
-      },
-    }).catch(() => {
-      // Игнорируем ошибки отправки
+      notifyAdminAboutError(error, {
+        location: 'unhandledRejection',
+        additionalInfo: {
+          type: 'unhandled_rejection',
+          reason: String(reason),
+        },
+      }).catch(() => {
+        // Игнорируем ошибки отправки
+      });
     });
-  });
+  }
 
   console.log('[INSTRUMENTATION] ✅ Глобальные обработчики ошибок инициализированы');
 }
@@ -156,12 +159,14 @@ export async function register() {
       pid: process.pid,
     }, 'System');
     
-    // Логируем завершение работы сервера
-    const shutdownHandler = () => {
-      log('info', 'Сервер останавливается', { reason: 'SIGTERM' }, 'System');
-    };
-    
-    process.on('SIGTERM', shutdownHandler);
-    process.on('SIGINT', shutdownHandler);
+    // Логируем завершение работы сервера (только для Node.js)
+    if (typeof process !== 'undefined' && process.on) {
+      const shutdownHandler = () => {
+        log('info', 'Сервер останавливается', { reason: 'SIGTERM' }, 'System');
+      };
+      
+      process.on('SIGTERM', shutdownHandler);
+      process.on('SIGINT', shutdownHandler);
+    }
   }
 }
