@@ -225,20 +225,20 @@ ${contextInfo.length > 0 ? `Дополнительная информация:\n
 }
 
 /**
- * Транскрибирует аудио в текст с помощью Groq Whisper API (бесплатно)
+ * Транскрибирует аудио в текст через OpenRouter (Groq whisper)
  */
 export async function transcribeAudioWithAI(
   audioBuffer: Buffer,
   format: string = 'ogg'
 ): Promise<string> {
-  console.log('[AI] 🎤 Начало транскрибации аудио через Groq');
+  console.log('[AI] 🎤 Начало транскрибации аудио через OpenRouter');
   console.log(`[AI] 📊 Размер аудио: ${audioBuffer.length} байт, формат: ${format}`);
 
-  const apiKey = process.env.GROQ_API_KEY || process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
 
   if (!apiKey || apiKey.trim().length === 0) {
-    console.error('[AI] ⚠️ GROQ_API_KEY не установлен');
-    throw new Error('GROQ_API_KEY не установлен. Добавьте в .env.local');
+    console.error('[AI] ⚠️ OPENROUTER_API_KEY не установлен');
+    throw new Error('OPENROUTER_API_KEY не установлен. Добавьте в .env.local');
   }
 
   try {
@@ -253,29 +253,32 @@ export async function transcribeAudioWithAI(
       contentType: `audio/${format === 'oga' ? 'ogg' : format}`,
     });
 
-    // Модель whisper-large-v3 (бесплатная на Groq)
-    formData.append('model', 'whisper-large-v3');
+    // Используем groq/whisper-large-v3 через OpenRouter
+    formData.append('model', 'groq/whisper-large-v3');
     formData.append('language', 'ru');
 
-    console.log('[AI] 📤 Отправка аудио на Groq Whisper API...');
+    console.log('[AI] 📤 Отправка аудио на OpenRouter (groq/whisper)...');
 
     const response = await axios.post(
-      'https://api.groq.com/openai/v1/audio/transcriptions',
+      'https://openrouter.ai/api/v1/audio/transcriptions',
       formData,
       {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+          'X-Title': 'Zenit News Bot',
           ...formData.getHeaders(),
         },
         maxBodyLength: Infinity,
         maxContentLength: Infinity,
+        timeout: 60000,
       }
     );
 
     const transcription = response.data?.text;
 
     if (!transcription) {
-      console.error('[AI] ⚠️ Пустой ответ от Groq:', response.data);
+      console.error('[AI] ⚠️ Пустой ответ от API:', response.data);
       throw new Error('Пустой ответ от API');
     }
 
@@ -290,12 +293,15 @@ export async function transcribeAudioWithAI(
     if (axios.isAxiosError(error)) {
       console.error('[AI] Статус ответа:', error.response?.status);
       console.error('[AI] Данные ответа:', JSON.stringify(error.response?.data, null, 2));
-      
+
       if (error.response?.status === 401) {
-        throw new Error('Неверный API ключ Groq. Проверьте GROQ_API_KEY');
+        throw new Error('Неверный API ключ OpenRouter. Проверьте OPENROUTER_API_KEY');
       }
       if (error.response?.status === 429) {
-        throw new Error('Превышен лимит запросов к Groq. Попробуйте позже');
+        throw new Error('Превышен лимит запросов к OpenRouter. Попробуйте позже');
+      }
+      if (error.response?.status === 404 || error.response?.status === 405) {
+        throw new Error('Модель whisper не поддерживается через OpenRouter. Попробуйте отправить текст.');
       }
     }
     throw new Error('Не удалось распознать аудио. Попробуйте отправить текст вручную.');
