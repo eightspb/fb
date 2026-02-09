@@ -59,7 +59,7 @@ export function SpeakerCard({ speaker, variant = 'default' }: SpeakerCardProps) 
 
         {/* Credentials */}
         {speaker.credentials && (
-          <p className={`text-slate-500 mb-3 ${isCompact ? 'text-xs' : 'text-sm'} leading-relaxed line-clamp-3`}>
+          <p className={`text-slate-500 mb-3 ${isCompact ? 'text-xs' : 'text-sm'} leading-relaxed`}>
             {speaker.credentials}
           </p>
         )}

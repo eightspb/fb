@@ -23,6 +23,20 @@ const CSRF_EXEMPT_PATHS = [
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  // Пропускаем запросы к Server Actions - они обрабатываются Next.js напрямую
+  // Это предотвращает ошибку "Failed to find Server Action"
+  const isServerAction = 
+    pathname.startsWith('/_next/static') || 
+    pathname.startsWith('/_next/server-actions') ||
+    pathname.includes('server-actions') ||
+    request.headers.get('content-type')?.includes('text/x-component') ||
+    request.headers.get('next-action') !== null ||
+    request.headers.get('x-nextjs-action') !== null;
+  
+  if (isServerAction) {
+    return NextResponse.next();
+  }
+
   // Устанавливаем информацию о запросе для логгера
   const forwardedFor = request.headers.get('x-forwarded-for');
   const realIp = request.headers.get('x-real-ip');
@@ -87,6 +101,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // CSRF проверка (пропускаем для определённых путей)
+  // Server Actions уже обработаны выше и не доходят до этой проверки
   const method = request.method.toUpperCase();
   const isExempt = CSRF_EXEMPT_PATHS.some(path => pathname.startsWith(path));
   

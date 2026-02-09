@@ -424,8 +424,8 @@ VALUES (
 <p><strong>ФИО:</strong> {{name}}</p>
 <p><strong>Email:</strong> {{email}}</p>
 <p><strong>Телефон:</strong> {{phone}}</p>
+{{#if city}}<p><strong>Город:</strong> {{city}}</p>{{/if}}
 {{#if institution}}<p><strong>Учреждение:</strong> {{institution}}</p>{{/if}}
-<p><strong>Нужен сертификат:</strong> {{certificate}}</p>
 <p><strong>Дата регистрации:</strong> {{date}}</p>'
 ) ON CONFLICT (form_type, email_type) DO NOTHING;
 

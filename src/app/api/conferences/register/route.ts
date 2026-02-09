@@ -16,8 +16,8 @@ interface ConferenceRegistrationData {
   name: string;
   email: string;
   phone: string;
+  city?: string;
   institution?: string;
-  certificate?: boolean;
   consent: boolean;
   conference: string;
 }
@@ -55,19 +55,19 @@ export async function POST(request: NextRequest) {
       const client = await pool.connect();
       try {
         await client.query(
-          `INSERT INTO form_submissions (form_type, name, email, phone, institution, status, page_url, metadata)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          `INSERT INTO form_submissions (form_type, name, email, phone, city, institution, status, page_url, metadata)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
           [
             'conference_registration', 
             body.name, 
             body.email, 
             body.phone, 
+            body.city,
             body.institution, 
             'new', 
             request.headers.get('referer') || '',
             JSON.stringify({ 
-              conference: body.conference,
-              certificate: body.certificate
+              conference: body.conference
             })
           ]
         );
@@ -79,11 +79,11 @@ export async function POST(request: NextRequest) {
           name: body.name,
           email: body.email,
           phone: body.phone,
+          city: body.city,
           institution: body.institution,
           pageUrl: request.headers.get('referer') || undefined,
           metadata: {
             conference: body.conference,
-            certificate: body.certificate,
           },
         }).catch(err => {
           console.error('[Conference Register] Ошибка отправки уведомления в Telegram:', err);
@@ -116,8 +116,8 @@ export async function POST(request: NextRequest) {
       name: body.name,
       email: body.email,
       phone: body.phone,
+      city: body.city,
       institution: body.institution,
-      certificate: body.certificate || false,
       conference: body.conference,
       timestamp: new Date().toISOString(),
     });
@@ -142,6 +142,7 @@ export async function POST(request: NextRequest) {
       const safeName = escapeHtml(body.name);
       const safeEmail = escapeHtml(body.email);
       const safePhone = escapeHtml(body.phone);
+      const safeCity = body.city ? escapeHtml(body.city) : '';
       const safeInstitution = body.institution ? escapeHtml(body.institution) : '';
       const dateStr = new Date().toLocaleString('ru-RU');
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fibroadenoma.net';
@@ -153,8 +154,8 @@ export async function POST(request: NextRequest) {
         name: safeName,
         email: safeEmail,
         phone: safePhone,
+        city: safeCity,
         institution: safeInstitution,
-        certificate: body.certificate ? 'Да' : 'Нет',
         date: dateStr,
       });
 
@@ -167,8 +168,8 @@ export async function POST(request: NextRequest) {
         <p><strong>ФИО:</strong> ${safeName}</p>
         <p><strong>Email:</strong> ${safeEmail}</p>
         <p><strong>Телефон:</strong> ${safePhone}</p>
+        ${safeCity ? `<p><strong>Город:</strong> ${safeCity}</p>` : ''}
         ${safeInstitution ? `<p><strong>Учреждение:</strong> ${safeInstitution}</p>` : ''}
-        <p><strong>Нужен сертификат:</strong> ${body.certificate ? 'Да' : 'Нет'}</p>
         <p><strong>Дата регистрации:</strong> ${dateStr}</p>
       `;
 
