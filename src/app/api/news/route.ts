@@ -9,7 +9,7 @@ export const runtime = 'nodejs';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
-  connectionTimeoutMillis: 10000, // 10 секунд таймаут подключения
+  connectionTimeoutMillis: 30000, // Increased to 30 seconds for large uploads
   idleTimeoutMillis: 30000,
   max: 20,
 });

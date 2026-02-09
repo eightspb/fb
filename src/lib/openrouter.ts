@@ -307,9 +307,11 @@ export async function transcribeAudioWithAI(
 export async function improveDescriptionWithAI(text: string): Promise<string> {
   console.log('[AI] 🤖 Начало улучшения описания через OpenRouter');
   
-  const apiKey = process.env.OPENROUTER_API_KEY;  if (!apiKey || apiKey.trim().length === 0) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  
+  if (!apiKey || apiKey.trim().length === 0) {
     console.warn('[AI] ⚠️ OPENROUTER_API_KEY не установлен или пустой');
-    return text;
+    throw new Error('OPENROUTER_API_KEY не настроен. Обратитесь к администратору.');
   }
 
   const systemPrompt = `Ты профессиональный редактор и копирайтер медицинского портала.
@@ -324,6 +326,7 @@ export async function improveDescriptionWithAI(text: string): Promise<string> {
 "${text}"`;
 
   try {
+    console.log('[AI] 📤 Отправка запроса на улучшение текста...');
     const response = await axios.post<OpenRouterResponse>(
       OPENROUTER_API_URL,
       {
@@ -348,12 +351,25 @@ export async function improveDescriptionWithAI(text: string): Promise<string> {
     const content = response.data.choices[0]?.message?.content;
     
     if (!content) {
-      throw new Error('Пустой ответ от OpenRouter');
+      console.error('[AI] ⚠️ Пустой ответ от OpenRouter');
+      throw new Error('Пустой ответ от AI сервиса');
     }
 
+    console.log('[AI] ✅ Текст успешно улучшен');
     return content.trim();
   } catch (error) {
     console.error('[AI] ❌ Ошибка при улучшении текста:', error);
-    return text; // Возвращаем исходный текст в случае ошибки
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        throw new Error('Неверный API ключ OpenRouter. Проверьте OPENROUTER_API_KEY');
+      }
+      if (error.response?.status === 429) {
+        throw new Error('Превышен лимит запросов к AI сервису. Попробуйте позже');
+      }
+      if ((error.response?.status ?? 0) >= 500) {
+        throw new Error('AI сервис временно недоступен. Попробуйте позже');
+      }
+    }
+    throw new Error('Не удалось улучшить текст. Попробуйте позже');
   }
 }

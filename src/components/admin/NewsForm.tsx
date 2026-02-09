@@ -94,7 +94,10 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
   };
 
   const handleImproveDescription = async () => {
-    if (!formData.fullDescription) return;
+    if (!formData.fullDescription.trim()) {
+      alert('Сначала введите текст в поле "Полное описание"');
+      return;
+    }
     
     setIsImproving(true);
     try {
@@ -107,16 +110,20 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to improve text');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to improve text');
       }
 
       const data = await response.json();
       if (data.improvedText) {
         setFormData(prev => ({ ...prev, fullDescription: data.improvedText }));
+        console.log('[NewsForm] Текст успешно улучшен');
+      } else {
+        throw new Error('Пустой ответ от сервера');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error improving text:', error);
-      alert('Ошибка при улучшении текста');
+      alert(`Ошибка при улучшении текста: ${error.message}`);
     } finally {
       setIsImproving(false);
     }
@@ -129,6 +136,10 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
     try {
       const url = isEditing ? `/api/news/${initialData.id}` : '/api/news';
       const method = isEditing ? 'PUT' : 'POST';
+
+      // Calculate approximate payload size for logging
+      const payloadSize = JSON.stringify(formData).length;
+      console.log(`[NewsForm] Отправка данных: ${payloadSize} байт, изображений: ${formData.images?.length || 0}`);
 
       let csrfToken = await getCsrfToken();
       let response = await fetch(url, {
@@ -152,7 +163,16 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to save');
+        
+        // Handle specific error cases
+        if (response.status === 413) {
+          throw new Error('Слишком большой размер данных. Попробуйте уменьшить количество или размер изображений.');
+        }
+        if (response.status === 503) {
+          throw new Error('Сервер перегружен. Попробуйте сохранить через несколько минут.');
+        }
+        
+        throw new Error(errorData.error || `Ошибка ${response.status}: ${response.statusText}`);
       }
 
       router.push('/admin/news');
