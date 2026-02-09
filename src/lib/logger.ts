@@ -175,6 +175,22 @@ function extractContext(message: string): { context?: string; cleanMessage: stri
 }
 
 /**
+ * Извлекает HTTP информацию из сообщения middleware
+ * Формат: "GET /path | IP: xxx.xxx.xxx.xxx | UA: UserAgent"
+ */
+function extractHttpInfo(message: string): { ip?: string; userAgent?: string; path?: string } {
+  const httpMatch = message.match(/^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s+([^\s|]+)\s*\|\s*IP:\s*([^\s|]+)\s*\|\s*UA:\s*(.*)$/);
+  if (httpMatch) {
+    return {
+      path: httpMatch[2],
+      ip: httpMatch[3],
+      userAgent: httpMatch[4] || undefined,
+    };
+  }
+  return {};
+}
+
+/**
  * Получает информацию о запросе из глобального контекста (если доступно)
  */
 function getRequestInfo(): { ip?: string; userAgent?: string; path?: string } {
@@ -209,6 +225,9 @@ export function initializeLogger(): void {
     const message = formatArgs(args);
     const { context, cleanMessage } = extractContext(message);
     const requestInfo = getRequestInfo();
+    
+    // Для HTTP логов из middleware пытаемся извлечь IP и path из сообщения
+    const httpInfo = context === 'HTTP' ? extractHttpInfo(cleanMessage || message) : {};
 
     queueLog({
       level: 'info',
@@ -216,6 +235,7 @@ export function initializeLogger(): void {
       context,
       timestamp: new Date(),
       ...requestInfo,
+      ...httpInfo, // HTTP информация имеет приоритет над глобальным контекстом
     });
   };
 
@@ -226,6 +246,9 @@ export function initializeLogger(): void {
     const message = formatArgs(args);
     const { context, cleanMessage } = extractContext(message);
     const requestInfo = getRequestInfo();
+    
+    // Для HTTP логов из middleware пытаемся извлечь IP и path из сообщения
+    const httpInfo = context === 'HTTP' ? extractHttpInfo(cleanMessage || message) : {};
 
     queueLog({
       level: 'error',
@@ -233,6 +256,7 @@ export function initializeLogger(): void {
       context,
       timestamp: new Date(),
       ...requestInfo,
+      ...httpInfo,
     });
   };
 
@@ -243,6 +267,9 @@ export function initializeLogger(): void {
     const message = formatArgs(args);
     const { context, cleanMessage } = extractContext(message);
     const requestInfo = getRequestInfo();
+    
+    // Для HTTP логов из middleware пытаемся извлечь IP и path из сообщения
+    const httpInfo = context === 'HTTP' ? extractHttpInfo(cleanMessage || message) : {};
 
     queueLog({
       level: 'warn',
@@ -250,6 +277,7 @@ export function initializeLogger(): void {
       context,
       timestamp: new Date(),
       ...requestInfo,
+      ...httpInfo,
     });
   };
 
