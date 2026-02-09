@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
   // Конфигурация для Server Actions - предотвращает ошибки с несуществующими actions
   experimental: {
     serverActions: {
-      bodySizeLimit: '2mb',
+      bodySizeLimit: '50mb',
       allowedOrigins: process.env.NODE_ENV === 'production' 
         ? [process.env.SITE_URL || 'http://155.212.217.60'].filter(Boolean)
         : ['localhost:3000'],
