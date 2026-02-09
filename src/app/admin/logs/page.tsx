@@ -7,16 +7,15 @@ import { Badge } from '@/components/ui/badge';
 // Используем простой HTML select вместо Radix UI для упрощения
 // import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertCircle, Trash2, Download, RefreshCw, Filter } from 'lucide-react';
-// Форматирование даты без date-fns
+// Форматирование даты - компактный формат
 const formatDate = (date: string | Date) => {
   const d = typeof date === 'string' ? new Date(date) : date;
   const day = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
   const hours = String(d.getHours()).padStart(2, '0');
   const minutes = String(d.getMinutes()).padStart(2, '0');
   const seconds = String(d.getSeconds()).padStart(2, '0');
-  return `${day}.${month}.${year} ${hours}:${minutes}:${seconds}`;
+  return `${day}.${month} ${hours}:${minutes}:${seconds}`;
 };
 
 interface LogEntry {
@@ -90,8 +89,8 @@ export default function AdminLogsPage() {
             if (prev.some(log => log.id === data.data.id)) {
               return prev;
             }
-            // Добавляем новый лог в начало и ограничиваем до 500 записей
-            return [data.data, ...prev].slice(0, 500);
+            // Добавляем новый лог в конец и ограничиваем до 500 записей
+            return [...prev, data.data].slice(-500);
           });
         } else if (data.type === 'connected') {
           console.log('[Logs] Подключено к потоку логов');
@@ -273,51 +272,51 @@ export default function AdminLogsPage() {
           ) : logs.length === 0 ? (
             <div className="text-center py-8 text-slate-500">Логи не найдены</div>
           ) : (
-            <div className="space-y-2 max-h-[600px] overflow-y-auto">
-              {logs.map((log) => (
-                <div
-                  key={log.id}
-                  className="border rounded-lg p-4 hover:bg-slate-50 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-4 mb-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge className={getLevelColor(log.level)}>
-                        {log.level.toUpperCase()}
-                      </Badge>
-                      {log.context && (
-                        <Badge variant="outline">{log.context}</Badge>
-                      )}
-                      {log.path && (
-                        <span className="text-xs text-slate-500 font-mono">{log.path}</span>
-                      )}
-                    </div>
-                    <span className="text-xs text-slate-500 whitespace-nowrap">
-                      {formatDate(log.timestamp)}
-                    </span>
-                  </div>
-                  <div className="text-sm text-slate-700 font-mono whitespace-pre-wrap break-words">
-                    {log.message}
-                  </div>
-                  {(log.ip || log.userAgent || log.metadata) && (
-                    <div className="mt-2 pt-2 border-t text-xs text-slate-500 space-y-1">
-                      {log.ip && <div>IP: {log.ip}</div>}
-                      {log.userAgent && (
-                        <div className="truncate">User-Agent: {log.userAgent}</div>
-                      )}
-                      {log.metadata && Object.keys(log.metadata).length > 0 && (
-                        <details className="mt-1">
-                          <summary className="cursor-pointer hover:text-slate-700">
-                            Метаданные
-                          </summary>
-                          <pre className="mt-1 p-2 bg-slate-100 rounded text-xs overflow-x-auto">
-                            {JSON.stringify(log.metadata, null, 2)}
-                          </pre>
-                        </details>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
+            <div className="max-h-[700px] overflow-y-auto font-mono text-xs">
+              <table className="w-full border-collapse">
+                <thead className="sticky top-0 bg-white border-b-2 border-slate-300 z-10">
+                  <tr className="text-left">
+                    <th className="px-2 py-1 font-semibold text-slate-700 w-[95px]">Время</th>
+                    <th className="px-2 py-1 font-semibold text-slate-700 w-[55px]">Уровень</th>
+                    <th className="px-2 py-1 font-semibold text-slate-700 w-[90px]">Контекст</th>
+                    <th className="px-2 py-1 font-semibold text-slate-700">Сообщение</th>
+                    <th className="px-2 py-1 font-semibold text-slate-700 w-[110px]">IP</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {logs.map((log) => (
+                    <tr
+                      key={log.id}
+                      className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                    >
+                      <td className="px-2 py-1 text-slate-600 whitespace-nowrap">
+                        {formatDate(log.timestamp)}
+                      </td>
+                      <td className="px-2 py-1">
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                          log.level === 'error' ? 'bg-red-100 text-red-700' :
+                          log.level === 'warn' ? 'bg-yellow-100 text-yellow-700' :
+                          log.level === 'debug' ? 'bg-blue-100 text-blue-700' :
+                          'bg-green-100 text-green-700'
+                        }`}>
+                          {log.level}
+                        </span>
+                      </td>
+                      <td className="px-2 py-1 text-slate-600">
+                        {log.context || '-'}
+                      </td>
+                      <td className="px-2 py-1 text-slate-800">
+                        <div className="truncate max-w-[600px]" title={log.message}>
+                          {log.message}
+                        </div>
+                      </td>
+                      <td className="px-2 py-1 text-slate-500 truncate">
+                        {log.ip || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
               <div ref={logsEndRef} />
             </div>
           )}
