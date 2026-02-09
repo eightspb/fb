@@ -14,11 +14,18 @@ export function logApiRequest(request: NextRequest, endpoint: string): void {
   const ip = getClientIp(request);
   const userAgent = request.headers.get('user-agent') || 'unknown';
   
+  // Устанавливаем в глобальный контекст для logger
+  if (typeof global !== 'undefined') {
+    (global as any).__currentRequest = {
+      ip,
+      userAgent,
+      path: endpoint,
+    };
+  }
+  
   log('info', `${method} ${endpoint}`, {
     method,
     endpoint,
-    ip,
-    userAgent: userAgent.substring(0, 100), // Обрезаем для экономии места
   }, 'HTTP');
 }
 
