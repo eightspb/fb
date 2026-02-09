@@ -1,21 +1,40 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import VisitorTracker from "@/components/VisitorTracker";
 
-const geistSans = Geist({
+// Безопасная загрузка шрифтов с обработкой ошибок
+let geistSans: any = {
   variable: "--font-geist-sans",
-  subsets: ["latin"],
-  display: "swap",
-  fallback: ["system-ui", "arial"],
-});
+  className: ""
+};
+let geistMono: any = {
+  variable: "--font-geist-mono", 
+  className: ""
+};
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-  display: "swap",
-  fallback: ["monospace"],
-});
+try {
+  // Динамический импорт с обработкой ошибок
+  const { Geist, Geist_Mono } = require("next/font/google");
+  
+  geistSans = Geist({
+    variable: "--font-geist-sans",
+    subsets: ["latin"],
+    display: "swap",
+    fallback: ["system-ui", "arial"],
+    weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+  });
+
+  geistMono = Geist_Mono({
+    variable: "--font-geist-mono",
+    subsets: ["latin"],
+    display: "swap",
+    fallback: ["monospace"],
+    weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+  });
+} catch (error) {
+  console.warn("Failed to load Google Fonts, using system fonts:", error);
+  // Используем системные шрифты как fallback
+}
 
 export const metadata: Metadata = {
   title: {

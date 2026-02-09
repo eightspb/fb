@@ -32,10 +32,45 @@ export function ConferenceSchedule({ program, speakers }: ConferenceScheduleProp
         return (
           <div 
             key={item.id} 
-            className="group relative flex rounded-3xl bg-slate-50 hover:bg-white transition-colors duration-300 min-h-[120px] shadow-sm hover:shadow-md border border-slate-100"
+            className="group relative flex flex-col sm:flex-row rounded-3xl bg-slate-50 hover:bg-white transition-colors duration-300 shadow-sm hover:shadow-md border border-slate-100"
           >
-            {/* Time Section */}
-            <div className={`w-32 sm:w-40 flex flex-col items-center justify-center flex-shrink-0 rounded-l-3xl ${
+            {/* Mobile Header Section - Photo + Time */}
+            <div className="sm:hidden flex items-center justify-between py-3 px-4 rounded-t-3xl bg-slate-100/30">
+              {/* Photo - Left */}
+              <div className={`w-20 h-20 rounded-full border-[3px] shadow-md flex items-center justify-center overflow-hidden bg-white ${
+                isBreak 
+                  ? 'border-slate-200 text-slate-400' 
+                  : 'border-teal-500 text-teal-600'
+              }`}>
+                {isTalk && speaker && speaker.photo ? (
+                  <div className="relative w-full h-full">
+                    <Image
+                      src={speaker.photo}
+                      alt={speaker.name}
+                      fill
+                      sizes="80px"
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
+                ) : (
+                  isBreak ? <Coffee className="w-7 h-7" /> : <User className="w-7 h-7" />
+                )}
+              </div>
+
+              {/* Time - Right */}
+              <div className="flex flex-col items-end text-right ml-4">
+                <span className={`text-lg font-bold ${isBreak ? 'text-slate-400' : 'text-slate-900'}`}>
+                  {item.time_start}
+                </span>
+                <span className={`text-sm ${isBreak ? 'text-slate-400' : 'text-slate-500'}`}>
+                  {item.time_end}
+                </span>
+              </div>
+            </div>
+
+            {/* Desktop Time Section - Left */}
+            <div className={`hidden sm:flex w-32 sm:w-40 flex-col items-center justify-center flex-shrink-0 rounded-l-3xl ${
               isBreak ? 'bg-slate-100/50' : 'bg-slate-200/30'
             }`}>
               <span className={`text-2xl sm:text-3xl font-bold ${isBreak ? 'text-slate-400' : 'text-slate-900'}`}>
@@ -46,8 +81,8 @@ export function ConferenceSchedule({ program, speakers }: ConferenceScheduleProp
               </span>
             </div>
 
-            {/* Circle Element - Shifted further right to avoid obscuring time */}
-            <div className="absolute left-44 sm:left-52 top-1/2 -translate-y-1/2 -translate-x-1/2 z-20">
+            {/* Desktop Circle Element - Overlapping */}
+            <div className="hidden sm:block absolute left-44 sm:left-52 top-1/2 -translate-y-1/2 -translate-x-1/2 z-20">
               <div className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full border-[6px] shadow-xl flex items-center justify-center overflow-hidden transition-transform duration-300 group-hover:scale-105 bg-white ${
                 isBreak 
                   ? 'border-slate-200 text-slate-400' 
@@ -70,8 +105,45 @@ export function ConferenceSchedule({ program, speakers }: ConferenceScheduleProp
               </div>
             </div>
 
-            {/* Content Section */}
-            <div className="flex-1 p-6 pl-28 sm:pl-36 flex flex-col justify-center relative z-0 rounded-r-3xl">
+            {/* Mobile Content Section - Bottom */}
+            <div className="sm:hidden flex-1 p-4 pt-2 pb-4 flex flex-col justify-center rounded-b-3xl">
+              <div className="flex flex-col gap-1 text-center">
+                {/* Title */}
+                <h3 className={`text-base font-bold leading-tight ${
+                  isBreak ? 'text-slate-500' : 'text-slate-900'
+                }`}>
+                  {item.title}
+                </h3>
+                
+                {/* Speaker Name */}
+                {(speaker || item.speaker_name) && (
+                  <p className={`text-sm font-medium ${
+                    isBreak ? 'text-slate-400' : 'text-slate-600'
+                  }`}>
+                    {speaker ? speaker.name : item.speaker_name}
+                  </p>
+                )}
+
+                {/* Description - Optional */}
+                {item.description && (
+                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                    {item.description}
+                  </p>
+                )}
+                
+                {/* Type Badge - Optional */}
+                {item.type && item.type !== 'talk' && (
+                   <div className="flex justify-center mt-1">
+                      <Badge variant="outline" className="text-xs text-slate-400 border-slate-200">
+                        {item.type === 'break' ? 'Перерыв' : 'Событие'}
+                      </Badge>
+                   </div>
+                )}
+              </div>
+            </div>
+
+            {/* Desktop Content Section - Right */}
+            <div className="hidden sm:flex flex-1 p-6 pl-28 sm:pl-36 flex-col justify-center relative z-0 rounded-r-3xl">
               <div className="flex flex-col gap-1">
                 {/* Title */}
                 <h3 className={`text-lg sm:text-xl font-bold leading-tight ${
