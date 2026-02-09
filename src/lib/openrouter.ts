@@ -225,69 +225,77 @@ ${contextInfo.length > 0 ? `Дополнительная информация:\n
 }
 
 /**
- * Транскрибирует аудио в текст с помощью GPT-4o через OpenRouter API
+ * Транскрибирует аудио в текст с помощью OpenAI Whisper API
  */
 export async function transcribeAudioWithAI(
   audioBuffer: Buffer,
   format: string = 'ogg'
 ): Promise<string> {
-  console.log('[AI] 🎤 Начало транскрибации аудио через GPT-4o');
+  console.log('[AI] 🎤 Начало транскрибации аудио через Whisper API');
   console.log(`[AI] 📊 Размер аудио: ${audioBuffer.length} байт, формат: ${format}`);
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  // Пробуем сначала OPENAI_API_KEY, если нет - используем OPENROUTER_API_KEY
+  const apiKey = process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY;
 
   if (!apiKey || apiKey.trim().length === 0) {
-    console.error('[AI] ⚠️ OPENROUTER_API_KEY не установлен или пустой');
-    throw new Error('OPENROUTER_API_KEY не установлен');
+    console.error('[AI] ⚠️ OPENAI_API_KEY или OPENROUTER_API_KEY не установлен');
+    throw new Error('API ключ не установлен. Установите OPENAI_API_KEY в .env.local');
   }
 
+  // Определяем URL API
+  const isOpenRouter = !process.env.OPENAI_API_KEY && !!process.env.OPENROUTER_API_KEY;
+  const apiUrl = isOpenRouter
+    ? 'https://openrouter.ai/api/v1/audio/transcriptions'
+    : 'https://api.openai.com/v1/audio/transcriptions';
+
+  console.log(`[AI] � Используем API: ${isOpenRouter ? 'OpenRouter' : 'OpenAI'}`);
+
   try {
-    // Конвертируем аудио в base64
-    const base64Audio = audioBuffer.toString('base64');
+    // Создаем FormData для multipart/form-data запроса
+    const FormData = (await import('form-data')).default;
+    const formData = new FormData();
 
-    console.log('[AI] 📤 Отправка аудио на GPT-4o...');
+    // Добавляем аудио файл как blob с правильным именем файла
+    const filename = `voice.${format === 'oga' ? 'ogg' : format}`;
+    formData.append('file', audioBuffer, {
+      filename: filename,
+      contentType: `audio/${format === 'oga' ? 'ogg' : format}`,
+    });
 
-    const response = await axios.post<OpenRouterResponse>(
-      OPENROUTER_API_URL,
+    // Добавляем модель
+    formData.append('model', 'whisper-1');
+
+    // Указываем язык (русский) для лучшей точности
+    formData.append('language', 'ru');
+
+    console.log('[AI] 📤 Отправка аудио на Whisper API...');
+
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${apiKey}`,
+      ...formData.getHeaders(),
+    };
+
+    // Добавляем специфичные для OpenRouter заголовки
+    if (isOpenRouter) {
+      headers['HTTP-Referer'] = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+      headers['X-Title'] = 'Zenit News Bot';
+    }
+
+    const response = await axios.post(
+      apiUrl,
+      formData,
       {
-        model: 'openai/gpt-4o',  // GPT-4o поддерживает аудио вход
-        messages: [
-          {
-            role: 'system',
-            content: 'Ты - система распознавания речи. Распознай аудио и верни только текст на том языке, который услышишь. Никаких комментариев, только текст.'
-          },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'input_audio',
-                input_audio: {
-                  data: base64Audio,
-                  format: format === 'ogg' ? 'ogg' : format,
-                  sample_rate: 16000
-                }
-              }
-            ]
-          }
-        ],
-        temperature: 0.2,
-        max_tokens: 2000,
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-          'X-Title': 'Zenit News Bot',
-          'Content-Type': 'application/json',
-        },
+        headers,
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
       }
     );
 
-    const transcription = response.data?.choices?.[0]?.message?.content;
+    const transcription = response.data?.text;
 
     if (!transcription) {
-      console.error('[AI] ⚠️ Пустой ответ от API');
-      throw new Error('Пустой ответ от API');
+      console.error('[AI] ⚠️ Пустой ответ от Whisper API:', response.data);
+      throw new Error('Пустой ответ от Whisper API');
     }
 
     console.log(`[AI] ✅ Транскрибация завершена: "${transcription.substring(0, 100)}..."`);
@@ -301,6 +309,17 @@ export async function transcribeAudioWithAI(
     if (axios.isAxiosError(error)) {
       console.error('[AI] Статус ответа:', error.response?.status);
       console.error('[AI] Данные ответа:', JSON.stringify(error.response?.data, null, 2));
+
+      // Специфичные ошибки
+      if (error.response?.status === 401) {
+        throw new Error('Неверный API ключ. Проверьте OPENAI_API_KEY в .env.local');
+      }
+      if (error.response?.status === 429) {
+        throw new Error('Превышен лимит запросов. Попробуйте позже.');
+      }
+      if (error.response?.status === 415) {
+        throw new Error('Неподдерживаемый формат аудио. Поддерживаются: mp3, mp4, mpeg, mpga, m4a, ogg, wav, webm');
+      }
     }
     throw error;
   }

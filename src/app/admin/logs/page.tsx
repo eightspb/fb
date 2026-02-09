@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useMemo, memo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +30,38 @@ interface LogEntry {
   timestamp: string;
 }
 
+// Мемоизированная строка таблицы - не перерисовывается если пропсы не изменились
+const LogRow = memo(function LogRow({ log }: { log: LogEntry }) {
+  return (
+    <tr className="border-b border-slate-100 hover:bg-slate-50">
+      <td className="px-2 py-1 text-slate-600 whitespace-nowrap">
+        {formatDate(log.timestamp)}
+      </td>
+      <td className="px-2 py-1">
+        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+          log.level === 'error' ? 'bg-red-100 text-red-700' :
+          log.level === 'warn' ? 'bg-yellow-100 text-yellow-700' :
+          log.level === 'debug' ? 'bg-blue-100 text-blue-700' :
+          'bg-green-100 text-green-700'
+        }`}>
+          {log.level}
+        </span>
+      </td>
+      <td className="px-2 py-1 text-slate-600">
+        {log.context || '-'}
+      </td>
+      <td className="px-2 py-1 text-slate-800">
+        <div className="truncate max-w-[600px]" title={log.message}>
+          {log.message}
+        </div>
+      </td>
+      <td className="px-2 py-1 text-slate-500 truncate">
+        {log.ip || '-'}
+      </td>
+    </tr>
+  );
+});
+
 export default function AdminLogsPage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +70,6 @@ export default function AdminLogsPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const logsEndRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   // Получение логов через API
@@ -89,8 +120,8 @@ export default function AdminLogsPage() {
             if (prev.some(log => log.id === data.data.id)) {
               return prev;
             }
-            // Добавляем новый лог в конец и ограничиваем до 500 записей
-            return [...prev, data.data].slice(-500);
+            // Добавляем новый лог в НАЧАЛО (новые сверху), ограничиваем до 500
+            return [data.data, ...prev].slice(0, 500);
           });
         } else if (data.type === 'connected') {
           console.log('[Logs] Подключено к потоку логов');
@@ -125,12 +156,7 @@ export default function AdminLogsPage() {
     fetchLogs();
   }, [levelFilter, contextFilter]);
 
-  // Автопрокрутка к новым логам
-  useEffect(() => {
-    if (logs.length > 0 && autoRefresh) {
-      logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [logs, autoRefresh]);
+  // Убрана автопрокрутка - новые логи теперь отображаются сверху
 
   // Очистка старых логов
   const handleClearLogs = async () => {
@@ -285,39 +311,10 @@ export default function AdminLogsPage() {
                 </thead>
                 <tbody>
                   {logs.map((log) => (
-                    <tr
-                      key={log.id}
-                      className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
-                    >
-                      <td className="px-2 py-1 text-slate-600 whitespace-nowrap">
-                        {formatDate(log.timestamp)}
-                      </td>
-                      <td className="px-2 py-1">
-                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                          log.level === 'error' ? 'bg-red-100 text-red-700' :
-                          log.level === 'warn' ? 'bg-yellow-100 text-yellow-700' :
-                          log.level === 'debug' ? 'bg-blue-100 text-blue-700' :
-                          'bg-green-100 text-green-700'
-                        }`}>
-                          {log.level}
-                        </span>
-                      </td>
-                      <td className="px-2 py-1 text-slate-600">
-                        {log.context || '-'}
-                      </td>
-                      <td className="px-2 py-1 text-slate-800">
-                        <div className="truncate max-w-[600px]" title={log.message}>
-                          {log.message}
-                        </div>
-                      </td>
-                      <td className="px-2 py-1 text-slate-500 truncate">
-                        {log.ip || '-'}
-                      </td>
-                    </tr>
+                    <LogRow key={log.id} log={log} />
                   ))}
                 </tbody>
               </table>
-              <div ref={logsEndRef} />
             </div>
           )}
         </CardContent>
