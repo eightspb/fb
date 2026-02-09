@@ -201,14 +201,6 @@ export function ConferencesList() {
                   <span>{speakersCount} {speakersCount === 1 ? 'спикер' : speakersCount < 5 ? 'спикера' : 'спикеров'}</span>
                 </div>
               )}
-              {event.cme_hours && 
-               typeof event.cme_hours === 'number' && 
-               event.cme_hours > 0 && (
-                <div className="flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-teal-600 flex-shrink-0" />
-                  <span>{event.cme_hours} часов CME</span>
-                </div>
-              )}
             </div>
 
             {/* Speakers preview */}
