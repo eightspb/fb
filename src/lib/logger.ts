@@ -350,7 +350,7 @@ export async function getLogs(options: {
   const {
     level,
     context,
-    limit = 100,
+    limit = 500,
     offset = 0,
     startDate,
     endDate,

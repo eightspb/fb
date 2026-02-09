@@ -48,7 +48,7 @@ export default function AdminLogsPage() {
       const params = new URLSearchParams();
       if (levelFilter !== 'all') params.append('level', levelFilter);
       if (contextFilter !== 'all') params.append('context', contextFilter);
-      params.append('limit', '200');
+      params.append('limit', '500');
 
       const response = await fetch(`/api/admin/logs?${params.toString()}`, {
         credentials: 'include',
