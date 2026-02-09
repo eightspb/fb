@@ -225,81 +225,62 @@ ${contextInfo.length > 0 ? `Дополнительная информация:\n
 }
 
 /**
- * Транскрибирует аудио в текст с помощью GPT-4o Audio Preview через OpenRouter
+ * Транскрибирует аудио в текст с помощью Groq Whisper API (бесплатно)
  */
 export async function transcribeAudioWithAI(
   audioBuffer: Buffer,
   format: string = 'ogg'
 ): Promise<string> {
-  console.log('[AI] 🎤 Начало транскрибации аудио через OpenRouter');
+  console.log('[AI] 🎤 Начало транскрибации аудио через Groq');
   console.log(`[AI] 📊 Размер аудио: ${audioBuffer.length} байт, формат: ${format}`);
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY || process.env.OPENROUTER_API_KEY;
 
   if (!apiKey || apiKey.trim().length === 0) {
-    console.error('[AI] ⚠️ OPENROUTER_API_KEY не установлен');
-    throw new Error('OPENROUTER_API_KEY не установлен. Добавьте в .env.local');
+    console.error('[AI] ⚠️ GROQ_API_KEY не установлен');
+    throw new Error('GROQ_API_KEY не установлен. Добавьте в .env.local');
   }
 
   try {
-    // Конвертируем аудио в base64
-    const base64Audio = audioBuffer.toString('base64');
-    
-    // Определяем формат для API (ogg или mp3)
-    const audioFormat = format === 'oga' ? 'ogg' : format;
+    // Создаем FormData для multipart/form-data запроса
+    const FormData = (await import('form-data')).default;
+    const formData = new FormData();
 
-    console.log('[AI] 📤 Отправка аудио на OpenRouter (GPT-4o Audio)...');
+    // Добавляем аудио файл
+    const filename = `voice.${format === 'oga' ? 'ogg' : format}`;
+    formData.append('file', audioBuffer, {
+      filename: filename,
+      contentType: `audio/${format === 'oga' ? 'ogg' : format}`,
+    });
 
-    const response = await axios.post<OpenRouterResponse>(
-      OPENROUTER_API_URL,
-      {
-        model: 'openai/gpt-4o-audio-preview',  // GPT-4o с поддержкой аудио
-        messages: [
-          {
-            role: 'system',
-            content: 'Ты - система распознавания речи. Твоя задача - распознать аудио и вернуть ТОЛЬКО текст речи на том языке, который услышишь. Никаких комментариев, только распознанный текст.'
-          },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'input_audio',
-                input_audio: {
-                  data: base64Audio,
-                  format: audioFormat,
-                  sample_rate: 24000
-                }
-              }
-            ]
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 2000,
-      },
+    // Модель whisper-large-v3 (бесплатная на Groq)
+    formData.append('model', 'whisper-large-v3');
+    formData.append('language', 'ru');
+
+    console.log('[AI] 📤 Отправка аудио на Groq Whisper API...');
+
+    const response = await axios.post(
+      'https://api.groq.com/openai/v1/audio/transcriptions',
+      formData,
       {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-          'X-Title': 'Zenit News Bot',
-          'Content-Type': 'application/json',
+          ...formData.getHeaders(),
         },
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
       }
     );
 
-    const transcription = response.data?.choices?.[0]?.message?.content;
+    const transcription = response.data?.text;
 
     if (!transcription) {
-      console.error('[AI] ⚠️ Пустой ответ от API:', response.data);
+      console.error('[AI] ⚠️ Пустой ответ от Groq:', response.data);
       throw new Error('Пустой ответ от API');
     }
 
-    // Очищаем ответ от возможных вводных фраз
-    const cleanedTranscription = transcription
-      .replace(/^(Вот текст распознанной речи:|Распознанный текст:|Текст:|Речь:|Результат распознавания:)\s*/i, '')
-      .trim();
-
-    console.log(`[AI] ✅ Транскрибация завершена: "${cleanedTranscription.substring(0, 100)}..."`);
-    return cleanedTranscription;
+    console.log(`[AI] ✅ Транскрибация завершена: "${transcription.substring(0, 100)}..."`);
+    return transcription.trim();
 
   } catch (error) {
     console.error('[AI] ❌ Ошибка при транскрибации аудио:', error);
@@ -311,16 +292,10 @@ export async function transcribeAudioWithAI(
       console.error('[AI] Данные ответа:', JSON.stringify(error.response?.data, null, 2));
       
       if (error.response?.status === 401) {
-        throw new Error('Неверный API ключ OpenRouter. Проверьте OPENROUTER_API_KEY');
+        throw new Error('Неверный API ключ Groq. Проверьте GROQ_API_KEY');
       }
       if (error.response?.status === 429) {
-        throw new Error('Превышен лимит запросов к OpenRouter. Попробуйте позже');
-      }
-      if (error.response?.status === 400) {
-        const errorData = error.response?.data;
-        if (errorData?.error?.message?.includes('audio')) {
-          throw new Error('Неподдерживаемый формат аудио. Попробуйте отправить текст.');
-        }
+        throw new Error('Превышен лимит запросов к Groq. Попробуйте позже');
       }
     }
     throw new Error('Не удалось распознать аудио. Попробуйте отправить текст вручную.');
