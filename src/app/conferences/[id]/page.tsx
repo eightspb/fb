@@ -163,6 +163,7 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
               sizes="100vw"
               className="object-cover"
               unoptimized
+              priority
             />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/40 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12">
@@ -225,7 +226,8 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
             <section>
               <Card>
                 <CardContent className="p-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="space-y-4">
+                    {/* Date */}
                     <div className="flex items-center gap-3 text-slate-700">
                       <Calendar className="w-5 h-5 text-teal-600 flex-shrink-0" />
                       <div>
@@ -234,6 +236,7 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
                       </div>
                     </div>
 
+                    {/* Location */}
                     {conference.location && (
                       <div className="flex items-center gap-3 text-slate-700">
                         <MapPin className="w-5 h-5 text-teal-600 flex-shrink-0" />
@@ -244,7 +247,8 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
                       </div>
                     )}
 
-                    {conference.cme_hours && conference.cme_hours > 0 && (
+                    {/* CME Hours - только если > 0 */}
+                    {typeof conference.cme_hours === 'number' && conference.cme_hours > 0 && (
                       <div className="flex items-center gap-3 text-slate-700">
                         <Clock className="w-5 h-5 text-teal-600 flex-shrink-0" />
                         <div>
@@ -254,6 +258,7 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
                       </div>
                     )}
 
+                    {/* Contacts */}
                     {hasContacts && conference.organizer_contacts?.phone && (
                       <div className="flex items-center gap-3 text-slate-700">
                         <Phone className="w-5 h-5 text-teal-600 flex-shrink-0" />
@@ -286,6 +291,8 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
                     width={180}
                     height={80}
                     className="object-contain"
+                    priority
+                    style={{ width: 'auto', height: 'auto' }}
                   />
                 </div>
                 <div className="flex items-center justify-center w-full h-24">
@@ -295,6 +302,8 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
                     width={180}
                     height={80}
                     className="object-contain"
+                    priority
+                    style={{ width: 'auto', height: 'auto' }}
                   />
                 </div>
                 <div className="flex items-center justify-center w-full h-24">
@@ -304,6 +313,8 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
                     width={180}
                     height={80}
                     className="object-contain"
+                    priority
+                    style={{ width: 'auto', height: 'auto' }}
                   />
                 </div>
                 <div className="flex items-center justify-center w-full h-24">
@@ -313,6 +324,8 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
                     width={180}
                     height={80}
                     className="object-contain"
+                    priority
+                    style={{ width: 'auto', height: 'auto' }}
                   />
                 </div>
                 <div className="flex items-center justify-center w-full h-24 col-span-2 md:col-span-3 lg:col-span-1">
@@ -322,6 +335,8 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
                     width={180}
                     height={80}
                     className="object-contain"
+                    priority
+                    style={{ width: 'auto', height: 'auto' }}
                   />
                 </div>
               </div>

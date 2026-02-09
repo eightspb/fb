@@ -52,6 +52,7 @@ export function Header() {
                 src="/images/logo.png" 
                 alt="Zenit Logo" 
                 fill 
+                sizes="(max-width: 768px) 150px, 180px"
                 className="object-contain"
                 priority
               />

@@ -10,6 +10,24 @@ const nextConfig: NextConfig = {
   // о конфликте webpack/turbopack конфигов
   turbopack: {},
   
+  // Обработка ошибок через webpack
+  webpack: (config, { dev, isServer }) => {
+    // Игнорируем ошибки шрифтов в production
+    if (!dev && !isServer) {
+      config.ignoreWarnings = [
+        {
+          module: /next\/font\/google/,
+          message: /Failed to download/,
+        },
+        {
+          module: /next\/font\/google/,
+          message: /font/i,
+        },
+      ];
+    }
+    return config;
+  },
+  
   // Конфигурация для Server Actions - предотвращает ошибки с несуществующими actions
   experimental: {
     serverActions: {

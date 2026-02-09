@@ -122,5 +122,34 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Fallback шрифты на случай ошибок с Google Fonts */
+    font-family: 
+      var(--font-geist-sans), 
+      system-ui, 
+      -apple-system, 
+      BlinkMacSystemFont, 
+      "Segoe UI", 
+      Roboto, 
+      "Helvetica Neue", 
+      Arial, 
+      "Noto Sans", 
+      sans-serif, 
+      "Apple Color Emoji", 
+      "Segoe UI Emoji", 
+      "Segoe UI Symbol", 
+      "Noto Color Emoji";
+  }
+  
+  /* Fallback для моноширинных шрифтов */
+  code, pre {
+    font-family: 
+      var(--font-geist-mono), 
+      ui-monospace, 
+      SFMono-Regular, 
+      "SF Mono", 
+      Consolas, 
+      "Liberation Mono", 
+      Menlo, 
+      monospace;
   }
 }

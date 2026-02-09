@@ -145,7 +145,9 @@ export function UpcomingConferencesSection() {
                       <Badge className="bg-teal-500 text-white border-0">
                         {conference.type}
                       </Badge>
-                      {conference.cme_hours && (
+                      {conference.cme_hours && 
+                       typeof conference.cme_hours === 'number' && 
+                       conference.cme_hours > 0 && (
                         <Badge variant="secondary" className="bg-white/90 text-slate-700">
                           <Clock className="w-3 h-3 mr-1" />
                           {conference.cme_hours} ч.
