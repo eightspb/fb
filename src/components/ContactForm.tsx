@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { getCsrfToken } from '@/lib/csrf-client';
+import { SimpleCaptcha } from '@/components/SimpleCaptcha';
 
 interface FormErrors {
   name?: string;
@@ -10,6 +11,7 @@ interface FormErrors {
   phone?: string;
   message?: string;
   consent?: string;
+  captcha?: string;
 }
 
 export function ContactForm() {
@@ -24,6 +26,7 @@ export function ContactForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [submitMessage, setSubmitMessage] = useState('');
+  const [captchaVerified, setCaptchaVerified] = useState(false);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -54,6 +57,10 @@ export function ContactForm() {
 
     if (!formData.consent) {
       newErrors.consent = 'Необходимо согласие на обработку персональных данных';
+    }
+
+    if (!captchaVerified) {
+      newErrors.captcha = 'Пожалуйста, пройдите проверку CAPTCHA';
     }
 
     setErrors(newErrors);
@@ -265,6 +272,14 @@ export function ContactForm() {
               <p className="mt-1 text-sm text-red-600 ml-7">{errors.consent}</p>
             )}
           </div>
+
+          <SimpleCaptcha 
+            onVerify={() => setCaptchaVerified(true)}
+            onError={(error) => setSubmitMessage(error)}
+          />
+          {errors.captcha && (
+            <p className="mt-1 text-sm text-red-600">{errors.captcha}</p>
+          )}
 
           <button
             type="submit"

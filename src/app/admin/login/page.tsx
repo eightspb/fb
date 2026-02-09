@@ -8,15 +8,24 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, Lock } from 'lucide-react';
 import { getCsrfToken } from '@/lib/csrf-client';
+import { SimpleCaptcha } from '@/components/SimpleCaptcha';
 
 export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!captchaVerified) {
+      setError("Пожалуйста, пройдите проверку CAPTCHA");
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
     setError(null);
 
@@ -71,6 +80,11 @@ export default function LoginPage() {
                 autoFocus
               />
             </div>
+            
+            <SimpleCaptcha 
+              onVerify={() => setCaptchaVerified(true)}
+              onError={(error) => setError(error)}
+            />
             
             {error && (
               <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-3 rounded">

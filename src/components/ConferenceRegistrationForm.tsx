@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react';
 import { Button } from "@/components/ui/button";
 import { getCsrfToken } from '@/lib/csrf-client';
+import { SimpleCaptcha } from '@/components/SimpleCaptcha';
 
 interface ConferenceRegistrationFormProps {
   conferenceName?: string;
@@ -24,6 +25,7 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [submitMessage, setSubmitMessage] = useState('');
+  const [captchaVerified, setCaptchaVerified] = useState(false);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -48,6 +50,10 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
 
     if (!formData.consent) {
       newErrors.consent = 'Необходимо согласие на обработку персональных данных';
+    }
+
+    if (!captchaVerified) {
+      newErrors.captcha = 'Пожалуйста, пройдите проверку CAPTCHA';
     }
 
     setErrors(newErrors);
@@ -254,6 +260,12 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
         </label>
       </div>
       {errors.consent && <p className="text-sm text-red-600 -mt-2">{errors.consent}</p>}
+
+      <SimpleCaptcha 
+        onVerify={() => setCaptchaVerified(true)}
+        onError={(error) => setSubmitMessage(error)}
+      />
+      {errors.captcha && <p className="text-sm text-red-600">{errors.captcha}</p>}
 
       <Button
         type="submit"

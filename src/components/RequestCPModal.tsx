@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
 import { getCsrfToken } from '@/lib/csrf-client';
+import { SimpleCaptcha } from '@/components/SimpleCaptcha';
 
 interface RequestCPModalProps {
   children: React.ReactNode
@@ -33,6 +34,7 @@ export function RequestCPModal({
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [captchaVerified, setCaptchaVerified] = useState(false)
 
   const [formData, setFormData] = useState({
     name: "",
@@ -44,6 +46,12 @@ export function RequestCPModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!captchaVerified) {
+      setError("Пожалуйста, пройдите проверку CAPTCHA")
+      return
+    }
+    
     setIsLoading(true)
     setError(null)
 
@@ -203,6 +211,11 @@ export function RequestCPModal({
                 required
               />
             </div>
+
+            <SimpleCaptcha 
+              onVerify={() => setCaptchaVerified(true)}
+              onError={(error) => setError(error)}
+            />
             
             {error && (
               <p className="text-sm text-red-500 font-medium">{error}</p>
