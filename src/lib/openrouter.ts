@@ -3,12 +3,9 @@
  */
 
 import axios from 'axios';
-import FormData from 'form-data';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const OPENROUTER_AUDIO_URL = 'https://openrouter.ai/api/v1/audio/transcriptions';
 const OPENROUTER_MODEL = 'openai/gpt-4o-mini'; // Можно изменить на openai/gpt-4 или openai/gpt-3.5-turbo
-const WHISPER_MODEL = 'openai/whisper-large-v3';
 
 interface OpenRouterResponse {
   choices: Array<{
@@ -228,15 +225,15 @@ ${contextInfo.length > 0 ? `Дополнительная информация:\n
 }
 
 /**
- * Транскрибирует аудио в текст с помощью Whisper API
+ * Транскрибирует аудио в текст с помощью GPT-4o через OpenRouter API
  */
 export async function transcribeAudioWithAI(
   audioBuffer: Buffer,
   format: string = 'ogg'
 ): Promise<string> {
-  console.log('[AI] 🎤 Начало транскрибации аудио через Whisper API');
+  console.log('[AI] 🎤 Начало транскрибации аудио через GPT-4o');
   console.log(`[AI] 📊 Размер аудио: ${audioBuffer.length} байт, формат: ${format}`);
-  
+
   const apiKey = process.env.OPENROUTER_API_KEY;
 
   if (!apiKey || apiKey.trim().length === 0) {
@@ -245,49 +242,57 @@ export async function transcribeAudioWithAI(
   }
 
   try {
-    // Создаем FormData для multipart/form-data запроса
-    const formData = new FormData();
-    
-    // Добавляем аудио файл как blob с правильным именем файла
-    const filename = `voice.${format}`;
-    formData.append('file', audioBuffer, {
-      filename: filename,
-      contentType: `audio/${format}`,
-    });
-    
-    // Добавляем модель
-    formData.append('model', WHISPER_MODEL);
-    
-    // Указываем язык (русский) для лучшей точности
-    formData.append('language', 'ru');
+    // Конвертируем аудио в base64
+    const base64Audio = audioBuffer.toString('base64');
 
-    console.log('[AI] 📤 Отправка аудио на Whisper API...');
-    
-    const response = await axios.post(
-      OPENROUTER_AUDIO_URL,
-      formData,
+    console.log('[AI] 📤 Отправка аудио на GPT-4o...');
+
+    const response = await axios.post<OpenRouterResponse>(
+      OPENROUTER_API_URL,
+      {
+        model: 'openai/gpt-4o',  // GPT-4o поддерживает аудио вход
+        messages: [
+          {
+            role: 'system',
+            content: 'Ты - система распознавания речи. Распознай аудио и верни только текст на том языке, который услышишь. Никаких комментариев, только текст.'
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'input_audio',
+                input_audio: {
+                  data: base64Audio,
+                  format: format === 'ogg' ? 'ogg' : format,
+                  sample_rate: 16000
+                }
+              }
+            ]
+          }
+        ],
+        temperature: 0.2,
+        max_tokens: 2000,
+      },
       {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
           'X-Title': 'Zenit News Bot',
-          ...formData.getHeaders(),
+          'Content-Type': 'application/json',
         },
-        maxBodyLength: Infinity,
-        maxContentLength: Infinity,
       }
     );
 
-    const transcription = response.data?.text;
-    
+    const transcription = response.data?.choices?.[0]?.message?.content;
+
     if (!transcription) {
-      console.error('[AI] ⚠️ Пустой ответ от Whisper API');
-      throw new Error('Пустой ответ от Whisper API');
+      console.error('[AI] ⚠️ Пустой ответ от API');
+      throw new Error('Пустой ответ от API');
     }
 
     console.log(`[AI] ✅ Транскрибация завершена: "${transcription.substring(0, 100)}..."`);
     return transcription.trim();
-    
+
   } catch (error) {
     console.error('[AI] ❌ Ошибка при транскрибации аудио:', error);
     if (error instanceof Error) {
