@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Pool, PoolClient } from 'pg';
+import { log } from '@/lib/logger';
 
 // Явно указываем Node.js runtime для работы с PostgreSQL
 export const runtime = 'nodejs';
@@ -190,6 +191,16 @@ export async function POST(request: NextRequest) {
               body.language || '', body.timezone || ''
             ]
           );
+          
+          // Логируем первое посещение
+          log('info', `👤 Новый посетитель: ${body.pagePath} (${geo.city || geo.country || 'Unknown'})`, {
+            pagePath: body.pagePath,
+            pageTitle: body.pageTitle,
+            country: geo.country,
+            city: geo.city,
+            device: deviceType,
+            browser,
+          }, 'Visitor');
         }
 
         // Записываем посещение страницы
@@ -209,6 +220,13 @@ export async function POST(request: NextRequest) {
             deviceType, browser, os
           ]
         );
+        
+        // Логируем посещение страницы
+        log('info', `📄 Посещение страницы: ${body.pagePath}`, {
+          pageTitle: body.pageTitle,
+          referrer: body.referrer,
+          device: deviceType,
+        }, 'PageView');
 
       } else if (body.type === 'heartbeat') {
         // Обновляем время последней активности

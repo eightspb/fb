@@ -45,6 +45,7 @@ export async function middleware(request: NextRequest) {
     '/_next',
     '/favicon',
     '/api/admin/logs/stream', // SSE endpoint для логов
+    '/api/analytics/track',   // Логируется через api-logger, не дублируем
     '/manifest',
     '/robots.txt',
     '/sitemap',
