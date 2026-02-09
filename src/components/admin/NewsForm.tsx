@@ -139,7 +139,17 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
 
       // Calculate approximate payload size for logging
       const payloadSize = JSON.stringify(formData).length;
-      console.log(`[NewsForm] Отправка данных: ${payloadSize} байт, изображений: ${formData.images?.length || 0}`);
+      const sizeMB = payloadSize / (1024 * 1024);
+      console.log(`[NewsForm] Отправка данных: ${sizeMB.toFixed(2)}MB, изображений: ${formData.images?.length || 0}`);
+
+      // Client-side validation
+      if (formData.images && formData.images.length > 15) {
+        throw new Error('Слишком много изображений. Максимум 15 изображений для одной новости.');
+      }
+
+      if (sizeMB > 35) { // Leave margin for server overhead
+        throw new Error('Слишком большой размер данных. Попробуйте уменьшить количество или размер изображений.');
+      }
 
       let csrfToken = await getCsrfToken();
       let response = await fetch(url, {
@@ -166,7 +176,7 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
         
         // Handle specific error cases
         if (response.status === 413) {
-          throw new Error('Слишком большой размер данных. Попробуйте уменьшить количество или размер изображений.');
+          throw new Error('Слишком большой размер данных. Попробуйте уменьшить количество или размер изображений (максимум 15 шт.).');
         }
         if (response.status === 503) {
           throw new Error('Сервер перегружен. Попробуйте сохранить через несколько минут.');
@@ -175,6 +185,9 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
         throw new Error(errorData.error || `Ошибка ${response.status}: ${response.statusText}`);
       }
 
+      const result = await response.json();
+      console.log('[NewsForm] Новость успешно сохранена:', result.id);
+      
       router.push('/admin/news');
       router.refresh();
     } catch (error: any) {

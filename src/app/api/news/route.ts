@@ -339,12 +339,34 @@ export const POST = withApiLogging('/api/news', async (request: NextRequest) => 
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check content length
+    const contentLength = request.headers.get('content-length');
+    if (contentLength) {
+      const sizeMB = parseInt(contentLength) / (1024 * 1024);
+      console.log(`[API News] Request size: ${sizeMB.toFixed(2)}MB`);
+      
+      if (sizeMB > 40) { // Leave some margin under the 50MB limit
+        return NextResponse.json(
+          { error: 'Request too large. Maximum size is 40MB. Try reducing image count or sizes.' },
+          { status: 413 }
+        );
+      }
+    }
+
     const body = await request.json();
     const {
       id, title, shortDescription, fullDescription, date, year, 
       category, location, author, status, imageFocalPoint,
       images, tags, videos, documents 
     } = body;
+
+    // Validate image count
+    if (images && images.length > 15) {
+      return NextResponse.json(
+        { error: 'Too many images. Maximum 15 images per news item.' },
+        { status: 400 }
+      );
+    }
 
     const parsedYear = parseYear(year);
     if (year !== undefined && year !== null && parsedYear === null) {
@@ -475,6 +497,7 @@ export const POST = withApiLogging('/api/news', async (request: NextRequest) => 
 
       await client.query('COMMIT');
       
+      console.log(`[API News] Successfully created news: ${newsId}`);
       return NextResponse.json({ success: true, id: newsId });
     } catch (e) {
       await client.query('ROLLBACK');
@@ -484,13 +507,41 @@ export const POST = withApiLogging('/api/news', async (request: NextRequest) => 
     }
   } catch (error: any) {
     console.error('Error creating news:', error);
+    
+    // Ensure we always return valid JSON
+    let errorMessage = 'Internal Server Error';
+    let statusCode = 500;
+    
     if (error?.message?.startsWith('VALIDATION_ERROR:')) {
+      errorMessage = error.message.replace('VALIDATION_ERROR:', '').trim();
+      statusCode = 400;
+    } else if (error?.message) {
+      // Sanitize error message to prevent JSON parsing issues
+      errorMessage = error.message
+        .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
+        .replace(/[\u0000-\u001F]/g, '') // Remove more control characters
+        .substring(0, 500); // Limit length
+    }
+    
+    try {
       return NextResponse.json(
-        { error: error.message.replace('VALIDATION_ERROR:', '').trim() },
-        { status: 400 }
+        { 
+          error: errorMessage,
+          timestamp: Date.now()
+        }, 
+        { status: statusCode }
+      );
+    } catch (jsonError) {
+      console.error('Failed to serialize error response:', jsonError);
+      // Fallback response with plain text
+      return new Response(
+        JSON.stringify({ error: 'Server error occurred' }), 
+        { 
+          status: 500, 
+          headers: { 'Content-Type': 'application/json' } 
+        }
       );
     }
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 });
 
