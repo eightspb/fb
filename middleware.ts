@@ -39,9 +39,20 @@ export async function middleware(request: NextRequest) {
     };
   }
 
-  // Примечание: логирование HTTP запросов отключено в middleware,
-  // так как middleware работает в Edge Runtime, который не поддерживает Node.js API
-  // Логирование запросов реализовано через instrumentation.ts
+  // Логируем все HTTP запросы (console.log будет перехвачен системой логирования)
+  // Исключаем статические ресурсы и некоторые служебные пути
+  const skipLogging = [
+    '/_next',
+    '/favicon',
+    '/api/admin/logs/stream', // SSE endpoint для логов
+    '/manifest',
+    '/robots.txt',
+    '/sitemap',
+  ].some(prefix => pathname.startsWith(prefix)) || pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js|woff|woff2)$/);
+
+  if (!skipLogging) {
+    console.log(`[HTTP] ${request.method} ${pathname} | IP: ${ip} | UA: ${userAgent.substring(0, 50)}`);
+  }
 
   // Redirect unauthenticated users from admin pages
   if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
