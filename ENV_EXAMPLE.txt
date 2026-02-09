@@ -25,6 +25,9 @@ TELEGRAM_BOT_TOKEN=your-telegram-bot-token
 TELEGRAM_ADMIN_CHAT_ID=your-chat-id
 # Webhook URL for receiving messages (optional)
 TELEGRAM_WEBHOOK_URL=https://your-domain.com/api/telegram/webhook
+# AI APIs (required for voice transcription and text processing)
+OPENAI_API_KEY=your-openai-api-key
+OPENROUTER_API_KEY=sk-or-v1-your-key-here
 
 # 6. SMTP Email (Optional)
 # For sending email notifications
@@ -39,7 +42,11 @@ TARGET_EMAIL=target@example.com
 UPSTASH_REDIS_REST_URL=https://your-upstash-url
 UPSTASH_REDIS_REST_TOKEN=your-upstash-token
 
-# 7. OpenRouter AI (Optional)
+# 7. OpenAI API (Required for voice transcription)
+# Get it at https://platform.openai.com/api-keys
+OPENAI_API_KEY=sk-your-openai-key-here
+
+# 7.1 OpenRouter AI (Optional - fallback for text processing)
 # API key for improving news texts with AI
 # Get it at https://openrouter.ai/keys
 OPENROUTER_API_KEY=sk-or-v1-your-key-here
