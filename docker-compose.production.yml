@@ -47,6 +47,10 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_ADMIN_CHAT_ID: ${TELEGRAM_ADMIN_CHAT_ID:-}
       TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
+      # AI API через OpenRouter (требуется для транскрибации голоса и обработки текста)
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      # Site URL для OpenRouter referer
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
