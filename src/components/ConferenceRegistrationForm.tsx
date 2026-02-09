@@ -16,8 +16,8 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
     name: '',
     email: '',
     phone: '',
+    city: '',
     institution: '',
-    certificate: false,
     consent: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -89,8 +89,8 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
           name: '',
           email: '',
           phone: '',
+          city: '',
           institution: '',
-          certificate: false,
           consent: false,
         });
       } else {
@@ -207,6 +207,21 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
       </div>
 
       <div>
+        <label htmlFor="city" className="block text-sm font-medium text-slate-700 mb-2">
+          Город
+        </label>
+        <input
+          type="text"
+          id="city"
+          name="city"
+          value={formData.city}
+          onChange={handleChange}
+          className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
+          placeholder="Москва"
+        />
+      </div>
+
+      <div>
         <label htmlFor="institution" className="block text-sm font-medium text-slate-700 mb-2">
           Медицинское учреждение
         </label>
@@ -221,19 +236,6 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
         />
       </div>
 
-      <div className="flex items-start gap-3">
-        <input
-          type="checkbox"
-          id="certificate"
-          name="certificate"
-          checked={formData.certificate}
-          onChange={handleChange}
-          className="mt-1 w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500"
-        />
-        <label htmlFor="certificate" className="text-sm text-slate-600">
-          Хочу получить удостоверение 16 часов (оплата 5.000 руб.)
-        </label>
-      </div>
 
       <div className="flex items-start gap-3">
         <input

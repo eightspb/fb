@@ -120,9 +120,32 @@ async function flushLogs(): Promise<void> {
 }
 
 /**
+ * Проверяет, является ли лог некритичной ошибкой Server Action
+ */
+function isServerActionError(log: LogEntry): boolean {
+  const message = log.message.toLowerCase();
+  
+  // Игнорируем ошибки Server Actions - они не критичны
+  if (message.includes('failed to find server action') ||
+      (message.includes('server action') && message.includes('not found')) ||
+      message.includes('this request might be from an older or newer dep')) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
  * Добавляет лог в очередь
  */
 function queueLog(log: LogEntry): void {
+  // Пропускаем некритичные ошибки Server Actions
+  if (isServerActionError(log)) {
+    // Логируем только в консоль, но не сохраняем в БД
+    originalConsoleLog(`[Logger] ⚠️  Некритичная ошибка Server Action (пропущена): ${log.message.substring(0, 100)}`);
+    return;
+  }
+  
   logQueue.push(log);
 
   // Если очередь переполнена, сразу сохраняем

@@ -13,8 +13,33 @@ export async function initializeNodeErrorHandlers() {
 
   console.log('[INSTRUMENTATION] 🔧 Инициализация Node.js обработчиков ошибок...');
 
+  // Проверяет, является ли ошибка некритичной (например, Server Action ошибки)
+  const isNonCriticalError = (error: Error | string): boolean => {
+    const errorMessage = typeof error === 'string' ? error : error.message;
+    const errorStack = typeof error === 'string' ? '' : error.stack || '';
+    
+    // Игнорируем ошибки Server Actions - они не критичны
+    if (errorMessage.includes('Failed to find Server Action') ||
+        errorMessage.includes('Server Action') && errorMessage.includes('not found')) {
+      return true;
+    }
+    
+    // Игнорируем ошибки связанные с кешированием Next.js
+    if (errorMessage.includes('This request might be from an older or newer dep')) {
+      return true;
+    }
+    
+    return false;
+  };
+
   // Обработчик необработанных исключений
   process.on('uncaughtException', (error: Error) => {
+    // Пропускаем некритичные ошибки (например, Server Actions)
+    if (isNonCriticalError(error)) {
+      console.warn('[INSTRUMENTATION] ⚠️  Некритичная ошибка (игнорируется):', error.message);
+      return;
+    }
+    
     console.error('[INSTRUMENTATION] ❌ Необработанное исключение:', error);
     
     notifyAdminAboutError(error, {
@@ -34,11 +59,17 @@ export async function initializeNodeErrorHandlers() {
 
   // Обработчик необработанных промисов
   process.on('unhandledRejection', (reason: any) => {
-    console.error('[INSTRUMENTATION] ❌ Необработанный rejection:', reason);
-    
     const error = reason instanceof Error 
       ? reason 
       : new Error(`Unhandled Rejection: ${String(reason)}`);
+    
+    // Пропускаем некритичные ошибки (например, Server Actions)
+    if (isNonCriticalError(error)) {
+      console.warn('[INSTRUMENTATION] ⚠️  Некритичный rejection (игнорируется):', error.message);
+      return;
+    }
+    
+    console.error('[INSTRUMENTATION] ❌ Необработанный rejection:', reason);
 
     notifyAdminAboutError(error, {
       location: 'unhandledRejection',

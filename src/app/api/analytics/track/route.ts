@@ -90,11 +90,24 @@ async function getGeolocation(ip: string, client: any): Promise<{
     }
 
     // Запрашиваем ip-api.com
-    const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,countryCode,regionName,city&lang=ru`, {
-      signal: AbortSignal.timeout(3000),
-    });
+    let response;
+    try {
+      response = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,countryCode,regionName,city&lang=ru`, {
+        signal: AbortSignal.timeout(3000),
+      });
+    } catch (fetchError) {
+      if (fetchError instanceof Error) {
+        if (fetchError.name === 'TimeoutError') {
+          console.warn(`[Analytics] Тайм-аут получения геолокации для IP ${ip} (3с)`);
+        } else {
+          console.warn(`[Analytics] Ошибка запроса геолокации для IP ${ip}:`, fetchError.message);
+        }
+      }
+      return { country: null, country_code: null, region: null, city: null };
+    }
 
     if (!response.ok) {
+      console.warn(`[Analytics] Сервер геолокации вернул статус ${response.status} для IP ${ip}`);
       return { country: null, country_code: null, region: null, city: null };
     }
 
@@ -123,8 +136,15 @@ async function getGeolocation(ip: string, client: any): Promise<{
 
       return geo;
     }
+
+    console.warn(`[Analytics] Сервис геолокации вернул статус "${data.status}" для IP ${ip}`);
   } catch (error) {
-    console.error('[Analytics] Ошибка получения геолокации:', error);
+    // Если это уже обработанная ошибка (тайм-аут), не дублируем лог
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      // Ошибка уже залогирована выше
+    } else {
+      console.error('[Analytics] Непредвиденная ошибка получения геолокации:', error);
+    }
   }
 
   return { country: null, country_code: null, region: null, city: null };

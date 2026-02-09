@@ -8,7 +8,7 @@ import { FeaturesSection } from "@/components/FeaturesSection";
 import { PartnersSection } from "@/components/PartnersSection";
 import { Footer } from "@/components/Footer";
 import { RequestCPModal } from "@/components/RequestCPModal";
-// import { ConferencePopup } from "@/components/ConferencePopup";
+import { ConferencePopup } from "@/components/ConferencePopup";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { LatestNewsSection } from "@/components/LatestNewsSection";
 import { UpcomingConferencesSection } from "@/components/UpcomingConferencesSection";
@@ -92,7 +92,7 @@ export default function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      {/* <ConferencePopup /> */}
+      <ConferencePopup />
       <Header />
 
       {/* Hero Section */}

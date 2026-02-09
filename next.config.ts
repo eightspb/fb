@@ -10,6 +10,16 @@ const nextConfig: NextConfig = {
   // о конфликте webpack/turbopack конфигов
   turbopack: {},
   
+  // Конфигурация для Server Actions - предотвращает ошибки с несуществующими actions
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb',
+      allowedOrigins: process.env.NODE_ENV === 'production' 
+        ? [process.env.SITE_URL || 'http://155.212.217.60'].filter(Boolean)
+        : ['localhost:3000'],
+    },
+  },
+  
   images: {
     remotePatterns: [],
     formats: ['image/avif', 'image/webp'],
