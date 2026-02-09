@@ -151,9 +151,11 @@ export async function notifyAdminAboutDraft(
     if (firstImageUrl) {
       // Пытаемся отправить фото с кнопками
       try {
-        const imagePath = firstImageUrl.startsWith('/')
-          ? `${process.cwd()}/public${firstImageUrl}`
-          : firstImageUrl;
+        // Формируем путь к изображению (только для локальных путей)
+        let imagePath = firstImageUrl;
+        if (firstImageUrl.startsWith('/') && typeof process !== 'undefined' && process.cwd) {
+          imagePath = `${process.cwd()}/public${firstImageUrl}`;
+        }
 
         console.log(`[NOTIFY] 📤 Отправка фото с уведомлением: ${imagePath}`);
         await bot.sendPhoto(adminChatIdNumber, imagePath, {
