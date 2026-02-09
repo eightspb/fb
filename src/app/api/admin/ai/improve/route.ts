@@ -17,11 +17,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 });
     }
 
+    // Limit text length to prevent issues
+    if (text.length > 10000) {
+      return NextResponse.json({ error: 'Text too long (max 10000 characters)' }, { status: 400 });
+    }
+
+    console.log('[API AI Improve] Processing text length:', text.length);
     const improvedText = await improveDescriptionWithAI(text);
 
     return NextResponse.json({ improvedText });
   } catch (error: any) {
     console.error('[API AI Improve] Error:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    
+    // Sanitize error message
+    let errorMessage = 'Internal Server Error';
+    if (error?.message) {
+      errorMessage = error.message
+        .replace(/[\x00-\x1F\x7F]/g, '')
+        .substring(0, 500);
+    }
+    
+    try {
+      return NextResponse.json({ error: errorMessage }, { status: 500 });
+    } catch (jsonError) {
+      console.error('[API AI Improve] Failed to serialize error:', jsonError);
+      return new Response(
+        JSON.stringify({ error: 'AI service temporarily unavailable' }), 
+        { 
+          status: 500, 
+          headers: { 'Content-Type': 'application/json' } 
+        }
+      );
+    }
   }
 }
