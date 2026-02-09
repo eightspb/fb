@@ -225,7 +225,7 @@ ${contextInfo.length > 0 ? `Дополнительная информация:\n
 }
 
 /**
- * Транскрибирует аудио в текст через OpenRouter (Groq whisper)
+ * Транскрибирует аудио в текст через OpenRouter (GPT-4o audio preview)
  */
 export async function transcribeAudioWithAI(
   audioBuffer: Buffer,
@@ -242,48 +242,63 @@ export async function transcribeAudioWithAI(
   }
 
   try {
-    // Создаем FormData для multipart/form-data запроса
-    const FormData = (await import('form-data')).default;
-    const formData = new FormData();
+    // Конвертируем аудио в base64
+    const base64Audio = audioBuffer.toString('base64');
+    const audioFormat = format === 'oga' ? 'ogg' : format;
 
-    // Добавляем аудио файл
-    const filename = `voice.${format === 'oga' ? 'ogg' : format}`;
-    formData.append('file', audioBuffer, {
-      filename: filename,
-      contentType: `audio/${format === 'oga' ? 'ogg' : format}`,
-    });
+    console.log('[AI] 📤 Отправка аудио через chat completions (GPT-4o audio)...');
 
-    // Используем groq/whisper-large-v3 через OpenRouter
-    formData.append('model', 'groq/whisper-large-v3');
-    formData.append('language', 'ru');
-
-    console.log('[AI] 📤 Отправка аудио на OpenRouter (groq/whisper)...');
-
-    const response = await axios.post(
-      'https://openrouter.ai/api/v1/audio/transcriptions',
-      formData,
+    const response = await axios.post<OpenRouterResponse>(
+      OPENROUTER_API_URL,
+      {
+        model: 'openai/gpt-4o-audio-preview',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a speech recognition system. Transcribe the audio to text in the language spoken. Return ONLY the transcribed text, nothing else.'
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'input_audio',
+                input_audio: {
+                  data: base64Audio,
+                  format: audioFormat,
+                  sample_rate: 16000
+                }
+              }
+            ]
+          }
+        ],
+        temperature: 0.1,
+        max_tokens: 2000,
+      },
       {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
           'X-Title': 'Zenit News Bot',
-          ...formData.getHeaders(),
+          'Content-Type': 'application/json',
         },
-        maxBodyLength: Infinity,
-        maxContentLength: Infinity,
         timeout: 60000,
       }
     );
 
-    const transcription = response.data?.text;
+    const transcription = response.data?.choices?.[0]?.message?.content;
 
     if (!transcription) {
       console.error('[AI] ⚠️ Пустой ответ от API:', response.data);
       throw new Error('Пустой ответ от API');
     }
 
-    console.log(`[AI] ✅ Транскрибация завершена: "${transcription.substring(0, 100)}..."`);
-    return transcription.trim();
+    // Очищаем от возможных меток
+    const cleaned = transcription
+      .replace(/^(Transcription:|Text:|Распознанный текст:|Текст:)\s*/i, '')
+      .trim();
+
+    console.log(`[AI] ✅ Транскрибация завершена: "${cleaned.substring(0, 100)}..."`);
+    return cleaned;
 
   } catch (error) {
     console.error('[AI] ❌ Ошибка при транскрибации аудио:', error);
@@ -300,8 +315,11 @@ export async function transcribeAudioWithAI(
       if (error.response?.status === 429) {
         throw new Error('Превышен лимит запросов к OpenRouter. Попробуйте позже');
       }
-      if (error.response?.status === 404 || error.response?.status === 405) {
-        throw new Error('Модель whisper не поддерживается через OpenRouter. Попробуйте отправить текст.');
+      if (error.response?.status === 400) {
+        const errorData = error.response?.data;
+        if (errorData?.error?.message?.includes('audio') || errorData?.error?.message?.includes('modalities')) {
+          throw new Error('Эта модель не поддерживает аудио. Голосовые сообщения недоступны через OpenRouter.');
+        }
       }
     }
     throw new Error('Не удалось распознать аудио. Попробуйте отправить текст вручную.');
