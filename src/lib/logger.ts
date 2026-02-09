@@ -265,6 +265,24 @@ export function initializeLogger(): void {
     originalConsoleWarn.apply(console, args);
     
     const message = formatArgs(args);
+    
+    // Фильтруем служебные сообщения от Turbopack/Next.js в dev режиме
+    if (process.env.NODE_ENV === 'development') {
+      const skipPatterns = [
+        'Ecmascript file had an error',
+        'which is not supported in the Edge Runtime',
+        'Learn more: https://nextjs.org',
+        /^⚠/,  // Предупреждения Turbopack
+        /^\x1B\[/, // ANSI escape codes
+      ];
+      
+      if (skipPatterns.some(pattern => 
+        typeof pattern === 'string' ? message.includes(pattern) : pattern.test(message)
+      )) {
+        return; // Не логируем служебные сообщения
+      }
+    }
+    
     const { context, cleanMessage } = extractContext(message);
     const requestInfo = getRequestInfo();
     
