@@ -283,39 +283,39 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
               <h2 className="text-2xl font-bold text-slate-900 mb-8 text-center">
                 Организаторы конференции
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center justify-items-center">
-                <div className="flex items-center justify-center w-full h-24">
-                  <Image
-                    src="/images/xishan-logo-new.png"
-                    alt="Xishan"
-                    width={180}
-                    height={80}
-                    className="object-contain"
-                    priority
-                    style={{ width: 'auto', height: 'auto' }}
-                  />
+              <div className="flex flex-wrap justify-center items-center gap-12 max-w-4xl mx-auto">
+                <div className="flex items-center justify-center w-48 h-32 p-4 bg-white rounded-lg border border-slate-200">
+                  <div className="relative w-full h-full">
+                    <Image
+                      src="/images/xishan-logo-new.png"
+                      alt="Xishan"
+                      fill
+                      className="object-contain"
+                      priority
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center justify-center w-full h-24">
-                  <Image
-                    src="/images/logo.png"
-                    alt="Зенит"
-                    width={180}
-                    height={80}
-                    className="object-contain"
-                    priority
-                    style={{ width: 'auto', height: 'auto' }}
-                  />
+                <div className="flex items-center justify-center w-48 h-32 p-4 bg-white rounded-lg border border-slate-200">
+                  <div className="relative w-full h-full">
+                    <Image
+                      src="/images/logo.png"
+                      alt="Зенит"
+                      fill
+                      className="object-contain"
+                      priority
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center justify-center w-full h-24">
-                  <Image
-                    src="/images/new_logo_clinic.png"
-                    alt="Клиника доктора Одинцова"
-                    width={180}
-                    height={80}
-                    className="object-contain"
-                    priority
-                    style={{ width: 'auto', height: 'auto' }}
-                  />
+                <div className="flex items-center justify-center w-48 h-32 p-4 bg-white rounded-lg border border-slate-200">
+                  <div className="relative w-full h-full">
+                    <Image
+                      src="/images/new_logo_clinic.png"
+                      alt="Клиника доктора Одинцова"
+                      fill
+                      className="object-contain"
+                      priority
+                    />
+                  </div>
                 </div>
               </div>
             </section>
