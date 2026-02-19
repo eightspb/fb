@@ -283,7 +283,7 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
               <h2 className="text-2xl font-bold text-slate-900 mb-8 text-center">
                 Организаторы конференции
               </h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 items-center justify-items-center">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center justify-items-center">
                 <div className="flex items-center justify-center w-full h-24">
                   <Image
                     src="/images/xishan-logo-new.png"
@@ -310,28 +310,6 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
                   <Image
                     src="/images/new_logo_clinic.png"
                     alt="Клиника доктора Одинцова"
-                    width={180}
-                    height={80}
-                    className="object-contain"
-                    priority
-                    style={{ width: 'auto', height: 'auto' }}
-                  />
-                </div>
-                <div className="flex items-center justify-center w-full h-24">
-                  <Image
-                    src="/images/mknclogo.png"
-                    alt="Московский клинический научный центр"
-                    width={180}
-                    height={80}
-                    className="object-contain"
-                    priority
-                    style={{ width: 'auto', height: 'auto' }}
-                  />
-                </div>
-                <div className="flex items-center justify-center w-full h-24 col-span-2 md:col-span-3 lg:col-span-1">
-                  <Image
-                    src="/images/moologo.png"
-                    alt="Московское онкологическое общество"
                     width={180}
                     height={80}
                     className="object-contain"
