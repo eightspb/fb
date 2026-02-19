@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
 import { checkApiAuth } from '@/lib/auth';
-import { verifyCsrfToken } from '@/lib/csrf';
 import type { SiteBanner, BannerSettings } from '@/lib/types/banner';
 
 export const runtime = 'nodejs';
@@ -100,7 +99,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * PUT /api/admin/banner
- * Обновить настройки баннера (требует авторизации + CSRF)
+ * Обновить настройки баннера (требует авторизации)
  */
 export async function PUT(request: NextRequest) {
   const { isAuthenticated } = await checkApiAuth(request);
@@ -109,15 +108,6 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(
       { error: 'Не авторизован' },
       { status: 401 }
-    );
-  }
-
-  // Проверка CSRF токена
-  const csrfValid = await verifyCsrfToken(request);
-  if (!csrfValid) {
-    return NextResponse.json(
-      { error: 'Недействительный CSRF токен' },
-      { status: 403 }
     );
   }
 
