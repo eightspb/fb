@@ -7,7 +7,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Save, Loader2, Eye, Bell } from 'lucide-react';
-import { getCsrfToken, refreshCsrfToken } from '@/lib/csrf-client';
 import type { SiteBanner } from '@/lib/types/banner';
 
 export default function BannerPage() {
@@ -64,13 +63,10 @@ export default function BannerPage() {
 
     setSaving(true);
     try {
-      let csrfToken = await getCsrfToken();
-
       const response = await fetch('/api/admin/banner', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'x-csrf-token': csrfToken,
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -88,51 +84,6 @@ export default function BannerPage() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Неизвестная ошибка' }));
         const errorMessage = errorData.error || errorData.details || `HTTP ${response.status}: ${response.statusText}`;
-
-        // Если ошибка CSRF, пробуем обновить токен и повторить запрос
-        if (response.status === 403 && errorMessage.includes('CSRF')) {
-          console.warn('[Banner] CSRF error, refreshing token and retrying...');
-          csrfToken = await refreshCsrfToken();
-
-          const retryResponse = await fetch('/api/admin/banner', {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-csrf-token': csrfToken,
-            },
-            credentials: 'include',
-            body: JSON.stringify({
-              enabled: banner.enabled,
-              message: banner.message,
-              style: banner.style,
-              bg_color: banner.bg_color,
-              text_color: banner.text_color,
-              font_size: banner.font_size,
-              font_weight: banner.font_weight,
-              dismissible: banner.dismissible,
-            }),
-          });
-
-          if (!retryResponse.ok) {
-            const retryErrorData = await retryResponse.json().catch(() => ({ error: 'Неизвестная ошибка' }));
-            const retryErrorMessage = retryErrorData.error || retryErrorData.details || `HTTP ${retryResponse.status}: ${retryResponse.statusText}`;
-
-            if (retryErrorMessage.includes('не найдена') || retryErrorMessage.includes('миграцию')) {
-              alert(`⚠️ ${retryErrorMessage}\n\nПримените миграцию:\nmigrations/007_add_site_banner.sql`);
-              return;
-            }
-
-            throw new Error(retryErrorMessage);
-          }
-
-          const retryResult = await retryResponse.json();
-          alert('Баннер успешно сохранен');
-
-          if (retryResult.banner) {
-            setBanner(retryResult.banner);
-          }
-          return;
-        }
 
         if (errorMessage.includes('не найдена') || errorMessage.includes('миграцию')) {
           alert(`⚠️ ${errorMessage}\n\nПримените миграцию:\nmigrations/007_add_site_banner.sql`);
