@@ -191,7 +191,7 @@ export default function BannerPage() {
             <Checkbox
               id="enabled"
               checked={banner.enabled}
-              onCheckedChange={(checked) => updateBanner('enabled', checked)}
+              onChange={(e) => updateBanner('enabled', e.target.checked)}
             />
             <Label htmlFor="enabled" className="text-base font-medium cursor-pointer">
               Включить баннер на сайте
@@ -305,7 +305,7 @@ export default function BannerPage() {
             <Checkbox
               id="dismissible"
               checked={banner.dismissible}
-              onCheckedChange={(checked) => updateBanner('dismissible', checked)}
+              onChange={(e) => updateBanner('dismissible', e.target.checked)}
             />
             <Label htmlFor="dismissible" className="cursor-pointer">
               Разрешить пользователям закрывать баннер
