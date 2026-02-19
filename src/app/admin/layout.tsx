@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { LayoutDashboard, FileText, Calendar, LogOut, Menu, Inbox, Settings, Terminal } from 'lucide-react';
+import { LayoutDashboard, FileText, Calendar, LogOut, Menu, Inbox, Settings, Terminal, Bell } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { getCsrfToken } from '@/lib/csrf-client';
 
@@ -116,6 +116,7 @@ export default function AdminLayout({
     { href: '/admin/requests', label: 'Заявки', icon: Inbox, badge: newRequestsCount },
     { href: '/admin/news', label: 'Новости', icon: FileText, badge: 0 },
     { href: '/admin/conferences', label: 'Мероприятия', icon: Calendar, badge: 0 },
+    { href: '/admin/banner', label: 'Баннер', icon: Bell, badge: 0 },
     { href: '/admin/logs', label: 'Логи', icon: Terminal, badge: 0 },
     { href: '/admin/settings', label: 'Настройки', icon: Settings, badge: 0 },
   ];

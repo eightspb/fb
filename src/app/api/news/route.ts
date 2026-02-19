@@ -76,18 +76,18 @@ export const GET = withApiLogging('/api/news', async (request: NextRequest) => {
     const dbUrl = process.env.DATABASE_URL;
     console.log('[API News] DATABASE_URL:', dbUrl ? 'SET' : 'NOT SET');
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/news/route.ts:62',message:'API News GET request started',data:{hasDbUrl:!!dbUrl,dbUrlLength:dbUrl?.length||0},timestamp:Date.now(),runId:'debug-connection',hypothesisId:'H1'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/news/route.ts:75',message:'API News GET - DATABASE_URL check',data:{hasDbUrl:!!dbUrl,dbUrl:dbUrl||'NOT_SET',year:year,category:category,includeAll:includeAll},timestamp:Date.now(),runId:'debug-remote-db',hypothesisId:'B'})}).catch(()=>{});
     // #endregion
 
     let client;
     try {
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/news/route.ts:67',message:'Attempting database connection',data:{poolExists:!!pool},timestamp:Date.now(),runId:'debug-connection',hypothesisId:'H2'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/news/route.ts:84',message:'Before pool.connect()',data:{poolConfig:pool.options},timestamp:Date.now(),runId:'debug-remote-db',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
       client = await pool.connect();
       console.log('[API News] Database connection established');
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/news/route.ts:70',message:'Database connection successful',data:{clientExists:!!client},timestamp:Date.now(),runId:'debug-connection',hypothesisId:'H2'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/news/route.ts:89',message:'After pool.connect() - SUCCESS',data:{connected:true},timestamp:Date.now(),runId:'debug-remote-db',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
     } catch (connectError: any) {
       const errorDetails = {
@@ -102,7 +102,7 @@ export const GET = withApiLogging('/api/news', async (request: NextRequest) => {
       };
       console.error('[API News] Failed to connect to database:', JSON.stringify(errorDetails, null, 2));
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/news/route.ts:78',message:'Database connection failed',data:errorDetails,timestamp:Date.now(),runId:'debug-connection',hypothesisId:'H2'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/news/route.ts:103',message:'pool.connect() FAILED',data:errorDetails,timestamp:Date.now(),runId:'debug-remote-db',hypothesisId:'E'})}).catch(()=>{});
       // #endregion
       throw connectError;
     }
@@ -211,6 +211,10 @@ export const GET = withApiLogging('/api/news', async (request: NextRequest) => {
         }
       }
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/news/route.ts:214',message:'Before executing SELECT query',data:{queryLength:query.length,paramsCount:params.length,statusCondition:statusCondition},timestamp:Date.now(),runId:'debug-remote-db',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+
       query += ` ORDER BY 
         CASE 
           WHEN n.date ~ '^\\d{2}\\.\\d{2}\\.\\d{4}$' THEN to_date(n.date, 'DD.MM.YYYY')
@@ -225,6 +229,10 @@ export const GET = withApiLogging('/api/news', async (request: NextRequest) => {
       const result = await client.query(query, params);
       
       console.log(`[API News] Found ${result.rows.length} rows`);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/news/route.ts:232',message:'Query executed',data:{rowsFound:result.rows.length},timestamp:Date.now(),runId:'debug-remote-db',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      
       if (result.rows.length === 0) {
         // Проверяем, есть ли вообще новости в базе
         const totalCheckQuery = hasStatusColumn
@@ -232,6 +240,9 @@ export const GET = withApiLogging('/api/news', async (request: NextRequest) => {
           : 'SELECT COUNT(*) as total, COUNT(*) as published FROM news';
         const totalCheck = await client.query(totalCheckQuery);
         console.log('[API News] Total news in DB:', totalCheck.rows[0]);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/news/route.ts:243',message:'No rows found - checking totals',data:{totalInDb:totalCheck.rows[0]},timestamp:Date.now(),runId:'debug-remote-db',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
       }
 
       const news: NewsItem[] = result.rows.map(row => {
