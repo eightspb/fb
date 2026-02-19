@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import VisitorTracker from "@/components/VisitorTracker";
+import AnnouncementBanner from "@/components/AnnouncementBanner";
 
 // Безопасная загрузка шрифтов с обработкой ошибок
 let geistSans: any = {
@@ -126,6 +127,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <VisitorTracker />
+        <AnnouncementBanner />
         {children}
       </body>
     </html>

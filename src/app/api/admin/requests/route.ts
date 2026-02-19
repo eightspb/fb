@@ -133,6 +133,16 @@ export async function GET(request: NextRequest) {
         FROM form_submissions
       `);
 
+      // Получаем статистику по типам заявок
+      const typeStatsResult = await client.query(`
+        SELECT 
+          COUNT(*) FILTER (WHERE form_type = 'contact') as contact_count,
+          COUNT(*) FILTER (WHERE form_type = 'cp') as cp_count,
+          COUNT(*) FILTER (WHERE form_type = 'training') as training_count,
+          COUNT(*) FILTER (WHERE form_type = 'conference_registration') as conference_count
+        FROM form_submissions
+      `);
+
       // Получаем заявки с пагинацией
       const result = await client.query(
         `SELECT * FROM form_submissions 
@@ -150,7 +160,8 @@ export async function GET(request: NextRequest) {
           totalCount,
           totalPages: Math.ceil(totalCount / limit)
         },
-        stats: statsResult.rows[0]
+        stats: statsResult.rows[0],
+        typeStats: typeStatsResult.rows[0]
       });
     } finally {
       client.release();

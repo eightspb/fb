@@ -43,6 +43,13 @@ interface Stats {
   total_count: string;
 }
 
+interface TypeStats {
+  contact_count: string;
+  cp_count: string;
+  training_count: string;
+  conference_count: string;
+}
+
 const formTypeLabels: Record<string, string> = {
   'contact': 'Контакт',
   'cp': 'КП',
@@ -70,6 +77,7 @@ export default function AdminRequestsPage() {
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: 25, totalCount: 0, totalPages: 0 });
   const [stats, setStats] = useState<Stats | null>(null);
+  const [typeStats, setTypeStats] = useState<TypeStats | null>(null);
   
   // Фильтры
   const [search, setSearch] = useState('');
@@ -120,6 +128,7 @@ export default function AdminRequestsPage() {
         setRequests(data.requests);
         setPagination(data.pagination);
         setStats(data.stats);
+        setTypeStats(data.typeStats);
       } else {
         const errorData = await response.json().catch(() => ({}));
         setError(errorData.error || 'Ошибка загрузки заявок');
@@ -301,22 +310,43 @@ export default function AdminRequestsPage() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Заявки</h1>
           {stats && (
-            <div className="flex flex-wrap gap-3 mt-2">
-              <div className="flex items-center gap-1.5 text-sm">
-                <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                <span className="text-slate-600">Новые: <strong>{stats.new_count}</strong></span>
+            <div className="space-y-2 mt-2">
+              <div className="flex flex-wrap gap-3">
+                <div className="flex items-center gap-1.5 text-sm">
+                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                  <span className="text-slate-600">Новые: <strong>{stats.new_count}</strong></span>
+                </div>
+                <div className="flex items-center gap-1.5 text-sm">
+                  <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                  <span className="text-slate-600">В работе: <strong>{stats.in_progress_count}</strong></span>
+                </div>
+                <div className="flex items-center gap-1.5 text-sm">
+                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                  <span className="text-slate-600">Обработано: <strong>{stats.processed_count}</strong></span>
+                </div>
+                <div className="flex items-center gap-1.5 text-sm">
+                  <span className="text-slate-400">Всего: {stats.total_count}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5 text-sm">
-                <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-                <span className="text-slate-600">В работе: <strong>{stats.in_progress_count}</strong></span>
-              </div>
-              <div className="flex items-center gap-1.5 text-sm">
-                <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                <span className="text-slate-600">Обработано: <strong>{stats.processed_count}</strong></span>
-              </div>
-              <div className="flex items-center gap-1.5 text-sm">
-                <span className="text-slate-400">Всего: {stats.total_count}</span>
-              </div>
+              {typeStats && (
+                <div className="flex flex-wrap gap-3 pt-1 border-t border-slate-200">
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <span className="text-slate-500">Типы:</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <span className="text-slate-600">Контакт: <strong>{typeStats.contact_count}</strong></span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <span className="text-slate-600">КП: <strong>{typeStats.cp_count}</strong></span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <span className="text-slate-600">Обучение: <strong>{typeStats.training_count}</strong></span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <span className="text-slate-600">Конференция: <strong>{typeStats.conference_count}</strong></span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
