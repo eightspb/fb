@@ -46,6 +46,7 @@
 
 /* Light theme variables - Updated for Cleaner Medical Look */
 :root {
+  --banner-height: 0px;
   --radius: 0.625rem;
   --background: oklch(0.985 0.002 247.84); /* Very light slate/white */
   --foreground: oklch(0.145 0.015 255.56); /* Dark slate for text */
