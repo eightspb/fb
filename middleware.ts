@@ -14,10 +14,13 @@ const ratelimit = hasUpstashConfig
     })
   : null;
 
-// Пути, исключённые из CSRF-проверки (публичные API)
+// Пути, исключённые из CSRF-проверки (публичные API и admin API без CSRF)
 const CSRF_EXEMPT_PATHS = [
   '/api/analytics/track',
   '/api/telegram/webhook',  // Telegram Bot API не отправляет CSRF токены
+  '/api/admin/banner',      // Admin banner API (uses session auth only)
+  '/api/admin/email-templates', // Admin email templates API (uses session auth only)
+  '/api/admin/auth',        // Auth API (login/logout)
 ];
 
 export async function middleware(request: NextRequest) {
