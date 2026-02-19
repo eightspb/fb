@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import type { SiteBanner } from '@/lib/types/banner';
@@ -22,10 +22,21 @@ export default function AnnouncementBanner() {
   const [banner, setBanner] = useState<SiteBanner | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const bannerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadBanner();
   }, []);
+
+  // Обновляем CSS переменную с высотой баннера
+  useEffect(() => {
+    if (isVisible && bannerRef.current) {
+      const height = bannerRef.current.offsetHeight;
+      document.documentElement.style.setProperty('--banner-height', `${height}px`);
+    } else {
+      document.documentElement.style.setProperty('--banner-height', '0px');
+    }
+  }, [isVisible, banner]);
 
   const loadBanner = async () => {
     try {
@@ -73,11 +84,12 @@ export default function AnnouncementBanner() {
     <AnimatePresence>
       {isVisible && (
         <motion.div
+          ref={bannerRef}
           initial={{ y: -100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -100, opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed top-0 left-0 right-0 z-50 w-full"
+          className="fixed top-0 left-0 right-0 z-[110] w-full"
           style={{
             backgroundColor: banner.bg_color,
             color: banner.text_color,
