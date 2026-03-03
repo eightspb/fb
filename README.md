@@ -60,6 +60,13 @@ SMTP_PORT=587
 SMTP_USER=your_email@domain.com
 SMTP_PASSWORD=your_password
 TARGET_EMAIL=target_email@domain.com
+
+# Опционально: Яндекс.Директ автоброкер
+YANDEX_DIRECT_TOKEN=your_yandex_direct_oauth_token
+# Для агентских аккаунтов (опционально)
+YANDEX_DIRECT_CLIENT_LOGIN=direct-client-login
+# Язык ответов API (опционально, по умолчанию ru)
+YANDEX_DIRECT_LOCALE=ru
 ```
 
 ### Вариант 1: Локальная база данных (пустая, для тестирования)
@@ -185,6 +192,7 @@ bun run dev              # Запуск dev сервера
 bun run build            # Сборка для продакшна
 bun run start            # Запуск продакшн сервера
 bun run lint             # Проверка кода
+bun run direct:bidder    # Однократный запуск автоброкера Яндекс.Директ
 ```
 
 ### Docker команды
@@ -258,6 +266,28 @@ bun run docker:test
 ```
 
 **Подробнее:** См. [docs/tests.md](./docs/tests.md)
+
+---
+
+## 🤖 Автоброкер Яндекс.Директ
+
+После добавления кампаний в `/admin/direct` скрипт можно запускать по расписанию.
+
+### Вариант 1: Cron на хосте
+
+```bash
+*/5 * * * * cd /path/to/fb.net && /usr/local/bin/bun run direct:bidder >> /var/log/fb-net-direct-bidder.log 2>&1
+```
+
+### Вариант 2: Отдельный процесс в Docker
+
+Добавьте отдельный сервис в `docker-compose.production.yml`, который запускает цикл:
+
+```bash
+while true; do bun run direct:bidder; sleep 300; done
+```
+
+Рекомендуемый интервал: каждые 5 минут (`300` секунд). Для обоих вариантов убедитесь, что в окружении процесса доступны `DATABASE_URL` и `YANDEX_DIRECT_TOKEN`.
 
 ---
 
