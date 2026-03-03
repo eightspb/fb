@@ -1,4 +1,4 @@
-const YANDEX_DIRECT_API_URL = 'https://api.direct.yandex.com/json/v5/bids';
+const YANDEX_DIRECT_API_BASE_URL = 'https://api.direct.yandex.com/json/v5';
 const RUB_TO_MICRO = 1_000_000;
 
 interface YandexDirectApiErrorPayload {
@@ -31,6 +31,29 @@ interface YandexDirectSetBidsResult {
   }>;
 }
 
+interface YandexDirectGetCampaignsResult {
+  Campaigns?: YandexDirectRawCampaign[];
+}
+
+interface YandexDirectAddResultItem {
+  Id?: string | number;
+  Errors?: Array<{
+    Code?: number;
+    Message?: string;
+    Details?: string;
+  }>;
+}
+
+interface YandexDirectAddResult {
+  AddResults?: YandexDirectAddResultItem[];
+}
+
+interface YandexDirectRawCampaign {
+  Id?: string | number;
+  Name?: string;
+  State?: string;
+}
+
 interface YandexDirectRawBid {
   KeywordId?: string | number;
   Bid?: unknown;
@@ -56,6 +79,31 @@ export interface SetBidInput {
 
 export interface SetBidResult {
   keywordId: string;
+  success: boolean;
+  errorMessage?: string;
+}
+
+export interface DirectCampaignSnapshot {
+  id: string;
+  name: string;
+  state: string;
+}
+
+export interface CreateCampaignInput {
+  name: string;
+  campaignPayload?: Record<string, unknown>;
+  minusKeywords?: string[];
+}
+
+export interface CreateAdGroupInput {
+  campaignId: string;
+  name: string;
+  adGroupPayload?: Record<string, unknown>;
+}
+
+export interface AddKeywordsResult {
+  keyword: string;
+  keywordId: string | null;
   success: boolean;
   errorMessage?: string;
 }
@@ -112,7 +160,7 @@ export class YandexDirectApiClient {
       },
     };
 
-    const response = await this.request<YandexDirectGetBidsResult>(body);
+    const response = await this.request<YandexDirectGetBidsResult>('bids', body);
     const bids = response.Bids ?? [];
 
     return bids
@@ -149,7 +197,7 @@ export class YandexDirectApiClient {
       },
     };
 
-    const response = await this.request<YandexDirectSetBidsResult>(body);
+    const response = await this.request<YandexDirectSetBidsResult>('bids', body);
     const setResults = response.SetResults ?? [];
 
     return bids.map((bid, index) => {
@@ -171,7 +219,128 @@ export class YandexDirectApiClient {
     });
   }
 
-  private async request<T>(body: Record<string, unknown>): Promise<T> {
+  public async getCampaigns(): Promise<DirectCampaignSnapshot[]> {
+    const body = {
+      method: 'get',
+      params: {
+        SelectionCriteria: {},
+        FieldNames: ['Id', 'Name', 'State'],
+      },
+    };
+
+    const response = await this.request<YandexDirectGetCampaignsResult>('campaigns', body);
+    const campaigns = response.Campaigns ?? [];
+
+    return campaigns
+      .map((campaign) => {
+        const id = toSafeString(campaign.Id);
+        const name = campaign.Name?.trim();
+        const state = campaign.State?.trim();
+
+        if (!id || !name || !state) {
+          return null;
+        }
+
+        return {
+          id,
+          name,
+          state,
+        } satisfies DirectCampaignSnapshot;
+      })
+      .filter((campaign): campaign is DirectCampaignSnapshot => campaign !== null);
+  }
+
+  public async createCampaign(input: CreateCampaignInput): Promise<string> {
+    const campaignPayload = ensureObject(input.campaignPayload);
+    const normalizedMinusKeywords = normalizeKeywordList(input.minusKeywords ?? []);
+
+    const campaign = {
+      ...campaignPayload,
+      Name: input.name,
+      ...(normalizedMinusKeywords.length > 0
+        ? {
+            NegativeKeywords: {
+              Items: normalizedMinusKeywords,
+            },
+          }
+        : {}),
+    };
+
+    const body = {
+      method: 'add',
+      params: {
+        Campaigns: [campaign],
+      },
+    };
+
+    const response = await this.request<YandexDirectAddResult>('campaigns', body);
+    return extractAddedEntityId(response, 'campaign');
+  }
+
+  public async createAdGroup(input: CreateAdGroupInput): Promise<string> {
+    const adGroupPayload = ensureObject(input.adGroupPayload);
+    const body = {
+      method: 'add',
+      params: {
+        AdGroups: [
+          {
+            ...adGroupPayload,
+            CampaignId: toNumericId(input.campaignId, 'campaignId'),
+            Name: input.name,
+          },
+        ],
+      },
+    };
+
+    const response = await this.request<YandexDirectAddResult>('adgroups', body);
+    return extractAddedEntityId(response, 'ad group');
+  }
+
+  public async addKeywords(adGroupId: string, keywords: string[]): Promise<AddKeywordsResult[]> {
+    const normalizedKeywords = normalizeKeywordList(keywords);
+    if (normalizedKeywords.length === 0) {
+      return [];
+    }
+
+    const body = {
+      method: 'add',
+      params: {
+        Keywords: normalizedKeywords.map((keyword) => ({
+          Keyword: keyword,
+          AdGroupId: toNumericId(adGroupId, 'adGroupId'),
+        })),
+      },
+    };
+
+    const response = await this.request<YandexDirectAddResult>('keywords', body);
+    const results = response.AddResults ?? [];
+
+    return normalizedKeywords.map((keyword, index) => {
+      const addResult = results[index];
+      const errors = addResult?.Errors ?? [];
+      const id = toSafeString(addResult?.Id);
+
+      if (errors.length > 0 || !id) {
+        const firstError = errors[0];
+        return {
+          keyword,
+          keywordId: null,
+          success: false,
+          errorMessage: firstError
+            ? `${firstError.Message ?? 'Ошибка'}${firstError.Details ? `: ${firstError.Details}` : ''}`
+            : 'Яндекс.Директ не вернул ID ключа',
+        } satisfies AddKeywordsResult;
+      }
+
+      return {
+        keyword,
+        keywordId: id,
+        success: true,
+      } satisfies AddKeywordsResult;
+    });
+  }
+
+  private async request<T>(resource: string, body: Record<string, unknown>): Promise<T> {
     const headers: HeadersInit = {
       Authorization: `Bearer ${this.token}`,
       'Content-Type': 'application/json; charset=utf-8',
@@ -182,7 +351,7 @@ export class YandexDirectApiClient {
       headers['Client-Login'] = this.clientLogin;
     }
 
-    const response = await fetch(YANDEX_DIRECT_API_URL, {
+    const response = await fetch(`${YANDEX_DIRECT_API_BASE_URL}/${resource}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
@@ -264,4 +433,43 @@ function toNumericId(value: string, fieldName: string): number {
     throw new Error(`Invalid ${fieldName}: ${value}`);
   }
   return parsed;
+}
+
+function ensureObject(value: Record<string, unknown> | undefined): Record<string, unknown> {
+  if (!value) {
+    return {};
+  }
+  return value;
+}
+
+function extractAddedEntityId(response: YandexDirectAddResult, entityLabel: string): string {
+  const addResult = response.AddResults?.[0];
+  if (!addResult) {
+    throw new Error(`Yandex Direct API did not return ${entityLabel} creation result`);
+  }
+
+  const errors = addResult.Errors ?? [];
+  if (errors.length > 0) {
+    const firstError = errors[0];
+    throw new Error(
+      `${firstError.Message ?? 'Ошибка создания'}${firstError.Details ? `: ${firstError.Details}` : ''}`
+    );
+  }
+
+  const id = toSafeString(addResult.Id);
+  if (!id) {
+    throw new Error(`Yandex Direct API did not return created ${entityLabel} ID`);
+  }
+  return id;
+}
+
+function normalizeKeywordList(values: string[]): string[] {
+  const unique = new Set<string>();
+  for (const value of values) {
+    const normalized = value.trim();
+    if (normalized.length > 0) {
+      unique.add(normalized);
+    }
+  }
+  return Array.from(unique);
 }

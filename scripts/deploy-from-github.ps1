@@ -1,4 +1,4 @@
-# PowerShell скрипт для деплоя из GitHub на сервер
+﻿# PowerShell скрипт для деплоя из GitHub на сервер
 # Запускается локально, разворачивает проект на сервере через git pull
 #
 # Использование:
@@ -76,7 +76,7 @@ function Get-ComposeFile {
     param([string]$Server, [string]$RemotePath, [string]$SshPath)
     
     # Проверяем наличие SSL сертификата
-    $certExists = & $SshPath $Server "test -d $RemotePath/certbot/conf/live/fibroadenoma.net && echo 'YES' || echo 'NO'"
+    $certExists = Invoke-Ssh $Server "test -d $RemotePath/certbot/conf/live/fibroadenoma.net && echo 'YES' || echo 'NO'"
     
     if ($certExists -match "YES") {
         Write-Info "SSL сертификат найден, используем docker-compose.ssl.yml"
@@ -89,15 +89,52 @@ function Get-ComposeFile {
 
 $RemoteBackupDir = "$RemotePath/backups"  # Папка для бэкапов на сервере
 $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$SshCommonArgs = @(
+    "-o", "ServerAliveInterval=30",
+    "-o", "ServerAliveCountMax=6",
+    "-o", "TCPKeepAlive=yes",
+    "-o", "ConnectTimeout=15",
+    "-o", "ConnectionAttempts=3"
+)
+$SshRetryCount = 3
+$SshRetryDelaySec = 3
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ФУНКЦИИ
 # ═══════════════════════════════════════════════════════════════════════════════
 
+function Invoke-Ssh {
+    param(
+        [Parameter(ValueFromRemainingArguments = $true)]
+        [string[]]$Args
+    )
+
+    $lastOutput = $null
+    $lastExitCode = 0
+
+    for ($attempt = 1; $attempt -le $SshRetryCount; $attempt++) {
+        $lastOutput = & $SshPath @SshCommonArgs @Args 2>&1
+        $lastExitCode = $LASTEXITCODE
+        $global:LASTEXITCODE = $lastExitCode
+
+        if ($lastExitCode -eq 0) {
+            return $lastOutput
+        }
+
+        if ($attempt -lt $SshRetryCount) {
+            Write-Warn "SSH команда завершилась с ошибкой (попытка $attempt/$SshRetryCount). Повтор через ${SshRetryDelaySec}с..."
+            Start-Sleep -Seconds $SshRetryDelaySec
+        }
+    }
+
+    $global:LASTEXITCODE = $lastExitCode
+    return $lastOutput
+}
+
 function Test-Connection {
     Write-Step "Проверка подключения к серверу"
     
-    $null = & $SshPath -o ConnectTimeout=10 -o BatchMode=yes $Server "echo OK" 2>&1
+    $null = Invoke-Ssh -o ConnectTimeout=10 -o BatchMode=yes $Server "echo OK" 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Err "Не удалось подключиться к серверу $Server"
         Write-Err "Убедитесь, что:"
@@ -114,7 +151,7 @@ function Initialize-Server {
     
     # Проверяем наличие Docker
     Write-Info "Проверка Docker на сервере..."
-    $dockerCheck = & $SshPath $Server "which docker 2>/dev/null || echo 'NOT_FOUND'"
+    $dockerCheck = Invoke-Ssh $Server "which docker 2>/dev/null || echo 'NOT_FOUND'"
     if ($dockerCheck -match "NOT_FOUND") {
         Write-Err "Docker не установлен на сервере!"
         Write-Info "Установите Docker командой:"
@@ -126,7 +163,7 @@ function Initialize-Server {
     
     # Проверяем наличие git
     Write-Info "Проверка Git на сервере..."
-    $gitCheck = & $SshPath $Server "which git 2>/dev/null || echo 'NOT_FOUND'"
+    $gitCheck = Invoke-Ssh $Server "which git 2>/dev/null || echo 'NOT_FOUND'"
     if ($gitCheck -match "NOT_FOUND") {
         Write-Err "Git не установлен на сервере!"
         Write-Info "Установите Git командой: sudo apt install git -y"
@@ -140,17 +177,17 @@ function Initialize-Server {
     $parentPath = Split-Path $RemotePath -Parent
     
     # Создаем директорию
-    & $SshPath $Server "mkdir -p $parentPath"
+    Invoke-Ssh $Server "mkdir -p $parentPath"
     
     # Проверяем, существует ли директория
-    $dirExists = & $SshPath $Server "test -d $RemotePath && echo YES || echo NO"
+    $dirExists = Invoke-Ssh $Server "test -d $RemotePath && echo YES || echo NO"
     
     if ($dirExists -match "YES") {
         Write-Info "Директория существует, обновляем..."
-        & $SshPath $Server "cd $RemotePath && git fetch origin && git checkout $Branch && git pull origin $Branch"
+        Invoke-Ssh $Server "cd $RemotePath && git fetch origin && git checkout $Branch && git pull origin $Branch"
     } else {
         Write-Info "Клонируем репозиторий..."
-        & $SshPath $Server "git clone -b $Branch $RepoUrl $RemotePath"
+        Invoke-Ssh $Server "git clone -b $Branch $RepoUrl $RemotePath"
     }
     
     if ($LASTEXITCODE -ne 0) {
@@ -159,7 +196,7 @@ function Initialize-Server {
     }
     
     # Показываем последний коммит
-    & $SshPath $Server "cd $RemotePath && git log -1 --oneline"
+    Invoke-Ssh $Server "cd $RemotePath && git log -1 --oneline"
     
     Write-Success "Репозиторий клонирован в $RemotePath"
     
@@ -184,7 +221,7 @@ function Backup-Database {
     Write-Step "Создание бэкапа базы данных"
     
     # Проверяем, запущен ли контейнер БД
-    $dbRunning = & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile ps --status running 2>/dev/null | grep -q postgres && echo 'YES' || echo 'NO'"
+    $dbRunning = Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile ps --status running 2>/dev/null | grep -q postgres && echo 'YES' || echo 'NO'"
     
     if ($dbRunning -match "NO") {
         Write-Warn "Контейнер БД не запущен, пропускаем бэкап"
@@ -192,7 +229,7 @@ function Backup-Database {
     }
     
     # Создаем папку для бэкапов на сервере
-    & $SshPath $Server "mkdir -p $RemoteBackupDir"
+    Invoke-Ssh $Server "mkdir -p $RemoteBackupDir"
     
     $backupFileName = "db_backup_$Timestamp.sql"
     $backupFile = "$RemoteBackupDir/$backupFileName"
@@ -200,11 +237,11 @@ function Backup-Database {
     Write-Info "Сохранение бэкапа на сервере: $backupFile..."
     
     # Создаем бэкап на сервере
-    & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres pg_dump -U postgres -d postgres --clean --if-exists > $backupFile"
+    Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile exec -T postgres pg_dump -U postgres -d postgres --clean --if-exists > $backupFile"
     
     if ($LASTEXITCODE -eq 0) {
         # Проверяем размер бэкапа на сервере
-        $sizeBytes = & $SshPath $Server "stat -c %s $backupFile 2>/dev/null || stat -f %z $backupFile 2>/dev/null || echo 0"
+        $sizeBytes = Invoke-Ssh $Server "stat -c %s $backupFile 2>/dev/null || stat -f %z $backupFile 2>/dev/null || echo 0"
         $sizeKB = [math]::Round([int]$sizeBytes / 1KB, 2)
         
         if ($sizeKB -gt 0.1) {
@@ -222,16 +259,16 @@ function Update-Repository {
     
     # Защищаем важные директории от случайного удаления
     # (certbot содержит SSL сертификаты, их нельзя удалять)
-    & $SshPath $Server "cd $RemotePath && if [ -d certbot ]; then chmod -R 700 certbot 2>/dev/null || true; fi"
+    Invoke-Ssh $Server "cd $RemotePath && if [ -d certbot ]; then chmod -R 700 certbot 2>/dev/null || true; fi"
     
     # Сохраняем локальные изменения (но не трогаем certbot и .env)
-    & $SshPath $Server "cd $RemotePath && git stash push --keep-index -m 'temp-stash' 2>/dev/null || git stash --include-untracked 2>/dev/null || true"
+    Invoke-Ssh $Server "cd $RemotePath && git stash push --keep-index -m 'temp-stash' 2>/dev/null || git stash --include-untracked 2>/dev/null || true"
     
     # Получаем последние изменения
-    & $SshPath $Server "cd $RemotePath && git fetch origin $Branch && git checkout $Branch && git pull origin $Branch"
+    Invoke-Ssh $Server "cd $RemotePath && git fetch origin $Branch && git checkout $Branch && git pull origin $Branch"
     
     # Восстанавливаем права на certbot
-    & $SshPath $Server "cd $RemotePath && if [ -d certbot ]; then chmod -R 755 certbot 2>/dev/null || true; fi"
+    Invoke-Ssh $Server "cd $RemotePath && if [ -d certbot ]; then chmod -R 755 certbot 2>/dev/null || true; fi"
     
     if ($LASTEXITCODE -ne 0) {
         Write-Err "Ошибка при обновлении репозитория"
@@ -240,7 +277,7 @@ function Update-Repository {
     
     # Показываем последний коммит
     Write-Info "Последний коммит:"
-    & $SshPath $Server "cd $RemotePath && git log -1 --oneline"
+    Invoke-Ssh $Server "cd $RemotePath && git log -1 --oneline"
     
     Write-Success "Код обновлен"
 }
@@ -256,7 +293,7 @@ function Invoke-Migrations {
     Write-Step "Применение миграций БД"
     
     # Проверяем, запущен ли контейнер БД
-    $dbRunning = & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile ps --status running 2>/dev/null | grep -q postgres && echo YES || echo NO"
+    $dbRunning = Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile ps --status running 2>/dev/null | grep -q postgres && echo YES || echo NO"
     
     if ($dbRunning -match "NO") {
         Write-Warn "Контейнер БД не запущен, пропускаем миграции"
@@ -264,7 +301,7 @@ function Invoke-Migrations {
     }
     
     # Применяем миграции через bash-скрипт (избегаем проблем с экранированием в PowerShell)
-    & $SshPath $Server "cd $RemotePath && bash scripts/apply-migrations-remote.sh $ComposeFile"
+    Invoke-Ssh $Server "cd $RemotePath && bash scripts/apply-migrations-remote.sh $ComposeFile"
 }
 
 function Restart-Containers {
@@ -276,13 +313,13 @@ function Restart-Containers {
         Write-Info "Режим: только приложение (БД не пересобирается)"
         
         Write-Info "Останавливаем контейнер приложения..."
-        & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile stop app"
+        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile stop app"
         
         Write-Info "Пересобираем контейнер приложения..."
-        & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile build --no-cache app"
+        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile build --no-cache app"
         
         Write-Info "Запускаем контейнер приложения..."
-        & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile up -d --no-deps app"
+        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile up -d --no-deps app"
         
         if ($LASTEXITCODE -ne 0) {
             Write-Err "Ошибка при перезапуске контейнера приложения"
@@ -297,10 +334,10 @@ function Restart-Containers {
         Write-Info "Режим: полный деплой (все контейнеры)"
         
         Write-Info "Останавливаем контейнеры..."
-        & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile down"
+        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile down"
         
         Write-Info "Собираем и запускаем контейнеры..."
-        & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile up -d --build"
+        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile up -d --build"
         
         if ($LASTEXITCODE -ne 0) {
             Write-Err "Ошибка при перезапуске контейнеров"
@@ -312,7 +349,7 @@ function Restart-Containers {
     }
     
     Write-Info "Статус контейнеров:"
-    & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile ps"
+    Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile ps"
     
     Write-Success "Контейнеры запущены"
 }
@@ -321,14 +358,14 @@ function Show-Logs {
     param([string]$ComposeFile)
     
     Write-Step "Последние логи приложения"
-    & $SshPath $Server "cd $RemotePath && docker compose -f $ComposeFile logs --tail=20 app 2>/dev/null || true"
+    Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile logs --tail=20 app 2>/dev/null || true"
 }
 
 function Setup-ServerDependencies {
     Write-Step "Проверка и установка зависимостей сервера"
     
     Write-Info "Запуск скрипта установки зависимостей..."
-    $result = & $SshPath $Server "cd $RemotePath && bash scripts/setup-server-dependencies.sh 2>&1"
+    $result = Invoke-Ssh $Server "cd $RemotePath && bash scripts/setup-server-dependencies.sh 2>&1"
     
     if ($LASTEXITCODE -ne 0) {
         Write-Warn "Не удалось автоматически установить все зависимости"
@@ -344,7 +381,7 @@ function Setup-TelegramWebhook {
     Write-Step "Настройка Telegram webhook"
     
     Write-Info "Запуск скрипта настройки Telegram бота..."
-    $result = & $SshPath $Server "cd $RemotePath && bash scripts/fix-telegram-now.sh 2>&1"
+    $result = Invoke-Ssh $Server "cd $RemotePath && bash scripts/fix-telegram-now.sh 2>&1"
     
     if ($LASTEXITCODE -ne 0) {
         Write-Warn "Не удалось автоматически настроить Telegram webhook"
@@ -444,3 +481,4 @@ function Main {
 
 # Запуск
 Main
+
