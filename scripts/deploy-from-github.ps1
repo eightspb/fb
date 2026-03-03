@@ -109,33 +109,38 @@ function Invoke-Ssh {
         [string[]]$Args
     )
 
-    $lastOutput = $null
+    $lastOutput = @()
     $lastExitCode = 0
 
     for ($attempt = 1; $attempt -le $SshRetryCount; $attempt++) {
-        $previousErrorAction = $ErrorActionPreference
-        $hadNativeErrorPreference = Test-Path variable:PSNativeCommandUseErrorActionPreference
-        $previousNativeErrorPreference = $false
-        if ($hadNativeErrorPreference) {
-            $previousNativeErrorPreference = $PSNativeCommandUseErrorActionPreference
-        }
+        $stdoutFile = [System.IO.Path]::GetTempFileName()
+        $stderrFile = [System.IO.Path]::GetTempFileName()
         try {
-            # Важно: git/ssh часто пишут служебные сообщения в stderr даже при успешном выполнении.
-            # Обрабатываем успех/ошибку только по exit code native-команды.
-            $ErrorActionPreference = "Continue"
-            if ($hadNativeErrorPreference) {
-                # PowerShell 7+: не превращать stderr native-команд в ErrorRecord (NativeCommandError).
-                $PSNativeCommandUseErrorActionPreference = $false
+            $process = Start-Process -FilePath $SshPath `
+                -ArgumentList @($SshCommonArgs + $Args) `
+                -NoNewWindow `
+                -Wait `
+                -PassThru `
+                -RedirectStandardOutput $stdoutFile `
+                -RedirectStandardError $stderrFile
+
+            $lastExitCode = $process.ExitCode
+            $global:LASTEXITCODE = $lastExitCode
+
+            $stdoutLines = @()
+            $stderrLines = @()
+
+            if (Test-Path $stdoutFile) {
+                $stdoutLines = Get-Content -Path $stdoutFile -ErrorAction SilentlyContinue
             }
-            $lastOutput = & $SshPath @SshCommonArgs @Args 2>&1
+            if (Test-Path $stderrFile) {
+                $stderrLines = Get-Content -Path $stderrFile -ErrorAction SilentlyContinue
+            }
+
+            $lastOutput = @($stdoutLines + $stderrLines)
         } finally {
-            $ErrorActionPreference = $previousErrorAction
-            if ($hadNativeErrorPreference) {
-                $PSNativeCommandUseErrorActionPreference = $previousNativeErrorPreference
-            }
+            Remove-Item -Path $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
         }
-        $lastExitCode = $LASTEXITCODE
-        $global:LASTEXITCODE = $lastExitCode
 
         if ($lastExitCode -eq 0) {
             return $lastOutput

@@ -20,6 +20,7 @@ const CSRF_EXEMPT_PATHS = [
   '/api/telegram/webhook',  // Telegram Bot API не отправляет CSRF токены
   '/api/admin/banner',      // Admin banner API (uses session auth only)
   '/api/admin/email-templates', // Admin email templates API (uses session auth only)
+  '/api/admin/direct',      // Admin direct API (uses session auth only)
   '/api/admin/auth',        // Auth API (login/logout)
 ];
 
