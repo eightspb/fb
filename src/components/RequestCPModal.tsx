@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -37,7 +36,6 @@ export function RequestCPModal({
   autoOpenQueryValue = "1",
   autoOpenHash,
 }: RequestCPModalProps) {
-  const searchParams = useSearchParams()
   const hasAutoOpenedRef = useRef(false)
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -130,8 +128,9 @@ export function RequestCPModal({
   useEffect(() => {
     if (hasAutoOpenedRef.current) return
 
+    const currentSearchParams = new URLSearchParams(window.location.search)
     const matchesQuery = autoOpenQueryKey
-      ? searchParams.get(autoOpenQueryKey) === autoOpenQueryValue
+      ? currentSearchParams.get(autoOpenQueryKey) === autoOpenQueryValue
       : false
     const matchesHash = autoOpenHash
       ? window.location.hash === `#${autoOpenHash}`
@@ -141,7 +140,7 @@ export function RequestCPModal({
       hasAutoOpenedRef.current = true
       setOpen(true)
     }
-  }, [autoOpenHash, autoOpenQueryKey, autoOpenQueryValue, searchParams])
+  }, [autoOpenHash, autoOpenQueryKey, autoOpenQueryValue])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
