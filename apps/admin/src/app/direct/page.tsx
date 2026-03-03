@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, RefreshCw, Loader2, Target, WandSparkles } from 'lucide-react';
+import { Plus, RefreshCw, Loader2, Target, WandSparkles, Pencil, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,6 +74,8 @@ interface TemplateFormState {
   ad_group_payload_text: string;
 }
 
+type TemplateFormMode = 'create' | 'edit';
+
 const EMPTY_FORM: CampaignFormState = {
   campaign_id: '',
   name: '',
@@ -103,21 +105,30 @@ export default function DirectAdminPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isProvisioning, setIsProvisioning] = useState(false);
   const [isTemplateSaving, setIsTemplateSaving] = useState(false);
+  const [isTemplateDeleting, setIsTemplateDeleting] = useState(false);
+  const [deletingCampaignId, setDeletingCampaignId] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [formState, setFormState] = useState<CampaignFormState>(EMPTY_FORM);
   const [templateFormState, setTemplateFormState] = useState<TemplateFormState>(EMPTY_TEMPLATE_FORM);
+  const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
+  const [templateFormMode, setTemplateFormMode] = useState<TemplateFormMode>('create');
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [provisionCampaignName, setProvisionCampaignName] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
   const activeCount = useMemo(() => campaigns.filter((campaign) => campaign.is_active).length, [campaigns]);
+  const selectedTemplate = useMemo(
+    () => templates.find((template) => template.id === selectedTemplateId) ?? null,
+    [templates, selectedTemplateId]
+  );
 
-  const postWithCsrf = useCallback(
-    async (url: string, body?: unknown): Promise<Response> => {
+  const requestWithCsrf = useCallback(
+    async (method: 'POST' | 'PUT' | 'DELETE', url: string, body?: unknown): Promise<Response> => {
       let csrfToken = await getCsrfToken();
       let response = await fetch(url, {
-        method: 'POST',
+        method,
         headers: {
           'Content-Type': 'application/json',
           'x-csrf-token': csrfToken,
@@ -131,7 +142,7 @@ export default function DirectAdminPage() {
         if ((errorBody.error ?? '').toLowerCase().includes('csrf')) {
           csrfToken = await refreshCsrfToken();
           response = await fetch(url, {
-            method: 'POST',
+            method,
             headers: {
               'Content-Type': 'application/json',
               'x-csrf-token': csrfToken,
@@ -178,7 +189,9 @@ export default function DirectAdminPage() {
       setLogs(logsData.logs ?? []);
       const nextTemplates = templatesData.templates ?? [];
       setTemplates(nextTemplates);
-      setSelectedTemplateId((prev) => prev || nextTemplates[0]?.id || '');
+      setSelectedTemplateId((prev) =>
+        nextTemplates.some((template) => template.id === prev) ? prev : nextTemplates[0]?.id || ''
+      );
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : 'Ошибка загрузки данных';
       setError(message);
@@ -202,7 +215,7 @@ export default function DirectAdminPage() {
         throw new Error('Макс. ставка должна быть числом >= 0');
       }
 
-      const response = await postWithCsrf('/api/admin/direct', {
+      const response = await requestWithCsrf('POST', '/api/admin/direct', {
         campaign_id: payload.campaign_id.trim(),
         name: payload.name.trim(),
         max_bid: maxBidNumber,
@@ -225,6 +238,25 @@ export default function DirectAdminPage() {
     }
   }
 
+  function openCreateCampaignDialog(): void {
+    setEditingCampaignId(null);
+    setFormState(EMPTY_FORM);
+    setError(null);
+    setIsDialogOpen(true);
+  }
+
+  function openEditCampaignDialog(campaign: DirectCampaign): void {
+    setEditingCampaignId(campaign.campaign_id);
+    setFormState({
+      campaign_id: campaign.campaign_id,
+      name: campaign.name,
+      max_bid: String(campaign.max_bid),
+      is_active: campaign.is_active,
+    });
+    setError(null);
+    setIsDialogOpen(true);
+  }
+
   async function handleCreateCampaign(): Promise<void> {
     if (!formState.campaign_id.trim() || !formState.name.trim()) {
       setError('Заполните campaign_id и название кампании');
@@ -234,6 +266,7 @@ export default function DirectAdminPage() {
     const ok = await saveCampaign(formState);
     if (ok) {
       setFormState(EMPTY_FORM);
+      setEditingCampaignId(null);
       setIsDialogOpen(false);
     }
   }
@@ -247,12 +280,37 @@ export default function DirectAdminPage() {
     });
   }
 
+  async function handleDeleteCampaign(campaign: DirectCampaign): Promise<void> {
+    const confirmed = window.confirm(`Удалить кампанию "${campaign.name}" из админки?`);
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingCampaignId(campaign.campaign_id);
+    setError(null);
+    try {
+      const response = await requestWithCsrf('DELETE', '/api/admin/direct', {
+        campaign_id: campaign.campaign_id,
+      });
+      const data = (await response.json()) as { error?: string; details?: string };
+      if (!response.ok) {
+        throw new Error(data.details ?? data.error ?? 'Ошибка удаления кампании');
+      }
+      await refreshData();
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : 'Ошибка удаления кампании';
+      setError(message);
+    } finally {
+      setDeletingCampaignId(null);
+    }
+  }
+
   async function handleSyncCampaigns(): Promise<void> {
     setIsSyncing(true);
     setError(null);
 
     try {
-      const response = await postWithCsrf('/api/admin/direct/sync');
+      const response = await requestWithCsrf('POST', '/api/admin/direct/sync');
 
       const data = (await response.json()) as { error?: string; details?: string };
       if (!response.ok) {
@@ -268,12 +326,74 @@ export default function DirectAdminPage() {
     }
   }
 
-  async function handleCreateTemplate(): Promise<void> {
+  function openCreateTemplateDialog(): void {
+    setTemplateFormMode('create');
+    setEditingTemplateId(null);
+    setTemplateFormState(EMPTY_TEMPLATE_FORM);
+    setError(null);
+    setIsTemplateDialogOpen(true);
+  }
+
+  function openEditTemplateDialog(): void {
+    if (!selectedTemplate) {
+      setError('Выберите шаблон для редактирования');
+      return;
+    }
+
+    setTemplateFormMode('edit');
+    setEditingTemplateId(selectedTemplate.id);
+    setTemplateFormState({
+      name: selectedTemplate.name,
+      campaign_name_pattern: selectedTemplate.campaign_name_pattern,
+      ad_group_name: selectedTemplate.ad_group_name,
+      default_max_bid: String(selectedTemplate.default_max_bid),
+      is_active_by_default: selectedTemplate.is_active_by_default,
+      keywords_text: selectedTemplate.keywords.join('\n'),
+      minus_keywords_text: selectedTemplate.minus_keywords.join('\n'),
+      campaign_payload_text: JSON.stringify(selectedTemplate.campaign_payload ?? {}, null, 2),
+      ad_group_payload_text: JSON.stringify(selectedTemplate.ad_group_payload ?? {}, null, 2),
+    });
+    setError(null);
+    setIsTemplateDialogOpen(true);
+  }
+
+  async function handleDeleteTemplate(): Promise<void> {
+    if (!selectedTemplate) {
+      setError('Выберите шаблон для удаления');
+      return;
+    }
+
+    const confirmed = window.confirm(`Удалить шаблон "${selectedTemplate.name}"?`);
+    if (!confirmed) {
+      return;
+    }
+
+    setIsTemplateDeleting(true);
+    setError(null);
+    try {
+      const response = await requestWithCsrf('DELETE', '/api/admin/direct/templates', {
+        template_id: selectedTemplate.id,
+      });
+      const data = (await response.json()) as { error?: string; details?: string };
+      if (!response.ok) {
+        throw new Error(data.details ?? data.error ?? 'Ошибка удаления шаблона');
+      }
+      await refreshData();
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : 'Ошибка удаления шаблона';
+      setError(message);
+    } finally {
+      setIsTemplateDeleting(false);
+    }
+  }
+
+  async function handleSaveTemplate(): Promise<void> {
     setIsTemplateSaving(true);
     setError(null);
 
     try {
       const payload = {
+        ...(templateFormMode === 'edit' && editingTemplateId ? { template_id: editingTemplateId } : {}),
         name: templateFormState.name.trim(),
         campaign_name_pattern: templateFormState.campaign_name_pattern.trim(),
         ad_group_name: templateFormState.ad_group_name.trim() || 'Основная группа',
@@ -285,7 +405,11 @@ export default function DirectAdminPage() {
         ad_group_payload: parseJsonField(templateFormState.ad_group_payload_text, 'ad_group_payload'),
       };
 
-      const response = await postWithCsrf('/api/admin/direct/templates', payload);
+      const response = await requestWithCsrf(
+        templateFormMode === 'edit' ? 'PUT' : 'POST',
+        '/api/admin/direct/templates',
+        payload
+      );
 
       const data = (await response.json()) as { error?: string; details?: string; template?: DirectTemplate };
       if (!response.ok) {
@@ -298,6 +422,8 @@ export default function DirectAdminPage() {
 
       await refreshData();
       setTemplateFormState(EMPTY_TEMPLATE_FORM);
+      setTemplateFormMode('create');
+      setEditingTemplateId(null);
       setIsTemplateDialogOpen(false);
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : 'Ошибка сохранения шаблона';
@@ -317,7 +443,7 @@ export default function DirectAdminPage() {
     setError(null);
 
     try {
-      const response = await postWithCsrf('/api/admin/direct/provision', {
+      const response = await requestWithCsrf('POST', '/api/admin/direct/provision', {
         template_id: selectedTemplateId,
         campaign_name: provisionCampaignName.trim() || undefined,
       });
@@ -381,15 +507,19 @@ export default function DirectAdminPage() {
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button onClick={openCreateCampaignDialog}>
                 <Plus className="mr-2 h-4 w-4" />
                 Добавить кампанию
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Новая кампания</DialogTitle>
-                <DialogDescription>Добавьте кампанию Яндекс.Директ и лимит максимальной ставки.</DialogDescription>
+                <DialogTitle>{editingCampaignId ? 'Редактирование кампании' : 'Новая кампания'}</DialogTitle>
+                <DialogDescription>
+                  {editingCampaignId
+                    ? 'Измените название, лимит ставки и статус кампании.'
+                    : 'Добавьте кампанию Яндекс.Директ и лимит максимальной ставки.'}
+                </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4">
@@ -402,6 +532,7 @@ export default function DirectAdminPage() {
                       setFormState((prev) => ({ ...prev, campaign_id: event.target.value }))
                     }
                     placeholder="Например: 123456789"
+                    disabled={Boolean(editingCampaignId)}
                   />
                 </div>
 
@@ -444,7 +575,7 @@ export default function DirectAdminPage() {
                 </Button>
                 <Button onClick={() => void handleCreateCampaign()} disabled={isSaving}>
                   {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Сохранить
+                  {editingCampaignId ? 'Сохранить изменения' : 'Сохранить'}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -488,14 +619,14 @@ export default function DirectAdminPage() {
             <div className="flex items-end gap-2">
               <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline">
+                  <Button variant="outline" onClick={openCreateTemplateDialog}>
                     <Plus className="mr-2 h-4 w-4" />
                     Новый шаблон
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>Новый шаблон</DialogTitle>
+                    <DialogTitle>{templateFormMode === 'edit' ? 'Редактирование шаблона' : 'Новый шаблон'}</DialogTitle>
                     <DialogDescription>
                       `campaign_payload` и `ad_group_payload` передаются в API Яндекса как есть.
                     </DialogDescription>
@@ -617,13 +748,27 @@ export default function DirectAdminPage() {
                     <Button variant="outline" onClick={() => setIsTemplateDialogOpen(false)}>
                       Отмена
                     </Button>
-                    <Button onClick={() => void handleCreateTemplate()} disabled={isTemplateSaving}>
+                    <Button onClick={() => void handleSaveTemplate()} disabled={isTemplateSaving}>
                       {isTemplateSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                      Сохранить шаблон
+                      {templateFormMode === 'edit' ? 'Сохранить изменения' : 'Сохранить шаблон'}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+
+              <Button variant="outline" onClick={openEditTemplateDialog} disabled={!selectedTemplate}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Редактировать
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => void handleDeleteTemplate()}
+                disabled={!selectedTemplate || isTemplateDeleting}
+              >
+                {isTemplateDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                Удалить
+              </Button>
             </div>
           </div>
 
@@ -672,6 +817,7 @@ export default function DirectAdminPage() {
                     <th className="px-3 py-2 font-medium">Макс. ставка</th>
                     <th className="px-3 py-2 font-medium">Статус</th>
                     <th className="px-3 py-2 font-medium">Вкл/Выкл</th>
+                    <th className="px-3 py-2 font-medium">Действия</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -691,6 +837,31 @@ export default function DirectAdminPage() {
                           onChange={() => void handleToggleCampaign(campaign)}
                           aria-label={`Переключить кампанию ${campaign.name}`}
                         />
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditCampaignDialog(campaign)}
+                          >
+                            <Pencil className="mr-1 h-3.5 w-3.5" />
+                            Изменить
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void handleDeleteCampaign(campaign)}
+                            disabled={deletingCampaignId === campaign.campaign_id}
+                          >
+                            {deletingCampaignId === campaign.campaign_id ? (
+                              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="mr-1 h-3.5 w-3.5" />
+                            )}
+                            Удалить
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}

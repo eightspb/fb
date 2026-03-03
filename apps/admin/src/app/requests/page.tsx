@@ -25,7 +25,7 @@ import {
   ArrowUpDown,
   SlidersHorizontal
 } from 'lucide-react';
-import { getCsrfToken } from '@/lib/csrf-client';
+import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 import { RequestDetailsModal, RequestItem } from '@/components/admin/RequestDetailsModal';
 
 interface PaginationInfo {
@@ -175,13 +175,11 @@ export default function AdminRequestsPage() {
     if (selectedIds.size === 0) return;
     
     try {
-      const csrfToken = await getCsrfToken();
-      const response = await fetch('/api/admin/requests', {
+      const response = await adminCsrfFetch('/api/admin/requests', {
         method: 'PATCH',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'x-csrf-token': csrfToken,
         },
         body: JSON.stringify({ 
           ids: Array.from(selectedIds), 
@@ -203,13 +201,11 @@ export default function AdminRequestsPage() {
     if (selectedIds.size === 0) return;
     
     try {
-      const csrfToken = await getCsrfToken();
-      const response = await fetch('/api/admin/requests', {
+      const response = await adminCsrfFetch('/api/admin/requests', {
         method: 'DELETE',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'x-csrf-token': csrfToken,
         },
         body: JSON.stringify({ ids: Array.from(selectedIds) })
       });
@@ -684,13 +680,11 @@ export default function AdminRequestsPage() {
                           // Оптимистичное обновление
                           setRequests(requests.map(r => r.id === req.id ? { ...r, status: newStatus } : r));
                           try {
-                            const csrfToken = await getCsrfToken();
-                            await fetch(`/api/admin/requests/${req.id}`, {
+                            await adminCsrfFetch(`/api/admin/requests/${req.id}`, {
                               method: 'PATCH',
                               credentials: 'include',
                               headers: {
                                 'Content-Type': 'application/json',
-                                'x-csrf-token': csrfToken,
                               },
                               body: JSON.stringify({ status: newStatus })
                             });

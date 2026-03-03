@@ -32,7 +32,7 @@ param(
     [switch]$SkipMigrations,  # Пропустить применение миграций (если БД уже настроена)
     
     [Parameter(Mandatory=$false)]
-    [switch]$AppOnly  # Деплой только приложения (без пересборки БД)
+    [switch]$AppOnly  # Деплой только приложений site/admin (без пересборки БД)
 )
 
 $ErrorActionPreference = "Stop"
@@ -341,26 +341,26 @@ function Restart-Containers {
     Write-Step "Перезапуск Docker контейнеров"
     
     if ($AppOnly) {
-        Write-Info "Режим: только приложение (БД не пересобирается)"
+        Write-Info "Режим: только приложения site/admin (БД не пересобирается)"
         
-        Write-Info "Останавливаем контейнер приложения..."
-        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile stop app"
+        Write-Info "Останавливаем контейнеры site/admin..."
+        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile stop site admin"
         if ($LASTEXITCODE -ne 0) {
-            Write-Err "Ошибка при остановке контейнера приложения"
+            Write-Err "Ошибка при остановке контейнеров site/admin"
             exit 1
         }
         
-        Write-Info "Пересобираем контейнер приложения..."
-        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile build --no-cache app"
+        Write-Info "Пересобираем контейнеры site/admin..."
+        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile build --no-cache site admin"
         if ($LASTEXITCODE -ne 0) {
-            Write-Err "Ошибка при сборке контейнера приложения"
+            Write-Err "Ошибка при сборке контейнеров site/admin"
             exit 1
         }
         
-        Write-Info "Запускаем контейнер приложения..."
-        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile up -d --no-deps app"
+        Write-Info "Запускаем контейнеры site/admin..."
+        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile up -d --no-deps site admin"
         if ($LASTEXITCODE -ne 0) {
-            Write-Err "Ошибка при запуске контейнера приложения"
+            Write-Err "Ошибка при запуске контейнеров site/admin"
             exit 1
         }
         
@@ -399,8 +399,8 @@ function Restart-Containers {
 function Show-Logs {
     param([string]$ComposeFile)
     
-    Write-Step "Последние логи приложения"
-    Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile logs --tail=20 app 2>/dev/null || true"
+    Write-Step "Последние логи site/admin"
+    Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile logs --tail=20 site admin 2>/dev/null || true"
 }
 
 function Setup-ServerDependencies {
@@ -453,7 +453,7 @@ function Main {
     Write-Info "Путь: $RemotePath"
     Write-Info "Ветка: $Branch"
     if ($AppOnly) {
-        Write-Info "Режим: ⚡ Быстрый деплой (только приложение)"
+        Write-Info "Режим: ⚡ Быстрый деплой (site/admin без БД)"
     } else {
         Write-Info "Режим: 🔄 Полный деплой (все контейнеры)"
     }

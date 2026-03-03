@@ -71,15 +71,18 @@ interface Conference {
 ### Папки проекта
 
 ```
+apps/
+└── admin/                 # Отдельное Next.js приложение админки (UI-only, basePath=/admin)
+    ├── src/app/...        # Страницы админки
+    ├── src/components/... # Компоненты админки
+    └── middleware.ts      # Guard для /admin/*
 src/
 ├── app/
-│   ├── (routes)/          # Публичные страницы
-│   ├── admin/             # Админ-панель
-│   └── api/               # API endpoints
+│   ├── ...                # Публичные страницы сайта
+│   └── api/               # Весь backend/API (включая /api/admin/*)
 ├── components/
 │   ├── ui/                # Базовые UI компоненты
-│   ├── admin/             # Компоненты админки
-│   └── *.tsx              # Общие компоненты
+│   └── *.tsx              # Общие компоненты сайта
 ├── lib/
 │   ├── auth.ts            # JWT аутентификация
 │   ├── csrf.ts            # CSRF защита
@@ -89,6 +92,22 @@ src/
 └── styles/
     └── components.css     # Кастомные CSS классы
 ```
+
+### Multi-zone схема
+
+- `site` сервис: публичный сайт + весь API (`/api/*`, включая `/api/admin/*`)
+- `admin` сервис: только UI под `basePath=/admin`
+- Nginx роутинг:
+  - `/admin` и `/admin/*` -> `admin`
+  - `/api/*` и остальное -> `site`
+- Это позволяет деплоить `admin` отдельно без пересборки/рестарта `site`
+
+### CSRF для admin API
+
+- Для всех `POST/PUT/PATCH/DELETE` запросов к `/api/admin/*` из client components отправляйте `x-csrf-token`
+- Источник токена: `getCsrfToken()` из `src/lib/csrf-client.ts`
+- При `403` с CSRF-ошибкой обязателен один retry после `refreshCsrfToken()`
+- Не добавляйте новые CSRF-exemptions в middleware для admin route’ов
 
 ---
 
@@ -251,6 +270,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 ### Админ компоненты
 
 ```tsx
+// внутри apps/admin
 import { NewsForm } from "@/components/admin/NewsForm";
 import { ConferenceForm } from "@/components/admin/ConferenceForm";
 import { FileUpload } from "@/components/admin/FileUpload";
@@ -268,10 +288,15 @@ import { ActiveSessions } from "@/components/admin/ActiveSessions";
 # Запустить БД
 bun run docker:up
 
-# Запустить приложение
-bun run dev
+# Запустить public site (порт 3000)
+bun run dev:site
 
-# Открыть http://localhost:3000
+# Запустить admin UI (порт 3001)
+bun run dev:admin
+
+# Открыть:
+# http://localhost:3000       - site
+# http://localhost:3001/admin - admin
 ```
 
 ### 2. Внесение изменений
@@ -297,14 +322,29 @@ bun run dev
 ### 4. Деплой на продакшен
 
 ```powershell
-# Быстрый деплой (только приложение, БД работает)
-.\scripts\deploy-from-github.ps1 -AppOnly
+# Только admin (без пересборки site)
+docker compose -f docker-compose.production.yml up -d --build admin
 
-# Полный деплой (если нужны миграции БД)
-.\scripts\deploy-from-github.ps1
+# Только site
+docker compose -f docker-compose.production.yml up -d --build site
+
+# Полный деплой
+docker compose -f docker-compose.production.yml up -d --build
 ```
 
 **Время деплоя:** ~2-3 минуты
+
+### Rollback
+
+```powershell
+# Откат admin до предыдущего коммита
+git checkout <previous_commit_sha>
+docker compose -f docker-compose.production.yml up -d --build admin
+
+# Откат site до предыдущего коммита
+git checkout <previous_commit_sha>
+docker compose -f docker-compose.production.yml up -d --build site
+```
 
 ---
 
@@ -495,7 +535,7 @@ import type { NewsItem } from "@/lib/types";
 # На сервере
 ssh root@your-server.com
 cd /opt/fb-net
-docker compose -f docker-compose.production.yml logs app --tail=50
+docker compose -f docker-compose.production.yml logs site admin --tail=50
 ```
 
 ### Подключение к БД

@@ -241,7 +241,7 @@ export default function AdminNewsList() {
             </Button>
           )}
           <Button asChild>
-            <Link href="/admin/news/create">
+            <Link href="/news/create">
               <Plus className="w-4 h-4 mr-2" />
               Добавить новость
             </Link>
@@ -375,7 +375,7 @@ export default function AdminNewsList() {
                   </Badge>
                 </div>
                 
-                <Link href={`/admin/news/${item.id}`} className="block group-hover:text-teal-600 transition-colors mb-3">
+                <Link href={`/news/${item.id}`} className="block group-hover:text-teal-600 transition-colors mb-3">
                   <h3 className="text-xl font-bold text-slate-900 line-clamp-3">
                     {item.title}
                   </h3>
@@ -423,7 +423,7 @@ export default function AdminNewsList() {
                       )}
                     </Button>
                     <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
-                      <Link href={`/admin/news/${item.id}`}>
+                      <Link href={`/news/${item.id}`}>
                         <Pencil className="w-4 h-4" />
                       </Link>
                     </Button>
@@ -440,4 +440,3 @@ export default function AdminNewsList() {
     </div>
   );
 }
-

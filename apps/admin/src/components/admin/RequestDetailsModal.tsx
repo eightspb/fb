@@ -20,7 +20,7 @@ import {
   Clock,
   User
 } from 'lucide-react';
-import { getCsrfToken } from '@/lib/csrf-client';
+import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 
 export interface RequestItem {
   id: string;
@@ -107,13 +107,11 @@ export function RequestDetailsModal({
     
     setIsSaving(true);
     try {
-      const csrfToken = await getCsrfToken();
-      const response = await fetch(`/api/admin/requests/${request.id}`, {
+      const response = await adminCsrfFetch(`/api/admin/requests/${request.id}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'x-csrf-token': csrfToken,
         },
         body: JSON.stringify({ status, priority, notes })
       });
@@ -133,13 +131,9 @@ export function RequestDetailsModal({
     if (!request) return;
     
     try {
-      const csrfToken = await getCsrfToken();
-      const response = await fetch(`/api/admin/requests/${request.id}`, {
+      const response = await adminCsrfFetch(`/api/admin/requests/${request.id}`, {
         method: 'DELETE',
         credentials: 'include',
-        headers: {
-          'x-csrf-token': csrfToken,
-        }
       });
 
       if (response.ok) {
@@ -340,13 +334,11 @@ export function RequestDetailsModal({
                   // Автосохранение статуса
                   if (!request) return;
                   try {
-                    const csrfToken = await getCsrfToken();
-                    const response = await fetch(`/api/admin/requests/${request.id}`, {
+                    const response = await adminCsrfFetch(`/api/admin/requests/${request.id}`, {
                       method: 'PATCH',
                       credentials: 'include',
                       headers: {
                         'Content-Type': 'application/json',
-                        'x-csrf-token': csrfToken,
                       },
                       body: JSON.stringify({ status: newStatus })
                     });
@@ -379,13 +371,11 @@ export function RequestDetailsModal({
                   // Автосохранение приоритета
                   if (!request) return;
                   try {
-                    const csrfToken = await getCsrfToken();
-                    const response = await fetch(`/api/admin/requests/${request.id}`, {
+                    const response = await adminCsrfFetch(`/api/admin/requests/${request.id}`, {
                       method: 'PATCH',
                       credentials: 'include',
                       headers: {
                         'Content-Type': 'application/json',
-                        'x-csrf-token': csrfToken,
                       },
                       body: JSON.stringify({ priority: newPriority })
                     });

@@ -11,6 +11,7 @@ import { Loader2, Plus, X, Sparkles } from 'lucide-react';
 import { FileUpload } from '@/components/admin/FileUpload';
 import { MultiImageUpload } from '@/components/admin/MultiImageUpload';
 import { getCsrfToken, refreshCsrfToken } from '@/lib/csrf-client';
+import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 
 interface NewsFormProps {
   initialData?: any;
@@ -101,11 +102,10 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
     
     setIsImproving(true);
     try {
-      const csrfToken = await getCsrfToken();
-      const response = await fetch('/api/admin/ai/improve', {
+      const response = await adminCsrfFetch('/api/admin/ai/improve', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: formData.fullDescription })
       });
 
@@ -188,7 +188,7 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
       const result = await response.json();
       console.log('[NewsForm] Новость успешно сохранена:', result.id);
       
-      router.push('/admin/news');
+      router.push('/news');
       router.refresh();
     } catch (error: any) {
       console.error('Error saving news:', error);

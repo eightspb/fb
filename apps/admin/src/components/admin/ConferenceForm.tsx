@@ -349,7 +349,7 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
         throw new Error(errorData.error || 'Failed to save');
       }
 
-      router.push('/admin/conferences');
+      router.push('/conferences');
       router.refresh();
     } catch (error: any) {
       console.error('Error saving conference:', error);

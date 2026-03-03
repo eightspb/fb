@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, useMemo, memo, useRef } from 'react';
+import { useEffect, useState, useCallback, memo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 // Используем простой HTML select вместо Radix UI для упрощения
 // import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertCircle, Trash2, Download, RefreshCw, Filter } from 'lucide-react';
+import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 // Форматирование даты - компактный формат
 const formatDate = (date: string | Date) => {
   const d = typeof date === 'string' ? new Date(date) : date;
@@ -73,7 +73,7 @@ export default function AdminLogsPage() {
   const eventSourceRef = useRef<EventSource | null>(null);
 
   // Получение логов через API
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       setError(null);
       const params = new URLSearchParams();
@@ -98,7 +98,7 @@ export default function AdminLogsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [contextFilter, levelFilter]);
 
   // Подключение к SSE потоку
   useEffect(() => {
@@ -154,7 +154,7 @@ export default function AdminLogsPage() {
   // Загрузка логов при монтировании и изменении фильтров
   useEffect(() => {
     fetchLogs();
-  }, [levelFilter, contextFilter]);
+  }, [fetchLogs]);
 
   // Убрана автопрокрутка - новые логи теперь отображаются сверху
 
@@ -163,7 +163,7 @@ export default function AdminLogsPage() {
     if (!confirm('Удалить логи старше 30 дней?')) return;
 
     try {
-      const response = await fetch('/api/admin/logs?days=30', {
+      const response = await adminCsrfFetch('/api/admin/logs?days=30', {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -190,20 +190,6 @@ export default function AdminLogsPage() {
     link.download = `logs-${dateStr}.json`;
     link.click();
     URL.revokeObjectURL(url);
-  };
-
-  // Получение цвета для уровня лога
-  const getLevelColor = (level: string) => {
-    switch (level) {
-      case 'error':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'warn':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'debug':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      default:
-        return 'bg-green-100 text-green-800 border-green-200';
-    }
   };
 
   // Получение уникальных контекстов из логов

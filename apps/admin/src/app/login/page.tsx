@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, Lock } from 'lucide-react';
-import { getCsrfToken } from '@/lib/csrf-client';
+import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 import { SimpleCaptcha } from '@/components/SimpleCaptcha';
 
 export default function LoginPage() {
@@ -30,13 +30,9 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const csrfToken = await getCsrfToken();
-      const response = await fetch('/api/admin/auth', {
+      const response = await adminCsrfFetch('/api/admin/auth', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-csrf-token': csrfToken,
-        },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ password }),
       });
@@ -47,7 +43,7 @@ export default function LoginPage() {
         throw new Error(data.error || 'Ошибка входа');
       }
 
-      router.push('/admin');
+      router.push('/');
       router.refresh();
     } catch (err: unknown) {
       console.error('Login error:', err);

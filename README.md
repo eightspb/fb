@@ -25,7 +25,9 @@ JWT_SECRET=your-super-secret-jwt-key-min-32-chars
 
 ```bash
 bun run dev
+bun run dev:admin
 bun run build
+bun run build:admin
 bun run lint
 bun run test:ci
 bun run docker:up
@@ -37,6 +39,24 @@ bun run direct:bidder
 
 ```powershell
 .\scripts\deploy-from-github.ps1 -AppOnly
+```
+
+## Multi-zone деплой
+
+- `site`: публичный сайт + весь backend/API (`/api/*`, включая `/api/admin/*`)
+- `admin`: отдельное приложение UI (`/admin/*`)
+
+Команды:
+
+```bash
+# Только admin
+bun run docker:prod:admin
+
+# Только site
+bun run docker:prod:site
+
+# Полный деплой
+bun run docker:prod:full
 ```
 
 ## Документация

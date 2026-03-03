@@ -251,7 +251,7 @@ export class YandexDirectApiClient {
   }
 
   public async createCampaign(input: CreateCampaignInput): Promise<string> {
-    const campaignPayload = ensureObject(input.campaignPayload);
+    const campaignPayload = withDefaultCampaignFields(sanitizeRecord(ensureObject(input.campaignPayload)));
     const normalizedMinusKeywords = normalizeKeywordList(input.minusKeywords ?? []);
 
     const campaign = {
@@ -278,7 +278,7 @@ export class YandexDirectApiClient {
   }
 
   public async createAdGroup(input: CreateAdGroupInput): Promise<string> {
-    const adGroupPayload = ensureObject(input.adGroupPayload);
+    const adGroupPayload = sanitizeRecord(ensureObject(input.adGroupPayload));
     const body = {
       method: 'add',
       params: {
@@ -357,13 +357,19 @@ export class YandexDirectApiClient {
       body: JSON.stringify(body),
     });
 
-    const json = (await response.json()) as YandexDirectApiSuccessResponse<T> | YandexDirectApiErrorResponse;
+    const rawResponse = await response.text();
+    const json = safeJsonParse(rawResponse) as YandexDirectApiSuccessResponse<T> | YandexDirectApiErrorResponse | null;
 
-    if (!response.ok || 'error' in json) {
-      if ('error' in json) {
+    if (!response.ok || (json !== null && 'error' in json)) {
+      if (json !== null && 'error' in json) {
         throw new YandexDirectApiError(json.error);
       }
-      throw new Error(`Yandex Direct API request failed with status ${response.status}`);
+      const truncated = rawResponse.slice(0, 300);
+      throw new Error(`Yandex Direct API request failed with status ${response.status}${truncated ? `: ${truncated}` : ''}`);
+    }
+
+    if (json === null) {
+      throw new Error('Yandex Direct API returned invalid JSON');
     }
 
     return json.result;
@@ -440,6 +446,65 @@ function ensureObject(value: Record<string, unknown> | undefined): Record<string
     return {};
   }
   return value;
+}
+
+function sanitizeRecord(value: Record<string, unknown>): Record<string, unknown> {
+  const sanitized = sanitizeValue(value);
+  if (!sanitized || typeof sanitized !== 'object' || Array.isArray(sanitized)) {
+    return {};
+  }
+  return sanitized as Record<string, unknown>;
+}
+
+function sanitizeValue(value: unknown): unknown {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => sanitizeValue(item))
+      .filter((item) => item !== undefined);
+  }
+
+  if (typeof value === 'object') {
+    const source = value as Record<string, unknown>;
+    const result: Record<string, unknown> = {};
+    for (const [key, nestedValue] of Object.entries(source)) {
+      const sanitizedNested = sanitizeValue(nestedValue);
+      if (sanitizedNested !== undefined) {
+        result[key] = sanitizedNested;
+      }
+    }
+    return result;
+  }
+
+  return value;
+}
+
+function withDefaultCampaignFields(payload: Record<string, unknown>): Record<string, unknown> {
+  const normalized = { ...payload };
+  const startDate = normalized.StartDate;
+  if (typeof startDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(startDate.trim())) {
+    normalized.StartDate = getTodayDate();
+  }
+  return normalized;
+}
+
+function getTodayDate(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function safeJsonParse(value: string): unknown | null {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
 }
 
 function extractAddedEntityId(response: YandexDirectAddResult, entityLabel: string): string {

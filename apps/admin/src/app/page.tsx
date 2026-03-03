@@ -11,7 +11,7 @@ export default function AdminDashboard() {
       
       {/* Быстрые ссылки */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Link href="/admin/requests" className="block">
+        <Link href="/requests" className="block">
           <Card className="hover:shadow-lg transition-all cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Заявки</CardTitle>
@@ -26,7 +26,7 @@ export default function AdminDashboard() {
           </Card>
         </Link>
 
-        <Link href="/admin/news" className="block">
+        <Link href="/news" className="block">
           <Card className="hover:shadow-lg transition-all cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Новости</CardTitle>
@@ -41,7 +41,7 @@ export default function AdminDashboard() {
           </Card>
         </Link>
 
-        <Link href="/admin/conferences" className="block">
+        <Link href="/conferences" className="block">
           <Card className="hover:shadow-lg transition-all cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Мероприятия</CardTitle>

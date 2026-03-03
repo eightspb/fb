@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Save, Loader2, Eye, Bell } from 'lucide-react';
 import type { SiteBanner } from '@/lib/types/banner';
+import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 
 export default function BannerPage() {
   const [banner, setBanner] = useState<SiteBanner | null>(null);
@@ -63,7 +64,7 @@ export default function BannerPage() {
 
     setSaving(true);
     try {
-      const response = await fetch('/api/admin/banner', {
+      const response = await adminCsrfFetch('/api/admin/banner', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

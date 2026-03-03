@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { LayoutDashboard, FileText, Calendar, LogOut, Menu, Inbox, Settings, Terminal, Bell, Crosshair } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { getCsrfToken } from '@/lib/csrf-client';
+import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 
 export default function AdminLayout({
   children,
@@ -16,6 +16,10 @@ export default function AdminLayout({
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
+  const normalizedPath = pathname.startsWith('/admin')
+    ? pathname.slice('/admin'.length) || '/'
+    : pathname;
+  const isLoginPath = normalizedPath === '/login';
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [newRequestsCount, setNewRequestsCount] = useState(0);
 
@@ -36,7 +40,7 @@ export default function AdminLayout({
   useEffect(() => {
     const checkAuth = async () => {
       // Skip auth check on login page
-      if (pathname === '/admin/login') {
+      if (isLoginPath) {
         setLoading(false);
         return;
       }
@@ -57,18 +61,18 @@ export default function AdminLayout({
           }
         } else {
           localStorage.removeItem('sb-admin-bypass');
-          router.replace('/admin/login');
+          router.replace('/login');
         }
       } catch (error) {
         console.error('Auth check failed:', error);
-        router.replace('/admin/login');
+        router.replace('/login');
       } finally {
         setLoading(false);
       }
     };
 
     checkAuth();
-  }, [pathname, router, fetchRequestsCount]);
+  }, [isLoginPath, router, fetchRequestsCount]);
 
   // Периодическое обновление счётчика заявок (каждые 60 сек)
   useEffect(() => {
@@ -80,20 +84,16 @@ export default function AdminLayout({
 
   const handleLogout = async () => {
     try {
-      const csrfToken = await getCsrfToken();
-      await fetch('/api/admin/auth', {
+      await adminCsrfFetch('/api/admin/auth', {
         method: 'DELETE',
         credentials: 'include',
-        headers: {
-          'x-csrf-token': csrfToken,
-        },
       });
       // Clear bypass flag on logout
       localStorage.removeItem('sb-admin-bypass');
     } catch (error) {
       console.error('Logout error:', error);
     }
-    router.replace('/admin/login');
+    router.replace('/login');
     setIsAuthenticated(false);
   };
 
@@ -102,7 +102,7 @@ export default function AdminLayout({
   }
 
   // If on login page, just render children
-  if (pathname === '/admin/login') {
+  if (isLoginPath) {
     return <>{children}</>;
   }
 
@@ -112,14 +112,14 @@ export default function AdminLayout({
   }
 
   const navItems = [
-    { href: '/admin', label: 'Главная', icon: LayoutDashboard, badge: 0 },
-    { href: '/admin/requests', label: 'Заявки', icon: Inbox, badge: newRequestsCount },
-    { href: '/admin/news', label: 'Новости', icon: FileText, badge: 0 },
-    { href: '/admin/conferences', label: 'Мероприятия', icon: Calendar, badge: 0 },
-    { href: '/admin/banner', label: 'Баннер', icon: Bell, badge: 0 },
-    { href: '/admin/direct', label: 'Автоброкер', icon: Crosshair, badge: 0 },
-    { href: '/admin/logs', label: 'Логи', icon: Terminal, badge: 0 },
-    { href: '/admin/settings', label: 'Настройки', icon: Settings, badge: 0 },
+    { href: '/', label: 'Главная', icon: LayoutDashboard, badge: 0 },
+    { href: '/requests', label: 'Заявки', icon: Inbox, badge: newRequestsCount },
+    { href: '/news', label: 'Новости', icon: FileText, badge: 0 },
+    { href: '/conferences', label: 'Мероприятия', icon: Calendar, badge: 0 },
+    { href: '/banner', label: 'Баннер', icon: Bell, badge: 0 },
+    { href: '/direct', label: 'Автоброкер', icon: Crosshair, badge: 0 },
+    { href: '/logs', label: 'Логи', icon: Terminal, badge: 0 },
+    { href: '/settings', label: 'Настройки', icon: Settings, badge: 0 },
   ];
 
   return (
@@ -143,7 +143,7 @@ export default function AdminLayout({
                   key={item.href}
                   href={item.href}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    pathname === item.href
+                    normalizedPath === item.href
                       ? 'bg-slate-900 text-white'
                       : 'text-slate-600 hover:bg-slate-100'
                   }`}
@@ -152,7 +152,7 @@ export default function AdminLayout({
                   <span className="flex-1">{item.label}</span>
                   {item.badge > 0 && (
                     <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                      pathname === item.href 
+                      normalizedPath === item.href 
                         ? 'bg-white text-slate-900' 
                         : 'bg-blue-100 text-blue-700'
                     }`}>
@@ -181,7 +181,7 @@ export default function AdminLayout({
         </div>
         <nav className="flex-1 p-4 space-y-2">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
+            const isActive = normalizedPath === item.href || (item.href !== '/' && normalizedPath.startsWith(item.href));
             return (
               <Link
                 key={item.href}

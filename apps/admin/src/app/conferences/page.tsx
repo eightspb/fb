@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Trash2, CheckCircle, XCircle, Users, Calendar, Image as ImageIcon, Eye, Link2 } from 'lucide-react';
 import { getCsrfToken } from '@/lib/csrf-client';
+import { toPublicUrl } from '@/lib/public-url';
 
 interface Speaker {
   id: string;
@@ -120,7 +121,7 @@ export default function AdminConferencesList() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-slate-900">Мероприятия</h1>
         <Button asChild>
-          <Link href="/admin/conferences/create">
+          <Link href="/conferences/create">
             <Plus className="w-4 h-4 mr-2" />
             Добавить мероприятие
           </Link>
@@ -212,9 +213,9 @@ export default function AdminConferencesList() {
                     asChild
                     title={`Посмотреть на сайте${item.slug ? ` (/${item.slug})` : ''}`}
                   >
-                    <Link href={`/conferences/${item.slug || item.id}`} target="_blank">
+                    <a href={toPublicUrl(`/conferences/${item.slug || item.id}`)} target="_blank" rel="noreferrer">
                       <Eye className="w-4 h-4 text-slate-500" />
-                    </Link>
+                    </a>
                   </Button>
                   
                   <div className="flex gap-1">
@@ -231,7 +232,7 @@ export default function AdminConferencesList() {
                       )}
                     </Button>
                     <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/admin/conferences/${item.id}`}>
+                      <Link href={`/conferences/${item.id}`}>
                         <Pencil className="w-4 h-4" />
                       </Link>
                     </Button>

@@ -25,6 +25,10 @@ interface UpsertCampaignBody {
   is_active?: boolean;
 }
 
+interface DeleteCampaignBody {
+  campaign_id?: string;
+}
+
 export async function GET(request: NextRequest) {
   const { isAuthenticated } = await checkApiAuth(request);
   if (!isAuthenticated) {
@@ -102,6 +106,72 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       { error: 'Ошибка сохранения кампании', details: extractErrorMessage(error) },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const { isAuthenticated } = await checkApiAuth(request);
+  if (!isAuthenticated) {
+    return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
+  }
+
+  try {
+    const body = (await request.json()) as DeleteCampaignBody;
+    const campaignId = body.campaign_id?.trim();
+    if (!campaignId) {
+      return NextResponse.json(
+        { error: 'Поле campaign_id обязательно' },
+        { status: 400 }
+      );
+    }
+
+    const dbClient = await pool.connect();
+    try {
+      await dbClient.query('BEGIN');
+
+      const entitiesMapCheck = await dbClient.query<{ exists: boolean }>(
+        `SELECT to_regclass('public.direct_entities_map') IS NOT NULL AS exists`
+      );
+
+      if (entitiesMapCheck.rows[0]?.exists) {
+        await dbClient.query(
+          `DELETE FROM direct_entities_map
+           WHERE campaign_id = $1`,
+          [campaignId]
+        );
+      }
+
+      const result = await dbClient.query<{ campaign_id: string }>(
+        `DELETE FROM direct_campaigns
+         WHERE campaign_id = $1
+         RETURNING campaign_id`,
+        [campaignId]
+      );
+
+      await dbClient.query('COMMIT');
+
+      if (result.rows.length === 0) {
+        return NextResponse.json(
+          { error: 'Кампания не найдена' },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        deleted_campaign_id: result.rows[0].campaign_id,
+      });
+    } catch (error) {
+      await dbClient.query('ROLLBACK');
+      throw error;
+    } finally {
+      dbClient.release();
+    }
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Ошибка удаления кампании', details: extractErrorMessage(error) },
       { status: 500 }
     );
   }

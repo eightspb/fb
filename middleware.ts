@@ -4,7 +4,6 @@ import { Redis } from '@upstash/redis';
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@/lib/csrf';
 
 const hasUpstashConfig = !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
-const ADMIN_SESSION_COOKIE = 'admin-session';
 
 const ratelimit = hasUpstashConfig
   ? new Ratelimit({
@@ -73,15 +72,6 @@ export async function middleware(request: NextRequest) {
     console.log(`[HTTP] ${request.method} ${pathname} | IP: ${ip} | UA: ${userAgent.substring(0, 50)}`);
   }
 
-  // Redirect unauthenticated users from admin pages
-  if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
-    const adminSession = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
-    if (!adminSession) {
-      console.log('[Auth] Попытка доступа к админ панели без авторизации:', pathname, 'IP:', ip);
-      return NextResponse.redirect(new URL('/admin/login', request.url));
-    }
-  }
-  
   // Rate limiting (пропускаем для трекинга аналитики)
   if (ratelimit && !pathname.startsWith('/api/analytics')) {
     const identifier = getClientIdentifier(request);
@@ -134,5 +124,5 @@ function getClientIdentifier(request: NextRequest): string {
 }
 
 export const config = {
-  matcher: ['/api/:path*', '/admin', '/admin/:path*'],
+  matcher: ['/api/:path*'],
 };
