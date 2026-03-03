@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -22,14 +23,22 @@ interface RequestCPModalProps {
   title?: string
   description?: string
   formType?: 'cp' | 'training'
+  autoOpenQueryKey?: string
+  autoOpenQueryValue?: string
+  autoOpenHash?: string
 }
 
 export function RequestCPModal({ 
   children, 
   title = "Запрос коммерческого предложения", 
   description = "Заполните форму, и мы отправим вам коммерческое предложение на указанную почту.",
-  formType = 'cp'
+  formType = 'cp',
+  autoOpenQueryKey,
+  autoOpenQueryValue = "1",
+  autoOpenHash,
 }: RequestCPModalProps) {
+  const searchParams = useSearchParams()
+  const hasAutoOpenedRef = useRef(false)
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
@@ -117,6 +126,22 @@ export function RequestCPModal({
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
+
+  useEffect(() => {
+    if (hasAutoOpenedRef.current) return
+
+    const matchesQuery = autoOpenQueryKey
+      ? searchParams.get(autoOpenQueryKey) === autoOpenQueryValue
+      : false
+    const matchesHash = autoOpenHash
+      ? window.location.hash === `#${autoOpenHash}`
+      : false
+
+    if (matchesQuery || matchesHash) {
+      hasAutoOpenedRef.current = true
+      setOpen(true)
+    }
+  }, [autoOpenHash, autoOpenQueryKey, autoOpenQueryValue, searchParams])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

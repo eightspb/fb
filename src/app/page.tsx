@@ -126,7 +126,7 @@ export default function Home() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
-            <RequestCPModal>
+            <RequestCPModal autoOpenQueryKey="modal" autoOpenQueryValue="cp" autoOpenHash="get-cp">
               <Button size="lg" className="rounded-full bg-slate-900 hover:bg-slate-800 text-white px-8 h-14 text-lg shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all duration-300">
                 Узнать цену / КП
                 <ArrowRight className="ml-2 h-5 w-5" />
