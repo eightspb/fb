@@ -113,7 +113,27 @@ function Invoke-Ssh {
     $lastExitCode = 0
 
     for ($attempt = 1; $attempt -le $SshRetryCount; $attempt++) {
-        $lastOutput = & $SshPath @SshCommonArgs @Args 2>&1
+        $previousErrorAction = $ErrorActionPreference
+        $hadNativeErrorPreference = Test-Path variable:PSNativeCommandUseErrorActionPreference
+        $previousNativeErrorPreference = $false
+        if ($hadNativeErrorPreference) {
+            $previousNativeErrorPreference = $PSNativeCommandUseErrorActionPreference
+        }
+        try {
+            # Важно: git/ssh часто пишут служебные сообщения в stderr даже при успешном выполнении.
+            # Обрабатываем успех/ошибку только по exit code native-команды.
+            $ErrorActionPreference = "Continue"
+            if ($hadNativeErrorPreference) {
+                # PowerShell 7+: не превращать stderr native-команд в ErrorRecord (NativeCommandError).
+                $PSNativeCommandUseErrorActionPreference = $false
+            }
+            $lastOutput = & $SshPath @SshCommonArgs @Args 2>&1
+        } finally {
+            $ErrorActionPreference = $previousErrorAction
+            if ($hadNativeErrorPreference) {
+                $PSNativeCommandUseErrorActionPreference = $previousNativeErrorPreference
+            }
+        }
         $lastExitCode = $LASTEXITCODE
         $global:LASTEXITCODE = $lastExitCode
 
@@ -134,7 +154,13 @@ function Invoke-Ssh {
 function Test-Connection {
     Write-Step "Проверка подключения к серверу"
     
-    $null = Invoke-Ssh -o ConnectTimeout=10 -o BatchMode=yes $Server "echo OK" 2>&1
+    $connectionArgs = @(
+        "-o", "ConnectTimeout=10",
+        "-o", "BatchMode=yes",
+        $Server,
+        "echo OK"
+    )
+    $null = Invoke-Ssh @connectionArgs
     if ($LASTEXITCODE -ne 0) {
         Write-Err "Не удалось подключиться к серверу $Server"
         Write-Err "Убедитесь, что:"
@@ -314,15 +340,22 @@ function Restart-Containers {
         
         Write-Info "Останавливаем контейнер приложения..."
         Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile stop app"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Err "Ошибка при остановке контейнера приложения"
+            exit 1
+        }
         
         Write-Info "Пересобираем контейнер приложения..."
         Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile build --no-cache app"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Err "Ошибка при сборке контейнера приложения"
+            exit 1
+        }
         
         Write-Info "Запускаем контейнер приложения..."
         Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile up -d --no-deps app"
-        
         if ($LASTEXITCODE -ne 0) {
-            Write-Err "Ошибка при перезапуске контейнера приложения"
+            Write-Err "Ошибка при запуске контейнера приложения"
             exit 1
         }
         
@@ -335,6 +368,10 @@ function Restart-Containers {
         
         Write-Info "Останавливаем контейнеры..."
         Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile down"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Err "Ошибка при остановке контейнеров"
+            exit 1
+        }
         
         Write-Info "Собираем и запускаем контейнеры..."
         Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile up -d --build"

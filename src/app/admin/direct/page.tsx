@@ -18,6 +18,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { getCsrfToken, refreshCsrfToken } from '@/lib/csrf-client';
 
 interface DirectCampaign {
   id: string;
@@ -110,11 +111,41 @@ export default function DirectAdminPage() {
   const [provisionCampaignName, setProvisionCampaignName] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    void refreshData();
-  }, [refreshData]);
-
   const activeCount = useMemo(() => campaigns.filter((campaign) => campaign.is_active).length, [campaigns]);
+
+  const postWithCsrf = useCallback(
+    async (url: string, body?: unknown): Promise<Response> => {
+      let csrfToken = await getCsrfToken();
+      let response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken,
+        },
+        credentials: 'include',
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+
+      if (response.status === 403) {
+        const errorBody = (await response.json().catch(() => ({}))) as { error?: string };
+        if ((errorBody.error ?? '').toLowerCase().includes('csrf')) {
+          csrfToken = await refreshCsrfToken();
+          response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-csrf-token': csrfToken,
+            },
+            credentials: 'include',
+            body: body === undefined ? undefined : JSON.stringify(body),
+          });
+        }
+      }
+
+      return response;
+    },
+    []
+  );
 
   const refreshData = useCallback(async (): Promise<void> => {
     setIsRefreshing(true);
@@ -157,6 +188,10 @@ export default function DirectAdminPage() {
     }
   }, []);
 
+  useEffect(() => {
+    void refreshData();
+  }, [refreshData]);
+
   async function saveCampaign(payload: CampaignFormState): Promise<boolean> {
     setIsSaving(true);
     setError(null);
@@ -167,18 +202,11 @@ export default function DirectAdminPage() {
         throw new Error('Макс. ставка должна быть числом >= 0');
       }
 
-      const response = await fetch('/api/admin/direct', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          campaign_id: payload.campaign_id.trim(),
-          name: payload.name.trim(),
-          max_bid: maxBidNumber,
-          is_active: payload.is_active,
-        }),
+      const response = await postWithCsrf('/api/admin/direct', {
+        campaign_id: payload.campaign_id.trim(),
+        name: payload.name.trim(),
+        max_bid: maxBidNumber,
+        is_active: payload.is_active,
       });
 
       const data = (await response.json()) as { error?: string };
@@ -224,10 +252,7 @@ export default function DirectAdminPage() {
     setError(null);
 
     try {
-      const response = await fetch('/api/admin/direct/sync', {
-        method: 'POST',
-        credentials: 'include',
-      });
+      const response = await postWithCsrf('/api/admin/direct/sync');
 
       const data = (await response.json()) as { error?: string; details?: string };
       if (!response.ok) {
@@ -260,14 +285,7 @@ export default function DirectAdminPage() {
         ad_group_payload: parseJsonField(templateFormState.ad_group_payload_text, 'ad_group_payload'),
       };
 
-      const response = await fetch('/api/admin/direct/templates', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      });
+      const response = await postWithCsrf('/api/admin/direct/templates', payload);
 
       const data = (await response.json()) as { error?: string; details?: string; template?: DirectTemplate };
       if (!response.ok) {
@@ -299,16 +317,9 @@ export default function DirectAdminPage() {
     setError(null);
 
     try {
-      const response = await fetch('/api/admin/direct/provision', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          template_id: selectedTemplateId,
-          campaign_name: provisionCampaignName.trim() || undefined,
-        }),
+      const response = await postWithCsrf('/api/admin/direct/provision', {
+        template_id: selectedTemplateId,
+        campaign_name: provisionCampaignName.trim() || undefined,
       });
 
       const data = (await response.json()) as {

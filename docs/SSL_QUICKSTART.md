@@ -69,4 +69,6 @@ docker compose -f docker-compose.production.yml up -d
 
 ## Подробная документация
 
-См. [SSL_SETUP.md](SSL_SETUP.md) для детальной информации.
+Детальные шаги и диагностика описаны в:
+- [AUTOMATION_GUIDE.md](AUTOMATION_GUIDE.md)
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md)

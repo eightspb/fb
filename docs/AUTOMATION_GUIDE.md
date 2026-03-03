@@ -277,7 +277,7 @@ docker-compose ps
 - [TELEGRAM_FIX_QUICK.md](TELEGRAM_FIX_QUICK.md) - Быстрое решение проблем Telegram
 - [DEPLOY_GUIDE.md](DEPLOY_GUIDE.md) - Полное руководство по деплою
 - [SSL_QUICKSTART.md](SSL_QUICKSTART.md) - Быстрая настройка SSL
-- [scripts/README.md](scripts/README.md) - Описание всех скриптов
+- [scripts/README.md](../scripts/README.md) - Описание всех скриптов
 
 ## 🆘 Помощь
 

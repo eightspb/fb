@@ -468,6 +468,6 @@ cat backups/db_backup_YYYYMMDD_HHMMSS.sql | docker compose -f docker-compose.pro
 
 ## 📚 Дополнительная документация
 
-- [README.md](./README.md) - общая информация
+- [README.md](../README.md) - общая информация
 - [DEVELOPMENT.md](./DEVELOPMENT.md) - руководство разработчика
 - [DEPLOY_GUIDE.md](./DEPLOY_GUIDE.md) - инструкции по деплою
