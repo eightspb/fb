@@ -111,13 +111,13 @@ export default function Home() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
             </span>
-            <span className="text-sm text-slate-600 font-medium tracking-wide uppercase">Инновации в маммологии</span>
+            <span className="text-sm text-slate-600 font-medium tracking-wide uppercase">Золотой стандарт в маммологии</span>
           </div>
 
           <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-slate-900 mb-6 max-w-5xl animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
-            Удаление фиброаденомы методом ВАБ: <br className="hidden md:block" />
+            Оборудование для удаления образований молочных желёз<br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-blue-600">
-              Система Xishan DK-B-MS
+            методом ВАБ: Система Xishan DK-B-MS
             </span>
           </h1>
 

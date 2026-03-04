@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Facebook, Twitter, Linkedin, Mail, Phone, Globe, MapPin } from "lucide-react";
+import { Mail, Phone, Globe, MapPin, Send } from "lucide-react";
 
 export function Footer() {
   return (
@@ -90,19 +90,14 @@ export function Footer() {
           <div>
             <h4 className="font-semibold text-slate-900 mb-6">Мы в соцсетях</h4>
             <div className="flex gap-4">
-              {[
-                { icon: Facebook, href: "#" },
-                { icon: Twitter, href: "#" },
-                { icon: Linkedin, href: "#" },
-              ].map((social, i) => (
-                <a
-                  key={i}
-                  href={social.href}
-                  className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-teal-500 hover:border-teal-200 hover:shadow-md transition-all duration-300"
-                >
-                  <social.icon className="w-5 h-5" />
-                </a>
-              ))}
+              <a
+                href="https://t.me/OdintsovLectures"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-teal-500 hover:border-teal-200 hover:shadow-md transition-all duration-300"
+              >
+                <Send className="w-5 h-5" />
+              </a>
             </div>
           </div>
         </div>
