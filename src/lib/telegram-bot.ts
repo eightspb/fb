@@ -57,6 +57,8 @@ interface PendingNews {
   };
   // Флаг ожидания редактирования
   waitingForEdit?: 'title' | 'short' | 'full' | null;
+  // Флаг защиты от повторных вызовов (Telegram повторяет webhook при 500)
+  isProcessing?: boolean;
 }
 
 // Хранилище незавершенных новостей (в продакшене лучше использовать Redis или БД)
@@ -451,12 +453,18 @@ export async function finishNewsCreation(chatId: number): Promise<void> {
     return;
   }
 
+  if (pending.isProcessing) {
+    console.log('[BOT] ⚠️ finishNewsCreation уже выполняется, игнорируем повторный вызов');
+    return;
+  }
+
   if (!pending.text && pending.images.length === 0 && pending.videos.length === 0) {
     console.log('[BOT] ⚠️ Новость пуста');
     await bot.sendMessage(chatId, '❌ Новость пуста. Добавьте текст или медиафайлы.');
     return;
   }
 
+  pending.isProcessing = true;
   console.log(`[BOT] 📊 Данные новости: текст=${!!pending.text}, фото=${pending.images.length}, видео=${pending.videos.length}`);
 
   try {
@@ -628,6 +636,13 @@ export async function publishNewsFromPreview(chatId: number): Promise<void> {
     await bot.sendMessage(chatId, '❌ Нет данных для публикации.');
     return;
   }
+
+  if (pending.isProcessing) {
+    console.log('[BOT] ⚠️ publishNewsFromPreview уже выполняется, игнорируем повторный вызов');
+    return;
+  }
+
+  pending.isProcessing = true;
 
   try {
     await bot.sendMessage(chatId, '⏳ Сохраняю новость...');
@@ -832,6 +847,9 @@ export async function publishNewsFromPreview(chatId: number): Promise<void> {
       console.log('[BOT] 🔌 Подключение к БД закрыто');
     }
   } catch (error) {
+    // Сбрасываем флаг обработки, чтобы пользователь мог повторить
+    const p = pendingNews.get(chatId);
+    if (p) p.isProcessing = false;
     console.error('[BOT] ❌ Ошибка при создании новости:', error);
     if (error instanceof Error) {
       console.error('[BOT] Сообщение об ошибке:', error.message);
