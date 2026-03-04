@@ -89,15 +89,22 @@ if ! command -v jq &> /dev/null; then
 fi
 
 # Функция для парсинга JSON (работает с jq и без него)
+# key должен быть jq-фильтром (например ".ok" или ".result.url")
+# или простым именем поля (например "ok" или "url") для fallback
 parse_json() {
     local json="$1"
     local key="$2"
-    
+    # Добавляем точку если ключ не начинается с точки (для совместимости)
+    local jq_key="$key"
+    [[ "$key" != .* ]] && jq_key=".$key"
+
     if command -v jq &> /dev/null; then
-        echo "$json" | jq -r "$key" 2>/dev/null || echo ""
+        echo "$json" | jq -r "$jq_key" 2>/dev/null || echo ""
     else
         # Простой парсинг без jq (работает для простых случаев)
-        echo "$json" | grep -o "\"$key\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | head -1 | sed 's/.*"\([^"]*\)"/\1/'
+        # Убираем точку для grep-based парсинга
+        local grep_key="${key#.}"
+        echo "$json" | grep -o "\"$grep_key\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | head -1 | sed 's/.*"\([^"]*\)"/\1/'
     fi
 }
 
