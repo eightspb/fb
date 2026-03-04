@@ -137,7 +137,11 @@ export async function POST(request: NextRequest) {
       // Обработка кнопок сбора материалов и предпросмотра
       if (callbackData === 'finish_news') {
         console.log('[WEBHOOK] ✅ Завершение создания новости');
-        await bot.answerCallbackQuery(callbackQuery.id, { text: 'Генерирую новость...' });
+        try {
+          await bot.answerCallbackQuery(callbackQuery.id, { text: 'Генерирую новость...' });
+        } catch (e) {
+          console.warn('[WEBHOOK] ⚠️ answerCallbackQuery не удалось (query устарел), продолжаем:', (e as Error).message);
+        }
         await finishNewsCreation(chatId);
         return NextResponse.json({ ok: true });
       }
@@ -174,7 +178,11 @@ export async function POST(request: NextRequest) {
       // Обработка предпросмотра и редактирования
       if (callbackData === 'publish_news') {
         console.log('[WEBHOOK] 📰 Публикация новости');
-        await bot.answerCallbackQuery(callbackQuery.id, { text: 'Публикую...' });
+        try {
+          await bot.answerCallbackQuery(callbackQuery.id, { text: 'Публикую...' });
+        } catch (e) {
+          console.warn('[WEBHOOK] ⚠️ answerCallbackQuery не удалось (query устарел), продолжаем:', (e as Error).message);
+        }
         await publishNewsFromPreview(chatId);
         return NextResponse.json({ ok: true });
       }
@@ -214,7 +222,11 @@ export async function POST(request: NextRequest) {
 
       if (callbackData === 'regenerate_ai') {
         console.log('[WEBHOOK] 🔄 Перегенерация AI контента');
-        await bot.answerCallbackQuery(callbackQuery.id, { text: 'Перегенерирую...' });
+        try {
+          await bot.answerCallbackQuery(callbackQuery.id, { text: 'Перегенерирую...' });
+        } catch (e) {
+          console.warn('[WEBHOOK] ⚠️ answerCallbackQuery не удалось (query устарел), продолжаем:', (e as Error).message);
+        }
         await regenerateAIContent(chatId);
         return NextResponse.json({ ok: true });
       }
