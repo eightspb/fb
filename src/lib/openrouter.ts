@@ -452,7 +452,7 @@ ${contextInfo.length > 0 ? `Дополнительная информация:\n
 
 /**
 
- * Транскрибирует аудио в текст с помощью Groq Whisper API
+ * Транскрибирует аудио в текст через OpenRouter (Gemini Flash с поддержкой аудио)
 
  */
 
@@ -464,21 +464,21 @@ export async function transcribeAudioWithAI(
 
 ): Promise<string> {
 
-  console.log('[AI] 🎤 Начало транскрибации аудио через Groq Whisper');
+  console.log('[AI] 🎤 Начало транскрибации аудио через OpenRouter (Gemini Flash)');
 
   console.log(`[AI] 📊 Размер аудио: ${audioBuffer.length} байт, формат: ${format}`);
 
 
 
-  const apiKey = process.env.GROQ_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
 
 
 
   if (!apiKey || apiKey.trim().length === 0) {
 
-    console.error('[AI] ⚠️ GROQ_API_KEY не установлен или пустой');
+    console.error('[AI] ⚠️ OPENROUTER_API_KEY не установлен или пустой');
 
-    throw new Error('GROQ_API_KEY не установлен');
+    throw new Error('OPENROUTER_API_KEY не установлен');
 
   }
 
@@ -486,36 +486,65 @@ export async function transcribeAudioWithAI(
 
   try {
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const FormData = require('form-data');
+    const base64Audio = audioBuffer.toString('base64');
 
-    const form = new FormData();
-
-    form.append('file', audioBuffer, {
-
-      filename: `voice.${format}`,
-
-      contentType: format === 'ogg' ? 'audio/ogg' : `audio/${format}`,
-
-    });
-
-    form.append('model', 'whisper-large-v3');
-
-    form.append('language', 'ru');
-
-    form.append('response_format', 'text');
+    const mimeType = format === 'ogg' ? 'audio/ogg' : `audio/${format}`;
 
 
 
-    console.log('[AI] 📤 Отправка аудио на Groq Whisper...');
+    console.log('[AI] 📤 Отправка аудио на OpenRouter (Gemini Flash)...');
 
 
 
-    const response = await axios.post<string>(
+    const response = await axios.post<OpenRouterResponse>(
 
-      'https://api.groq.com/openai/v1/audio/transcriptions',
+      OPENROUTER_API_URL,
 
-      form,
+      {
+
+        model: 'google/gemini-2.5-flash',
+
+        messages: [
+
+          {
+
+            role: 'user',
+
+            content: [
+
+              {
+
+                type: 'text',
+
+                text: 'Распознай речь из этого аудио. Верни ТОЛЬКО распознанный текст, без комментариев, пояснений или форматирования.'
+
+              },
+
+              {
+
+                type: 'input_audio',
+
+                input_audio: {
+
+                  data: base64Audio,
+
+                  format: format
+
+                }
+
+              }
+
+            ]
+
+          }
+
+        ],
+
+        temperature: 0.1,
+
+        max_tokens: 2000,
+
+      },
 
       {
 
@@ -523,11 +552,13 @@ export async function transcribeAudioWithAI(
 
           'Authorization': `Bearer ${apiKey}`,
 
-          ...form.getHeaders(),
+          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+
+          'X-Title': 'Zenit News Bot',
+
+          'Content-Type': 'application/json',
 
         },
-
-        responseType: 'text',
 
       }
 
@@ -535,15 +566,15 @@ export async function transcribeAudioWithAI(
 
 
 
-    const transcription = typeof response.data === 'string' ? response.data : String(response.data);
+    const transcription = response.data?.choices?.[0]?.message?.content;
 
 
 
     if (!transcription || transcription.trim().length === 0) {
 
-      console.error('[AI] ⚠️ Пустой ответ от Groq');
+      console.error('[AI] ⚠️ Пустой ответ от API');
 
-      throw new Error('Пустой ответ от Groq Whisper');
+      throw new Error('Пустой ответ от OpenRouter');
 
     }
 
