@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: 'standalone', // Для Docker - создает оптимизированную standalone сборку
-  serverExternalPackages: ['jose'], // Include jose in standalone build
+  serverExternalPackages: ['jose', 'node-telegram-bot-api'], // Keep as external in standalone build
   
   // В Next.js 16+ instrumentation.ts работает автоматически
   
