@@ -396,6 +396,15 @@ function Restart-Containers {
         Write-Info "Ожидание запуска (10 сек)..."
         Start-Sleep -Seconds 10
 
+        # Перезапускаем nginx чтобы он подхватил новый IP контейнера
+        # (после пересборки контейнер может получить новый IP, nginx кешировал старый)
+        $nginxExists = Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile ps --status running 2>/dev/null | grep -q nginx && echo YES || echo NO"
+        if ($nginxExists -match "YES") {
+            Write-Info "Перезапускаем nginx (обновление DNS после пересборки контейнера)..."
+            Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile restart nginx"
+            Write-Success "nginx перезапущен"
+        }
+
         Write-Success "База данных продолжает работать без перезапуска"
     } else {
         # Полный деплой всех контейнеров
