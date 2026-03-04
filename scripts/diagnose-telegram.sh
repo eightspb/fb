@@ -6,11 +6,22 @@ echo ""
 echo "🔍 Диагностика Telegram бота..."
 echo ""
 
-# Загружаем переменные окружения
+# Загружаем переменные окружения (с поддержкой CRLF)
+load_env() {
+    local env_file="$1"
+    while IFS='=' read -r key value; do
+        key=$(echo "$key" | tr -d '\r')
+        value=$(echo "$value" | tr -d '\r')
+        [ -z "$key" ] && continue
+        [[ "$key" == \#* ]] && continue
+        export "$key=$value"
+    done < "$env_file"
+}
+
 if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs)
+    load_env .env
 elif [ -f .env.local ]; then
-    export $(grep -v '^#' .env.local | xargs)
+    load_env .env.local
 else
     echo "❌ .env файл не найден!"
     exit 1

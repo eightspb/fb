@@ -51,6 +51,12 @@ COPY --from=builder /app/.next/static ./.next/static
 # Копируем библиотеки для логирования (не включены в standalone)
 COPY --from=builder /app/src/lib ./src/lib
 
+# Копируем node-telegram-bot-api для server-with-logging.js (не включена в standalone)
+RUN mkdir -p ./node_modules
+COPY --from=builder /app/node_modules/node-telegram-bot-api ./node_modules/node-telegram-bot-api
+COPY --from=builder /app/node_modules/axios ./node_modules/axios
+COPY --from=builder /app/node_modules/form-data ./node_modules/form-data
+
 # Копируем wrapper для инициализации логирования
 COPY --from=builder /app/server-with-logging.js ./server-with-logging.js
 

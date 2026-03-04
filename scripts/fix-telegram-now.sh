@@ -105,12 +105,24 @@ parse_json() {
 # ЗАГРУЗКА ПЕРЕМЕННЫХ ОКРУЖЕНИЯ
 # ═══════════════════════════════════════════════════════════════════
 
-# Загружаем переменные окружения
+# Загружаем переменные окружения (с поддержкой CRLF)
+load_env() {
+    local env_file="$1"
+    while IFS='=' read -r key value; do
+        # Убираем \r (CRLF) и пустые строки/комментарии
+        key=$(echo "$key" | tr -d '\r')
+        value=$(echo "$value" | tr -d '\r')
+        [ -z "$key" ] && continue
+        [[ "$key" == \#* ]] && continue
+        export "$key=$value"
+    done < "$env_file"
+}
+
 if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs)
+    load_env .env
     echo "✅ Загружен .env"
 elif [ -f .env.local ]; then
-    export $(grep -v '^#' .env.local | xargs)
+    load_env .env.local
     echo "✅ Загружен .env.local"
 else
     echo "❌ .env файл не найден!"
