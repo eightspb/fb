@@ -94,6 +94,7 @@ export function LatestNewsSection() {
                       alt={item.title}
                       fill
                       className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      style={{ objectPosition: item.imageFocalPoint || 'center 30%' }}
                     />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-teal-100 to-blue-100 flex items-center justify-center">

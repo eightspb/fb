@@ -114,11 +114,11 @@ export default function Home() {
             <span className="text-sm text-slate-600 font-medium tracking-wide uppercase">Золотой стандарт в маммологии</span>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-slate-900 mb-6 max-w-5xl animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
-            Оборудование для удаления образований молочных желёз<br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-blue-600">
-            методом ВАБ: Система Xishan DK-B-MS
-            </span>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 mb-6 max-w-5xl animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
+            Оборудование для удаления <br />
+            образований молочных желёз<br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-blue-600">методом ВАБ: <br />
+            Система Xishan DK-B-MS</span>
           </h1>
 
           <p className="text-lg sm:text-xl text-slate-600 mb-10 leading-relaxed max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
