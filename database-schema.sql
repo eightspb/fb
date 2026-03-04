@@ -83,34 +83,13 @@ DROP POLICY IF EXISTS "Anyone can read conferences" ON conferences;
 CREATE POLICY "Anyone can read conferences" ON conferences
   FOR SELECT USING (true);
 
--- Политики для записи для аутентифицированных пользователей
-CREATE POLICY "Authenticated users can insert conferences" ON conferences
-  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+-- Политики для записи для пользователя postgres (используется в API)
+DROP POLICY IF EXISTS "Allow all for postgres on conferences" ON conferences;
+CREATE POLICY "Allow all for postgres on conferences" ON conferences
+  FOR ALL TO postgres USING (true) WITH CHECK (true);
 
-CREATE POLICY "Authenticated users can update conferences" ON conferences
-  FOR UPDATE USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Authenticated users can delete conferences" ON conferences
-  FOR DELETE USING (auth.role() = 'authenticated');
-
--- Также добавим политики для новостей, так как теперь у нас есть админ панель
-CREATE POLICY "Authenticated users can insert news" ON news
-  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-
-CREATE POLICY "Authenticated users can update news" ON news
-  FOR UPDATE USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Authenticated users can delete news" ON news
-  FOR DELETE USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Authenticated users can insert news_images" ON news_images
-  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-
-CREATE POLICY "Authenticated users can update news_images" ON news_images
-  FOR UPDATE USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Authenticated users can delete news_images" ON news_images
-  FOR DELETE USING (auth.role() = 'authenticated');
+-- Политики для news и news_images применяются через миграцию 010_remove_supabase_policies.sql
+-- (таблицы news и news_images объявляются позже в схеме)
 
 -- Индексы для новостей и связанных таблиц
 CREATE INDEX IF NOT EXISTS idx_news_year ON news(year);
