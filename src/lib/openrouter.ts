@@ -452,7 +452,7 @@ ${contextInfo.length > 0 ? `Дополнительная информация:\n
 
 /**
 
- * Транскрибирует аудио в текст с помощью GPT-4o через OpenRouter API
+ * Транскрибирует аудио в текст с помощью Groq Whisper API
 
  */
 
@@ -464,21 +464,21 @@ export async function transcribeAudioWithAI(
 
 ): Promise<string> {
 
-  console.log('[AI] 🎤 Начало транскрибации аудио через GPT-4o');
+  console.log('[AI] 🎤 Начало транскрибации аудио через Groq Whisper');
 
   console.log(`[AI] 📊 Размер аудио: ${audioBuffer.length} байт, формат: ${format}`);
 
 
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
 
 
 
   if (!apiKey || apiKey.trim().length === 0) {
 
-    console.error('[AI] ⚠️ OPENROUTER_API_KEY не установлен или пустой');
+    console.error('[AI] ⚠️ GROQ_API_KEY не установлен или пустой');
 
-    throw new Error('OPENROUTER_API_KEY не установлен');
+    throw new Error('GROQ_API_KEY не установлен');
 
   }
 
@@ -486,67 +486,36 @@ export async function transcribeAudioWithAI(
 
   try {
 
-    // Конвертируем аудио в base64
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const FormData = require('form-data');
 
-    const base64Audio = audioBuffer.toString('base64');
+    const form = new FormData();
+
+    form.append('file', audioBuffer, {
+
+      filename: `voice.${format}`,
+
+      contentType: format === 'ogg' ? 'audio/ogg' : `audio/${format}`,
+
+    });
+
+    form.append('model', 'whisper-large-v3');
+
+    form.append('language', 'ru');
+
+    form.append('response_format', 'text');
 
 
 
-    console.log('[AI] 📤 Отправка аудио на GPT-4o...');
+    console.log('[AI] 📤 Отправка аудио на Groq Whisper...');
 
 
 
-    const response = await axios.post<OpenRouterResponse>(
+    const response = await axios.post<string>(
 
-      OPENROUTER_API_URL,
+      'https://api.groq.com/openai/v1/audio/transcriptions',
 
-      {
-
-        model: 'openai/gpt-4o',  // GPT-4o поддерживает аудио вход
-
-        messages: [
-
-          {
-
-            role: 'system',
-
-            content: 'Ты - система распознавания речи. Распознай аудио и верни только текст на том языке, который услышишь. Никаких комментариев, только текст.'
-
-          },
-
-          {
-
-            role: 'user',
-
-            content: [
-
-              {
-
-                type: 'input_audio',
-
-                input_audio: {
-
-                  data: base64Audio,
-
-                  format: format === 'ogg' ? 'ogg' : format,
-
-                  sample_rate: 16000
-
-                }
-
-              }
-
-            ]
-
-          }
-
-        ],
-
-        temperature: 0.2,
-
-        max_tokens: 2000,
-
-      },
+      form,
 
       {
 
@@ -554,13 +523,11 @@ export async function transcribeAudioWithAI(
 
           'Authorization': `Bearer ${apiKey}`,
 
-          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-
-          'X-Title': 'Zenit News Bot',
-
-          'Content-Type': 'application/json',
+          ...form.getHeaders(),
 
         },
+
+        responseType: 'text',
 
       }
 
@@ -568,15 +535,15 @@ export async function transcribeAudioWithAI(
 
 
 
-    const transcription = response.data?.choices?.[0]?.message?.content;
+    const transcription = typeof response.data === 'string' ? response.data : String(response.data);
 
 
 
-    if (!transcription) {
+    if (!transcription || transcription.trim().length === 0) {
 
-      console.error('[AI] ⚠️ Пустой ответ от API');
+      console.error('[AI] ⚠️ Пустой ответ от Groq');
 
-      throw new Error('Пустой ответ от API');
+      throw new Error('Пустой ответ от Groq Whisper');
 
     }
 

@@ -3,40 +3,6 @@ import "./globals.css";
 import VisitorTracker from "@/components/VisitorTracker";
 import AnnouncementBanner from "@/components/AnnouncementBanner";
 
-// Безопасная загрузка шрифтов с обработкой ошибок
-let geistSans: any = {
-  variable: "--font-geist-sans",
-  className: ""
-};
-let geistMono: any = {
-  variable: "--font-geist-mono", 
-  className: ""
-};
-
-try {
-  // Динамический импорт с обработкой ошибок
-  const { Geist, Geist_Mono } = require("next/font/google");
-  
-  geistSans = Geist({
-    variable: "--font-geist-sans",
-    subsets: ["latin"],
-    display: "swap",
-    fallback: ["system-ui", "arial"],
-    weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
-  });
-
-  geistMono = Geist_Mono({
-    variable: "--font-geist-mono",
-    subsets: ["latin"],
-    display: "swap",
-    fallback: ["monospace"],
-    weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
-  });
-} catch (error) {
-  console.warn("Failed to load Google Fonts, using system fonts:", error);
-  // Используем системные шрифты как fallback
-}
-
 export const metadata: Metadata = {
   title: {
     default: "Компания Зенит - Официальный дистрибьютор ВАБ завода Сишань в РФ",
@@ -132,7 +98,7 @@ export default function RootLayout({
         {/* /Yandex.Metrika counter */}
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className="antialiased"
       >
         <noscript>
           <div>
