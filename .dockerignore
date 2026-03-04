@@ -1,8 +1,10 @@
 node_modules
 .next
 .git
+.env
 .env.local
 .env*.local
+.env.test
 yarn-debug.log*
 yarn-error.log*
 bun-debug.log*
