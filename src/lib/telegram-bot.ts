@@ -607,14 +607,18 @@ export async function finishNewsCreation(chatId: number): Promise<void> {
     // Показываем предпросмотр пользователю
     await showAIPreview(chatId);
     console.log('[BOT] ✅ Предпросмотр показан пользователю');
-    
-    return; // Выходим из функции, ждем действия пользователя
+
+    // Сбрасываем флаг — ждём действия пользователя (Опубликовать / Редактировать)
+    pending.isProcessing = false;
+    return;
   } catch (error) {
     console.error('[BOT] ❌ Ошибка при создании новости:', error);
     if (error instanceof Error) {
       console.error('[BOT] Сообщение об ошибке:', error.message);
       console.error('[BOT] Stack trace:', error.stack);
     }
+    const p = pendingNews.get(chatId);
+    if (p) p.isProcessing = false;
     await bot.sendMessage(chatId, '❌ Произошла ошибка при создании новости. Попробуйте позже.');
   }
 }
@@ -734,6 +738,7 @@ export async function publishNewsFromPreview(chatId: number): Promise<void> {
       
       if (existingCheck.rows.length > 0) {
         console.log(`[BOT] ⚠️ Новость с ID ${newsId} уже существует`);
+        pending.isProcessing = false;
         await bot.sendMessage(chatId, '⚠️ Новость с таким ID уже существует. Попробуйте изменить название.');
         return;
       }
