@@ -1,307 +1,240 @@
-# 🤖 Руководство по автоматизации
+# Руководство по автоматизации деплоя
 
-## Обзор
+## Архитектура
 
-Проект полностью автоматизирован! Все что нужно - запустить один скрипт деплоя, и все остальное произойдет автоматически.
+Проект состоит из двух отдельных Next.js приложений в одном репозитории:
 
-## 🚀 Быстрый старт
+- **`site`** — публичный сайт + весь backend/API (`/api/*`), включая `/api/admin/*`
+- **`admin`** — UI панели управления (`/admin/*`), проксирует API в `site`
 
-### Обычный деплой (обновление кода)
+Оба приложения разворачиваются в отдельных Docker-контейнерах.
+
+---
+
+## Быстрый старт
+
+### Деплой только сайта (самый частый случай)
+
+```powershell
+.\scripts\deploy-from-github.ps1 -SiteOnly
+```
+
+### Деплой только админки
+
+```powershell
+.\scripts\deploy-from-github.ps1 -AdminOnly
+```
+
+### Деплой обоих приложений
 
 ```powershell
 .\scripts\deploy-from-github.ps1 -AppOnly
 ```
 
-**Что произойдет автоматически:**
-
-1. ✅ **Подключение к серверу** - проверка SSH доступа
-2. ✅ **Бэкап БД** - автоматическая резервная копия
-3. ✅ **Обновление кода** - `git pull` на сервере
-4. ✅ **Установка зависимостей** - jq, curl и другие утилиты
-5. ✅ **Проверка .env** - добавление недостающих переменных
-6. ✅ **Применение миграций БД** - только новые миграции
-7. ✅ **Перезапуск приложения** - без остановки БД
-8. ✅ **Настройка Telegram webhook** - автоматическая установка
-9. ✅ **Проверка логов** - вывод последних 20 строк
-
-### Первый деплой на новый сервер
+### Полный деплой (с миграциями БД)
 
 ```powershell
-.\scripts\deploy-from-github.ps1 -Init
+.\scripts\deploy-from-github.ps1
 ```
 
-После этого создайте `.env` файл на сервере и запустите обычный деплой.
+---
 
-## 📋 Автоматические скрипты
+## Что происходит при каждом режиме
 
-### На сервере (выполняются автоматически)
+### `-SiteOnly` / `-AdminOnly` / `-AppOnly`
 
-#### 1. `setup-server-dependencies.sh`
+1. Подключение к серверу по SSH
+2. Бэкап БД (если не указан `-SkipBackup`)
+3. `git pull` из GitHub
+4. Проверка и установка зависимостей сервера
+5. Остановка нужных контейнеров
+6. Пересборка нужных контейнеров (без кеша)
+7. Запуск обновленных контейнеров
+8. Настройка Telegram webhook
+9. Вывод логов
 
-Автоматически проверяет и устанавливает:
-- `jq` - для парсинга JSON
-- `curl` - для HTTP запросов
-- `git` - для работы с репозиторием
-- Docker и Docker Compose
-- Проверяет переменные окружения в `.env`
-- Добавляет `TELEGRAM_WEBHOOK_URL` если отсутствует
-- Создает необходимые директории
-- Устанавливает права на скрипты
+**БД (`postgres`) не перезапускается** — работает без прерывания.
 
-**Запуск вручную:**
+### Полный деплой (без флагов)
+
+Всё то же самое, но дополнительно:
+- Применяются миграции БД
+- Перезапускаются **все** контейнеры, включая `postgres`
+
+---
+
+## Рабочий процесс разработки
+
+### Стандартный цикл
+
+```powershell
+# 1. Внести изменения в код
+# 2. Коммит и push в GitHub
+.\scripts\commit-and-push.ps1 -Message "Описание изменений"
+
+# 3. Деплой на сервер
+.\scripts\deploy-from-github.ps1 -SiteOnly    # если менял src/
+.\scripts\deploy-from-github.ps1 -AdminOnly   # если менял apps/admin/
+.\scripts\deploy-from-github.ps1 -AppOnly     # если менял и то, и другое
+```
+
+### С миграцией БД
+
+```powershell
+.\scripts\commit-and-push.ps1 -Message "Добавил таблицу X"
+.\scripts\deploy-from-github.ps1   # полный деплой применит миграции
+```
+
+---
+
+## Параметры deploy-from-github.ps1
+
+| Параметр | Что делает |
+|----------|-----------|
+| `-SiteOnly` | Только `site` (сайт + API) |
+| `-AdminOnly` | Только `admin` (UI панели) |
+| `-AppOnly` | `site` + `admin` (оба приложения) |
+| `-SkipBackup` | Без бэкапа БД |
+| `-SkipMigrations` | Без применения миграций |
+| `-Branch dev` | Деплой из другой ветки |
+| `-Init` | Первоначальная настройка сервера |
+
+---
+
+## Серверные скрипты (запускаются автоматически)
+
+### `setup-server-dependencies.sh`
+
+Запускается при каждом деплое. Проверяет и устанавливает:
+- `jq`, `curl`, `git`, Docker
+- Необходимые переменные в `.env` (в т.ч. `TELEGRAM_WEBHOOK_URL`)
+
+Запуск вручную:
 ```bash
 bash scripts/setup-server-dependencies.sh
 ```
 
-#### 2. `fix-telegram-now.sh`
+### `fix-telegram-now.sh`
 
-Автоматически настраивает Telegram webhook:
-- Проверяет доступность endpoint
+Настраивает Telegram webhook:
 - Удаляет старый webhook
-- Устанавливает новый webhook
+- Устанавливает новый
 - Очищает необработанные сообщения
 - Отправляет тестовое сообщение
 
-**Особенность:** Работает с `jq` и без него!
-
-**Запуск вручную:**
+Запуск вручную:
 ```bash
 bash scripts/fix-telegram-now.sh
 ```
 
-#### 3. `diagnose-telegram.sh`
+### `diagnose-telegram.sh`
 
-Полная диагностика Telegram бота:
-- Проверяет доступность бота
-- Проверяет статус webhook
-- Проверяет endpoint
-- Проверяет Docker контейнеры
-- Проверяет переменные окружения
-- Выводит отчет о проблемах
+Полная диагностика Telegram бота — проверяет бота, webhook, контейнеры, переменные окружения.
 
-**Запуск:**
 ```bash
 bash scripts/diagnose-telegram.sh
 ```
 
-### На локальном компьютере
+### `apply-migrations-remote.sh`
 
-#### 1. `deploy-from-github.ps1`
+Применяет SQL-миграции из папки `migrations/` к БД.
 
-Главный скрипт деплоя - автоматизирует весь процесс.
-
-**Параметры:**
-- `-AppOnly` - только приложение (БД не пересобирается) ⚡
-- `-SkipBackup` - без бэкапа БД
-- `-Branch dev` - деплой из другой ветки
-- `-Init` - первоначальная настройка сервера
-
-**Примеры:**
-```powershell
-# Быстрый деплой (90% случаев)
-.\scripts\deploy-from-github.ps1 -AppOnly
-
-# Полный деплой (все контейнеры)
-.\scripts\deploy-from-github.ps1
-
-# Деплой без бэкапа
-.\scripts\deploy-from-github.ps1 -AppOnly -SkipBackup
-
-# Деплой из другой ветки
-.\scripts\deploy-from-github.ps1 -Branch dev
+```bash
+bash scripts/apply-migrations-remote.sh docker-compose.ssl.yml
 ```
 
-#### 2. `commit-and-push.ps1`
+---
 
-Автоматический коммит и push.
-
-```powershell
-.\scripts\commit-and-push.ps1 -Message "Описание изменений"
-```
-
-## 🔧 Типичный рабочий процесс
-
-### Разработка и деплой
+## Первый запуск на новом сервере
 
 ```powershell
-# 1. Внесли изменения в код
-# Редактировали файлы...
-
-# 2. Коммит и push
-.\scripts\commit-and-push.ps1 -Message "Добавил новую функцию"
-
-# 3. Деплой
-.\scripts\deploy-from-github.ps1 -AppOnly
-
-# Готово! ✅
-```
-
-### Первый запуск на новом сервере
-
-```powershell
-# 1. Первоначальная настройка
+# 1. Клонировать репозиторий
 .\scripts\deploy-from-github.ps1 -Init
 
-# 2. Подключитесь к серверу и создайте .env
-ssh root@your-server.com
+# 2. Создать .env на сервере
+ssh root@155.212.217.60
 cd /opt/fb-net
-nano .env  # Скопируйте содержимое из ENV_EXAMPLE.txt
+cp ENV_EXAMPLE.txt .env
+nano .env
 
-# 3. Запустите полный деплой
+# 3. Полный деплой
 .\scripts\deploy-from-github.ps1
-
-# Всё работает! ✅
 ```
 
-## 🐛 Решение проблем
+---
 
-### Telegram бот не отвечает
+## SSL
 
-**Автоматически:**
-```powershell
-.\scripts\deploy-from-github.ps1 -AppOnly
-```
+Скрипт автоматически определяет режим:
+- Есть сертификат → использует `docker-compose.ssl.yml` (nginx на 80/443)
+- Нет сертификата → использует `docker-compose.production.yml` (прямые порты)
 
-**Вручную на сервере:**
+Настройка SSL: [SSL_QUICKSTART.md](SSL_QUICKSTART.md)
+
+---
+
+## Логи и мониторинг
+
 ```bash
-# Быстрое исправление
-bash scripts/fix-telegram-now.sh
-
-# Или полная диагностика
-bash scripts/diagnose-telegram.sh
+# На сервере
+docker compose -f docker-compose.ssl.yml logs site --tail=50 -f
+docker compose -f docker-compose.ssl.yml logs admin --tail=50 -f
+docker compose -f docker-compose.ssl.yml ps
 ```
 
-### Проблемы с зависимостями
+---
 
-**Автоматически:**
-Скрипт `setup-server-dependencies.sh` запускается при каждом деплое.
+## Восстановление из бэкапа
 
-**Вручную:**
 ```bash
-ssh root@your-server.com
+ssh root@155.212.217.60
 cd /opt/fb-net
-bash scripts/setup-server-dependencies.sh
-```
-
-### Проблемы с БД
-
-**Восстановление из бэкапа:**
-```bash
-ssh root@your-server.com
-cd /opt/fb-net
-
-# Посмотреть доступные бэкапы
 ls -lh backups/
 
-# Восстановить бэкап
 cat backups/db_backup_YYYYMMDD_HHMMSS.sql | \
   docker compose -f docker-compose.ssl.yml exec -T postgres \
   psql -U postgres -d postgres
 ```
 
-## 📝 Переменные окружения
+---
 
-Скрипт `setup-server-dependencies.sh` автоматически проверяет и добавляет:
+## Решение проблем
 
-### Обязательные переменные
-
-```env
-TELEGRAM_BOT_TOKEN=your_bot_token
-TELEGRAM_ADMIN_CHAT_ID=your_chat_id
-DATABASE_URL=postgresql://...
-```
-
-### Автоматически добавляемые
-
-```env
-TELEGRAM_WEBHOOK_URL=https://your-domain.com/api/telegram/webhook
-```
-
-Скрипт автоматически определяет ваш домен из `NEXT_PUBLIC_SITE_URL` и добавляет правильный webhook URL.
-
-## 🔐 SSL сертификаты
-
-Скрипт деплоя автоматически определяет, какой docker-compose файл использовать:
-
-- **Если SSL сертификат есть** → `docker-compose.ssl.yml`
-- **Если сертификата нет** → `docker-compose.production.yml`
-
-Настройка SSL: см. [SSL_QUICKSTART.md](SSL_QUICKSTART.md)
-
-## 📊 Логи и мониторинг
-
-### Просмотр логов
+### Telegram бот не отвечает
 
 ```bash
-# Логи приложения
-docker-compose logs -f app
+# Быстрое исправление
+bash scripts/fix-telegram-now.sh
 
-# Логи с фильтром
-docker-compose logs -f app | grep -i "webhook\|telegram\|error"
-
-# Логи nginx
-docker-compose logs nginx
-
-# Все логи
-docker-compose logs -f
+# Диагностика
+bash scripts/diagnose-telegram.sh
 ```
 
-### Статус контейнеров
+### Проблемы с зависимостями
 
 ```bash
-docker-compose ps
+bash scripts/setup-server-dependencies.sh
 ```
 
-## 🎯 Лучшие практики
+### Сайт не открывается
 
-1. **Всегда используйте `-AppOnly`** для обычных деплоев
-   - Быстрее
-   - Безопаснее (БД не перезапускается)
-   - Достаточно в 90% случаев
-
-2. **Не пропускайте бэкапы** без веской причины
-   - Бэкапы создаются быстро
-   - Могут спасти в критической ситуации
-
-3. **Проверяйте логи** после деплоя
-   - Скрипт автоматически показывает последние 20 строк
-   - Убедитесь, что нет критических ошибок
-
-4. **Используйте автоматические скрипты**
-   - Они проверяют всё необходимое
-   - Меньше шансов что-то забыть
-
-## 📚 Дополнительная документация
-
-- [TELEGRAM_DEBUG.md](TELEGRAM_DEBUG.md) - Детальная диагностика Telegram
-- [TELEGRAM_FIX_QUICK.md](TELEGRAM_FIX_QUICK.md) - Быстрое решение проблем Telegram
-- [DEPLOY_GUIDE.md](DEPLOY_GUIDE.md) - Полное руководство по деплою
-- [SSL_QUICKSTART.md](SSL_QUICKSTART.md) - Быстрая настройка SSL
-- [scripts/README.md](../scripts/README.md) - Описание всех скриптов
-
-## 🆘 Помощь
-
-Если что-то пошло не так:
-
-1. **Запустите диагностику:**
-   ```bash
-   bash scripts/diagnose-telegram.sh > debug.txt
-   ```
-
-2. **Соберите информацию:**
-   ```bash
-   docker-compose ps >> debug.txt
-   docker-compose logs --tail 100 app >> debug.txt
-   ```
-
-3. **Проверьте документацию** в папке проекта
-
-## 🎉 Заключение
-
-Вся инфраструктура автоматизирована! Просто запускайте:
-
-```powershell
-.\scripts\deploy-from-github.ps1 -AppOnly
+```bash
+docker compose -f docker-compose.ssl.yml restart site
+docker compose -f docker-compose.ssl.yml logs site --tail=100
 ```
 
-И всё остальное произойдет автоматически. Наслаждайтесь! 🚀
+### Админка не открывается
+
+```bash
+docker compose -f docker-compose.ssl.yml restart admin
+docker compose -f docker-compose.ssl.yml logs admin --tail=100
+```
+
+---
+
+## Дополнительная документация
+
+- [DEPLOY_GUIDE.md](DEPLOY_GUIDE.md) — полное руководство по деплою
+- [SSL_QUICKSTART.md](SSL_QUICKSTART.md) — настройка SSL
+- [TELEGRAM_DEBUG.md](TELEGRAM_DEBUG.md) — диагностика Telegram
+- [scripts/README.md](../scripts/README.md) — описание всех скриптов

@@ -24,53 +24,60 @@ JWT_SECRET=your-super-secret-jwt-key-min-32-chars
 ## Основные команды
 
 ```bash
-bun run dev
-bun run dev:admin
+bun run dev           # сайт на :3000
+bun run dev:admin     # админка на :3001
 bun run build
 bun run build:admin
 bun run lint
 bun run test:ci
 bun run docker:up
 bun run docker:down
-bun run direct:bidder
 ```
 
-Прод-деплой (Windows PowerShell):
+## Архитектура: два приложения
+
+| Контейнер | Порт | Что внутри |
+|-----------|------|------------|
+| `site` | 3000 | Публичный сайт + весь backend/API (`/api/*`) |
+| `admin` | 3001 | UI панели управления (`/admin/*`) |
+
+**API-запросы** (`/api/admin/*`) обрабатывает контейнер `site`. Контейнер `admin` — только UI.
+
+## Деплой (запускается локально)
+
+### Только сайт (изменения в `src/`)
+
+```powershell
+.\scripts\deploy-from-github.ps1 -SiteOnly
+```
+
+### Только админка (изменения в `apps/admin/`)
+
+```powershell
+.\scripts\deploy-from-github.ps1 -AdminOnly
+```
+
+### Оба приложения
 
 ```powershell
 .\scripts\deploy-from-github.ps1 -AppOnly
 ```
 
-## Multi-zone деплой
+### Полный деплой (с миграциями БД)
 
-- `site`: публичный сайт + весь backend/API (`/api/*`, включая `/api/admin/*`)
-- `admin`: отдельное приложение UI (`/admin/*`)
-
-Команды:
-
-```bash
-# Только admin
-bun run docker:prod:admin
-
-# Только site
-bun run docker:prod:site
-
-# Полный деплой
-bun run docker:prod:full
+```powershell
+.\scripts\deploy-from-github.ps1
 ```
 
 ## Документация
 
-- [Полная навигация](./docs/DOCUMENTATION.md)
+- [Деплой](/docs/DEPLOY_GUIDE.md)
+- [Автоматизация](/docs/AUTOMATION_GUIDE.md)
 - [Быстрый старт](/docs/QUICK_START.md)
 - [Разработка](/docs/DEVELOPMENT.md)
-- [Деплой](/docs/DEPLOY_GUIDE.md)
 - [Troubleshooting](/docs/TROUBLESHOOTING.md)
 - [Тесты](/docs/tests.md)
 - [Удаленная БД для dev](/docs/REMOTE_DB_SETUP.md)
-- [Автоматизация](/docs/AUTOMATION_GUIDE.md)
-- [Telegram (quick)](/docs/TELEGRAM_FIX_QUICK.md)
-- [Telegram (debug)](/docs/TELEGRAM_DEBUG.md)
 - [SSL](/docs/SSL_QUICKSTART.md)
 - [SMTP](/docs/SMTP_SETUP.md)
 - [Аналитика](/docs/ANALYTICS_SETUP.md)

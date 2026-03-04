@@ -1,9 +1,16 @@
 ﻿# PowerShell скрипт для деплоя из GitHub на сервер
 # Запускается локально, разворачивает проект на сервере через git pull
 #
+# Архитектура:
+#   site  - публичный сайт + весь backend/API (порт 3000), Dockerfile в корне
+#   admin - UI панели управления (порт 3001), Dockerfile в apps/admin/
+#
 # Использование:
-#   .\scripts\deploy-from-github.ps1              # деплой с настройками по умолчанию
-#   .\scripts\deploy-from-github.ps1 -SkipBackup  # быстрый деплой без бэкапа БД
+#   .\scripts\deploy-from-github.ps1              # полный деплой (все контейнеры)
+#   .\scripts\deploy-from-github.ps1 -AppOnly     # site + admin (БД не трогается)
+#   .\scripts\deploy-from-github.ps1 -SiteOnly    # только сайт/API
+#   .\scripts\deploy-from-github.ps1 -AdminOnly   # только панель управления
+#   .\scripts\deploy-from-github.ps1 -SkipBackup  # деплой без бэкапа БД
 #   .\scripts\deploy-from-github.ps1 -Branch dev  # деплой из другой ветки
 #
 # Первый запуск (клонирование репозитория на сервер):
@@ -12,27 +19,33 @@
 param(
     [Parameter(Mandatory=$false)]
     [string]$Server = "root@155.212.217.60",
-    
+
     [Parameter(Mandatory=$false)]
     [string]$RemotePath = "/opt/fb-net",
-    
+
     [Parameter(Mandatory=$false)]
     [string]$Branch = "master",
-    
+
     [Parameter(Mandatory=$false)]
     [string]$RepoUrl = "https://github.com/eightspb/fb.git",
-    
+
     [Parameter(Mandatory=$false)]
     [switch]$Init,  # Флаг для первоначальной установки
-    
+
     [Parameter(Mandatory=$false)]
     [switch]$SkipBackup,  # Пропустить бэкап БД
-    
+
     [Parameter(Mandatory=$false)]
     [switch]$SkipMigrations,  # Пропустить применение миграций (если БД уже настроена)
-    
+
     [Parameter(Mandatory=$false)]
-    [switch]$AppOnly  # Деплой только приложений site/admin (без пересборки БД)
+    [switch]$AppOnly,  # Деплой обоих приложений site+admin (без пересборки БД)
+
+    [Parameter(Mandatory=$false)]
+    [switch]$SiteOnly,  # Деплой только контейнера site (публичный сайт + API)
+
+    [Parameter(Mandatory=$false)]
+    [switch]$AdminOnly  # Деплой только контейнера admin (UI панели управления)
 )
 
 $ErrorActionPreference = "Stop"
@@ -337,70 +350,90 @@ function Invoke-Migrations {
 
 function Restart-Containers {
     param([string]$ComposeFile)
-    
+
     Write-Step "Перезапуск Docker контейнеров"
-    
-    if ($AppOnly) {
-        Write-Info "Режим: только приложения site/admin (БД не пересобирается)"
-        
-        Write-Info "Останавливаем контейнеры site/admin..."
-        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile stop site admin"
-        if ($LASTEXITCODE -ne 0) {
-            Write-Err "Ошибка при остановке контейнеров site/admin"
-            exit 1
-        }
-        
-        Write-Info "Пересобираем контейнеры site/admin..."
-        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile build --no-cache site admin"
-        if ($LASTEXITCODE -ne 0) {
-            Write-Err "Ошибка при сборке контейнеров site/admin"
-            exit 1
-        }
-        
-        Write-Info "Запускаем контейнеры site/admin..."
-        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile up -d --no-deps site admin"
-        if ($LASTEXITCODE -ne 0) {
-            Write-Err "Ошибка при запуске контейнеров site/admin"
-            exit 1
-        }
-        
-        Write-Info "Ожидание запуска (10 сек)..."
-        Start-Sleep -Seconds 10
-        
-        Write-Success "База данных продолжает работать без перезапуска ✅"
+
+    # Определяем список контейнеров для деплоя
+    $targets = @()
+    if ($SiteOnly) {
+        $targets = @("site")
+        Write-Info "Режим: только site (публичный сайт + API, БД не трогается)"
+    } elseif ($AdminOnly) {
+        $targets = @("admin")
+        Write-Info "Режим: только admin (UI панели управления, БД не трогается)"
+    } elseif ($AppOnly) {
+        $targets = @("site", "admin")
+        Write-Info "Режим: site + admin (оба приложения, БД не пересобирается)"
     } else {
         Write-Info "Режим: полный деплой (все контейнеры)"
-        
-        Write-Info "Останавливаем контейнеры..."
+    }
+
+    if ($targets.Count -gt 0) {
+        # Частичный деплой: только указанные контейнеры
+        $targetStr = $targets -join " "
+
+        Write-Info "Останавливаем контейнеры: $targetStr..."
+        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile stop $targetStr"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Err "Ошибка при остановке контейнеров: $targetStr"
+            exit 1
+        }
+
+        Write-Info "Пересобираем контейнеры: $targetStr..."
+        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile build --no-cache $targetStr"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Err "Ошибка при сборке контейнеров: $targetStr"
+            exit 1
+        }
+
+        Write-Info "Запускаем контейнеры: $targetStr..."
+        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile up -d --no-deps $targetStr"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Err "Ошибка при запуске контейнеров: $targetStr"
+            exit 1
+        }
+
+        Write-Info "Ожидание запуска (10 сек)..."
+        Start-Sleep -Seconds 10
+
+        Write-Success "База данных продолжает работать без перезапуска"
+    } else {
+        # Полный деплой всех контейнеров
+        Write-Info "Останавливаем все контейнеры..."
         Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile down"
         if ($LASTEXITCODE -ne 0) {
             Write-Err "Ошибка при остановке контейнеров"
             exit 1
         }
-        
-        Write-Info "Собираем и запускаем контейнеры..."
+
+        Write-Info "Собираем и запускаем все контейнеры..."
         Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile up -d --build"
-        
         if ($LASTEXITCODE -ne 0) {
             Write-Err "Ошибка при перезапуске контейнеров"
             exit 1
         }
-        
+
         Write-Info "Ожидание запуска (15 сек)..."
         Start-Sleep -Seconds 15
     }
-    
+
     Write-Info "Статус контейнеров:"
     Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile ps"
-    
+
     Write-Success "Контейнеры запущены"
 }
 
 function Show-Logs {
     param([string]$ComposeFile)
-    
-    Write-Step "Последние логи site/admin"
-    Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile logs --tail=20 site admin 2>/dev/null || true"
+
+    Write-Step "Последние логи"
+    if ($SiteOnly) {
+        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile logs --tail=20 site 2>/dev/null || true"
+    } elseif ($AdminOnly) {
+        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile logs --tail=20 admin 2>/dev/null || true"
+    } else {
+        Invoke-Ssh $Server "cd $RemotePath && docker compose -f $ComposeFile logs --tail=20 site admin 2>/dev/null || true"
+    }
 }
 
 function Setup-ServerDependencies {
@@ -452,10 +485,14 @@ function Main {
     Write-Info "Сервер: $Server"
     Write-Info "Путь: $RemotePath"
     Write-Info "Ветка: $Branch"
-    if ($AppOnly) {
-        Write-Info "Режим: ⚡ Быстрый деплой (site/admin без БД)"
+    if ($SiteOnly) {
+        Write-Info "Режим: только site (публичный сайт + API)"
+    } elseif ($AdminOnly) {
+        Write-Info "Режим: только admin (UI панели управления)"
+    } elseif ($AppOnly) {
+        Write-Info "Режим: site + admin (без пересборки БД)"
     } else {
-        Write-Info "Режим: 🔄 Полный деплой (все контейнеры)"
+        Write-Info "Режим: полный деплой (все контейнеры)"
     }
     Write-Host ""
     
