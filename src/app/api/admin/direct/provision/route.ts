@@ -37,6 +37,8 @@ export async function POST(request: NextRequest) {
   }
 
   let dbClient: PoolClient | null = null;
+  let apiClient: YandexDirectApiClient | null = null;
+  let createdCampaignId: string | null = null;
   let inTransaction = false;
 
   try {
@@ -82,12 +84,13 @@ export async function POST(request: NextRequest) {
     const keywords = keywordResult.rows.map((row) => row.keyword.trim()).filter((keyword) => keyword.length > 0);
     const finalCampaignName = campaignNameOverride || renderCampaignName(template.campaign_name_pattern);
 
-    const apiClient = new YandexDirectApiClient();
+    apiClient = new YandexDirectApiClient();
     const campaignId = await apiClient.createCampaign({
       name: finalCampaignName,
       campaignPayload: ensureObject(template.campaign_payload),
       minusKeywords: template.minus_keywords ?? [],
     });
+    createdCampaignId = campaignId;
 
     const adGroupId = await apiClient.createAdGroup({
       campaignId,
@@ -152,15 +155,23 @@ export async function POST(request: NextRequest) {
       await dbClient.query('ROLLBACK');
     }
 
+    const cleanupNote = await cleanupProvisionedCampaign(apiClient, createdCampaignId);
+
     if (error instanceof YandexDirectApiError) {
       return NextResponse.json(
-        { error: 'Ошибка создания кампании в Яндекс.Директ', details: error.message },
+        {
+          error: 'Ошибка создания кампании в Яндекс.Директ',
+          details: withCleanupNote(error.message, cleanupNote),
+        },
         { status: 502 }
       );
     }
 
     return NextResponse.json(
-      { error: 'Ошибка provision-процесса', details: extractErrorMessage(error) },
+      {
+        error: 'Ошибка provision-процесса',
+        details: withCleanupNote(extractErrorMessage(error), cleanupNote),
+      },
       { status: 500 }
     );
   } finally {
@@ -193,4 +204,41 @@ function extractErrorMessage(error: unknown): string {
     return error.message;
   }
   return 'Неизвестная ошибка';
+}
+
+async function cleanupProvisionedCampaign(
+  apiClient: YandexDirectApiClient | null,
+  campaignId: string | null
+): Promise<string | null> {
+  if (!apiClient || !campaignId) {
+    return null;
+  }
+
+  try {
+    await apiClient.deleteCampaign(campaignId);
+    return `Cleanup: созданная кампания ${campaignId} удалена в Яндекс.Директ`;
+  } catch (deleteError) {
+    if (isNotFoundError(deleteError)) {
+      return `Cleanup: созданная кампания ${campaignId} уже отсутствует в Яндекс.Директ`;
+    }
+
+    try {
+      await apiClient.archiveCampaign(campaignId);
+      return `Cleanup: созданная кампания ${campaignId} отправлена в архив Яндекс.Директ`;
+    } catch (archiveError) {
+      return `Cleanup не выполнен: delete (${extractErrorMessage(deleteError)}), archive (${extractErrorMessage(archiveError)})`;
+    }
+  }
+}
+
+function withCleanupNote(details: string, cleanupNote: string | null): string {
+  if (!cleanupNote) {
+    return details;
+  }
+  return `${details}. ${cleanupNote}`;
+}
+
+function isNotFoundError(error: unknown): boolean {
+  const message = extractErrorMessage(error).toLowerCase();
+  return message.includes('not found') || message.includes('не найден');
 }

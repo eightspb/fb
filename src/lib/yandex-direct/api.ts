@@ -252,16 +252,16 @@ export class YandexDirectApiClient {
 
   public async createCampaign(input: CreateCampaignInput): Promise<string> {
     const campaignPayload = withDefaultCampaignFields(sanitizeRecord(ensureObject(input.campaignPayload)));
-    const normalizedMinusKeywords = normalizeKeywordList(input.minusKeywords ?? []);
+    const payloadMinusKeywords = normalizeKeywordListFromUnknown(campaignPayload.NegativeKeywords);
+    const normalizedMinusKeywords = normalizeKeywordList([...(input.minusKeywords ?? []), ...payloadMinusKeywords]);
+    const campaignPayloadWithoutNegativeKeywords = removeField(campaignPayload, 'NegativeKeywords');
 
     const campaign = {
-      ...campaignPayload,
+      ...campaignPayloadWithoutNegativeKeywords,
       Name: input.name,
       ...(normalizedMinusKeywords.length > 0
         ? {
-            NegativeKeywords: {
-              Items: normalizedMinusKeywords,
-            },
+            NegativeKeywords: normalizedMinusKeywords,
           }
         : {}),
     };
@@ -279,14 +279,21 @@ export class YandexDirectApiClient {
 
   public async createAdGroup(input: CreateAdGroupInput): Promise<string> {
     const adGroupPayload = sanitizeRecord(ensureObject(input.adGroupPayload));
+    const adGroupNegativeKeywords = normalizeKeywordListFromUnknown(adGroupPayload.NegativeKeywords);
+    const adGroupPayloadWithoutNegativeKeywords = removeField(adGroupPayload, 'NegativeKeywords');
     const body = {
       method: 'add',
       params: {
         AdGroups: [
           {
-            ...adGroupPayload,
+            ...adGroupPayloadWithoutNegativeKeywords,
             CampaignId: toNumericId(input.campaignId, 'campaignId'),
             Name: input.name,
+            ...(adGroupNegativeKeywords.length > 0
+              ? {
+                  NegativeKeywords: adGroupNegativeKeywords,
+                }
+              : {}),
           },
         ],
       },
@@ -294,6 +301,32 @@ export class YandexDirectApiClient {
 
     const response = await this.request<YandexDirectAddResult>('adgroups', body);
     return extractAddedEntityId(response, 'ad group');
+  }
+
+  public async deleteCampaign(campaignId: string): Promise<void> {
+    const body = {
+      method: 'delete',
+      params: {
+        SelectionCriteria: {
+          Ids: [toNumericId(campaignId, 'campaignId')],
+        },
+      },
+    };
+
+    await this.request<unknown>('campaigns', body);
+  }
+
+  public async archiveCampaign(campaignId: string): Promise<void> {
+    const body = {
+      method: 'archive',
+      params: {
+        SelectionCriteria: {
+          Ids: [toNumericId(campaignId, 'campaignId')],
+        },
+      },
+    };
+
+    await this.request<unknown>('campaigns', body);
   }
 
   public async addKeywords(adGroupId: string, keywords: string[]): Promise<AddKeywordsResult[]> {
@@ -537,4 +570,36 @@ function normalizeKeywordList(values: string[]): string[] {
     }
   }
   return Array.from(unique);
+}
+
+function normalizeKeywordListFromUnknown(value: unknown): string[] {
+  return normalizeKeywordList(flattenKeywordValues(value));
+}
+
+function flattenKeywordValues(value: unknown): string[] {
+  if (typeof value === 'string') {
+    return [value];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => flattenKeywordValues(item));
+  }
+
+  if (value && typeof value === 'object') {
+    const source = value as Record<string, unknown>;
+    if ('Items' in source) {
+      return flattenKeywordValues(source.Items);
+    }
+    if ('Keyword' in source) {
+      return flattenKeywordValues(source.Keyword);
+    }
+  }
+
+  return [];
+}
+
+function removeField(record: Record<string, unknown>, key: string): Record<string, unknown> {
+  const cloned = { ...record };
+  delete cloned[key];
+  return cloned;
 }

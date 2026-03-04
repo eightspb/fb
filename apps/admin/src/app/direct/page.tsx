@@ -281,7 +281,9 @@ export default function DirectAdminPage() {
   }
 
   async function handleDeleteCampaign(campaign: DirectCampaign): Promise<void> {
-    const confirmed = window.confirm(`Удалить кампанию "${campaign.name}" из админки?`);
+    const confirmed = window.confirm(
+      `Удалить кампанию "${campaign.name}" из админки и Яндекс.Директ?`
+    );
     if (!confirmed) {
       return;
     }

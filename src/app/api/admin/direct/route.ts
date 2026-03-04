@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
 import { checkApiAuth } from '@/lib/auth';
+import { YandexDirectApiClient, YandexDirectApiError } from '@/lib/yandex-direct/api';
 
 export const runtime = 'nodejs';
 
@@ -127,6 +128,24 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    let remoteAction: 'deleted' | 'archived' | 'not_found';
+    try {
+      const apiClient = new YandexDirectApiClient();
+      remoteAction = await deleteCampaignInYandex(apiClient, campaignId);
+    } catch (error) {
+      if (error instanceof YandexDirectApiError) {
+        return NextResponse.json(
+          { error: 'Ошибка удаления кампании в Яндекс.Директ', details: error.message },
+          { status: 502 }
+        );
+      }
+
+      return NextResponse.json(
+        { error: 'Ошибка удаления кампании в Яндекс.Директ', details: extractErrorMessage(error) },
+        { status: 500 }
+      );
+    }
+
     const dbClient = await pool.connect();
     try {
       await dbClient.query('BEGIN');
@@ -162,6 +181,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({
         success: true,
         deleted_campaign_id: result.rows[0].campaign_id,
+        yandex_action: remoteAction,
       });
     } catch (error) {
       await dbClient.query('ROLLBACK');
@@ -182,4 +202,38 @@ function extractErrorMessage(error: unknown): string {
     return error.message;
   }
   return 'Неизвестная ошибка';
+}
+
+async function deleteCampaignInYandex(
+  apiClient: YandexDirectApiClient,
+  campaignId: string
+): Promise<'deleted' | 'archived' | 'not_found'> {
+  try {
+    await apiClient.deleteCampaign(campaignId);
+    return 'deleted';
+  } catch (deleteError) {
+    if (isNotFoundError(deleteError)) {
+      return 'not_found';
+    }
+
+    try {
+      await apiClient.archiveCampaign(campaignId);
+      return 'archived';
+    } catch (archiveError) {
+      if (isNotFoundError(archiveError)) {
+        return 'not_found';
+      }
+
+      const deleteMessage = extractErrorMessage(deleteError);
+      const archiveMessage = extractErrorMessage(archiveError);
+      throw new Error(
+        `Удаление в Яндексе не удалось (${deleteMessage}). Архивация тоже не удалась (${archiveMessage}).`
+      );
+    }
+  }
+}
+
+function isNotFoundError(error: unknown): boolean {
+  const message = extractErrorMessage(error).toLowerCase();
+  return message.includes('not found') || message.includes('не найден');
 }

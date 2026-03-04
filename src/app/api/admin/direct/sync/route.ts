@@ -22,7 +22,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const apiClient = new YandexDirectApiClient();
-    const campaigns = await apiClient.getCampaigns();
+    const campaigns = (await apiClient.getCampaigns()).filter(
+      (campaign) => campaign.state.trim().toUpperCase() !== 'ARCHIVED'
+    );
 
     if (campaigns.length === 0) {
       return NextResponse.json({
@@ -90,4 +92,3 @@ function extractErrorMessage(error: unknown): string {
   }
   return 'Неизвестная ошибка';
 }
-

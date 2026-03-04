@@ -423,7 +423,7 @@ function Setup-TelegramWebhook {
     Write-Step "Настройка Telegram webhook"
     
     Write-Info "Запуск скрипта настройки Telegram бота..."
-    $result = Invoke-Ssh $Server "cd $RemotePath && bash scripts/fix-telegram-now.sh 2>&1"
+    $result = Invoke-Ssh $Server "cd $RemotePath && bash scripts/fix-telegram-now.sh --non-interactive 2>&1"
     
     if ($LASTEXITCODE -ne 0) {
         Write-Warn "Не удалось автоматически настроить Telegram webhook"
