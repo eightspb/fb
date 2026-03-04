@@ -46,6 +46,7 @@ public/images/trainings.zip
 yarn-debug.log*
 yarn-error.log*
 bun-debug.log*
+.cursor/
 
 # env files (can opt-in for committing if needed)
 .env*

@@ -12,7 +12,7 @@
 SMTP_HOST=smtp.mail.ru
 SMTP_PORT=465
 SMTP_USER=info@zenitmed.ru
-SMTP_PASSWORD=MnDG5esS7nqwxGkmBVey
+SMTP_PASSWORD=your_smtp_password_here
 SMTP_FROM=info@zenitmed.ru
 TARGET_EMAIL=info@zenitmed.ru
 ```
