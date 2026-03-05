@@ -258,11 +258,11 @@ async function syncFolder(
         // Инкрементальный синк: берём по UID начиная с последнего+1
         searchRange = `${lastSyncedUid + 1}:*`;
         useUid = true;
-      } else if (totalMessages > 200) {
-        // Первый синк большого ящика: последние 200 по sequence number
-        searchRange = `${totalMessages - 199}:*`;
+      } else if (totalMessages > 50) {
+        // Первый синк большого ящика: последние 50 по sequence number
+        searchRange = `${totalMessages - 49}:*`;
         useUid = false;
-        console.log(`[IMAP] ${folderName}: large mailbox (${totalMessages} msgs), fetching last 200 by seq`);
+        console.log(`[IMAP] ${folderName}: large mailbox (${totalMessages} msgs), fetching last 50 by seq`);
       } else {
         searchRange = '1:*';
         useUid = false;
@@ -271,16 +271,43 @@ async function syncFolder(
       console.log(`[IMAP] ${folderName}: range=${searchRange} uid=${useUid} lastSyncedUid=${lastSyncedUid}`);
       let maxUid = lastSyncedUid;
 
-      // Загружаем сообщения
-      for await (const message of imapClient.fetch(searchRange, {
+      // Шаг 1: загружаем только UID и envelope (без тела — быстро)
+      const envelopes: Array<{ uid: number; messageId: string | undefined }> = [];
+      for await (const msg of imapClient.fetch(searchRange, {
         uid: true,
         envelope: true,
-        source: true,
       }, { uid: useUid })) {
+        envelopes.push({ uid: msg.uid, messageId: msg.envelope?.messageId });
+        if (msg.uid > maxUid) maxUid = msg.uid;
+      }
 
+      console.log(`[IMAP] ${folderName}: got ${envelopes.length} envelopes, maxUid=${maxUid}`);
+
+      // Шаг 2: фильтруем уже существующие в БД по message_id
+      const messageIds = envelopes.map(e => e.messageId).filter(Boolean) as string[];
+      let existingIds = new Set<string>();
+      if (messageIds.length > 0) {
+        const existing = await pgClient.query(
+          `SELECT message_id FROM crm_emails WHERE message_id = ANY($1)`,
+          [messageIds]
+        );
+        existingIds = new Set(existing.rows.map((r: any) => r.message_id));
+      }
+
+      // Шаг 3: скачиваем тело только для новых писем
+      const newEnvelopes = envelopes.filter(e => !e.messageId || !existingIds.has(e.messageId));
+      console.log(`[IMAP] ${folderName}: ${newEnvelopes.length} new messages to fetch`);
+
+      for (const env of newEnvelopes) {
         try {
-          if (!message.source) continue;
-          const parsed: ParsedMail = await simpleParser(message.source) as ParsedMail;
+          // Загружаем source отдельным запросом по конкретному UID
+          let source: Buffer | undefined;
+          for await (const msg of imapClient.fetch({ uid: env.uid }, { uid: true, source: true }, { uid: true })) {
+            source = msg.source;
+          }
+          if (!source) continue;
+
+          const parsed: ParsedMail = await simpleParser(source) as ParsedMail;
 
           const messageId = parsed.messageId || null;
           const fromAddress = parsed.from?.value?.[0]?.address || '';
@@ -312,7 +339,6 @@ async function syncFolder(
           const hasAttachments = (parsed.attachments?.length || 0) > 0;
           const sentAt = parsed.date || new Date();
 
-          // Вставляем в БД (пропускаем дубликаты по message_id)
           const insertResult = await pgClient.query(
             `INSERT INTO crm_emails
              (message_id, in_reply_to, references_header, direction, channel,
@@ -338,17 +364,12 @@ async function syncFolder(
 
           if (insertResult.rows.length > 0) {
             synced++;
-            // Сохраняем только метаданные вложений (файлы скачиваются по требованию)
             if (hasAttachments && parsed.attachments) {
-              await saveAttachmentMetadata(insertResult.rows[0].id, parsed.attachments as Attachment[], message.uid, folderName, pgClient);
+              await saveAttachmentMetadata(insertResult.rows[0].id, parsed.attachments as Attachment[], env.uid, folderName, pgClient);
             }
           }
-        } catch (parseError: any) {
-          console.error(`[IMAP] Error parsing message UID ${message.uid}:`, parseError.message);
-        }
-
-        if (message.uid > maxUid) {
-          maxUid = message.uid;
+        } catch (fetchError: any) {
+          console.error(`[IMAP] Error fetching/parsing UID ${env.uid}:`, fetchError.message);
         }
       }
 
