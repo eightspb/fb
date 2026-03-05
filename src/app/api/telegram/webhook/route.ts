@@ -156,6 +156,10 @@ export async function POST(request: NextRequest) {
           await bot.answerCallbackQuery(callbackQuery.id, { text: 'Идёт публикация, подождите...' });
           return NextResponse.json({ ok: true });
         }
+        if (pending?.state === 'generating') {
+          await bot.answerCallbackQuery(callbackQuery.id, { text: 'Идёт генерация, подождите...' });
+          return NextResponse.json({ ok: true });
+        }
         await cancel({ chat: { id: chatId } } as any);
         await bot.answerCallbackQuery(callbackQuery.id, { text: 'Отменено' });
         return NextResponse.json({ ok: true });
@@ -197,10 +201,12 @@ export async function POST(request: NextRequest) {
       if (callbackData === 'edit_title') {
         const { pendingNews } = await import('@/lib/telegram-bot');
         const pending = (pendingNews as any).get(chatId);
-        if (pending) {
+        if (pending && pending.state === 'preview') {
           pending.waitingForEdit = 'title';
           await bot.answerCallbackQuery(callbackQuery.id);
           await bot.sendMessage(chatId, 'Отправьте новое название:');
+        } else {
+          await bot.answerCallbackQuery(callbackQuery.id, { text: 'Редактирование сейчас недоступно' });
         }
         return NextResponse.json({ ok: true });
       }
@@ -208,10 +214,12 @@ export async function POST(request: NextRequest) {
       if (callbackData === 'edit_short') {
         const { pendingNews } = await import('@/lib/telegram-bot');
         const pending = (pendingNews as any).get(chatId);
-        if (pending) {
+        if (pending && pending.state === 'preview') {
           pending.waitingForEdit = 'short';
           await bot.answerCallbackQuery(callbackQuery.id);
           await bot.sendMessage(chatId, 'Отправьте новое краткое описание:');
+        } else {
+          await bot.answerCallbackQuery(callbackQuery.id, { text: 'Редактирование сейчас недоступно' });
         }
         return NextResponse.json({ ok: true });
       }
@@ -219,10 +227,12 @@ export async function POST(request: NextRequest) {
       if (callbackData === 'edit_full') {
         const { pendingNews } = await import('@/lib/telegram-bot');
         const pending = (pendingNews as any).get(chatId);
-        if (pending) {
+        if (pending && pending.state === 'preview') {
           pending.waitingForEdit = 'full';
           await bot.answerCallbackQuery(callbackQuery.id);
           await bot.sendMessage(chatId, 'Отправьте новое полное описание:');
+        } else {
+          await bot.answerCallbackQuery(callbackQuery.id, { text: 'Редактирование сейчас недоступно' });
         }
         return NextResponse.json({ ok: true });
       }

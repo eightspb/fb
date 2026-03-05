@@ -59,6 +59,10 @@ interface PendingNews {
   };
   // Флаг ожидания редактирования
   waitingForEdit?: 'title' | 'short' | 'full' | null;
+  // Дата из EXIF (извлекается при генерации)
+  exifDate?: Date;
+  // Локация из EXIF (извлекается при генерации)
+  exifLocation?: { latitude: number; longitude: number };
   // Текущее состояние сессии создания новости
   state: NewsState;
 }
@@ -274,8 +278,8 @@ export async function handlePhotoMessage(msg: TelegramBot.Message): Promise<void
             }
           }
         );
+        currentPending.mediaGroupTimeout = undefined;
       }
-      pending.mediaGroupTimeout = undefined;
     }, 2000);
     
     console.log('[BOT] ✅ Фото добавлено в медиа-группу, ожидание завершения группы...');
@@ -595,6 +599,7 @@ export async function finishNewsCreation(chatId: number): Promise<void> {
         const imageDate = await extractDateFromImage(tempPath);
         if (imageDate) {
           date = imageDate;
+          pending.exifDate = imageDate;
           console.log(`[BOT] 📅 Дата съемки найдена в первом изображении: ${date.toLocaleDateString('ru-RU')}`);
         } else {
           console.log(`[BOT] ℹ️ Дата съемки не найдена в EXIF, используется текущая дата: ${date.toLocaleDateString('ru-RU')}`);
@@ -628,6 +633,7 @@ export async function finishNewsCreation(chatId: number): Promise<void> {
           const imgLocation = await extractLocationFromImage(imagePath);
           if (imgLocation) {
             location = imgLocation;
+            pending.exifLocation = imgLocation;
             console.log(`[BOT] 📍 Геолокация найдена в изображении ${i + 1}: ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`);
           }
         }
@@ -764,73 +770,21 @@ export async function publishNewsFromPreview(chatId: number): Promise<void> {
     // Используем сохраненные данные
     const { title, shortDescription, fullDescription } = pending.aiGenerated;
 
-    // Определяем дату (ручная или из EXIF или текущая)
-    const date = pending.manualDate || pending.date;
-    
-    // Определяем локацию
-    let location = pending.manualLocation 
-      ? { latitude: pending.manualLocation.latitude, longitude: pending.manualLocation.longitude }
-      : null;
+    // Определяем дату (ручная > EXIF > текущая)
+    const date = pending.manualDate || pending.exifDate || pending.date;
 
-    // Если нет ручной локации, пытаемся извлечь из первого изображения
-    if (!location && pending.images.length > 0) {
-      try {
-        const firstImage = pending.images[0];
-        console.log(`[BOT] 📥 Извлечение локации из первого изображения...`);
-        const tempBuffer = await downloadTelegramFile(firstImage.fileId, botToken!);
-        const tempFilename = `temp_location_${Date.now()}.jpg`;
-        const tempPath = path.join(process.cwd(), 'public', 'images', 'trainings', tempFilename);
-        
-        fs.writeFileSync(tempPath, tempBuffer);
-        
-        const imgLocation = await extractLocationFromImage(tempPath);
-        if (imgLocation) {
-          location = imgLocation;
-          console.log(`[BOT] 📍 Геолокация найдена: ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`);
-        }
-        
-        fs.unlinkSync(tempPath);
-      } catch (error) {
-        console.error(`[BOT] ⚠️ Ошибка при извлечении локации:`, error);
-      }
-    }
+    // Определяем локацию (ручная > EXIF)
+    const location = pending.manualLocation
+      ? { latitude: pending.manualLocation.latitude, longitude: pending.manualLocation.longitude }
+      : pending.exifLocation || null;
 
     // Генерируем ID новости
     const newsId = generateNewsId(title, date);
     console.log(`[BOT] 🆔 Сгенерирован ID новости: ${newsId}`);
 
-    // Скачиваем и сохраняем медиафайлы
-    console.log(`[BOT] 📷 Начало скачивания ${pending.images.length} изображений`);
-    
-    for (let i = 0; i < pending.images.length; i++) {
-      const image = pending.images[i];
-      try {
-        console.log(`[BOT] 📥 Скачивание изображения ${i + 1}/${pending.images.length}, fileId: ${image.fileId}`);
-        const buffer = await downloadTelegramFile(image.fileId, botToken!);
-        const filename = `image_${Date.now()}_${i}${getFileExtension('', 'image/jpeg')}`;
-        const savedPath = saveMediaFile(buffer, filename, date);
-        image.path = savedPath;
-        console.log(`[BOT] ✅ Изображение ${i + 1} сохранено: ${savedPath}`);
-      } catch (error) {
-        console.error(`[BOT] ❌ Ошибка при сохранении изображения ${i}:`, error);
-      }
-    }
-
-    // Обрабатываем видео
-    console.log(`[BOT] 🎥 Начало скачивания ${pending.videos.length} видео`);
-    for (let i = 0; i < pending.videos.length; i++) {
-      const video = pending.videos[i];
-      try {
-        console.log(`[BOT] 📥 Скачивание видео ${i + 1}/${pending.videos.length}, fileId: ${video.fileId}`);
-        const buffer = await downloadTelegramFile(video.fileId, botToken!);
-        const filename = `video_${Date.now()}_${i}${getFileExtension('', 'video/mp4')}`;
-        const savedPath = saveMediaFile(buffer, filename, date);
-        video.path = savedPath;
-        console.log(`[BOT] ✅ Видео ${i + 1} сохранено: ${savedPath}`);
-      } catch (error) {
-        console.error(`[BOT] ❌ Ошибка при сохранении видео ${i}:`, error);
-      }
-    }
+    // Медиафайлы уже скачаны и сохранены в finishNewsCreation — используем сохранённые пути
+    console.log(`[BOT] 📷 Изображений: ${pending.images.filter(img => img.path).length}/${pending.images.length}`);
+    console.log(`[BOT] 🎥 Видео: ${pending.videos.filter(vid => vid.path).length}/${pending.videos.length}`);
 
     // Форматируем дату для БД
     const year = date.getFullYear().toString();
@@ -993,6 +947,11 @@ export async function handleCancelCommand(msg: TelegramBot.Message): Promise<voi
 
   if (pending?.state === 'publishing') {
     await bot.sendMessage(chatId, '⏳ Идёт публикация, подождите...');
+    return;
+  }
+
+  if (pending?.state === 'generating') {
+    await bot.sendMessage(chatId, '⏳ Идёт генерация AI, подождите...');
     return;
   }
 
@@ -1271,6 +1230,12 @@ export async function handleResetCommand(msg: TelegramBot.Message): Promise<void
     return;
   }
 
+  if (pending.state === 'generating' || pending.state === 'publishing') {
+    const label = pending.state === 'generating' ? 'генерация AI' : 'публикация';
+    await bot.sendMessage(chatId, `⏳ Сейчас идёт ${label}, дождитесь завершения.`);
+    return;
+  }
+
   const oldState = pending.state;
   pendingNews.delete(chatId);
 
@@ -1482,7 +1447,8 @@ export async function handleEditFieldText(chatId: number, newText: string): Prom
 
   const pending = pendingNews.get(chatId);
 
-  if (!pending || !pending.aiGenerated || !pending.waitingForEdit) {
+  if (!pending || !pending.aiGenerated || !pending.waitingForEdit || pending.state !== 'preview') {
+    if (pending) pending.waitingForEdit = null;
     await bot.sendMessage(chatId, '❌ Нет активного редактирования.');
     return;
   }
@@ -1559,10 +1525,12 @@ export async function regenerateAIContent(chatId: number): Promise<void> {
     let locationAddress: string | undefined;
     if (pending.manualLocation?.address) {
       locationAddress = pending.manualLocation.address;
+    } else if (pending.exifLocation) {
+      locationAddress = `${pending.exifLocation.latitude.toFixed(6)}, ${pending.exifLocation.longitude.toFixed(6)}`;
     }
-    
-    // Используем ручную дату если указана
-    const finalDate = pending.manualDate || pending.date;
+
+    // Используем ручную дату если указана, иначе EXIF, иначе текущую
+    const finalDate = pending.manualDate || pending.exifDate || pending.date;
     
     const expanded = await withTimeout(
       expandTextWithAI(combinedText, {
