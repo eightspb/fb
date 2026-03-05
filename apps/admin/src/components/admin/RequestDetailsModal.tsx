@@ -48,9 +48,10 @@ const statusOptions = [
   { value: 'archived', label: 'В архиве', color: 'bg-gray-100 text-gray-800' }
 ];
 
+// Цвета приоритета: высокий/срочный — красный, низкий — зелёный
 const priorityOptions = [
   { value: 'low', label: 'Низкий', color: 'bg-green-100 text-green-700' },
-  { value: 'normal', label: 'Обычный', color: 'bg-blue-100 text-blue-700' },
+  { value: 'normal', label: 'Обычный', color: 'bg-slate-100 text-slate-600' },
   { value: 'high', label: 'Высокий', color: 'bg-red-100 text-red-700' },
   { value: 'urgent', label: 'Срочный', color: 'bg-red-200 text-red-800 font-semibold' }
 ];
@@ -73,8 +74,8 @@ export function RequestDetailsModal({
 
   if (!request) return null;
 
-  const currentStatusOption = statusOptions.find(s => s.value === request.status) || statusOptions[0];
-  const currentPriorityOption = priorityOptions.find(p => p.value === (request.priority || 'normal')) || priorityOptions[1];
+  const currentStatus = statusOptions.find(s => s.value === request.status) || statusOptions[0];
+  const currentPriority = priorityOptions.find(p => p.value === (request.priority || 'normal')) || priorityOptions[1];
   const showPriority = request.priority && request.priority !== 'normal';
 
   const handleOpenFull = () => {
@@ -98,28 +99,32 @@ export function RequestDetailsModal({
             </Button>
           </div>
 
-          {/* Строка 2: тип + время + статус + приоритет в одну строку */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-slate-500">
+          {/* Строка 2: тип · дата · источник · статус · приоритет — всё в одну строку */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
             <Badge variant="outline" className="text-xs font-normal">
               {formTypeLabels[request.form_type] || request.form_type}
             </Badge>
-            <span>{formatDate(request.created_at)}</span>
+            <span className="text-xs text-slate-400">{formatDate(request.created_at)}</span>
             {request.page_url && (
-              <a
-                href={request.page_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 hover:underline truncate max-w-[200px]"
-              >
-                {request.page_url.replace(/^https?:\/\/[^/]+/, '')}
-              </a>
+              <>
+                <span className="text-xs text-slate-300">·</span>
+                <a
+                  href={request.page_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-500 hover:underline truncate max-w-[160px]"
+                >
+                  {request.page_url.replace(/^https?:\/\/[^/]+/, '') || '/'}
+                </a>
+              </>
             )}
-            <Badge className={`text-xs ${currentStatusOption.color}`}>
-              {currentStatusOption.label}
+            <span className="text-xs text-slate-300">·</span>
+            <Badge className={`text-xs px-1.5 py-0 ${currentStatus.color}`}>
+              {currentStatus.label}
             </Badge>
             {showPriority && (
-              <Badge className={`text-xs ${currentPriorityOption.color}`}>
-                {currentPriorityOption.label}
+              <Badge className={`text-xs px-1.5 py-0 ${currentPriority.color}`}>
+                {currentPriority.label}
               </Badge>
             )}
           </div>
@@ -134,8 +139,12 @@ export function RequestDetailsModal({
           />
         </div>
 
-        {/* Нижняя кнопка закрыть */}
-        <div className="flex justify-end pt-3 border-t">
+        {/* Нижние кнопки */}
+        <div className="flex items-center justify-between pt-3 border-t">
+          <Button variant="outline" onClick={handleOpenFull}>
+            <ExternalLink className="w-4 h-4 mr-1" />
+            Открыть полностью
+          </Button>
           <Button variant="outline" onClick={onClose}>
             Закрыть
           </Button>
