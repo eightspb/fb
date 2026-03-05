@@ -100,13 +100,25 @@ echo ""
 # ═══════════════════════════════════════════════════════════════════
 
 echo -e "${YELLOW}4️⃣  Очистка Next.js кешей...${NC}"
-if docker ps -a --format '{{.Names}}' | grep -q "fb-net-app"; then
-    # Удаляем .next папку внутри контейнера (если она есть)
-    docker exec fb-net-app rm -rf /app/.next 2>/dev/null || true
-    docker exec fb-net-app rm -rf /app/.turbo 2>/dev/null || true
-    echo -e "${GREEN}   ✅ Next.js кеши очищены${NC}"
-else
-    echo -e "${CYAN}   ℹ️  app контейнер не найден (будет очищен при пересборке)${NC}"
+SITE_CLEARED=false
+ADMIN_CLEARED=false
+
+if docker ps -a --format '{{.Names}}' | grep -q "fb-net-site"; then
+    docker exec fb-net-site rm -rf /app/.next 2>/dev/null || true
+    docker exec fb-net-site rm -rf /app/.turbo 2>/dev/null || true
+    SITE_CLEARED=true
+    echo -e "${GREEN}   ✅ Кеш site очищен${NC}"
+fi
+
+if docker ps -a --format '{{.Names}}' | grep -q "fb-net-admin"; then
+    docker exec fb-net-admin rm -rf /app/apps/admin/.next 2>/dev/null || true
+    docker exec fb-net-admin rm -rf /app/.turbo 2>/dev/null || true
+    ADMIN_CLEARED=true
+    echo -e "${GREEN}   ✅ Кеш admin очищен${NC}"
+fi
+
+if [ "$SITE_CLEARED" = false ] && [ "$ADMIN_CLEARED" = false ]; then
+    echo -e "${CYAN}   ℹ️  Контейнеры site/admin не найдены (будет очищено при пересборке)${NC}"
 fi
 echo ""
 

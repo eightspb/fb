@@ -34,7 +34,7 @@ echo ""
 
 # Step 1: Check if current production is running
 print_step "Checking current deployment..."
-if docker ps | grep -q fb-net-app; then
+if docker ps --format '{{.Names}}' | grep -Eq '^fb-net-(site|admin|nginx|db)$'; then
     print_warning "Production deployment detected. Stopping..."
     docker compose -f docker-compose.production.yml down
 fi
@@ -68,11 +68,11 @@ services:
       - fb-net-prod-network
     restart: always
 
-  app:
+  site:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: fb-net-app
+    container_name: fb-net-site
     expose:
       - "3000"
     environment:
@@ -108,7 +108,7 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./certbot/www:/var/www/certbot:ro
     depends_on:
-      - app
+      - site
     networks:
       - fb-net-prod-network
     restart: always

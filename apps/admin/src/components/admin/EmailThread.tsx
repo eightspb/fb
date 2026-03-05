@@ -111,9 +111,18 @@ function formatDate(dateStr: string): string {
 
 function sanitizeHtml(html: string): string {
   return html
+    // Prevent email HTML from overriding document base URL (breaks client routing/fetch).
+    .replace(/<base\b[^>]*>/gi, '')
+    // Remove document-level wrappers often present in webmail exports.
+    .replace(/<\/?(html|head|body)\b[^>]*>/gi, '')
+    .replace(/<meta\b[^>]*http-equiv\s*=\s*["']?refresh["']?[^>]*>/gi, '')
+    .replace(/<link\b[^>]*>/gi, '')
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
     .replace(/<iframe\b[^>]*>/gi, '')
+    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
+    .replace(/<embed\b[^>]*>/gi, '')
     .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '')
     .replace(/\bon\w+\s*=\s*\S+/gi, '')
     .replace(/javascript:/gi, '');

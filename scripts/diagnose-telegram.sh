@@ -118,9 +118,15 @@ if command -v docker &> /dev/null; then
     echo ""
     echo "4️⃣ Проверка логов Docker..."
     
-    CONTAINER_ID=$(docker ps -q -f name=fb.net-app)
+    CONTAINER_ID=$(docker ps -q -f name=fb-net-site)
+    CONTAINER_NAME="fb-net-site"
+    if [ -z "$CONTAINER_ID" ]; then
+        # fallback для legacy конфигураций
+        CONTAINER_ID=$(docker ps -q -f name=fb-net-app)
+        CONTAINER_NAME="fb-net-app"
+    fi
     if [ -n "$CONTAINER_ID" ]; then
-        echo "✅ Контейнер запущен: $CONTAINER_ID"
+        echo "✅ Контейнер запущен: $CONTAINER_NAME ($CONTAINER_ID)"
         
         # Проверяем последние логи на наличие ошибок webhook
         WEBHOOK_ERRORS=$(docker logs --tail 50 $CONTAINER_ID 2>&1 | grep -i "webhook\|telegram" | tail -5)
