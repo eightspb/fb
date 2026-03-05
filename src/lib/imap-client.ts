@@ -53,7 +53,7 @@ function createImapClient(): ImapFlow {
   const host = process.env.IMAP_HOST || 'imap.mail.ru';
   const port = parseInt(process.env.IMAP_PORT || '993');
 
-  return new ImapFlow({
+  const client = new ImapFlow({
     host,
     port,
     secure: true,
@@ -62,7 +62,16 @@ function createImapClient(): ImapFlow {
       pass: process.env.SMTP_PASSWORD!,
     },
     logger: false,
+    // Таймаут на соединение и команды (мс)
+    socketTimeout: 30000,
   });
+
+  // Предотвращаем uncaughtException от socket timeout
+  client.on('error', (err: Error) => {
+    console.error('[IMAP] Client error (handled):', err.message);
+  });
+
+  return client;
 }
 
 function getOurEmail(): string {
@@ -239,9 +248,27 @@ async function syncFolder(
         lastSyncedUid = 0;
       }
 
-      // Формируем диапазон UID для загрузки
-      const searchRange = lastSyncedUid > 0 ? `${lastSyncedUid + 1}:*` : '1:*';
+      // Формируем диапазон для загрузки
+      const totalMessages = mailbox.exists || 0;
+      // useUid: true/false определяет тип диапазона (UID vs sequence)
+      let searchRange: string;
+      let useUid: boolean;
 
+      if (lastSyncedUid > 0) {
+        // Инкрементальный синк: берём по UID начиная с последнего+1
+        searchRange = `${lastSyncedUid + 1}:*`;
+        useUid = true;
+      } else if (totalMessages > 200) {
+        // Первый синк большого ящика: последние 200 по sequence number
+        searchRange = `${totalMessages - 199}:*`;
+        useUid = false;
+        console.log(`[IMAP] ${folderName}: large mailbox (${totalMessages} msgs), fetching last 200 by seq`);
+      } else {
+        searchRange = '1:*';
+        useUid = false;
+      }
+
+      console.log(`[IMAP] ${folderName}: range=${searchRange} uid=${useUid} lastSyncedUid=${lastSyncedUid}`);
       let maxUid = lastSyncedUid;
 
       // Загружаем сообщения
@@ -249,9 +276,7 @@ async function syncFolder(
         uid: true,
         envelope: true,
         source: true,
-      })) {
-        // Пропускаем уже обработанные
-        if (message.uid <= lastSyncedUid) continue;
+      }, { uid: useUid })) {
 
         try {
           if (!message.source) continue;
