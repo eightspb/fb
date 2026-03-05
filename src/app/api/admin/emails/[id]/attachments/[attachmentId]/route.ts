@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
-import { getAttachment, getAttachmentFilePath } from '@/lib/imap-client';
+import { downloadAttachment } from '@/lib/imap-client';
 import { readFile } from 'fs/promises';
 
 export const runtime = 'nodejs';
@@ -33,26 +33,21 @@ export async function GET(
 
     const { attachmentId } = await params;
 
-    const attachment = await getAttachment(attachmentId);
-    if (!attachment) {
+    // downloadAttachment скачивает файл из IMAP если ещё не на диске
+    const result = await downloadAttachment(attachmentId);
+    if (!result) {
       return NextResponse.json({ error: 'Attachment not found' }, { status: 404 });
     }
 
-    const filePath = getAttachmentFilePath(attachment.storage_key);
+    const fileContent = await readFile(result.filePath);
 
-    try {
-      const fileContent = await readFile(filePath);
-
-      return new NextResponse(fileContent, {
-        headers: {
-          'Content-Type': attachment.content_type || 'application/octet-stream',
-          'Content-Disposition': `attachment; filename="${encodeURIComponent(attachment.filename)}"`,
-          'Content-Length': String(fileContent.length),
-        },
-      });
-    } catch {
-      return NextResponse.json({ error: 'File not found on disk' }, { status: 404 });
-    }
+    return new NextResponse(fileContent, {
+      headers: {
+        'Content-Type': result.contentType || 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(result.filename)}"`,
+        'Content-Length': String(fileContent.length),
+      },
+    });
   } catch (error: any) {
     console.error('[CRM Emails] Attachment download error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

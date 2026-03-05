@@ -111,32 +111,92 @@ async function findSentFolder(client: ImapFlow): Promise<string | null> {
 }
 
 /**
- * Сохраняет вложения email на диск
+ * Сохраняет метаданные вложений без скачивания файлов.
+ * Файл скачивается позже по запросу через API.
  */
-async function saveAttachments(
+async function saveAttachmentMetadata(
   emailId: string,
   attachments: Attachment[],
-  client: any // pg client
+  imapUid: number,
+  folderName: string,
+  pgClient: any
 ): Promise<void> {
   if (!attachments || attachments.length === 0) return;
 
-  // Создаём директорию для вложений этого письма
-  const emailDir = join(ATTACHMENTS_DIR, emailId);
-  await mkdir(emailDir, { recursive: true });
-
   for (const attachment of attachments) {
-    if (!attachment.content || !attachment.filename) continue;
+    if (!attachment.filename) continue;
 
-    const storageKey = join(emailId, attachment.filename);
-    const filePath = join(ATTACHMENTS_DIR, storageKey);
-
-    await writeFile(filePath, attachment.content);
-
-    await client.query(
-      `INSERT INTO crm_email_attachments (email_id, filename, content_type, size_bytes, storage_key)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [emailId, attachment.filename, attachment.contentType, attachment.size, storageKey]
+    await pgClient.query(
+      `INSERT INTO crm_email_attachments (email_id, filename, content_type, size_bytes, imap_uid, imap_folder)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT DO NOTHING`,
+      [emailId, attachment.filename, attachment.contentType, attachment.size, imapUid, folderName]
     );
+  }
+}
+
+/**
+ * Скачивает файл вложения из IMAP по требованию и сохраняет на диск.
+ * Возвращает путь к файлу.
+ */
+export async function downloadAttachment(attachmentId: string): Promise<{ filePath: string; filename: string; contentType: string | null } | null> {
+  const pgClient = await pool.connect();
+  try {
+    const result = await pgClient.query(
+      'SELECT * FROM crm_email_attachments WHERE id = $1',
+      [attachmentId]
+    );
+    const att = result.rows[0];
+    if (!att) return null;
+
+    // Уже скачан
+    if (att.storage_key) {
+      return { filePath: join(ATTACHMENTS_DIR, att.storage_key), filename: att.filename, contentType: att.content_type };
+    }
+
+    // Нет данных для скачивания из IMAP
+    if (!att.imap_uid || !att.imap_folder) return null;
+
+    const client = createImapClient();
+    await client.connect();
+
+    try {
+      const lock = await client.getMailboxLock(att.imap_folder);
+      try {
+        // Скачиваем только нужное вложение по имени файла
+        let fileContent: Buffer | null = null;
+
+        for await (const msg of client.fetch({ uid: att.imap_uid }, { source: true }, { uid: true })) {
+          if (!msg.source) continue;
+          const parsed: ParsedMail = await simpleParser(msg.source) as ParsedMail;
+          const found = parsed.attachments?.find(a => a.filename === att.filename);
+          if (found?.content) {
+            fileContent = found.content as Buffer;
+          }
+        }
+
+        if (!fileContent) return null;
+
+        const emailDir = join(ATTACHMENTS_DIR, att.email_id);
+        await mkdir(emailDir, { recursive: true });
+        const storageKey = join(att.email_id, att.filename);
+        const filePath = join(ATTACHMENTS_DIR, storageKey);
+        await writeFile(filePath, fileContent);
+
+        await pgClient.query(
+          'UPDATE crm_email_attachments SET storage_key = $1 WHERE id = $2',
+          [storageKey, attachmentId]
+        );
+
+        return { filePath, filename: att.filename, contentType: att.content_type };
+      } finally {
+        lock.release();
+      }
+    } finally {
+      await client.logout().catch(() => {});
+    }
+  } finally {
+    pgClient.release();
   }
 }
 
@@ -253,9 +313,9 @@ async function syncFolder(
 
           if (insertResult.rows.length > 0) {
             synced++;
-            // Сохраняем вложения
+            // Сохраняем только метаданные вложений (файлы скачиваются по требованию)
             if (hasAttachments && parsed.attachments) {
-              await saveAttachments(insertResult.rows[0].id, parsed.attachments as Attachment[], pgClient);
+              await saveAttachmentMetadata(insertResult.rows[0].id, parsed.attachments as Attachment[], message.uid, folderName, pgClient);
             }
           }
         } catch (parseError: any) {
@@ -419,29 +479,6 @@ export async function getEmailsForSubmission(submissionId: string): Promise<CrmE
   } finally {
     pgClient.release();
   }
-}
-
-/**
- * Получает данные вложения для скачивания
- */
-export async function getAttachment(attachmentId: string): Promise<CrmEmailAttachment | null> {
-  const pgClient = await pool.connect();
-  try {
-    const result = await pgClient.query(
-      'SELECT * FROM crm_email_attachments WHERE id = $1',
-      [attachmentId]
-    );
-    return result.rows[0] || null;
-  } finally {
-    pgClient.release();
-  }
-}
-
-/**
- * Возвращает полный путь к файлу вложения на диске
- */
-export function getAttachmentFilePath(storageKey: string): string {
-  return join(ATTACHMENTS_DIR, storageKey);
 }
 
 /**
