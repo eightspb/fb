@@ -623,8 +623,14 @@ export async function finishNewsCreation(chatId: number): Promise<void> {
         console.log(`[BOT] 📥 Предварительное скачивание первого изображения для извлечения даты...`);
         const tempBuffer = await downloadTelegramFile(firstImage.fileId, botToken!);
         const tempFilename = `temp_${Date.now()}.jpg`;
-        const tempPath = path.join(process.cwd(), 'public', 'images', 'trainings', tempFilename);
-        
+        const tempDir = path.join(process.cwd(), 'public', 'images', 'trainings');
+        const tempPath = path.join(tempDir, tempFilename);
+
+        // Создаём директорию если её нет
+        if (!fs.existsSync(tempDir)) {
+          fs.mkdirSync(tempDir, { recursive: true });
+        }
+
         // Сохраняем во временный файл
         fs.writeFileSync(tempPath, tempBuffer);
         
@@ -929,16 +935,35 @@ export async function publishNewsFromPreview(chatId: number): Promise<void> {
       }
       console.log('[BOT] ✅ Новость создана в БД');
 
-      // Добавляем изображения
+      // Добавляем изображения (включая бинарные данные для отображения из БД)
       const savedImages = pending.images.filter((img) => img.path);
       console.log(`[BOT] 💾 Добавление ${savedImages.length} изображений в БД...`);
       for (let i = 0; i < savedImages.length; i++) {
         const image = savedImages[i];
         if (image.path) {
-          await client.query(
-            'INSERT INTO news_images (news_id, image_url, "order") VALUES ($1, $2, $3)',
-            [newsId, image.path, i]
-          );
+          try {
+            // Читаем файл с диска для сохранения в image_data
+            const absolutePath = image.path.startsWith('/')
+              ? path.join(process.cwd(), 'public', image.path)
+              : image.path;
+            const imageBuffer = fs.readFileSync(absolutePath);
+            const ext = path.extname(image.path).toLowerCase();
+            const mimeType = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+
+            const result = await client.query(
+              'INSERT INTO news_images (news_id, image_url, "order", image_data, mime_type) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+              [newsId, image.path, i, imageBuffer, mimeType]
+            );
+            console.log(`[BOT] ✅ Изображение ${i + 1} добавлено в БД (id: ${result.rows[0]?.id}, ${imageBuffer.length} байт)`);
+          } catch (imgErr) {
+            console.error(`[BOT] ❌ Ошибка сохранения изображения ${i + 1} в БД:`, imgErr);
+            // Fallback: сохраняем без image_data
+            await client.query(
+              'INSERT INTO news_images (news_id, image_url, "order") VALUES ($1, $2, $3)',
+              [newsId, image.path, i]
+            );
+            console.log(`[BOT] ⚠️ Изображение ${i + 1} добавлено без бинарных данных`);
+          }
         }
       }
       console.log('[BOT] ✅ Изображения добавлены в БД');

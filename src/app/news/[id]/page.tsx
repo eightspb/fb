@@ -52,38 +52,37 @@ export default async function NewsPage({ params }: NewsPageProps) {
       
       const client = await pool.connect();
       try {
-        // Показываем только опубликованные новости (status = 'published' или NULL для обратной совместимости)
+        // Показываем новость по ID (включая черновики — для предпросмотра по прямой ссылке)
         const query = `
-          SELECT 
+          SELECT
             n.*,
             COALESCE(
               (SELECT json_agg(jsonb_build_object(
                 'id', id,
-                'image_url', image_url, 
+                'image_url', image_url,
                 'order', "order",
                 'has_data', (image_data IS NOT NULL)
-              )) 
+              ))
                FROM news_images WHERE news_id = n.id),
               '[]'::json
             ) as images,
             COALESCE(
-              (SELECT json_agg(jsonb_build_object('tag', tag)) 
+              (SELECT json_agg(jsonb_build_object('tag', tag))
                FROM news_tags WHERE news_id = n.id),
               '[]'::json
             ) as tags,
             COALESCE(
-              (SELECT json_agg(jsonb_build_object('video_url', video_url, 'order', "order")) 
+              (SELECT json_agg(jsonb_build_object('video_url', video_url, 'order', "order"))
                FROM news_videos WHERE news_id = n.id),
               '[]'::json
             ) as videos,
             COALESCE(
-              (SELECT json_agg(jsonb_build_object('document_url', document_url, 'order', "order")) 
+              (SELECT json_agg(jsonb_build_object('document_url', document_url, 'order', "order"))
                FROM news_documents WHERE news_id = n.id),
               '[]'::json
             ) as documents
           FROM news n
           WHERE (n.id = $1 OR n.id = $2)
-          AND (n.status = 'published' OR n.status IS NULL)
         `;
         
         const result = await client.query(query, [id, decodedId]);
@@ -295,38 +294,37 @@ export async function generateMetadata({ params }: NewsPageProps): Promise<impor
       
       const client = await pool.connect();
       try {
-        // Показываем только опубликованные новости
+        // Показываем новость по ID (включая черновики)
         const query = `
-          SELECT 
+          SELECT
             n.*,
             COALESCE(
               (SELECT json_agg(jsonb_build_object(
                 'id', id,
-                'image_url', image_url, 
+                'image_url', image_url,
                 'order', "order",
                 'has_data', (image_data IS NOT NULL)
-              )) 
+              ))
                FROM news_images WHERE news_id = n.id),
               '[]'::json
             ) as images,
             COALESCE(
-              (SELECT json_agg(jsonb_build_object('tag', tag)) 
+              (SELECT json_agg(jsonb_build_object('tag', tag))
                FROM news_tags WHERE news_id = n.id),
               '[]'::json
             ) as tags,
             COALESCE(
-              (SELECT json_agg(jsonb_build_object('video_url', video_url, 'order', "order")) 
+              (SELECT json_agg(jsonb_build_object('video_url', video_url, 'order', "order"))
                FROM news_videos WHERE news_id = n.id),
               '[]'::json
             ) as videos,
             COALESCE(
-              (SELECT json_agg(jsonb_build_object('document_url', document_url, 'order', "order")) 
+              (SELECT json_agg(jsonb_build_object('document_url', document_url, 'order', "order"))
                FROM news_documents WHERE news_id = n.id),
               '[]'::json
             ) as documents
           FROM news n
           WHERE (n.id = $1 OR n.id = $2)
-          AND (n.status = 'published' OR n.status IS NULL)
         `;
         
         const result = await client.query(query, [id, decodedId]);
