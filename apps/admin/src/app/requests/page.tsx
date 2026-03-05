@@ -304,66 +304,53 @@ export default function AdminRequestsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Заголовок и статистика */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Заявки</h1>
-          {stats && (
-            <div className="space-y-2 mt-2">
-              <div className="flex flex-wrap gap-3">
-                <div className="flex items-center gap-1.5 text-sm">
-                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                  <span className="text-slate-600">Новые: <strong>{stats.new_count}</strong></span>
-                </div>
-                <div className="flex items-center gap-1.5 text-sm">
-                  <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-                  <span className="text-slate-600">В работе: <strong>{stats.in_progress_count}</strong></span>
-                </div>
-                <div className="flex items-center gap-1.5 text-sm">
-                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                  <span className="text-slate-600">Обработано: <strong>{stats.processed_count}</strong></span>
-                </div>
-                <div className="flex items-center gap-1.5 text-sm">
-                  <span className="text-slate-400">Всего: {stats.total_count}</span>
-                </div>
-              </div>
-              {typeStats && (
-                <div className="flex flex-wrap gap-3 pt-1 border-t border-slate-200">
-                  <div className="flex items-center gap-1.5 text-sm">
-                    <span className="text-slate-500">Типы:</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-sm">
-                    <span className="text-slate-600">Контакт: <strong>{typeStats.contact_count}</strong></span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-sm">
-                    <span className="text-slate-600">КП: <strong>{typeStats.cp_count}</strong></span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-sm">
-                    <span className="text-slate-600">Обучение: <strong>{typeStats.training_count}</strong></span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-sm">
-                    <span className="text-slate-600">Конференция: <strong>{typeStats.conference_count}</strong></span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        
+      {/* Заголовок */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-900">Заявки</h1>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => loadRequests()} title="Обновить">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => handleExport(true)}
-            className="gap-2"
-          >
+          <Button variant="outline" onClick={() => handleExport(true)} className="gap-2">
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">Экспорт CSV</span>
           </Button>
         </div>
       </div>
+
+      {/* Карточки статистики */}
+      {stats && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-blue-600 text-white rounded-xl p-4 flex flex-col gap-1 shadow-sm">
+            <div className="flex items-center gap-2 opacity-80">
+              <Inbox className="w-4 h-4" />
+              <span className="text-xs font-medium uppercase tracking-wide">Новые</span>
+            </div>
+            <div className="text-3xl font-bold">{stats.new_count}</div>
+          </div>
+          <div className="bg-amber-500 text-white rounded-xl p-4 flex flex-col gap-1 shadow-sm">
+            <div className="flex items-center gap-2 opacity-80">
+              <Clock className="w-4 h-4" />
+              <span className="text-xs font-medium uppercase tracking-wide">В работе</span>
+            </div>
+            <div className="text-3xl font-bold">{stats.in_progress_count}</div>
+          </div>
+          <div className="bg-emerald-600 text-white rounded-xl p-4 flex flex-col gap-1 shadow-sm">
+            <div className="flex items-center gap-2 opacity-80">
+              <CheckCircle2 className="w-4 h-4" />
+              <span className="text-xs font-medium uppercase tracking-wide">Обработано</span>
+            </div>
+            <div className="text-3xl font-bold">{stats.processed_count}</div>
+          </div>
+          <div className="bg-slate-700 text-white rounded-xl p-4 flex flex-col gap-1 shadow-sm">
+            <div className="flex items-center gap-2 opacity-80">
+              <Archive className="w-4 h-4" />
+              <span className="text-xs font-medium uppercase tracking-wide">Всего</span>
+            </div>
+            <div className="text-3xl font-bold">{stats.total_count}</div>
+          </div>
+        </div>
+      )}
 
       {/* Поиск и фильтры */}
       <Card>
@@ -613,12 +600,15 @@ export default function AdminRequestsPage() {
                 </tr>
               ) : (
                 requests.map((req) => (
-                  <tr 
-                    key={req.id} 
-                    className={`border-b hover:bg-slate-50 cursor-pointer ${
-                      req.status === 'new' ? 'bg-blue-50/30' : ''
-                    } ${req.priority === 'urgent' ? 'border-l-4 border-l-red-500' : ''} ${
-                      req.priority === 'high' ? 'border-l-4 border-l-orange-500' : ''
+                  <tr
+                    key={req.id}
+                    className={`border-b cursor-pointer transition-colors hover:bg-slate-50 ${
+                      req.priority === 'urgent' ? 'border-l-4 border-l-red-500 bg-red-50/40' :
+                      req.priority === 'high'   ? 'border-l-4 border-l-orange-400 bg-orange-50/30' :
+                      req.status === 'new'      ? 'border-l-4 border-l-blue-400 bg-blue-50/20' :
+                      req.status === 'in_progress' ? 'border-l-4 border-l-amber-400' :
+                      req.status === 'processed'   ? 'border-l-4 border-l-emerald-400' :
+                                                     'border-l-4 border-l-transparent'
                     }`}
                     onClick={() => openRequestDetails(req)}
                   >

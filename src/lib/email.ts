@@ -113,8 +113,23 @@ export function createEmailTransporter(): Transporter {
  * Получает email отправителя
  */
 export function getSenderEmail(): string {
-  // Валидация уже выполнена в createEmailTransporter, не нужно повторять
   return process.env.SMTP_FROM || process.env.SMTP_USER || 'info@zenitmed.ru';
+}
+
+/**
+ * Получает отображаемое имя отправителя для поля From
+ */
+export function getSenderName(): string {
+  return process.env.SMTP_FROM_NAME || 'Компания Зенит';
+}
+
+/**
+ * Возвращает строку "Имя <email>" для заголовка From
+ */
+export function getSenderAddress(): string {
+  const name = getSenderName();
+  const email = getSenderEmail();
+  return `${name} <${email}>`;
 }
 
 /**

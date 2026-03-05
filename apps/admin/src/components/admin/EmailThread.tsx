@@ -272,41 +272,53 @@ function ThreadCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const count = thread.emails.length;
-  const latest = thread.emails[thread.emails.length - 1];
-  const hasUnread = thread.emails.some(e => e.direction === 'inbound');
+  const hasInbound = thread.emails.some(e => e.direction === 'inbound');
+  const hasOutbound = thread.emails.some(e => e.direction === 'outbound');
+  // Цвет полосы: смешанный = фиолетовый, только входящие = синий, только исходящие = зелёный
+  const accentClass = hasInbound && hasOutbound
+    ? 'border-l-violet-500'
+    : hasInbound ? 'border-l-blue-500' : 'border-l-emerald-500';
+  const headerBg = hasInbound && hasOutbound
+    ? 'bg-violet-50'
+    : hasInbound ? 'bg-blue-50' : 'bg-emerald-50';
+  const iconColor = hasInbound && hasOutbound
+    ? 'bg-violet-100 text-violet-600'
+    : hasInbound ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600';
 
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div className={`border border-slate-200 border-l-4 ${accentClass} rounded-lg overflow-hidden shadow-sm`}>
       {/* Шапка треда */}
       <div
-        className="flex items-center gap-3 p-3 cursor-pointer hover:bg-slate-50 transition-colors"
+        className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:brightness-95 transition-all ${headerBg}`}
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="p-1.5 rounded-full bg-slate-100 text-slate-500 shrink-0">
+        <div className={`p-1.5 rounded-full shrink-0 ${iconColor}`}>
           <MessageSquare className="w-4 h-4" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-sm font-medium truncate">{thread.subject}</span>
-            <span className="text-xs text-slate-400 shrink-0 bg-slate-100 px-1.5 py-0.5 rounded-full">
+            <span className="text-sm font-semibold text-slate-800 truncate">{thread.subject}</span>
+            <span className="text-xs font-medium shrink-0 bg-white/70 border border-slate-200 px-1.5 py-0.5 rounded-full text-slate-600">
               {count}
             </span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <span>{formatDate(thread.latestAt)}</span>
-            <span>·</span>
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <span className="font-medium">{formatDate(thread.latestAt)}</span>
+            <span className="text-slate-300">·</span>
             <span className="truncate">
               {thread.emails.map(e => e.direction === 'inbound' ? (e.from_name || e.from_address) : 'Вы').filter((v, i, a) => a.indexOf(v) === i).join(', ')}
             </span>
-            {thread.emails.some(e => e.has_attachments) && <Paperclip className="w-3 h-3 shrink-0" />}
+            {thread.emails.some(e => e.has_attachments) && <Paperclip className="w-3 h-3 shrink-0 text-slate-400" />}
           </div>
         </div>
-        {expanded ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />}
+        {expanded
+          ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />
+          : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />}
       </div>
 
       {/* Письма треда */}
       {expanded && (
-        <div className="border-t py-2 space-y-1">
+        <div className="border-t border-slate-100 py-2 space-y-1 bg-white">
           {thread.emails.map((email, idx) => (
             <EmailItem
               key={email.id}

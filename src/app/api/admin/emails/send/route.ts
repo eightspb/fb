@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
-import { createEmailTransporter, getSenderEmail } from '@/lib/email';
+import { createEmailTransporter, getSenderEmail, getSenderAddress } from '@/lib/email';
 import { saveOutboundEmail } from '@/lib/imap-client';
 
 export const runtime = 'nodejs';
@@ -68,11 +68,12 @@ export async function POST(request: NextRequest) {
     }
 
     const fromEmail = getSenderEmail();
+    const fromAddress = getSenderAddress();
     const transporter = createEmailTransporter();
 
     // Формируем заголовки для threading
     const mailOptions: any = {
-      from: fromEmail,
+      from: fromAddress,
       to,
       subject,
       html: bodyHtml,
