@@ -57,6 +57,10 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       TARGET_EMAIL: ${TARGET_EMAIL:-}
+      IMAP_HOST: ${IMAP_HOST:-imap.mail.ru}
+      IMAP_PORT: ${IMAP_PORT:-993}
+    volumes:
+      - crm-attachments-data:/data/crm-attachments
     depends_on:
       postgres:
         condition: service_healthy
@@ -105,6 +109,7 @@ services:
 
 volumes:
   postgres-prod-data:
+  crm-attachments-data:
 
 networks:
   fb-net-prod-network:

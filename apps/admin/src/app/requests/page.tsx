@@ -1,21 +1,23 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { 
-  RefreshCw, 
-  Search, 
-  Download, 
-  Trash2, 
+import {
+  RefreshCw,
+  Search,
+  Download,
+  Trash2,
   Archive,
   ChevronLeft,
   ChevronRight,
   X,
   Eye,
+  ExternalLink,
   Mail,
   Phone,
   AlertCircle,
@@ -72,6 +74,7 @@ const priorityOptions = [
 ];
 
 export default function AdminRequestsPage() {
+  const router = useRouter();
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -699,9 +702,20 @@ export default function AdminRequestsPage() {
                       </select>
                     </td>
                     <td className="px-4 py-3">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Eye className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Быстрый просмотр">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="Открыть полностью"
+                          onClick={(e) => { e.stopPropagation(); router.push(`/requests/${req.id}`); }}
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))
