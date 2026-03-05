@@ -15,9 +15,15 @@ interface NewsPageProps {
 
 export async function generateStaticParams() {
   try {
+    // В production/build не делаем self-fetch к localhost:3000.
+    // Если БД не настроена в окружении сборки, просто отключаем предгенерацию.
+    if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
+      return [];
+    }
+
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
     const response = await fetch(`${baseUrl}/api/news`, {
-      next: { revalidate: 3600 } // Revalidate every hour
+      next: { revalidate: 3600 }, // Revalidate every hour
     });
     
     if (response.ok) {
@@ -132,10 +138,10 @@ export default async function NewsPage({ params }: NewsPageProps) {
         client.release();
         await pool.end();
       }
-    } else {
+    } else if (process.env.NODE_ENV !== 'production') {
       const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
       const response = await fetch(`${baseUrl}/api/news/${encodeURIComponent(decodedId)}`, {
-        cache: 'no-store'
+        cache: 'no-store',
       });
       
       if (response.ok) {
@@ -372,10 +378,10 @@ export async function generateMetadata({ params }: NewsPageProps): Promise<impor
         client.release();
         await pool.end();
       }
-    } else {
+    } else if (process.env.NODE_ENV !== 'production') {
       const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
       const response = await fetch(`${baseUrl}/api/news/${encodeURIComponent(decodedId)}`, {
-        cache: 'no-store'
+        cache: 'no-store',
       });
       
       if (response.ok) {

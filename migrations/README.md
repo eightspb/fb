@@ -1,59 +1,48 @@
 # Миграции базы данных
 
-## Текущий статус
+Папка содержит SQL-миграции, применяемые скриптом `scripts/apply-migrations-remote.sh`.
 
-Все миграции уже применены к production БД. SQL файлы удалены.
+## Текущие файлы
 
-Применённые миграции:
-- `add-image-focal-point` - добавление поля `image_focal_point` для настройки позиционирования изображений в карточках новостей
-- `analytics-tables` - таблицы для аналитики (`visitor_sessions`, `page_visits`, `ip_geolocation_cache`)
+- `001_add_request_fields.sql`
+- `003_restructure_conferences.sql`
+- `004_add_videos_to_conferences.sql`
+- `005_add_email_templates.sql`
+- `006_fix_app_logs_rls.sql`
+- `006_update_conference_email_template.sql`
+- `007_add_site_banner.sql`
+- `008_add_direct_bidder.sql`
+- `009_add_direct_templates_and_provisioning.sql`
+- `010_remove_supabase_policies.sql`
+- `011_add_crm_emails.sql`
+- `012_add_imap_uid_to_attachments.sql`
+- `013_fix_uid_bigint.sql`
 
-Эти изменения также добавлены в основной файл `database-schema.sql`.
+## Как применяются миграции
 
-## Почему?
+1. На сервере вызывается `scripts/init-migrations-table.sh`.
+2. Затем `scripts/apply-migrations-remote.sh` идет по файлам `*.sql` по имени (sort).
+3. Для каждой миграции проверяется запись в `schema_migrations`.
+4. Новые миграции применяются один раз и фиксируются в `schema_migrations`.
 
-Ранее миграции дублировали изменения, которые уже были в `database-schema.sql`:
-- Добавление поля `slug` для конференций
-- Добавление полей `date_end`, `cover_image`, `speakers` и др.
-- Индексы для новостей
-- Таблицы аналитики (`visitor_sessions`, `page_visits`, `ip_geolocation_cache`)
+## Правила для новых миграций
 
-Это приводило к ошибкам при деплое, так как:
-1. Таблица `schema_migrations` не создавалась автоматически
-2. Миграции пытались применить изменения, которые уже существовали
-3. Скрипт деплоя тратил время на проверку миграций
+- Используйте последовательную нумерацию: `014_some_change.sql`, `015_...`.
+- Пишите идемпотентный SQL:
+  - `CREATE TABLE IF NOT EXISTS`
+  - `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`
+  - `DROP ... IF EXISTS`
+  - `CREATE INDEX IF NOT EXISTS`
+- Если миграция меняет базовую схему для новых инсталляций, синхронно обновляйте `database-schema.sql`.
 
-## Как работать с изменениями БД теперь?
+## Ручной запуск (если нужно)
 
-### Для новых установок
-База создается из `database-schema.sql` - в нем уже есть все необходимые таблицы и поля.
+```bash
+# На сервере, из /opt/fb-net
+bash scripts/apply-migrations-remote.sh docker-compose.ssl.yml
+```
 
-### Для существующих установок
-Если нужно добавить новую функциональность, требующую изменения структуры БД:
-
-**Вариант 1 (рекомендуется для новых таблиц):**
-- Добавьте CREATE TABLE в `database-schema.sql` с `IF NOT EXISTS`
-- Таблица создастся автоматически при следующем запуске
-
-**Вариант 2 (для изменения существующих таблиц):**
-1. Создайте файл миграции в этой папке (например, `2026-02-05-add-field.sql`)
-2. Используйте безопасные команды:
-   ```sql
-   ALTER TABLE table_name ADD COLUMN IF NOT EXISTS field_name TYPE;
-   CREATE INDEX IF NOT EXISTS index_name ON table_name(field);
-   ```
-3. Добавьте эти же изменения в `database-schema.sql`
-4. Скрипт деплоя автоматически применит миграцию
-
-**Вариант 3 (для срочных изменений):**
-- Выполните SQL напрямую в БД через `docker exec`:
-  ```bash
-  docker exec -it fb-net-db psql -U postgres -d postgres
-  ```
-
-## Важно
-
-- Всегда используйте `IF NOT EXISTS` / `IF EXISTS` для безопасности
-- Обновляйте `database-schema.sql` вместе с миграциями
-- Скрипт деплоя автоматически пропускает уже примененные миграции
-- Для быстрого деплоя без миграций: `.\scripts\deploy-from-github.ps1 -AppOnly -SkipMigrations`
+```bash
+# Локально (если есть .env и контейнер БД)
+bash scripts/apply-migrations.sh
+```

@@ -4,11 +4,12 @@
 
 ## 📦 Доступные скрипты
 
-В проекте всего **3 основных скрипта**:
+Ключевые скрипты для ежедневной работы:
 
 1. **commit-and-push.ps1** - коммит и push изменений в GitHub
 2. **deploy-from-github.ps1** - деплой с GitHub на сервер
-3. **backup-database.ps1/sh** - ручной бэкап базы данных (опционально)
+3. **backup-database.ps1** - ручной бэкап базы данных (опционально)
+4. **dev-remote.ps1** - локальная разработка с удаленной БД через SSH-туннель
 
 ---
 
@@ -59,9 +60,9 @@
 
 **Что происходит:**
 1. Обновляется код через git pull
-2. Останавливается только контейнер `app`
-3. Пересобирается контейнер `app`
-4. Запускается обновленный контейнер `app`
+2. Останавливаются контейнеры `site` и `admin`
+3. Пересобираются контейнеры `site` и `admin`
+4. Запускаются обновленные контейнеры `site` и `admin`
 5. База данных `postgres` работает без остановки
 
 ---
@@ -143,8 +144,11 @@ nano .env  # заполните переменные
 | Параметр | Описание | Пример |
 |----------|----------|--------|
 | (без параметров) | Полный деплой всех контейнеров | `.\scripts\deploy-from-github.ps1` |
+| `-SiteOnly` | Только контейнер `site` | `.\scripts\deploy-from-github.ps1 -SiteOnly` |
+| `-AdminOnly` | Только контейнер `admin` | `.\scripts\deploy-from-github.ps1 -AdminOnly` |
 | `-AppOnly` | Только приложение (БД не перезапускается) | `.\scripts\deploy-from-github.ps1 -AppOnly` |
 | `-SkipBackup` | Деплой без бэкапа БД (быстрее) | `.\scripts\deploy-from-github.ps1 -SkipBackup` |
+| `-SkipMigrations` | Пропустить SQL миграции | `.\scripts\deploy-from-github.ps1 -SkipMigrations` |
 | `-Branch dev` | Деплой из другой ветки | `.\scripts\deploy-from-github.ps1 -Branch dev` |
 | `-Init` | Первый запуск (клонирование репозитория) | `.\scripts\deploy-from-github.ps1 -Init` |
 

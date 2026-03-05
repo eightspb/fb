@@ -3,38 +3,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import TelegramBot from 'node-telegram-bot-api';
-import {
-  handleTextMessage,
-  handlePhotoMessage,
-  handleVideoMessage,
-  handleVoiceMessage,
-  handleDoneCommand,
-  handleCancelCommand,
-  handleStartCommand,
-  handleListCommand,
-  handleDateCommand,
-  handleLocationCommand,
-  handleStatusCommand,
-  handleResetCommand,
-  sendNewsActionsMenu,
-  getAllNewsFromDB,
-  sendNewsListPage,
-  finishNewsCreation,
-  publishNewsFromPreview,
-  handleEditFieldText,
-  regenerateAIContent,
-} from '@/lib/telegram-bot';
 import { Pool } from 'pg';
+import type TelegramBot from 'node-telegram-bot-api';
 
 // Явно указываем Node.js runtime для работы с PostgreSQL и Telegram Bot API
 export const runtime = 'nodejs';
-
-const botToken = process.env.TELEGRAM_BOT_TOKEN;
-
-if (!botToken) {
-  console.error('TELEGRAM_BOT_TOKEN не установлен');
-}
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
@@ -45,6 +18,7 @@ export async function POST(request: NextRequest) {
   console.log(`\n[${timestamp}] ===== TELEGRAM WEBHOOK RECEIVED =====`);
   
   try {
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
     if (!botToken) {
       console.error('[WEBHOOK] ❌ TELEGRAM_BOT_TOKEN не установлен');
       return NextResponse.json(
@@ -54,6 +28,33 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    const [telegramBotModule, telegramHandlers] = await Promise.all([
+      import('node-telegram-bot-api'),
+      import('@/lib/telegram-bot'),
+    ]);
+    const TelegramBotCtor = telegramBotModule.default;
+    const {
+      handleTextMessage,
+      handlePhotoMessage,
+      handleVideoMessage,
+      handleVoiceMessage,
+      handleDoneCommand,
+      handleCancelCommand,
+      handleStartCommand,
+      handleListCommand,
+      handleDateCommand,
+      handleLocationCommand,
+      handleStatusCommand,
+      handleResetCommand,
+      sendNewsActionsMenu,
+      getAllNewsFromDB,
+      sendNewsListPage,
+      finishNewsCreation,
+      publishNewsFromPreview,
+      handleEditFieldText,
+      regenerateAIContent,
+      pendingNews,
+    } = telegramHandlers;
     console.log('[WEBHOOK] 📥 Получено обновление:', JSON.stringify(body, null, 2));
 
     // Обрабатываем callback_query (ответы на кнопки)
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
       
       console.log('[WEBHOOK] Callback data:', { actionPrefix, data, fullData: callbackData });
 
-      const bot = new TelegramBot(botToken, { polling: false });
+      const bot = new TelegramBotCtor(botToken, { polling: false });
       const chatId = callbackQuery.message?.chat?.id;
 
       if (!chatId) {
@@ -150,7 +151,6 @@ export async function POST(request: NextRequest) {
 
       if (callbackData === 'cancel_news') {
         console.log('[WEBHOOK] ❌ Отмена создания новости');
-        const { handleCancelCommand: cancel, pendingNews } = await import('@/lib/telegram-bot');
         const pending = (pendingNews as any).get(chatId);
         if (pending?.state === 'publishing') {
           await bot.answerCallbackQuery(callbackQuery.id, { text: 'Идёт публикация, подождите...' });
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
           await bot.answerCallbackQuery(callbackQuery.id, { text: 'Идёт генерация, подождите...' });
           return NextResponse.json({ ok: true });
         }
-        await cancel({ chat: { id: chatId } } as any);
+        await handleCancelCommand({ chat: { id: chatId } } as any);
         await bot.answerCallbackQuery(callbackQuery.id, { text: 'Отменено' });
         return NextResponse.json({ ok: true });
       }
@@ -199,7 +199,6 @@ export async function POST(request: NextRequest) {
       }
 
       if (callbackData === 'edit_title') {
-        const { pendingNews } = await import('@/lib/telegram-bot');
         const pending = (pendingNews as any).get(chatId);
         if (pending && pending.state === 'preview') {
           pending.waitingForEdit = 'title';
@@ -212,7 +211,6 @@ export async function POST(request: NextRequest) {
       }
 
       if (callbackData === 'edit_short') {
-        const { pendingNews } = await import('@/lib/telegram-bot');
         const pending = (pendingNews as any).get(chatId);
         if (pending && pending.state === 'preview') {
           pending.waitingForEdit = 'short';
@@ -225,7 +223,6 @@ export async function POST(request: NextRequest) {
       }
 
       if (callbackData === 'edit_full') {
-        const { pendingNews } = await import('@/lib/telegram-bot');
         const pending = (pendingNews as any).get(chatId);
         if (pending && pending.state === 'preview') {
           pending.waitingForEdit = 'full';
@@ -443,7 +440,6 @@ export async function POST(request: NextRequest) {
       // Обрабатываем текстовые сообщения
       if (msg.text) {
         // Проверяем, ожидается ли редактирование поля
-        const { pendingNews } = await import('@/lib/telegram-bot');
         const pending = (pendingNews as any).get(msg.chat.id);
         
         if (pending && pending.waitingForEdit) {

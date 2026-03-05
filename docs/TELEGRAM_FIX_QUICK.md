@@ -33,7 +33,7 @@ ssh root@155.212.217.60
 #### Шаг 2: Перейдите в директорию проекта
 
 ```bash
-cd /root/fb.net  # или где у вас проект
+cd /opt/fb-net  # или где у вас проект
 ```
 
 #### Шаг 3: Запустите скрипт исправления
@@ -194,7 +194,7 @@ docker compose -f docker-compose.ssl.yml logs --tail 20 site | grep WEBHOOK
 
 ```bash
 # Полная последовательность
-cd /root/fb.net
+cd /opt/fb-net
 bash scripts/fix-telegram-now.sh
 
 # Или вручную:

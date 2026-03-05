@@ -1,143 +1,107 @@
 # Скрипты проекта
 
-## Деплой (запускается локально на Windows)
+Актуальный список скриптов из папки `scripts/`.
 
-### `deploy-from-github.ps1` — главный скрипт деплоя
+## Основные (Windows, локально)
 
-Подключается к серверу по SSH, делает `git pull` и пересобирает нужные Docker-контейнеры.
-
-**Архитектура контейнеров:**
-- `site` — публичный сайт + весь backend/API, собирается из `./Dockerfile`
-- `admin` — UI панели управления, собирается из `./apps/admin/Dockerfile`
-- `postgres` — база данных
-
-#### Режимы деплоя
+### `deploy-from-github.ps1`
+Главный скрипт деплоя по SSH.
 
 ```powershell
-# Только сайт (изменения в src/)
 .\scripts\deploy-from-github.ps1 -SiteOnly
-
-# Только админка (изменения в apps/admin/)
 .\scripts\deploy-from-github.ps1 -AdminOnly
-
-# Оба приложения (БД не трогается)
 .\scripts\deploy-from-github.ps1 -AppOnly
-
-# Полный деплой (все контейнеры + миграции БД)
 .\scripts\deploy-from-github.ps1
-
-# Первый запуск (клонировать репозиторий)
-.\scripts\deploy-from-github.ps1 -Init
 ```
 
-#### Все параметры
-
-| Параметр | Описание |
-|----------|----------|
-| `-SiteOnly` | Только контейнер `site` |
-| `-AdminOnly` | Только контейнер `admin` |
-| `-AppOnly` | `site` + `admin` (без пересборки БД) |
-| `-SkipBackup` | Пропустить бэкап БД |
-| `-SkipMigrations` | Пропустить применение миграций |
-| `-Branch dev` | Деплой из другой ветки |
-| `-Init` | Первоначальная настройка сервера |
-
----
-
-### `commit-and-push.ps1` — коммит и push в GitHub
+### `commit-and-push.ps1`
+Автоматизирует `git add`, commit, push.
 
 ```powershell
 .\scripts\commit-and-push.ps1
-.\scripts\commit-and-push.ps1 -Message "Описание изменений"
+.\scripts\commit-and-push.ps1 -Message "feat: update docs"
 ```
 
-### `backup-database.ps1` — ручной бэкап БД
+### `backup-database.ps1`
+Ручной бэкап PostgreSQL (локально или production-параметрами).
 
 ```powershell
 .\scripts\backup-database.ps1
 ```
 
----
+### `dev-remote.ps1`
+Локальная разработка с SSH-туннелем к удаленной БД.
 
-## Серверные скрипты (Linux, запускаются на сервере)
-
-### `setup-server-dependencies.sh`
-
-Проверяет и устанавливает `jq`, `curl`, `git`, Docker. Добавляет недостающие переменные в `.env`.
-Запускается автоматически при каждом деплое.
-
-```bash
-bash scripts/setup-server-dependencies.sh
+```powershell
+.\scripts\dev-remote.ps1
 ```
 
-### `apply-migrations-remote.sh`
+### `clear-all-caches.ps1`
+Очистка локальных кэшей (`.next`, `.turbo` и временных файлов).
 
-Применяет SQL-миграции из папки `migrations/` к БД.
+```powershell
+.\scripts\clear-all-caches.ps1
+```
+
+### `check-telegram-webhook.ps1`
+Проверка/настройка webhook Telegram из Windows.
+
+```powershell
+.\scripts\check-telegram-webhook.ps1
+```
+
+### `apply-migration-on-server.ps1`
+Точечная проверка и применение legacy-миграции `006_fix_app_logs_rls` на сервере.
+
+## Серверные (Linux, на сервере)
+
+### `setup-server-dependencies.sh`
+Установка/проверка серверных зависимостей (`jq`, `curl`, `git`, Docker) и проверка `.env`.
+
+### `apply-migrations-remote.sh`
+Применение всех SQL миграций из `migrations/` с учетом `schema_migrations`.
 
 ```bash
 bash scripts/apply-migrations-remote.sh docker-compose.ssl.yml
 ```
 
-### `fix-telegram-now.sh`
+### `init-migrations-table.sh`
+Инициализация/нормализация таблицы `schema_migrations`.
 
-Настраивает Telegram webhook (удаляет старый, устанавливает новый).
-
-```bash
-bash scripts/fix-telegram-now.sh
-```
-
-### `diagnose-telegram.sh`
-
-Полная диагностика Telegram бота.
-
-```bash
-bash scripts/diagnose-telegram.sh
-```
+### `apply-migrations.sh`
+Локальное применение миграций из папки `migrations/` к контейнерной БД.
 
 ### `setup-ssl.sh`
-
-Первоначальная настройка SSL-сертификата Let's Encrypt.
-
-```bash
-bash scripts/setup-ssl.sh
-```
+Первичная настройка HTTPS через Let's Encrypt.
 
 ### `clear-server-caches.sh`
-
-Очищает Docker кеши и Next.js кеши. Не удаляет тома с данными БД.
+Очистка серверных Docker/Next.js кешей.
 
 ```bash
 bash scripts/clear-server-caches.sh
-bash scripts/clear-server-caches.sh --rebuild  # + пересборка контейнеров
+bash scripts/clear-server-caches.sh --rebuild
 ```
 
----
+### Telegram и диагностика
 
-## Типичный рабочий процесс
+- `fix-telegram-now.sh` — быстрое исправление webhook
+- `diagnose-telegram.sh` — диагностика Telegram интеграции
+- `check-telegram-webhook.sh` — проверка webhook через bash
 
-```powershell
-# Изменил страницы сайта
-.\scripts\commit-and-push.ps1 -Message "Обновил главную"
-.\scripts\deploy-from-github.ps1 -SiteOnly
+### Legacy/точечные скрипты поддержки
 
-# Изменил UI в панели управления
-.\scripts\commit-and-push.ps1 -Message "Добавил фильтр"
-.\scripts\deploy-from-github.ps1 -AdminOnly
+- `fix-logs-table.sh` — ручная настройка `app_logs`
+- `check-logs-migration.sh` — проверка legacy-миграции логов
 
-# Изменил и то и другое
-.\scripts\commit-and-push.ps1 -Message "Рефакторинг"
-.\scripts\deploy-from-github.ps1 -AppOnly
+## JS/Node утилиты
 
-# Добавил миграцию БД
-.\scripts\commit-and-push.ps1 -Message "Новая таблица"
-.\scripts\deploy-from-github.ps1
-```
+- `check-env.js` — проверка env-переменных
+- `apply-migration.js` — применить один SQL файл (Node + pg)
+- `test-logs-api.js` — проверка таблицы/доступа логов
 
----
+## Смежная документация
 
-## Документация
-
-- [Деплой подробно](../docs/DEPLOY_GUIDE.md)
+- [Деплой](../docs/DEPLOY_GUIDE.md)
 - [Автоматизация](../docs/AUTOMATION_GUIDE.md)
-- [SSL](../docs/SSL_QUICKSTART.md)
+- [Удаленная БД](../docs/REMOTE_DB_SETUP.md)
 - [Troubleshooting](../docs/TROUBLESHOOTING.md)

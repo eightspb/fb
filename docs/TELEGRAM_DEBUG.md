@@ -5,7 +5,7 @@
 На сервере выполните:
 
 ```bash
-cd /path/to/fb.net
+cd /opt/fb-net
 bash scripts/diagnose-telegram.sh
 ```
 
@@ -27,7 +27,7 @@ bash scripts/diagnose-telegram.sh
 
 ```bash
 # На сервере
-cd /path/to/fb.net
+cd /opt/fb-net
 
 # Загрузить переменные окружения
 source .env
@@ -62,7 +62,7 @@ docker ps | grep fb-net-site
 docker compose -f docker-compose.ssl.yml up -d
 
 # Проверьте логи
-docker compose -f docker-compose.ssl.yml logs -f app
+docker compose -f docker-compose.ssl.yml logs -f site
 ```
 
 2. **Проверьте доступность endpoint:**
@@ -106,7 +106,7 @@ openssl s_client -connect fibroadenoma.net:443 -servername fibroadenoma.net
 1. **Проверьте логи приложения:**
 
 ```bash
-docker compose -f docker-compose.ssl.yml logs -f app | grep -i "webhook\|telegram"
+docker compose -f docker-compose.ssl.yml logs -f site | grep -i "webhook\|telegram"
 ```
 
 Ищите строки типа:
@@ -178,7 +178,7 @@ docker compose -f docker-compose.ssl.yml down
 docker compose -f docker-compose.ssl.yml up -d
 
 # Проверьте логи
-docker compose -f docker-compose.ssl.yml logs -f app
+docker compose -f docker-compose.ssl.yml logs -f site
 ```
 
 ## Пошаговая диагностика
@@ -246,10 +246,10 @@ curl -X POST https://fibroadenoma.net/api/telegram/webhook \
 
 ```bash
 # Логи приложения (последние 100 строк)
-docker compose -f docker-compose.ssl.yml logs --tail 100 app
+docker compose -f docker-compose.ssl.yml logs --tail 100 site
 
 # Логи с фильтром по Telegram
-docker compose -f docker-compose.ssl.yml logs -f app | grep -i "telegram\|webhook"
+docker compose -f docker-compose.ssl.yml logs -f site | grep -i "telegram\|webhook"
 
 # Логи nginx
 docker compose -f docker-compose.ssl.yml logs --tail 50 nginx
@@ -262,7 +262,7 @@ docker compose -f docker-compose.ssl.yml logs --tail 50 nginx
 3. Проверьте логи сервера:
 
 ```bash
-docker compose -f docker-compose.ssl.yml logs -f app | grep "WEBHOOK"
+docker compose -f docker-compose.ssl.yml logs -f site | grep "WEBHOOK"
 ```
 
 Должны увидеть:
@@ -343,7 +343,7 @@ curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
 1. Соберите диагностическую информацию:
 ```bash
 bash scripts/diagnose-telegram.sh > telegram-debug.txt
-docker compose -f docker-compose.ssl.yml logs --tail 200 app >> telegram-debug.txt
+docker compose -f docker-compose.ssl.yml logs --tail 200 site >> telegram-debug.txt
 docker compose -f docker-compose.ssl.yml logs --tail 50 nginx >> telegram-debug.txt
 ```
 

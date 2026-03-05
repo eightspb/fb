@@ -111,13 +111,51 @@ bun add @next/third-parties
 ```bash
 # Через Docker
 bun run docker:psql
-# Затем выполните содержимое scripts/add-views-tracking.sql
+```
 
-# Или через команду (для production):
-docker exec -i fb-net-db psql -U postgres -d postgres < scripts/add-views-tracking.sql
+В `psql` выполните:
 
-# Для dev окружения:
-docker exec -i fb-net-postgres psql -U postgres -d postgres < scripts/add-views-tracking.sql
+```sql
+CREATE TABLE IF NOT EXISTS news_views (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  news_id UUID NOT NULL REFERENCES news(id) ON DELETE CASCADE,
+  visitor_fingerprint TEXT NOT NULL,
+  ip_address TEXT,
+  user_agent TEXT,
+  viewed_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(news_id, visitor_fingerprint, viewed_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_news_views_news_id ON news_views(news_id);
+CREATE INDEX IF NOT EXISTS idx_news_views_viewed_date ON news_views(viewed_date DESC);
+
+CREATE TABLE IF NOT EXISTS news_view_stats (
+  news_id UUID PRIMARY KEY REFERENCES news(id) ON DELETE CASCADE,
+  unique_visitors INTEGER NOT NULL DEFAULT 0,
+  total_views INTEGER NOT NULL DEFAULT 0,
+  last_viewed_at TIMESTAMPTZ
+);
+
+CREATE OR REPLACE FUNCTION update_news_view_stats()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO news_view_stats (news_id, unique_visitors, total_views, last_viewed_at)
+  VALUES (NEW.news_id, 1, 1, NOW())
+  ON CONFLICT (news_id) DO UPDATE SET
+    unique_visitors = news_view_stats.unique_visitors + 1,
+    total_views = news_view_stats.total_views + 1,
+    last_viewed_at = NOW();
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_news_views_update_stats ON news_views;
+CREATE TRIGGER trg_news_views_update_stats
+  AFTER INSERT ON news_views
+  FOR EACH ROW
+  EXECUTE FUNCTION update_news_view_stats();
 ```
 
 ### Шаг 2: Проверить работу
@@ -192,5 +230,4 @@ export default function RootLayout({ children }) {
 1. Добавить cookie consent banner
 2. Сообщать пользователям о сборе данных
 3. Предоставить возможность отказаться от отслеживания
-
 

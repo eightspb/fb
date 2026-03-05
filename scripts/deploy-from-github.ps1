@@ -305,8 +305,9 @@ function Update-Repository {
     # (certbot содержит SSL сертификаты, их нельзя удалять)
     Invoke-Ssh $Server "cd $RemotePath && if [ -d certbot ]; then chmod -R 700 certbot 2>/dev/null || true; fi"
     
-    # Сохраняем локальные изменения (но не трогаем certbot и .env)
-    Invoke-Ssh $Server "cd $RemotePath && git stash push --keep-index -m 'temp-stash' 2>/dev/null || git stash --include-untracked 2>/dev/null || true"
+    # Сохраняем локальные tracked-изменения.
+    # ВАЖНО: не используем --include-untracked, чтобы случайно не убрать .env
+    Invoke-Ssh $Server "cd $RemotePath && git stash push --keep-index -m 'temp-stash' 2>/dev/null || true"
     
     # Получаем последние изменения
     Invoke-Ssh $Server "cd $RemotePath && git fetch origin $Branch && git checkout $Branch && git pull origin $Branch"
@@ -452,10 +453,11 @@ function Setup-ServerDependencies {
     $result = Invoke-Ssh $Server "cd $RemotePath && bash scripts/setup-server-dependencies.sh 2>&1"
     
     if ($LASTEXITCODE -ne 0) {
-        Write-Warn "Не удалось автоматически установить все зависимости"
-        Write-Info "Подробности:"
+        Write-Err "Проверка зависимостей/переменных окружения завершилась с ошибкой"
+        Write-Err "Подробности:"
         Write-Host $result
-        Write-Info "Продолжаю деплой..."
+        Write-Err "Деплой остановлен, чтобы не запускать контейнеры с некорректным .env"
+        exit 1
     } else {
         Write-Success "Зависимости проверены и установлены"
     }
@@ -569,4 +571,3 @@ function Main {
 
 # Запуск
 Main
-

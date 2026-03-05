@@ -13,8 +13,8 @@
 
 - [Быстрый старт](./QUICK_START.md)
 - [Автоматизация](./AUTOMATION_GUIDE.md)
-- [Тестирование (проект)](./TESTING.md)
-- [Тестирование (кратко)](./tests.md)
+- [Тестирование (подробно)](./TESTING.md)
+- [Тестирование (кратко, команды)](./tests.md)
 - [Удаленная БД для dev](./REMOTE_DB_SETUP.md)
 - [Логирование](./LOGGING.md)
 - [SMTP](./SMTP_SETUP.md)

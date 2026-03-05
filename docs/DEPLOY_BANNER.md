@@ -76,7 +76,7 @@ ssh root@155.212.217.60 "docker exec fb-net-db psql -U postgres -d postgres -c '
 ssh root@155.212.217.60 "docker ps"
 
 # Проверить логи приложения
-ssh root@155.212.217.60 "docker logs fb-net-app --tail 50"
+ssh root@155.212.217.60 "docker logs fb-net-site --tail 50"
 
 # Проверить логи БД
 ssh root@155.212.217.60 "docker logs fb-net-db --tail 50"
@@ -112,7 +112,7 @@ docker exec -it fb-net-db psql -U postgres -d postgres
 1. Проверьте, что миграция применена: `SELECT * FROM site_banner;`
 2. Проверьте, что баннер включен в админ-панели
 3. Очистите localStorage браузера
-4. Проверьте логи: `docker logs fb-net-app --tail 100`
+4. Проверьте логи: `docker logs fb-net-site --tail 100`
 
 ### GitHub Actions не запускается
 
