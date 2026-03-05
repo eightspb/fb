@@ -65,6 +65,8 @@ interface PendingNews {
   exifLocation?: { latitude: number; longitude: number };
   // Текущее состояние сессии создания новости
   state: NewsState;
+  // Флаг обработки сообщения (защита от параллельной обработки)
+  isProcessing?: boolean;
 }
 
 // Хранилище незавершенных новостей (в продакшене лучше использовать Redis или БД)
@@ -425,6 +427,17 @@ export async function handleVoiceMessage(msg: TelegramBot.Message): Promise<void
     }
   }
 
+  // Защита от параллельной обработки нескольких голосовых
+  if (pending?.isProcessing) {
+    console.log('[BOT] ⏳ Уже обрабатывается другое сообщение, ставим в очередь');
+    await bot.sendMessage(chatId, '⏳ Обрабатываю предыдущее сообщение, подождите...');
+    return;
+  }
+
+  if (pending) {
+    pending.isProcessing = true;
+  }
+
   try {
     // Отправляем уведомление о начале обработки
     await bot.sendMessage(chatId, '🎤 Распознаю голосовое сообщение...');
@@ -512,9 +525,12 @@ export async function handleVoiceMessage(msg: TelegramBot.Message): Promise<void
       console.error('[BOT] Stack trace:', error.stack);
     }
     await bot.sendMessage(
-      chatId, 
+      chatId,
       '❌ Произошла ошибка при распознавании голосового сообщения. Попробуйте отправить текст вручную.'
     );
+  } finally {
+    const p = pendingNews.get(chatId);
+    if (p) p.isProcessing = false;
   }
 }
 
@@ -1587,7 +1603,13 @@ export async function regenerateAIContent(chatId: number): Promise<void> {
     return;
   }
 
+  if (pending.isProcessing) {
+    await bot.sendMessage(chatId, '⏳ Обрабатывается предыдущее сообщение, подождите...');
+    return;
+  }
+
   try {
+    pending.isProcessing = true;
     pending.state = 'generating';
     await bot.sendMessage(chatId, '🔄 Перегенерирую контент...');
 
@@ -1674,12 +1696,15 @@ export async function regenerateAIContent(chatId: number): Promise<void> {
     // Показываем обновленный предпросмотр
     await showAIPreview(chatId);
     pending.state = 'preview';
-    
+
   } catch (error) {
     const p = pendingNews.get(chatId);
     if (p) p.state = 'preview';
     console.error('[BOT] ❌ Ошибка при перегенерации:', error);
     await bot.sendMessage(chatId, '❌ Произошла ошибка при перегенерации. Попробуйте еще раз.');
+  } finally {
+    const p = pendingNews.get(chatId);
+    if (p) p.isProcessing = false;
   }
 }
 

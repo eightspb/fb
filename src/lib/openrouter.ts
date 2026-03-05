@@ -354,23 +354,33 @@ ${contextInfo.length > 0 ? `Дополнительная информация:\n
 
     } catch {
 
-      // Если не удалось распарсить JSON, создаем структуру из текста
+      // Если не удалось распарсить JSON, пытаемся извлечь JSON из текста
+      console.warn('[AI] ⚠️ Не удалось распарсить JSON ответ от AI, пробуем извлечь JSON из текста');
 
-      console.warn('[AI] ⚠️ Не удалось распарсить JSON ответ от AI, используем fallback');
-
-      const lines = content.split('\n').filter((line) => line.trim());
-
-      
-
-      parsed = {
-
-        title: lines[0]?.replace(/^#+\s*/, '').substring(0, 100) || text.substring(0, 50),
-
-        shortDescription: lines.slice(0, 2).join(' ').substring(0, 200) || text.substring(0, 150),
-
-        fullDescription: content.substring(0, 2000) || text,
-
-      };
+      // Попробуем найти JSON объект внутри текста
+      const jsonMatch = content.match(/\{[\s\S]*"title"[\s\S]*"shortDescription"[\s\S]*"fullDescription"[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          parsed = JSON.parse(jsonMatch[0]);
+          console.log('[AI] ✅ JSON успешно извлечён из текста');
+        } catch {
+          // Не удалось — используем fallback из исходного текста
+          console.warn('[AI] ⚠️ Не удалось извлечь JSON, используем исходный текст как fallback');
+          parsed = {
+            title: text.substring(0, 50),
+            shortDescription: text.substring(0, 200),
+            fullDescription: text,
+          };
+        }
+      } else {
+        // Нет JSON — очищаем ответ от JSON-подобных артефактов и используем как текст
+        console.warn('[AI] ⚠️ JSON не найден в ответе, используем исходный текст как fallback');
+        parsed = {
+          title: text.substring(0, 50),
+          shortDescription: text.substring(0, 200),
+          fullDescription: text,
+        };
+      }
 
     }
 
