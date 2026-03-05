@@ -140,6 +140,7 @@ export default function RequestDetailPage() {
           <div className="bg-white border rounded-lg p-6">
             <EmailThread
               contactEmail={request.email}
+              contactName={request.name}
               submissionId={request.id}
             />
           </div>

@@ -10,6 +10,8 @@ import {
   Download,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Mail,
   Reply,
   Loader2,
@@ -17,6 +19,8 @@ import {
 } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 import { EmailCompose } from './EmailCompose';
+
+const PAGE_SIZE = 10;
 
 interface EmailAttachment {
   id: string;
@@ -46,6 +50,7 @@ interface CrmEmail {
 
 interface EmailThreadProps {
   contactEmail: string;
+  contactName?: string;
   submissionId?: string;
 }
 
@@ -72,7 +77,6 @@ function formatDate(dateStr: string): string {
 }
 
 function sanitizeHtml(html: string): string {
-  // Базовая санитизация: убираем script, style, iframe, event handlers
   return html
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
@@ -82,7 +86,25 @@ function sanitizeHtml(html: string): string {
     .replace(/javascript:/gi, '');
 }
 
-function EmailCard({ email, onReply }: { email: CrmEmail; onReply: (email: CrmEmail) => void }) {
+function EmailCard({
+  email,
+  replyOpen,
+  onReply,
+  onCancelReply,
+  onSent,
+  contactEmail,
+  contactName,
+  submissionId
+}: {
+  email: CrmEmail;
+  replyOpen: boolean;
+  onReply: (email: CrmEmail) => void;
+  onCancelReply: () => void;
+  onSent: () => void;
+  contactEmail: string;
+  contactName?: string;
+  submissionId?: string;
+}) {
   const [expanded, setExpanded] = useState(false);
   const isInbound = email.direction === 'inbound';
 
@@ -183,17 +205,32 @@ function EmailCard({ email, onReply }: { email: CrmEmail; onReply: (email: CrmEm
           </div>
         </div>
       )}
+
+      {/* Форма ответа под письмом */}
+      {replyOpen && (
+        <div className="border-t bg-slate-50 p-3">
+          <EmailCompose
+            contactEmail={contactEmail}
+            contactName={contactName}
+            submissionId={submissionId}
+            replyTo={email}
+            onSent={onSent}
+            onCancel={onCancelReply}
+          />
+        </div>
+      )}
     </div>
   );
 }
 
-export function EmailThread({ contactEmail, submissionId }: EmailThreadProps) {
+export function EmailThread({ contactEmail, contactName, submissionId }: EmailThreadProps) {
   const [emails, setEmails] = useState<CrmEmail[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
-  const [replyTo, setReplyTo] = useState<CrmEmail | null>(null);
-  const [showCompose, setShowCompose] = useState(false);
+  const [replyToId, setReplyToId] = useState<string | null>(null);
+  const [showNewCompose, setShowNewCompose] = useState(false);
+  const [page, setPage] = useState(1);
 
   const fetchEmails = useCallback(async () => {
     try {
@@ -227,7 +264,6 @@ export function EmailThread({ contactEmail, submissionId }: EmailThreadProps) {
       if (response.ok) {
         const data = await response.json();
         setLastSyncAt(data.lastSyncAt);
-        // Перезагружаем письма после синхронизации
         await fetchEmails();
       }
     } catch (error) {
@@ -238,20 +274,21 @@ export function EmailThread({ contactEmail, submissionId }: EmailThreadProps) {
   };
 
   const handleReply = (email: CrmEmail) => {
-    setReplyTo(email);
-    setShowCompose(true);
-  };
-
-  const handleNewEmail = () => {
-    setReplyTo(null);
-    setShowCompose(true);
+    setShowNewCompose(false);
+    setReplyToId(email.id);
+    // Раскрыть письмо если закрыто — пусть пользователь раскрывает сам, форма видна и без этого
   };
 
   const handleEmailSent = () => {
-    setShowCompose(false);
-    setReplyTo(null);
+    setReplyToId(null);
+    setShowNewCompose(false);
     fetchEmails();
   };
+
+  // Пагинация — только письма (все записи уже email)
+  const totalPages = Math.max(1, Math.ceil(emails.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageEmails = emails.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   if (loading) {
     return (
@@ -271,7 +308,7 @@ export function EmailThread({ contactEmail, submissionId }: EmailThreadProps) {
             <RefreshCw className={`w-4 h-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Синхронизация...' : 'Синхронизировать почту'}
           </Button>
-          <Button variant="default" size="sm" onClick={handleNewEmail}>
+          <Button variant="default" size="sm" onClick={() => { setShowNewCompose(true); setReplyToId(null); }}>
             <Mail className="w-4 h-4 mr-1" />
             Написать письмо
           </Button>
@@ -283,14 +320,15 @@ export function EmailThread({ contactEmail, submissionId }: EmailThreadProps) {
         )}
       </div>
 
-      {/* Форма отправки */}
-      {showCompose && (
+      {/* Форма нового письма */}
+      {showNewCompose && (
         <EmailCompose
           contactEmail={contactEmail}
+          contactName={contactName}
           submissionId={submissionId}
-          replyTo={replyTo}
+          replyTo={null}
           onSent={handleEmailSent}
-          onCancel={() => { setShowCompose(false); setReplyTo(null); }}
+          onCancel={() => setShowNewCompose(false)}
         />
       )}
 
@@ -302,11 +340,70 @@ export function EmailThread({ contactEmail, submissionId }: EmailThreadProps) {
           <p className="text-xs mt-1">Нажмите &laquo;Синхронизировать почту&raquo; для загрузки писем</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {emails.map(email => (
-            <EmailCard key={email.id} email={email} onReply={handleReply} />
-          ))}
-        </div>
+        <>
+          {/* Счётчик и пагинация сверху */}
+          <div className="flex items-center justify-between text-xs text-slate-500">
+            <span>Писем: {emails.length}</span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost" size="icon" className="h-7 w-7"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <span>{currentPage} / {totalPages}</span>
+                <Button
+                  variant="ghost" size="icon" className="h-7 w-7"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            {pageEmails.map(email => (
+              <EmailCard
+                key={email.id}
+                email={email}
+                replyOpen={replyToId === email.id}
+                onReply={handleReply}
+                onCancelReply={() => setReplyToId(null)}
+                onSent={handleEmailSent}
+                contactEmail={contactEmail}
+                contactName={contactName}
+                submissionId={submissionId}
+              />
+            ))}
+          </div>
+
+          {/* Пагинация снизу */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <Button
+                variant="outline" size="sm"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                Назад
+              </Button>
+              <span className="text-sm text-slate-500">{currentPage} / {totalPages}</span>
+              <Button
+                variant="outline" size="sm"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Далее
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import {
   Mail,
   Phone,
@@ -17,7 +18,10 @@ import {
   Check,
   AlertCircle,
   Clock,
-  User
+  User,
+  Pencil,
+  X,
+  ChevronDown
 } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 import type { RequestItem } from './RequestDetailsModal';
@@ -50,6 +54,172 @@ const priorityOptions = [
   { value: 'urgent', label: 'Срочный', color: 'bg-red-100 text-red-600' }
 ];
 
+// Компонент поля с inline-редактированием (текст)
+function EditableField({
+  label,
+  value,
+  onSave,
+  icon
+}: {
+  label: string;
+  value: string;
+  onSave: (val: string) => Promise<void>;
+  icon: React.ReactNode;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (draft.trim() === value) { setEditing(false); return; }
+    setSaving(true);
+    await onSave(draft.trim());
+    setSaving(false);
+    setEditing(false);
+  };
+
+  return (
+    <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+      <div className="text-slate-500">{icon}</div>
+      <div className="flex-1 min-w-0">
+        <div className="text-xs text-slate-500">{label}</div>
+        {editing ? (
+          <div className="flex items-center gap-1 mt-1">
+            <Input
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              className="h-7 text-sm py-0"
+              autoFocus
+              onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false); }}
+            />
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={handleSave} disabled={saving}>
+              <Check className="w-3.5 h-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400" onClick={() => { setDraft(value); setEditing(false); }}>
+              <X className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 group">
+            <span className="text-sm font-medium">{value || <span className="text-slate-400 italic">не указано</span>}</span>
+            <Button
+              variant="ghost" size="icon"
+              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => { setDraft(value); setEditing(true); }}
+            >
+              <Pencil className="w-3 h-3" />
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Компонент поля с выбором из списка (autocomplete)
+function EditableSelectField({
+  label,
+  value,
+  options,
+  onSave,
+  icon
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onSave: (val: string) => Promise<void>;
+  icon: React.ReactNode;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [saving, setSaving] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const filtered = draft
+    ? options.filter(o => o.toLowerCase().includes(draft.toLowerCase()))
+    : options;
+
+  const handleSave = async (val?: string) => {
+    const toSave = (val ?? draft).trim();
+    if (toSave === value) { setEditing(false); return; }
+    setSaving(true);
+    await onSave(toSave);
+    setSaving(false);
+    setEditing(false);
+    setShowDropdown(false);
+  };
+
+  // Закрытие дропдауна при клике вне
+  useEffect(() => {
+    if (!editing) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setEditing(false);
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [editing]);
+
+  return (
+    <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg" ref={containerRef}>
+      <div className="text-slate-500">{icon}</div>
+      <div className="flex-1 min-w-0">
+        <div className="text-xs text-slate-500">{label}</div>
+        {editing ? (
+          <div className="relative mt-1">
+            <div className="flex items-center gap-1">
+              <Input
+                value={draft}
+                onChange={e => { setDraft(e.target.value); setShowDropdown(true); }}
+                onFocus={() => setShowDropdown(true)}
+                className="h-7 text-sm py-0 pr-6"
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleSave();
+                  if (e.key === 'Escape') { setEditing(false); setShowDropdown(false); }
+                }}
+              />
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={() => handleSave()} disabled={saving}>
+                <Check className="w-3.5 h-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400" onClick={() => { setDraft(value); setEditing(false); setShowDropdown(false); }}>
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+            {showDropdown && filtered.length > 0 && (
+              <div className="absolute z-50 top-full left-0 mt-1 w-full max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-md shadow-lg">
+                {filtered.slice(0, 50).map(opt => (
+                  <div
+                    key={opt}
+                    className="px-3 py-1.5 text-sm cursor-pointer hover:bg-slate-100 truncate"
+                    onMouseDown={e => { e.preventDefault(); setDraft(opt); handleSave(opt); }}
+                  >
+                    {opt}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 group">
+            <span className="text-sm font-medium">{value || <span className="text-slate-400 italic">не указано</span>}</span>
+            <Button
+              variant="ghost" size="icon"
+              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => { setDraft(value); setEditing(true); setShowDropdown(true); }}
+            >
+              <Pencil className="w-3 h-3" />
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function LeadInfoPanel({ request, onUpdate, onDelete, compact }: LeadInfoPanelProps) {
   const [notes, setNotes] = useState(request.notes || '');
   const [status, setStatus] = useState(request.status || 'new');
@@ -57,6 +227,21 @@ export function LeadInfoPanel({ request, onUpdate, onDelete, compact }: LeadInfo
   const [isSaving, setIsSaving] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [cities, setCities] = useState<string[]>([]);
+  const [institutions, setInstitutions] = useState<string[]>([]);
+
+  // Загрузить варианты для выпадающих списков
+  useEffect(() => {
+    fetch('/api/admin/requests/options', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data) {
+          setCities(data.cities || []);
+          setInstitutions(data.institutions || []);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const copyToClipboard = async (text: string, field: string) => {
     try {
@@ -135,10 +320,12 @@ export function LeadInfoPanel({ request, onUpdate, onDelete, compact }: LeadInfo
       {/* Заголовок */}
       {!compact && (
         <div>
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <User className="w-5 h-5" />
-            {request.name}
-          </h2>
+          <EditableField
+            label="Имя"
+            value={request.name}
+            icon={<User className="w-5 h-5" />}
+            onSave={val => handleFieldUpdate('name', val)}
+          />
           <div className="flex items-center gap-2 mt-2">
             <Badge variant="outline" className="text-xs">
               {formTypeLabels[request.form_type] || request.form_type}
@@ -183,25 +370,21 @@ export function LeadInfoPanel({ request, onUpdate, onDelete, compact }: LeadInfo
           </Button>
         </div>
 
-        {request.city && (
-          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-            <MapPin className="w-5 h-5 text-slate-500" />
-            <div className="flex-1">
-              <div className="text-xs text-slate-500">Город</div>
-              <div className="text-sm font-medium">{request.city}</div>
-            </div>
-          </div>
-        )}
+        <EditableSelectField
+          label="Город"
+          value={request.city || ''}
+          options={cities}
+          icon={<MapPin className="w-5 h-5" />}
+          onSave={val => handleFieldUpdate('city', val)}
+        />
 
-        {request.institution && (
-          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-            <Building2 className="w-5 h-5 text-slate-500" />
-            <div className="flex-1">
-              <div className="text-xs text-slate-500">Учреждение</div>
-              <div className="text-sm font-medium">{request.institution}</div>
-            </div>
-          </div>
-        )}
+        <EditableSelectField
+          label="Учреждение"
+          value={request.institution || ''}
+          options={institutions}
+          icon={<Building2 className="w-5 h-5" />}
+          onSave={val => handleFieldUpdate('institution', val)}
+        />
       </div>
 
       {/* Сообщение */}

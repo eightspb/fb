@@ -17,25 +17,39 @@ interface ReplyToEmail {
   message_id: string | null;
   subject: string | null;
   from_address: string;
+  from_name: string | null;
   body_text: string | null;
 }
 
 interface EmailComposeProps {
   contactEmail: string;
+  contactName?: string;
   submissionId?: string;
   replyTo?: ReplyToEmail | null;
   onSent: () => void;
   onCancel: () => void;
 }
 
-export function EmailCompose({ contactEmail, submissionId, replyTo, onSent, onCancel }: EmailComposeProps) {
-  const [to, setTo] = useState(replyTo ? replyTo.from_address : contactEmail);
+function buildQuote(email: ReplyToEmail): string {
+  const date = ''; // не добавляем дату в цитату для краткости
+  const from = email.from_name ? `${email.from_name} <${email.from_address}>` : email.from_address;
+  const body = email.body_text || '';
+  const quoted = body.split('\n').map(line => `> ${line}`).join('\n');
+  return `\n\n---\nОт: ${from}\n\n${quoted}`;
+}
+
+export function EmailCompose({ contactEmail, contactName, submissionId, replyTo, onSent, onCancel }: EmailComposeProps) {
+  const toValue = replyTo
+    ? (replyTo.from_name ? `${replyTo.from_name} <${replyTo.from_address}>` : replyTo.from_address)
+    : (contactName ? `${contactName} <${contactEmail}>` : contactEmail);
+
+  const [to, setTo] = useState(toValue);
   const [subject, setSubject] = useState(
     replyTo?.subject
       ? (replyTo.subject.startsWith('Re:') ? replyTo.subject : `Re: ${replyTo.subject}`)
       : ''
   );
-  const [body, setBody] = useState('');
+  const [body, setBody] = useState(replyTo ? buildQuote(replyTo) : '');
   const [files, setFiles] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +64,12 @@ export function EmailCompose({ contactEmail, submissionId, replyTo, onSent, onCa
     setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Извлечь чистый email-адрес из строки "Имя <email>"
+  const extractEmail = (str: string): string => {
+    const match = str.match(/<([^>]+)>/);
+    return match ? match[1] : str.trim();
+  };
+
   const handleSend = async () => {
     if (!to || !subject || !body.trim()) {
       setError('Заполните все обязательные поля');
@@ -61,7 +81,7 @@ export function EmailCompose({ contactEmail, submissionId, replyTo, onSent, onCa
 
     try {
       const formData = new FormData();
-      formData.append('to', to);
+      formData.append('to', extractEmail(to));
       formData.append('subject', subject);
 
       // Оборачиваем plain text в базовый HTML
@@ -103,7 +123,7 @@ ${body.split('\n').map(line => `<p style="margin: 0 0 8px 0;">${line || '&nbsp;'
   };
 
   return (
-    <div className="border rounded-lg p-4 bg-white shadow-sm space-y-3">
+    <div className="border rounded-lg p-4 bg-white shadow-sm space-y-3 mt-2">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium">
           {replyTo ? 'Ответ на письмо' : 'Новое письмо'}
@@ -117,10 +137,9 @@ ${body.split('\n').map(line => `<p style="margin: 0 0 8px 0;">${line || '&nbsp;'
       <div>
         <label className="block text-xs text-slate-500 mb-1">Кому</label>
         <Input
-          type="email"
           value={to}
           onChange={(e) => setTo(e.target.value)}
-          placeholder="email@example.com"
+          placeholder="Имя или email@example.com"
           className="h-9 text-sm"
         />
       </div>
@@ -144,6 +163,7 @@ ${body.split('\n').map(line => `<p style="margin: 0 0 8px 0;">${line || '&nbsp;'
           onChange={(e) => setBody(e.target.value)}
           placeholder="Текст письма..."
           className="min-h-[150px] text-sm resize-y"
+          autoFocus
         />
       </div>
 

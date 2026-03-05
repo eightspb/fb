@@ -83,7 +83,7 @@ export async function PATCH(
     const { id } = await params;
     
     // Разрешённые поля для обновления
-    const allowedFields = ['status', 'notes', 'priority', 'assigned_to'];
+    const allowedFields = ['status', 'notes', 'priority', 'assigned_to', 'name', 'city', 'institution'];
     const updates: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;
