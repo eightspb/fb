@@ -129,7 +129,7 @@ bun run dev:remote
 bun run docker:up
 
 # 2. Изменить .env.local
-# DATABASE_URL=postgresql://postgres:postgres@localhost:54322/postgres
+# DATABASE_URL=postgresql://postgres:${LOCAL_DB_PASSWORD_URLENCODED}@localhost:54322/postgres
 
 # 3. Запустить dev сервер
 bun run dev
@@ -139,7 +139,7 @@ bun run dev
 
 ```powershell
 # 1. Изменить .env.local (уже настроено по умолчанию)
-# DATABASE_URL=postgresql://postgres:8mdJhdzeAGTVOtL%2FwXK1lZ2b%2F5T3VhAd@localhost:54321/postgres
+# DATABASE_URL=postgresql://postgres:${REMOTE_DB_PASSWORD_URLENCODED}@localhost:54321/postgres
 
 # 2. Запустить с туннелем
 .\scripts\dev-remote.ps1
@@ -196,6 +196,10 @@ ssh root@155.212.217.60 "docker ps | grep fb-net-db"
 - Не нужно открывать порты в firewall
 - Не нужно менять настройки PostgreSQL
 - Не нужно менять Docker конфигурацию
+
+✅ **Секреты не храним в репозитории:**
+- Пароль БД не должен появляться в `.md`, `package.json`, коммитах и PR
+- Храним только локально: в `.env.local` (в gitignore) или в менеджере секретов
 
 ✅ **Продакшн не затронут:**
 - Приложение `fb-net-site` работает как обычно
@@ -277,7 +281,8 @@ Stop-Process -Id <PID> -Force
 netstat -an | findstr 54321
 
 # 2. Проверьте пароль в .env.local
-# Должен быть URL-encoded: 8mdJhdzeAGTVOtL%2FwXK1lZ2b%2F5T3VhAd
+# Должен быть URL-encoded и подставлен через локальную переменную:
+# REMOTE_DB_PASSWORD_URLENCODED=<ваш URL-encoded пароль>
 
 # 3. Проверьте логи PostgreSQL на сервере
 ssh root@155.212.217.60 "docker logs fb-net-db --tail=50"
@@ -382,7 +387,7 @@ ssh -N -L 54321:<CONTAINER_IP>:5432 root@155.212.217.60
 
 **❌ Прямое подключение:**
 ```env
-DATABASE_URL=postgresql://postgres:password@155.212.217.60:5432/postgres
+DATABASE_URL=postgresql://postgres:${DB_PASSWORD_URLENCODED}@155.212.217.60:5432/postgres
 ```
 Требует открытия порта 5432 в интернет - **небезопасно!**
 
@@ -420,6 +425,7 @@ DATABASE_URL=postgresql://postgres:password@155.212.217.60:5432/postgres
 - [ ] SSH подключение к серверу работает (`ssh root@155.212.217.60`)
 - [ ] PostgreSQL контейнер запущен на сервере (`docker ps | grep fb-net-db`)
 - [ ] `.env.local` настроен с `DATABASE_URL=...@localhost:54321/...`
+- [ ] Пароль БД хранится только локально (не в репозитории)
 - [ ] Порт 54321 свободен (не используется другими процессами)
 - [ ] Запущен скрипт `.\scripts\dev-remote.ps1`
 - [ ] Браузер открыт на `http://localhost:3000`

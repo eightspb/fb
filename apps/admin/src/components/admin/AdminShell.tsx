@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { LayoutDashboard, FileText, Calendar, LogOut, Menu, Inbox, Settings, Terminal, Bell, Crosshair } from 'lucide-react';
+import { LayoutDashboard, FileText, Calendar, LogOut, Menu, Inbox, Settings, Terminal, Bell, Crosshair, Users } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 
@@ -114,6 +114,7 @@ export default function AdminLayout({
   const navItems = [
     { href: '/', label: 'Главная', icon: LayoutDashboard, badge: 0 },
     { href: '/requests', label: 'Заявки', icon: Inbox, badge: newRequestsCount },
+    { href: '/contacts', label: 'Контакты', icon: Users, badge: 0 },
     { href: '/news', label: 'Новости', icon: FileText, badge: 0 },
     { href: '/conferences', label: 'Мероприятия', icon: Calendar, badge: 0 },
     { href: '/banner', label: 'Баннер', icon: Bell, badge: 0 },
