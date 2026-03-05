@@ -85,22 +85,23 @@ export function RequestDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader className="border-b pb-3">
           {/* Строка 1: имя + кнопка "Открыть полностью" */}
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <DialogTitle className="text-lg font-semibold flex items-center gap-2 min-w-0">
               <User className="w-5 h-5 shrink-0" />
               <span className="truncate">{request.name}</span>
             </DialogTitle>
-            <Button variant="outline" size="sm" onClick={handleOpenFull} className="shrink-0">
+            <Button variant="outline" size="sm" onClick={handleOpenFull} className="w-full sm:w-auto shrink-0">
               <ExternalLink className="w-4 h-4 mr-1" />
-              Открыть полностью
+              <span className="sm:hidden">Открыть</span>
+              <span className="hidden sm:inline">Открыть полностью</span>
             </Button>
           </div>
 
           {/* Строка 2: тип · дата · источник · статус · приоритет — всё в одну строку */}
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 pr-8 sm:pr-0">
             <Badge variant="outline" className="text-xs font-normal">
               {formTypeLabels[request.form_type] || request.form_type}
             </Badge>
@@ -140,12 +141,12 @@ export function RequestDetailsModal({
         </div>
 
         {/* Нижние кнопки */}
-        <div className="flex items-center justify-between pt-3 border-t">
-          <Button variant="outline" onClick={handleOpenFull}>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-3 border-t">
+          <Button variant="outline" onClick={handleOpenFull} className="w-full sm:w-auto">
             <ExternalLink className="w-4 h-4 mr-1" />
             Открыть полностью
           </Button>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
             Закрыть
           </Button>
         </div>

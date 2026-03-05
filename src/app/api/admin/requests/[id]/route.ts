@@ -83,10 +83,29 @@ export async function PATCH(
     const { id } = await params;
     
     // Разрешённые поля для обновления
-    const allowedFields = ['status', 'notes', 'priority', 'assigned_to', 'name', 'city', 'institution'];
+    const allowedFields = ['status', 'notes', 'priority', 'assigned_to', 'name', 'city', 'institution', 'email', 'phone'];
     const updates: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;
+
+    if (body.email !== undefined) {
+      if (typeof body.email !== 'string') {
+        return NextResponse.json({ error: 'Email must be a string' }, { status: 400 });
+      }
+      const email = body.email.trim();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (email && !emailRegex.test(email)) {
+        return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
+      }
+      body.email = email;
+    }
+
+    if (body.phone !== undefined) {
+      if (typeof body.phone !== 'string') {
+        return NextResponse.json({ error: 'Phone must be a string' }, { status: 400 });
+      }
+      body.phone = body.phone.trim();
+    }
 
     for (const field of allowedFields) {
       if (body[field] !== undefined) {

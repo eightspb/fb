@@ -155,7 +155,7 @@ function EmailItem({
           {isInbound ? <ArrowDownLeft className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span className="text-sm font-medium truncate">
               {email.from_name || email.from_address}
             </span>
@@ -184,10 +184,10 @@ function EmailItem({
           </div>
 
           {/* Тело */}
-          <div className="p-3">
+          <div className="p-3 overflow-x-auto">
             {email.body_html ? (
               <div
-                className="prose prose-sm max-w-none text-sm [&_img]:max-w-full [&_table]:text-xs"
+                className="prose prose-sm max-w-none text-sm [&_img]:max-w-full [&_table]:text-xs [&_table]:block [&_table]:w-max [&_table]:min-w-full"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(email.body_html) }}
               />
             ) : (
@@ -289,14 +289,14 @@ function ThreadCard({
     <div className={`border border-slate-200 border-l-4 ${accentClass} rounded-lg overflow-hidden shadow-sm`}>
       {/* Шапка треда */}
       <div
-        className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:brightness-95 transition-all ${headerBg}`}
+        className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:brightness-95 transition-all ${headerBg}`}
         onClick={() => setExpanded(!expanded)}
       >
         <div className={`p-1.5 rounded-full shrink-0 ${iconColor}`}>
           <MessageSquare className="w-4 h-4" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
+          <div className="flex flex-wrap items-center gap-2 mb-0.5">
             <span className="text-sm font-semibold text-slate-800 truncate">{thread.subject}</span>
             <span className="text-xs font-medium shrink-0 bg-white/70 border border-slate-200 px-1.5 py-0.5 rounded-full text-slate-600">
               {count}
@@ -410,19 +410,19 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
   return (
     <div className="space-y-4">
       {/* Тулбар */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing} className="w-full sm:w-auto">
             <RefreshCw className={`w-4 h-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Синхронизация...' : 'Синхронизировать'}
           </Button>
-          <Button variant="default" size="sm" onClick={() => { setShowNewCompose(true); setReplyToId(null); }}>
+          <Button variant="default" size="sm" className="w-full sm:w-auto" onClick={() => { setShowNewCompose(true); setReplyToId(null); }}>
             <Mail className="w-4 h-4 mr-1" />
             Написать письмо
           </Button>
         </div>
         {lastSyncAt && (
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-slate-400 sm:text-right">
             Синхр.: {formatDate(lastSyncAt)}
           </span>
         )}
@@ -449,7 +449,7 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
       ) : (
         <>
           {/* Счётчик и пагинация сверху */}
-          <div className="flex items-center justify-between text-xs text-slate-500">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-slate-500">
             <span>Тредов: {threads.length} · Писем: {emails.length}</span>
             {totalPages > 1 && (
               <div className="flex items-center gap-1">
@@ -484,13 +484,13 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
 
           {/* Пагинация снизу */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-2">
-              <Button variant="outline" size="sm"
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 pt-2">
+              <Button variant="outline" size="sm" className="w-full sm:w-auto"
                 onClick={() => setPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
                 <ChevronLeft className="w-4 h-4 mr-1" />Назад
               </Button>
               <span className="text-sm text-slate-500">{currentPage} / {totalPages}</span>
-              <Button variant="outline" size="sm"
+              <Button variant="outline" size="sm" className="w-full sm:w-auto"
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
                 Далее<ChevronRight className="w-4 h-4 ml-1" />
               </Button>

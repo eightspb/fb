@@ -45,13 +45,6 @@ interface Stats {
   total_count: string;
 }
 
-interface TypeStats {
-  contact_count: string;
-  cp_count: string;
-  training_count: string;
-  conference_count: string;
-}
-
 const formTypeLabels: Record<string, string> = {
   'contact': 'Контакт',
   'cp': 'КП',
@@ -80,7 +73,6 @@ export default function AdminRequestsPage() {
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: 25, totalCount: 0, totalPages: 0 });
   const [stats, setStats] = useState<Stats | null>(null);
-  const [typeStats, setTypeStats] = useState<TypeStats | null>(null);
   
   // Фильтры
   const [search, setSearch] = useState('');
@@ -131,7 +123,6 @@ export default function AdminRequestsPage() {
         setRequests(data.requests);
         setPagination(data.pagination);
         setStats(data.stats);
-        setTypeStats(data.typeStats);
       } else {
         const errorData = await response.json().catch(() => ({}));
         setError(errorData.error || 'Ошибка загрузки заявок');
@@ -302,18 +293,36 @@ export default function AdminRequestsPage() {
     return option?.color || 'bg-gray-100 text-gray-800';
   };
 
+  const getStatusLabel = (status: string) => {
+    const option = statusOptions.find(s => s.value === status);
+    return option?.label || status;
+  };
+
+  const getPriorityColor = (priority?: string) => {
+    if (!priority) return 'bg-slate-100 text-slate-600';
+    const option = priorityOptions.find(p => p.value === priority);
+    return option?.color || 'bg-slate-100 text-slate-600';
+  };
+
+  const getPriorityLabel = (priority?: string) => {
+    if (!priority) return 'Обычный';
+    const option = priorityOptions.find(p => p.value === priority);
+    return option?.label || priority;
+  };
+
   return (
     <div className="space-y-6">
       {/* Заголовок */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Заявки</h1>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => loadRequests()} title="Обновить">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
-          <Button variant="outline" onClick={() => handleExport(true)} className="gap-2">
+          <Button variant="outline" onClick={() => handleExport(true)} className="gap-2 flex-1 sm:flex-none">
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">Экспорт CSV</span>
+            <span className="sm:hidden">Экспорт</span>
           </Button>
         </div>
       </div>
@@ -373,7 +382,7 @@ export default function AdminRequestsPage() {
             {/* Быстрые фильтры */}
             <div className="flex flex-wrap gap-2">
               <select
-                className="h-10 px-3 py-2 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="h-10 px-3 py-2 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
                 value={filterType}
                 onChange={(e) => {
                   setFilterType(e.target.value);
@@ -388,7 +397,7 @@ export default function AdminRequestsPage() {
               </select>
               
               <select
-                className="h-10 px-3 py-2 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="h-10 px-3 py-2 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
                 value={filterStatus}
                 onChange={(e) => {
                   setFilterStatus(e.target.value);
@@ -404,14 +413,15 @@ export default function AdminRequestsPage() {
               <Button 
                 variant={showFilters ? "secondary" : "outline"}
                 onClick={() => setShowFilters(!showFilters)}
-                className="gap-2"
+                className="gap-2 w-full sm:w-auto"
               >
                 <SlidersHorizontal className="w-4 h-4" />
                 <span className="hidden sm:inline">Ещё</span>
+                <span className="sm:hidden">Доп. фильтры</span>
               </Button>
 
               {hasActiveFilters && (
-                <Button variant="ghost" onClick={clearFilters} className="gap-1 text-slate-500">
+                <Button variant="ghost" onClick={clearFilters} className="gap-1 text-slate-500 w-full sm:w-auto">
                   <X className="w-4 h-4" />
                   Сбросить
                 </Button>
@@ -421,11 +431,11 @@ export default function AdminRequestsPage() {
 
           {/* Расширенные фильтры */}
           {showFilters && (
-            <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4 pt-4 border-t">
               <div>
                 <label className="block text-xs text-slate-500 mb-1">Приоритет</label>
                 <select
-                  className="h-9 px-3 py-1 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="h-9 w-full px-3 py-1 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={filterPriority}
                   onChange={(e) => {
                     setFilterPriority(e.target.value);
@@ -447,7 +457,7 @@ export default function AdminRequestsPage() {
                     setDateFrom(e.target.value);
                     setPagination(prev => ({ ...prev, page: 1 }));
                   }}
-                  className="h-9 w-40"
+                  className="h-9 w-full"
                 />
               </div>
               <div>
@@ -459,7 +469,7 @@ export default function AdminRequestsPage() {
                     setDateTo(e.target.value);
                     setPagination(prev => ({ ...prev, page: 1 }));
                   }}
-                  className="h-9 w-40"
+                  className="h-9 w-full"
                 />
               </div>
             </div>
@@ -514,7 +524,7 @@ export default function AdminRequestsPage() {
                 size="sm" 
                 variant="ghost" 
                 onClick={() => { setSelectedIds(new Set()); setSelectAll(false); }}
-                className="ml-auto"
+                className="sm:ml-auto w-full sm:w-auto"
               >
                 Снять выбор
               </Button>
@@ -533,10 +543,145 @@ export default function AdminRequestsPage() {
         </Card>
       )}
 
-      {/* Таблица заявок */}
-      <Card>
+      {/* Мобильный список заявок */}
+      <div className="lg:hidden space-y-3">
+        {!loading && requests.length > 0 && (
+          <div className="flex items-center justify-between rounded-lg border bg-white px-3 py-2">
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <Checkbox checked={selectAll} onChange={handleSelectAll} />
+              Выбрать все
+            </label>
+            <span className="text-xs text-slate-500">{requests.length} на странице</span>
+          </div>
+        )}
+
+        {loading ? (
+          <Card>
+            <CardContent className="py-12 text-center text-slate-500">
+              <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
+              Загрузка...
+            </CardContent>
+          </Card>
+        ) : requests.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center text-slate-500">
+              <Inbox className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+              Заявок не найдено
+            </CardContent>
+          </Card>
+        ) : (
+          requests.map((req) => (
+            <Card
+              key={req.id}
+              className={`border transition-colors ${
+                req.priority === 'urgent' ? 'border-red-200 bg-red-50/40' :
+                req.priority === 'high' ? 'border-orange-200 bg-orange-50/30' :
+                req.status === 'new' ? 'border-blue-200 bg-blue-50/20' :
+                'border-slate-200'
+              }`}
+            >
+              <CardContent className="p-3">
+                <div className="flex items-start gap-3">
+                  <div className="pt-0.5">
+                    <Checkbox
+                      checked={selectedIds.has(req.id)}
+                      onChange={() => handleSelectOne(req.id)}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <button
+                        type="button"
+                        className="min-w-0 text-left"
+                        onClick={() => router.push(`/requests/${req.id}`)}
+                      >
+                        <div className="font-semibold text-slate-900 truncate">{req.name}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">
+                          {formatDate(req.created_at)} · {formatTime(req.created_at)}
+                        </div>
+                      </button>
+                      <Badge variant="outline" className="text-xs shrink-0">
+                        {formTypeLabels[req.form_type] || req.form_type}
+                      </Badge>
+                    </div>
+
+                    <div className="mt-2 space-y-1 text-xs text-slate-600">
+                      <div className="flex items-center gap-1 min-w-0">
+                        <Mail className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{req.email}</span>
+                      </div>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <Phone className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{req.phone}</span>
+                      </div>
+                      {req.message && (
+                        <div className="text-slate-600">
+                          {req.message.substring(0, 90)}{req.message.length > 90 ? '...' : ''}
+                        </div>
+                      )}
+                      {req.institution && (
+                        <div className="text-slate-500 truncate">{req.institution}</div>
+                      )}
+                      {req.city && (
+                        <div className="text-slate-500 truncate">{req.city}</div>
+                      )}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Badge className={`text-xs ${getStatusColor(req.status)}`}>
+                        {getStatusLabel(req.status)}
+                      </Badge>
+                      <Badge className={`text-xs ${getPriorityColor(req.priority)}`}>
+                        {getPriorityLabel(req.priority)}
+                      </Badge>
+                    </div>
+
+                    <div className="mt-3 flex flex-col gap-2">
+                      <select
+                        className={`h-9 w-full text-xs px-3 rounded-md border font-medium cursor-pointer focus:ring-2 ring-offset-1 ${getStatusColor(req.status)}`}
+                        value={req.status || 'new'}
+                        onChange={async (e) => {
+                          const newStatus = e.target.value;
+                          setRequests(requests.map(r => r.id === req.id ? { ...r, status: newStatus } : r));
+                          try {
+                            await adminCsrfFetch(`/api/admin/requests/${req.id}`, {
+                              method: 'PATCH',
+                              credentials: 'include',
+                              headers: {
+                                'Content-Type': 'application/json',
+                              },
+                              body: JSON.stringify({ status: newStatus })
+                            });
+                          } catch {
+                            loadRequests();
+                          }
+                        }}
+                      >
+                        {statusOptions.map(option => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => router.push(`/requests/${req.id}`)}
+                      >
+                        <ExternalLink className="w-4 h-4 mr-1" />
+                        Открыть заявку
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* Таблица заявок (десктоп) */}
+      <Card className="hidden lg:block">
         <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-sm text-left">
+          <table className="w-full min-w-[980px] text-sm text-left">
             <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b">
               <tr>
                 <th className="px-4 py-3 w-10">
@@ -670,7 +815,6 @@ export default function AdminRequestsPage() {
                         value={req.status || 'new'}
                         onChange={async (e) => {
                           const newStatus = e.target.value;
-                          // Оптимистичное обновление
                           setRequests(requests.map(r => r.id === req.id ? { ...r, status: newStatus } : r));
                           try {
                             await adminCsrfFetch(`/api/admin/requests/${req.id}`, {
@@ -682,7 +826,7 @@ export default function AdminRequestsPage() {
                               body: JSON.stringify({ status: newStatus })
                             });
                           } catch {
-                            loadRequests(); // Откат при ошибке
+                            loadRequests();
                           }
                         }}
                       >
@@ -721,7 +865,7 @@ export default function AdminRequestsPage() {
           <div className="text-sm text-slate-500">
             Показано {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.totalCount)} из {pagination.totalCount}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
             <Button
               variant="outline"
               size="sm"
@@ -731,7 +875,7 @@ export default function AdminRequestsPage() {
               <ChevronLeft className="w-4 h-4" />
               Назад
             </Button>
-            <div className="flex items-center gap-1">
+            <div className="hidden sm:flex items-center gap-1">
               {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
                 let pageNum;
                 if (pagination.totalPages <= 5) {
@@ -756,6 +900,9 @@ export default function AdminRequestsPage() {
                 );
               })}
             </div>
+            <span className="sm:hidden text-sm text-slate-500">
+              {pagination.page} / {pagination.totalPages}
+            </span>
             <Button
               variant="outline"
               size="sm"

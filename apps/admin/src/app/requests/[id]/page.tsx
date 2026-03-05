@@ -49,7 +49,7 @@ export default function RequestDetailPage() {
         }
         const data = await response.json();
         setRequest(data);
-      } catch (err) {
+      } catch {
         setError('Ошибка подключения');
       } finally {
         setLoading(false);
@@ -89,21 +89,21 @@ export default function RequestDetailPage() {
   const statusInfo = statusLabels[request.status] || statusLabels['new'];
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6 min-w-0">
       {/* Хлебные крошки и заголовок */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => router.push('/requests')}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <Button variant="ghost" size="sm" className="shrink-0" onClick={() => router.push('/requests')}>
             <ArrowLeft className="w-4 h-4 mr-1" />
             Заявки
           </Button>
-          <span className="text-slate-300">/</span>
-          <div className="flex items-center gap-2">
-            <User className="w-5 h-5 text-slate-500" />
-            <span className="font-semibold text-lg">{request.name}</span>
+          <span className="text-slate-300 shrink-0">/</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <User className="w-5 h-5 text-slate-500 shrink-0" />
+            <span className="font-semibold text-xl leading-tight break-words">{request.name}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="text-xs">
             {formTypeLabels[request.form_type] || request.form_type}
           </Badge>
@@ -115,19 +115,19 @@ export default function RequestDetailPage() {
 
       {/* Табы */}
       <Tabs defaultValue="info" className="w-full">
-        <TabsList>
-          <TabsTrigger value="info">
+        <TabsList className="w-full justify-start overflow-x-auto">
+          <TabsTrigger value="info" className="flex-none">
             <User className="w-4 h-4 mr-1" />
             Информация
           </TabsTrigger>
-          <TabsTrigger value="emails">
+          <TabsTrigger value="emails" className="flex-none">
             <Mail className="w-4 h-4 mr-1" />
             Переписка
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="info" className="mt-4">
-          <div className="bg-white border rounded-lg p-6">
+          <div className="bg-white border rounded-lg p-4 sm:p-6">
             <LeadInfoPanel
               request={request}
               onUpdate={handleUpdate}
@@ -137,7 +137,7 @@ export default function RequestDetailPage() {
         </TabsContent>
 
         <TabsContent value="emails" className="mt-4">
-          <div className="bg-white border rounded-lg p-6">
+          <div className="bg-white border rounded-lg p-3 sm:p-6">
             <EmailThread
               contactEmail={request.email}
               contactName={request.name}

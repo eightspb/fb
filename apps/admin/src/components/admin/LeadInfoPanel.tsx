@@ -13,7 +13,6 @@ import {
   FileText,
   MessageSquare,
   ExternalLink,
-  Copy,
   Check,
   AlertCircle,
   Clock,
@@ -98,7 +97,7 @@ function EditableField({
             <span className="text-sm font-medium truncate">{value || <span className="text-slate-400 italic text-xs">не указано</span>}</span>
             <Button
               variant="ghost" size="icon"
-              className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-6 w-6 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
               onClick={() => { setDraft(value); setEditing(true); }}
             >
               <Pencil className="w-3 h-3" />
@@ -201,7 +200,7 @@ function EditableSelectField({
             <span className="text-sm font-medium truncate">{value || <span className="text-slate-400 italic text-xs">не указано</span>}</span>
             <Button
               variant="ghost" size="icon"
-              className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-6 w-6 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
               onClick={() => { setDraft(value); setEditing(true); setShowDropdown(true); }}
             >
               <Pencil className="w-3 h-3" />
@@ -218,10 +217,15 @@ export function LeadInfoPanel({ request, onUpdate, onDelete, compact }: LeadInfo
   const [status, setStatus] = useState(request.status || 'new');
   const [priority, setPriority] = useState(request.priority || 'normal');
   const [isSaving, setIsSaving] = useState(false);
-  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [cities, setCities] = useState<string[]>([]);
   const [institutions, setInstitutions] = useState<string[]>([]);
+
+  useEffect(() => {
+    setNotes(request.notes || '');
+    setStatus(request.status || 'new');
+    setPriority(request.priority || 'normal');
+  }, [request.id, request.notes, request.status, request.priority]);
 
   useEffect(() => {
     fetch('/api/admin/requests/options', { credentials: 'include' })
@@ -234,14 +238,6 @@ export function LeadInfoPanel({ request, onUpdate, onDelete, compact }: LeadInfo
       })
       .catch(() => {});
   }, []);
-
-  const copyToClipboard = async (text: string, field: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedField(field);
-      setTimeout(() => setCopiedField(null), 2000);
-    } catch {}
-  };
 
   const handleFieldUpdate = async (field: string, value: string) => {
     try {
@@ -302,7 +298,7 @@ export function LeadInfoPanel({ request, onUpdate, onDelete, compact }: LeadInfo
   };
 
   return (
-    <div className="space-y-4">
+    <div className={compact ? 'space-y-3' : 'space-y-4'}>
       {/* Контактная информация — всегда редактируема */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <EditableField
@@ -312,33 +308,21 @@ export function LeadInfoPanel({ request, onUpdate, onDelete, compact }: LeadInfo
           onSave={val => handleFieldUpdate('name', val)}
         />
 
-        {/* Email с кнопкой копирования */}
-        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-          <Mail className="w-4 h-4 text-slate-500 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="text-xs text-slate-500">Email</div>
-            <a href={`mailto:${request.email}`} className="text-sm font-medium text-blue-600 hover:underline truncate block">
-              {request.email}
-            </a>
-          </div>
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => copyToClipboard(request.email, 'email')}>
-            {copiedField === 'email' ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-          </Button>
-        </div>
+        <EditableField
+          label="Email"
+          value={request.email || ''}
+          icon={<Mail className="w-4 h-4" />}
+          type="email"
+          onSave={val => handleFieldUpdate('email', val)}
+        />
 
-        {/* Телефон с кнопкой копирования */}
-        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-          <Phone className="w-4 h-4 text-slate-500 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="text-xs text-slate-500">Телефон</div>
-            <a href={`tel:${request.phone}`} className="text-sm font-medium text-blue-600 hover:underline">
-              {request.phone}
-            </a>
-          </div>
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => copyToClipboard(request.phone, 'phone')}>
-            {copiedField === 'phone' ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-          </Button>
-        </div>
+        <EditableField
+          label="Телефон"
+          value={request.phone || ''}
+          icon={<Phone className="w-4 h-4" />}
+          type="tel"
+          onSave={val => handleFieldUpdate('phone', val)}
+        />
 
         <EditableSelectField
           label="Город"
@@ -405,7 +389,7 @@ export function LeadInfoPanel({ request, onUpdate, onDelete, compact }: LeadInfo
       </div>
 
       {/* Статус и приоритет */}
-      <div className="grid grid-cols-2 gap-3 pt-3 border-t">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t">
         <div>
           <label className="block text-xs font-medium text-slate-500 mb-1.5">Статус</label>
           <select
