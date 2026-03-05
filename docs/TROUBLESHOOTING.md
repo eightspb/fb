@@ -266,14 +266,14 @@ ssh -i ~/.ssh/id_rsa root@your-server.com
 **Решение:**
 ```bash
 # Подключитесь к серверу
-ssh root@your-server.com
+ssh root@155.212.217.60
 
 # Проверьте статус
 cd /opt/fb-net
-docker compose -f docker-compose.production.yml ps
+docker compose -f docker-compose.ssl.yml ps
 
-# Посмотрите логи
-docker compose -f docker-compose.production.yml logs app --tail=50
+# Посмотрите логи site (основное приложение + API)
+docker compose -f docker-compose.ssl.yml logs site --tail=50
 
 # Проверьте переменные окружения
 cat .env
@@ -284,22 +284,22 @@ cat .env
 **Решение:**
 ```bash
 # Проверьте логи БД
-docker compose -f docker-compose.production.yml logs postgres --tail=50
+docker compose -f docker-compose.ssl.yml logs postgres --tail=50
 
 # Проверьте volume
 docker volume ls | grep postgres
 
 # Перезапустите только БД
-docker compose -f docker-compose.production.yml restart postgres
+docker compose -f docker-compose.ssl.yml restart postgres
 ```
 
 ### Приложение работает, но 502 ошибка
 
 **Решение:**
-1. Проверьте что контейнер app запущен
-2. Проверьте логи nginx (если используется)
-3. Проверьте порты в docker-compose.production.yml
-4. Убедитесь что приложение слушает порт 3000
+1. Проверьте что контейнеры `site` и `admin` запущены
+2. Проверьте логи nginx
+3. Проверьте порты в docker-compose.ssl.yml (site:3000, admin:3001)
+4. Убедитесь что приложения слушают нужные порты
 
 ### Быстрый деплой (AppOnly) не работает
 
@@ -309,10 +309,11 @@ docker compose -f docker-compose.production.yml restart postgres
 .\scripts\deploy-from-github.ps1
 
 # Или на сервере вручную
-ssh root@your-server.com
+ssh root@155.212.217.60
 cd /opt/fb-net
 git pull
-docker compose -f docker-compose.production.yml up -d --build app
+docker compose -f docker-compose.ssl.yml build --no-cache site admin
+docker compose -f docker-compose.ssl.yml up -d site admin
 ```
 
 ---
@@ -330,9 +331,9 @@ docker compose -f docker-compose.production.yml up -d --build app
 ### Команды бота не работают
 
 **Решение:**
-1. Отправьте `/start` боту
+1. Отправьте `/start` боту (или `/reset` для сброса зависшей сессии)
 2. Проверьте что вы в списке админов (`TELEGRAM_ADMIN_CHAT_ID`)
-3. Проверьте логи: `docker compose logs app | grep telegram`
+3. Проверьте логи: `docker compose -f docker-compose.ssl.yml logs site | grep telegram`
 
 ---
 
@@ -383,26 +384,32 @@ bun run dev
 
 ```bash
 # Подключиться к серверу
-ssh root@your-server.com
+ssh root@155.212.217.60
 
 # Перейти в папку проекта
 cd /opt/fb-net
 
 # Статус контейнеров
-docker compose -f docker-compose.production.yml ps
+docker compose -f docker-compose.ssl.yml ps
 
-# Логи приложения
-docker compose -f docker-compose.production.yml logs app --tail=100
+# Логи сайта/API (основной контейнер)
+docker compose -f docker-compose.ssl.yml logs site --tail=100
+
+# Логи adminки
+docker compose -f docker-compose.ssl.yml logs admin --tail=50
 
 # Логи БД
-docker compose -f docker-compose.production.yml logs postgres --tail=50
+docker compose -f docker-compose.ssl.yml logs postgres --tail=50
 
-# Перезапустить приложение
-docker compose -f docker-compose.production.yml restart app
+# Логи nginx
+docker compose -f docker-compose.ssl.yml logs nginx --tail=50
+
+# Перезапустить сайт и adminку
+docker compose -f docker-compose.ssl.yml restart site admin
 
 # Полный перезапуск
-docker compose -f docker-compose.production.yml down
-docker compose -f docker-compose.production.yml up -d --build
+docker compose -f docker-compose.ssl.yml down
+docker compose -f docker-compose.ssl.yml up -d
 ```
 
 ### Проверка переменных окружения
@@ -428,16 +435,16 @@ ssh root@your-server.com "cat /opt/fb-net/.env"
 **На сервере:**
 ```bash
 # Все логи
-docker compose -f docker-compose.production.yml logs -f
+docker compose -f docker-compose.ssl.yml logs -f
 
-# Только приложение
-docker compose -f docker-compose.production.yml logs app -f
+# Только site (приложение + API)
+docker compose -f docker-compose.ssl.yml logs site -f
 
 # Только БД
-docker compose -f docker-compose.production.yml logs postgres -f
+docker compose -f docker-compose.ssl.yml logs postgres -f
 
 # Последние 100 строк
-docker compose -f docker-compose.production.yml logs app --tail=100
+docker compose -f docker-compose.ssl.yml logs site --tail=100
 ```
 
 ---

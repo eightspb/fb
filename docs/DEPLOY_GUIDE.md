@@ -166,7 +166,7 @@ ssh root@your-server.com
 
 # Восстановите бэкап
 cd /opt/fb-net
-cat backups/db_backup_20260204_120000.sql | docker compose -f docker-compose.production.yml exec -T postgres psql -U postgres -d postgres
+cat backups/db_backup_20260204_120000.sql | docker compose -f docker-compose.ssl.yml exec -T postgres psql -U postgres -d postgres
 ```
 
 ---
@@ -191,31 +191,31 @@ ssh root@your-server.com
 
 # Посмотрите логи приложения
 cd /opt/fb-net
-docker compose -f docker-compose.production.yml logs app --tail=50
+docker compose -f docker-compose.ssl.yml logs site --tail=50
 
 # Статус контейнеров
-docker compose -f docker-compose.production.yml ps
+docker compose -f docker-compose.ssl.yml ps
 ```
 
 ### Если приложение не запускается
 
 ```bash
 # Перезапустите только приложение
-docker compose -f docker-compose.production.yml restart app
+docker compose -f docker-compose.ssl.yml restart site admin
 
 # Или полный перезапуск
-docker compose -f docker-compose.production.yml down
-docker compose -f docker-compose.production.yml up -d
+docker compose -f docker-compose.ssl.yml down
+docker compose -f docker-compose.ssl.yml up -d
 ```
 
 ### Если база данных не отвечает
 
 ```bash
 # Перезапустите только БД
-docker compose -f docker-compose.production.yml restart postgres
+docker compose -f docker-compose.ssl.yml restart postgres
 
 # Проверьте логи БД
-docker compose -f docker-compose.production.yml logs postgres --tail=50
+docker compose -f docker-compose.ssl.yml logs postgres --tail=50
 ```
 
 ---

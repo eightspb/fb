@@ -56,13 +56,13 @@ bash scripts/check-telegram-webhook.sh
 
 ```bash
 # Для Docker
-docker ps | grep fb.net-app
+docker ps | grep fb-net-site
 
 # Если не запущен
-docker-compose up -d
+docker compose -f docker-compose.ssl.yml up -d
 
 # Проверьте логи
-docker-compose logs -f app
+docker compose -f docker-compose.ssl.yml logs -f app
 ```
 
 2. **Проверьте доступность endpoint:**
@@ -78,10 +78,10 @@ curl https://fibroadenoma.net/api/telegram/webhook
 
 ```bash
 # Статус nginx
-docker-compose ps nginx
+docker compose -f docker-compose.ssl.yml ps nginx
 
 # Логи nginx
-docker-compose logs nginx | tail -50
+docker compose -f docker-compose.ssl.yml logs nginx | tail -50
 ```
 
 4. **Проверьте SSL сертификат:**
@@ -106,7 +106,7 @@ openssl s_client -connect fibroadenoma.net:443 -servername fibroadenoma.net
 1. **Проверьте логи приложения:**
 
 ```bash
-docker-compose logs -f app | grep -i "webhook\|telegram"
+docker compose -f docker-compose.ssl.yml logs -f app | grep -i "webhook\|telegram"
 ```
 
 Ищите строки типа:
@@ -119,7 +119,7 @@ docker-compose logs -f app | grep -i "webhook\|telegram"
 2. **Проверьте переменные окружения в контейнере:**
 
 ```bash
-docker exec fb.net-app-1 env | grep TELEGRAM
+docker exec fb-net-site env | grep TELEGRAM
 
 # Должны быть:
 # TELEGRAM_BOT_TOKEN=...
@@ -174,11 +174,11 @@ curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
 3. **Перезапустите контейнеры:**
 
 ```bash
-docker-compose down
-docker-compose up -d
+docker compose -f docker-compose.ssl.yml down
+docker compose -f docker-compose.ssl.yml up -d
 
 # Проверьте логи
-docker-compose logs -f app
+docker compose -f docker-compose.ssl.yml logs -f app
 ```
 
 ## Пошаговая диагностика
@@ -246,13 +246,13 @@ curl -X POST https://fibroadenoma.net/api/telegram/webhook \
 
 ```bash
 # Логи приложения (последние 100 строк)
-docker-compose logs --tail 100 app
+docker compose -f docker-compose.ssl.yml logs --tail 100 app
 
 # Логи с фильтром по Telegram
-docker-compose logs -f app | grep -i "telegram\|webhook"
+docker compose -f docker-compose.ssl.yml logs -f app | grep -i "telegram\|webhook"
 
 # Логи nginx
-docker-compose logs --tail 50 nginx
+docker compose -f docker-compose.ssl.yml logs --tail 50 nginx
 ```
 
 ### Шаг 5: Тестирование в Telegram
@@ -262,7 +262,7 @@ docker-compose logs --tail 50 nginx
 3. Проверьте логи сервера:
 
 ```bash
-docker-compose logs -f app | grep "WEBHOOK"
+docker compose -f docker-compose.ssl.yml logs -f app | grep "WEBHOOK"
 ```
 
 Должны увидеть:
@@ -343,8 +343,8 @@ curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
 1. Соберите диагностическую информацию:
 ```bash
 bash scripts/diagnose-telegram.sh > telegram-debug.txt
-docker-compose logs --tail 200 app >> telegram-debug.txt
-docker-compose logs --tail 50 nginx >> telegram-debug.txt
+docker compose -f docker-compose.ssl.yml logs --tail 200 app >> telegram-debug.txt
+docker compose -f docker-compose.ssl.yml logs --tail 50 nginx >> telegram-debug.txt
 ```
 
 2. Проверьте файл `telegram-debug.txt` на наличие ошибок

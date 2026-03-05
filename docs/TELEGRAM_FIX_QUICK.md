@@ -71,10 +71,10 @@ bash scripts/diagnose-telegram.sh
 
 ```bash
 # Проверьте логи приложения
-docker-compose logs -f app | grep -i "webhook\|telegram"
+docker compose -f docker-compose.ssl.yml logs site | grep -i "webhook\|telegram"
 
 # Проверьте логи nginx
-docker-compose logs nginx | tail -50
+docker compose -f docker-compose.ssl.yml logs nginx | tail -50
 ```
 
 ### Вариант C: Ручная проверка
@@ -103,13 +103,13 @@ curl https://fibroadenoma.net/api/telegram/webhook
 
 ```bash
 # Проверьте, запущены ли контейнеры
-docker-compose ps
+docker compose -f docker-compose.ssl.yml ps
 
 # Если нет, запустите
-docker-compose up -d
+docker compose -f docker-compose.ssl.yml up -d
 
 # Проверьте логи
-docker-compose logs -f app
+docker compose -f docker-compose.ssl.yml logs site
 ```
 
 ### 2. Webhook не устанавливается
@@ -137,11 +137,11 @@ cat .env | grep TELEGRAM_WEBHOOK_URL
 
 ```bash
 # Проверьте переменные в контейнере
-docker exec fb.net-app-1 env | grep TELEGRAM
+docker exec fb-net-site env | grep TELEGRAM
 
 # Если пусто, перезапустите контейнеры
-docker-compose down
-docker-compose up -d
+docker compose -f docker-compose.ssl.yml down
+docker compose -f docker-compose.ssl.yml up -d
 ```
 
 ---
@@ -178,7 +178,7 @@ curl https://fibroadenoma.net/api/telegram/webhook
 ### 4. Логи чистые
 
 ```bash
-docker-compose logs --tail 20 app | grep WEBHOOK
+docker compose -f docker-compose.ssl.yml logs --tail 20 site | grep WEBHOOK
 ```
 
 **Не должно быть ошибок типа:**

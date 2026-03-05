@@ -62,10 +62,10 @@ bash scripts/diagnose-telegram.sh
 
 ```bash
 # Логи приложения
-docker-compose logs -f app | grep -i "webhook\|telegram"
+docker compose -f docker-compose.ssl.yml logs site | grep -i "webhook\|telegram"
 
 # Статус контейнеров
-docker-compose ps
+docker compose -f docker-compose.ssl.yml ps
 ```
 
 ### Ручная установка jq (если нужно)

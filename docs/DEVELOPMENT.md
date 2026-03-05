@@ -323,27 +323,29 @@ bun run dev:admin
 
 ```powershell
 # Только admin (без пересборки site)
-docker compose -f docker-compose.production.yml up -d --build admin
+.\scripts\deploy-from-github.ps1 -AdminOnly
 
 # Только site
-docker compose -f docker-compose.production.yml up -d --build site
+.\scripts\deploy-from-github.ps1 -SiteOnly
 
-# Полный деплой
-docker compose -f docker-compose.production.yml up -d --build
+# Site + admin
+.\scripts\deploy-from-github.ps1 -AppOnly
+
+# Полный деплой (с миграциями)
+.\scripts\deploy-from-github.ps1
 ```
 
 **Время деплоя:** ~2-3 минуты
 
 ### Rollback
 
-```powershell
-# Откат admin до предыдущего коммита
+```bash
+# На сервере: откат к предыдущему коммиту и пересборка
+ssh root@155.212.217.60
+cd /opt/fb-net
 git checkout <previous_commit_sha>
-docker compose -f docker-compose.production.yml up -d --build admin
-
-# Откат site до предыдущего коммита
-git checkout <previous_commit_sha>
-docker compose -f docker-compose.production.yml up -d --build site
+docker compose -f docker-compose.ssl.yml build --no-cache site admin
+docker compose -f docker-compose.ssl.yml up -d site admin
 ```
 
 ---
@@ -535,7 +537,7 @@ import type { NewsItem } from "@/lib/types";
 # На сервере
 ssh root@your-server.com
 cd /opt/fb-net
-docker compose -f docker-compose.production.yml logs site admin --tail=50
+docker compose -f docker-compose.ssl.yml logs site admin --tail=50
 ```
 
 ### Подключение к БД
