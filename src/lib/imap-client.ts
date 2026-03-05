@@ -427,13 +427,12 @@ export async function syncAll(): Promise<SyncResult> {
         result.folders.push(sentFolder);
         console.log(`[IMAP] Synced ${sentCount} emails from ${sentFolder}`);
 
-        // Обновляем folder_name в sync_state если нашли реальное имя папки
+        // Удаляем устаревшую запись 'Sent' если реальная папка называется иначе
         if (sentFolder !== 'Sent') {
           const pgClient = await pool.connect();
           try {
             await pgClient.query(
-              `UPDATE crm_imap_sync_state SET folder_name = $1 WHERE folder_name = 'Sent'`,
-              [sentFolder]
+              `DELETE FROM crm_imap_sync_state WHERE folder_name = 'Sent'`
             );
           } finally {
             pgClient.release();
