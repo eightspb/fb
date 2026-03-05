@@ -15,6 +15,8 @@ import {
   handleListCommand,
   handleDateCommand,
   handleLocationCommand,
+  handleStatusCommand,
+  handleResetCommand,
   sendNewsActionsMenu,
   getAllNewsFromDB,
   sendNewsListPage,
@@ -148,7 +150,12 @@ export async function POST(request: NextRequest) {
 
       if (callbackData === 'cancel_news') {
         console.log('[WEBHOOK] ❌ Отмена создания новости');
-        const { handleCancelCommand: cancel } = await import('@/lib/telegram-bot');
+        const { handleCancelCommand: cancel, pendingNews } = await import('@/lib/telegram-bot');
+        const pending = (pendingNews as any).get(chatId);
+        if (pending?.state === 'publishing') {
+          await bot.answerCallbackQuery(callbackQuery.id, { text: 'Идёт публикация, подождите...' });
+          return NextResponse.json({ ok: true });
+        }
         await cancel({ chat: { id: chatId } } as any);
         await bot.answerCallbackQuery(callbackQuery.id, { text: 'Отменено' });
         return NextResponse.json({ ok: true });
@@ -367,6 +374,20 @@ export async function POST(request: NextRequest) {
           console.log('[WEBHOOK] 📋 Команда /list');
           await handleListCommand(msg);
           console.log('[WEBHOOK] ✅ Команда /list обработана');
+          return NextResponse.json({ ok: true });
+        }
+
+        if (text === '/status') {
+          console.log('[WEBHOOK] 📊 Команда /status');
+          await handleStatusCommand(msg);
+          console.log('[WEBHOOK] ✅ Команда /status обработана');
+          return NextResponse.json({ ok: true });
+        }
+
+        if (text === '/reset') {
+          console.log('[WEBHOOK] 🔄 Команда /reset');
+          await handleResetCommand(msg);
+          console.log('[WEBHOOK] ✅ Команда /reset обработана');
           return NextResponse.json({ ok: true });
         }
 

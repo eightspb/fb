@@ -32,6 +32,8 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
 });
 
+type NewsState = 'collecting' | 'generating' | 'preview' | 'publishing';
+
 interface PendingNews {
   chatId: number;
   messageId: number;
@@ -57,12 +59,37 @@ interface PendingNews {
   };
   // Флаг ожидания редактирования
   waitingForEdit?: 'title' | 'short' | 'full' | null;
-  // Флаг защиты от повторных вызовов (Telegram повторяет webhook при 500)
-  isProcessing?: boolean;
+  // Текущее состояние сессии создания новости
+  state: NewsState;
 }
 
 // Хранилище незавершенных новостей (в продакшене лучше использовать Redis или БД)
 export const pendingNews = new Map<number, PendingNews>();
+
+function getStatusBar(pending: PendingNews): string {
+  const parts: string[] = [];
+  if (pending.images.length > 0) parts.push(`📷 ${pending.images.length} фото`);
+  if (pending.videos.length > 0) parts.push(`🎥 ${pending.videos.length} видео`);
+  if (pending.voiceTranscriptions.length > 0) parts.push(`🎤 ${pending.voiceTranscriptions.length} голос.`);
+  if (pending.text) parts.push('📝 текст');
+  if (pending.manualDate) parts.push(`📅 ${pending.manualDate.toLocaleDateString('ru-RU')}`);
+  if (pending.manualLocation) parts.push('📍 локация');
+  return parts.length > 0 ? parts.join(' | ') : 'пусто';
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
+  let timeoutId: NodeJS.Timeout | undefined;
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+    });
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
 
 /**
  * Обрабатывает текстовое сообщение
@@ -82,6 +109,21 @@ export async function handleTextMessage(msg: TelegramBot.Message): Promise<void>
   let pending = pendingNews.get(chatId);
   console.log(`[BOT] Незавершенная новость: ${pending ? 'найдена' : 'не найдена'}`);
 
+  if (pending && pending.state !== 'collecting' && !(pending.state === 'preview' && pending.waitingForEdit)) {
+    if (pending.state === 'generating') {
+      await bot.sendMessage(chatId, '⏳ Идёт генерация AI, подождите...');
+      return;
+    }
+    if (pending.state === 'preview') {
+      await bot.sendMessage(chatId, '📰 Новость уже сгенерирована. Нажмите Опубликовать или Перегенерировать.');
+      return;
+    }
+    if (pending.state === 'publishing') {
+      await bot.sendMessage(chatId, '⏳ Идёт публикация, подождите...');
+      return;
+    }
+  }
+
   if (!pending) {
     // Создаем новую незавершенную новость
     console.log('[BOT] ➕ Создание новой незавершенной новости');
@@ -94,10 +136,11 @@ export async function handleTextMessage(msg: TelegramBot.Message): Promise<void>
       date: new Date(),
       startedAt: new Date(),
       voiceTranscriptions: [],
+      state: 'collecting',
     };
     pendingNews.set(chatId, pending);
     
-    await bot.sendMessage(chatId, '📝 Начата новая новость. Что дальше?', {
+    await bot.sendMessage(chatId, `📝 Начата новая новость!\n\n📊 Материалы: ${getStatusBar(pending)}.\n\nЧто дальше?`, {
       reply_markup: {
         inline_keyboard: [
           [{ text: '✅ Готово', callback_data: 'finish_news' }],
@@ -114,7 +157,7 @@ export async function handleTextMessage(msg: TelegramBot.Message): Promise<void>
     // Добавляем текст к существующей новости
     console.log('[BOT] ➕ Добавление текста к существующей новости');
     pending.text = pending.text ? `${pending.text}\n\n${text}` : text;
-    await bot.sendMessage(chatId, '✅ Текст добавлен. Что дальше?', {
+    await bot.sendMessage(chatId, `✅ Текст добавлен!\n\n📊 Материалы: ${getStatusBar(pending)}.\n\nЧто дальше?`, {
       reply_markup: {
         inline_keyboard: [
           [{ text: '✅ Готово', callback_data: 'finish_news' }],
@@ -156,6 +199,21 @@ export async function handlePhotoMessage(msg: TelegramBot.Message): Promise<void
 
   let pending = pendingNews.get(chatId);
 
+  if (pending && pending.state !== 'collecting') {
+    if (pending.state === 'generating') {
+      await bot.sendMessage(chatId, '⏳ Идёт генерация AI, подождите...');
+      return;
+    }
+    if (pending.state === 'preview') {
+      await bot.sendMessage(chatId, '📰 Новость уже сгенерирована. Нажмите Опубликовать или Перегенерировать.');
+      return;
+    }
+    if (pending.state === 'publishing') {
+      await bot.sendMessage(chatId, '⏳ Идёт публикация, подождите...');
+      return;
+    }
+  }
+
   if (!pending) {
     // Создаем новую незавершенную новость
     console.log('[BOT] ➕ Создание новой новости с фото');
@@ -169,6 +227,7 @@ export async function handlePhotoMessage(msg: TelegramBot.Message): Promise<void
       startedAt: new Date(),
       voiceTranscriptions: [],
       mediaGroupId: mediaGroupId,
+      state: 'collecting',
     };
     pendingNews.set(chatId, pending);
   } else {
@@ -201,7 +260,7 @@ export async function handlePhotoMessage(msg: TelegramBot.Message): Promise<void
       if (currentPending && bot) {
         await bot.sendMessage(
           chatId,
-          `📷 Группа фото добавлена (всего: ${currentPending.images.length}). Что дальше?`,
+          `📷 Группа фото добавлена!\n\n📊 Материалы: ${getStatusBar(currentPending)}.\n\nЧто дальше?`,
           {
             reply_markup: {
               inline_keyboard: [
@@ -222,7 +281,7 @@ export async function handlePhotoMessage(msg: TelegramBot.Message): Promise<void
     console.log('[BOT] ✅ Фото добавлено в медиа-группу, ожидание завершения группы...');
   } else {
     // Одиночное фото - сразу отправляем сообщение
-    await bot.sendMessage(chatId, `📷 Фото добавлено (всего: ${pending.images.length}). Что дальше?`, {
+    await bot.sendMessage(chatId, `📷 Фото добавлено!\n\n📊 Материалы: ${getStatusBar(pending)}.\n\nЧто дальше?`, {
       reply_markup: {
         inline_keyboard: [
           [{ text: '✅ Готово', callback_data: 'finish_news' }],
@@ -257,6 +316,21 @@ export async function handleVideoMessage(msg: TelegramBot.Message): Promise<void
 
   let pending = pendingNews.get(chatId);
 
+  if (pending && pending.state !== 'collecting') {
+    if (pending.state === 'generating') {
+      await bot.sendMessage(chatId, '⏳ Идёт генерация AI, подождите...');
+      return;
+    }
+    if (pending.state === 'preview') {
+      await bot.sendMessage(chatId, '📰 Новость уже сгенерирована. Нажмите Опубликовать или Перегенерировать.');
+      return;
+    }
+    if (pending.state === 'publishing') {
+      await bot.sendMessage(chatId, '⏳ Идёт публикация, подождите...');
+      return;
+    }
+  }
+
   if (!pending) {
     // Создаем новую незавершенную новость
     pending = {
@@ -268,6 +342,7 @@ export async function handleVideoMessage(msg: TelegramBot.Message): Promise<void
       date: new Date(),
       startedAt: new Date(),
       voiceTranscriptions: [],
+      state: 'collecting',
     };
     pendingNews.set(chatId, pending);
   } else {
@@ -278,7 +353,7 @@ export async function handleVideoMessage(msg: TelegramBot.Message): Promise<void
     }
   }
 
-  await bot.sendMessage(chatId, `🎥 Видео добавлено (всего: ${pending.videos.length}). Что дальше?`, {
+  await bot.sendMessage(chatId, `🎥 Видео добавлено!\n\n📊 Материалы: ${getStatusBar(pending)}.\n\nЧто дальше?`, {
     reply_markup: {
       inline_keyboard: [
         [{ text: '✅ Готово', callback_data: 'finish_news' }],
@@ -314,6 +389,22 @@ export async function handleVoiceMessage(msg: TelegramBot.Message): Promise<void
   const duration = voice.duration;
   console.log(`[BOT] 🎤 Голосовое сообщение получено, fileId: ${fileId}, длительность: ${duration}с`);
 
+  let pending = pendingNews.get(chatId);
+  if (pending && pending.state !== 'collecting') {
+    if (pending.state === 'generating') {
+      await bot.sendMessage(chatId, '⏳ Идёт генерация AI, подождите...');
+      return;
+    }
+    if (pending.state === 'preview') {
+      await bot.sendMessage(chatId, '📰 Новость уже сгенерирована. Нажмите Опубликовать или Перегенерировать.');
+      return;
+    }
+    if (pending.state === 'publishing') {
+      await bot.sendMessage(chatId, '⏳ Идёт публикация, подождите...');
+      return;
+    }
+  }
+
   try {
     // Отправляем уведомление о начале обработки
     await bot.sendMessage(chatId, '🎤 Распознаю голосовое сообщение...');
@@ -325,12 +416,14 @@ export async function handleVoiceMessage(msg: TelegramBot.Message): Promise<void
 
     // Транскрибируем через Whisper API
     console.log('[BOT] 🤖 Транскрибация через Whisper API...');
-    const transcription = await transcribeAudioWithAI(audioBuffer, 'ogg');
+    const transcription = await withTimeout(
+      transcribeAudioWithAI(audioBuffer, 'ogg'),
+      90000,
+      'Распознавание голоса превысило таймаут (90 сек)'
+    );
     console.log(`[BOT] ✅ Транскрибация завершена: "${transcription.substring(0, 100)}..."`);
 
     // Получаем или создаем незавершенную новость
-    let pending = pendingNews.get(chatId);
-
     if (!pending) {
       // Создаем новую незавершенную новость
       console.log('[BOT] ➕ Создание новой новости с голосовым сообщением');
@@ -343,6 +436,7 @@ export async function handleVoiceMessage(msg: TelegramBot.Message): Promise<void
         date: new Date(),
         startedAt: new Date(),
         voiceTranscriptions: [transcription],
+        state: 'collecting',
       };
       pendingNews.set(chatId, pending);
     } else {
@@ -358,7 +452,7 @@ export async function handleVoiceMessage(msg: TelegramBot.Message): Promise<void
     
     await bot.sendMessage(
       chatId,
-      `✅ Текст распознан:\n\n"${previewText}"\n\nЧто дальше?`,
+      `✅ Текст распознан:\n\n"${previewText}"\n\n📊 Материалы: ${getStatusBar(pending)}.\n\nЧто дальше?`,
       {
         reply_markup: {
           inline_keyboard: [
@@ -453,8 +547,14 @@ export async function finishNewsCreation(chatId: number): Promise<void> {
     return;
   }
 
-  if (pending.isProcessing) {
-    console.log('[BOT] ⚠️ finishNewsCreation уже выполняется, игнорируем повторный вызов');
+  if (pending.state === 'generating') {
+    console.log('[BOT] ⚠️ finishNewsCreation уже выполняется');
+    await bot.sendMessage(chatId, '⏳ Генерация уже идёт, подождите...');
+    return;
+  }
+
+  if (pending.state !== 'collecting') {
+    console.log(`[BOT] ⚠️ finishNewsCreation: неожиданное состояние ${pending.state}`);
     return;
   }
 
@@ -464,7 +564,7 @@ export async function finishNewsCreation(chatId: number): Promise<void> {
     return;
   }
 
-  pending.isProcessing = true;
+  pending.state = 'generating';
   console.log(`[BOT] 📊 Данные новости: текст=${!!pending.text}, фото=${pending.images.length}, видео=${pending.videos.length}`);
 
   try {
@@ -587,14 +687,18 @@ export async function finishNewsCreation(chatId: number): Promise<void> {
     // Используем ручную дату если указана, иначе извлеченную из EXIF
     const finalDate = pending.manualDate || date;
     
-    const expanded = await expandTextWithAI(combinedText, {
-      date: finalDate.toLocaleDateString('ru-RU'),
-      location: locationAddress,
-      imagesCount: pending.images.filter((img) => img.path).length,
-      videosCount: pending.videos.filter((vid) => vid.path).length,
-      voiceTranscriptions: pending.voiceTranscriptions,
-      isFromVoice: pending.voiceTranscriptions.length > 0,
-    });
+    const expanded = await withTimeout(
+      expandTextWithAI(combinedText, {
+        date: finalDate.toLocaleDateString('ru-RU'),
+        location: locationAddress,
+        imagesCount: pending.images.filter((img) => img.path).length,
+        videosCount: pending.videos.filter((vid) => vid.path).length,
+        voiceTranscriptions: pending.voiceTranscriptions,
+        isFromVoice: pending.voiceTranscriptions.length > 0,
+      }),
+      90000,
+      'AI генерация превысила таймаут (90 сек)'
+    );
     console.log(`[BOT] ✅ Текст расширен: "${expanded.title}"`);
 
     // Сохраняем AI-сгенерированный контент для предпросмотра
@@ -608,17 +712,16 @@ export async function finishNewsCreation(chatId: number): Promise<void> {
     await showAIPreview(chatId);
     console.log('[BOT] ✅ Предпросмотр показан пользователю');
 
-    // Сбрасываем флаг — ждём действия пользователя (Опубликовать / Редактировать)
-    pending.isProcessing = false;
+    // Переходим в состояние предпросмотра
+    pending.state = 'preview';
     return;
   } catch (error) {
+    pending.state = 'collecting';
     console.error('[BOT] ❌ Ошибка при создании новости:', error);
     if (error instanceof Error) {
       console.error('[BOT] Сообщение об ошибке:', error.message);
       console.error('[BOT] Stack trace:', error.stack);
     }
-    const p = pendingNews.get(chatId);
-    if (p) p.isProcessing = false;
     await bot.sendMessage(chatId, '❌ Произошла ошибка при создании новости. Попробуйте позже.');
   }
 }
@@ -641,12 +744,18 @@ export async function publishNewsFromPreview(chatId: number): Promise<void> {
     return;
   }
 
-  if (pending.isProcessing) {
-    console.log('[BOT] ⚠️ publishNewsFromPreview уже выполняется, игнорируем повторный вызов');
+  if (pending.state === 'publishing') {
+    console.log('[BOT] ⚠️ publishNewsFromPreview уже выполняется');
+    await bot.sendMessage(chatId, '⏳ Публикация уже идёт, подождите...');
     return;
   }
 
-  pending.isProcessing = true;
+  if (pending.state !== 'preview') {
+    console.log(`[BOT] ⚠️ publishNewsFromPreview: неожиданное состояние ${pending.state}`);
+    return;
+  }
+
+  pending.state = 'publishing';
 
   try {
     await bot.sendMessage(chatId, '⏳ Сохраняю новость...');
@@ -738,7 +847,7 @@ export async function publishNewsFromPreview(chatId: number): Promise<void> {
       
       if (existingCheck.rows.length > 0) {
         console.log(`[BOT] ⚠️ Новость с ID ${newsId} уже существует`);
-        pending.isProcessing = false;
+        pending.state = 'preview';
         await bot.sendMessage(chatId, '⚠️ Новость с таким ID уже существует. Попробуйте изменить название.');
         return;
       }
@@ -852,9 +961,9 @@ export async function publishNewsFromPreview(chatId: number): Promise<void> {
       console.log('[BOT] 🔌 Подключение к БД закрыто');
     }
   } catch (error) {
-    // Сбрасываем флаг обработки, чтобы пользователь мог повторить
+    // Возвращаемся в предпросмотр, чтобы пользователь мог повторить
     const p = pendingNews.get(chatId);
-    if (p) p.isProcessing = false;
+    if (p) p.state = 'preview';
     console.error('[BOT] ❌ Ошибка при создании новости:', error);
     if (error instanceof Error) {
       console.error('[BOT] Сообщение об ошибке:', error.message);
@@ -880,6 +989,13 @@ export async function handleCancelCommand(msg: TelegramBot.Message): Promise<voi
   }
 
   const chatId = msg.chat.id;
+  const pending = pendingNews.get(chatId);
+
+  if (pending?.state === 'publishing') {
+    await bot.sendMessage(chatId, '⏳ Идёт публикация, подождите...');
+    return;
+  }
+
   pendingNews.delete(chatId);
   await bot.sendMessage(chatId, '❌ Создание новости отменено.');
 }
@@ -933,6 +1049,21 @@ export async function handleDateCommand(msg: TelegramBot.Message): Promise<void>
     return;
   }
 
+  if (pending.state !== 'collecting') {
+    if (pending.state === 'generating') {
+      await bot.sendMessage(chatId, '⏳ Идёт генерация AI, подождите...');
+      return;
+    }
+    if (pending.state === 'preview') {
+      await bot.sendMessage(chatId, '📰 Новость уже сгенерирована. Нажмите Опубликовать или Перегенерировать.');
+      return;
+    }
+    if (pending.state === 'publishing') {
+      await bot.sendMessage(chatId, '⏳ Идёт публикация, подождите...');
+      return;
+    }
+  }
+
   // Устанавливаем дату
   pending.manualDate = date;
   
@@ -977,6 +1108,21 @@ export async function handleLocationCommand(msg: TelegramBot.Message): Promise<v
       '❌ Нет активной новости. Сначала отправьте текст или фото для создания новости.'
     );
     return;
+  }
+
+  if (pending.state !== 'collecting') {
+    if (pending.state === 'generating') {
+      await bot.sendMessage(chatId, '⏳ Идёт генерация AI, подождите...');
+      return;
+    }
+    if (pending.state === 'preview') {
+      await bot.sendMessage(chatId, '📰 Новость уже сгенерирована. Нажмите Опубликовать или Перегенерировать.');
+      return;
+    }
+    if (pending.state === 'publishing') {
+      await bot.sendMessage(chatId, '⏳ Идёт публикация, подождите...');
+      return;
+    }
   }
 
   try {
@@ -1064,7 +1210,74 @@ export async function handleStartCommand(msg: TelegramBot.Message): Promise<void
     `📍 /location адрес - установить локацию\n` +
     `✅ /done - завершить и создать новость\n` +
     `❌ /cancel - отменить\n` +
-    `📋 /list - просмотр всех новостей`
+    `📋 /list - просмотр всех новостей\n` +
+    `📊 /status - текущее состояние\n` +
+    `🔄 /reset - сбросить и начать заново`
+  );
+}
+
+export async function handleStatusCommand(msg: TelegramBot.Message): Promise<void> {
+  if (!bot) throw new Error('Telegram bot не инициализирован');
+  const chatId = msg.chat.id;
+  const pending = pendingNews.get(chatId);
+
+  if (!pending) {
+    await bot.sendMessage(chatId, '📭 Нет активной новости. Отправьте текст, фото или голосовое сообщение чтобы начать.');
+    return;
+  }
+
+  const stateLabels: Record<NewsState, string> = {
+    collecting: '📥 Сбор материалов',
+    generating: '🤖 Генерация AI...',
+    preview: '👁️ Предпросмотр',
+    publishing: '📤 Публикация...',
+  };
+
+  const statusBar = getStatusBar(pending);
+  const startedAt = pending.startedAt.toLocaleString('ru-RU');
+
+  let message = `📊 <b>Статус создания новости</b>\n\n`;
+  message += `🔄 Состояние: ${stateLabels[pending.state]}\n`;
+  message += `📦 Материалы: ${statusBar}\n`;
+  message += `🕐 Начата: ${startedAt}\n`;
+
+  if (pending.state === 'preview' && pending.aiGenerated) {
+    message += `\n📰 Заголовок: ${pending.aiGenerated.title}\n`;
+  }
+
+  const keyboard: TelegramBot.InlineKeyboardButton[][] = [];
+  if (pending.state === 'collecting') {
+    keyboard.push([{ text: '✅ Готово', callback_data: 'finish_news' }]);
+    keyboard.push([{ text: '❌ Отменить', callback_data: 'cancel_news' }]);
+  } else if (pending.state === 'preview') {
+    keyboard.push([{ text: '✅ Опубликовать', callback_data: 'publish_news' }]);
+    keyboard.push([{ text: '🔄 Перегенерировать', callback_data: 'regenerate_ai' }]);
+    keyboard.push([{ text: '❌ Отменить', callback_data: 'cancel_news' }]);
+  }
+
+  await bot.sendMessage(chatId, message, {
+    parse_mode: 'HTML',
+    reply_markup: keyboard.length > 0 ? { inline_keyboard: keyboard } : undefined,
+  });
+}
+
+export async function handleResetCommand(msg: TelegramBot.Message): Promise<void> {
+  if (!bot) throw new Error('Telegram bot не инициализирован');
+  const chatId = msg.chat.id;
+  const pending = pendingNews.get(chatId);
+
+  if (!pending) {
+    await bot.sendMessage(chatId, '📭 Нет активной новости для сброса.');
+    return;
+  }
+
+  const oldState = pending.state;
+  pendingNews.delete(chatId);
+
+  await bot.sendMessage(
+    chatId,
+    `🔄 Сессия сброшена (была в состоянии: ${oldState}).\n\n` +
+      `Отправьте текст, фото или голосовое сообщение чтобы начать новую новость.`
   );
 }
 
@@ -1314,7 +1527,13 @@ export async function regenerateAIContent(chatId: number): Promise<void> {
     return;
   }
 
+  if (pending.state !== 'preview') {
+    await bot.sendMessage(chatId, '❌ Перегенерация доступна только на этапе предпросмотра.');
+    return;
+  }
+
   try {
+    pending.state = 'generating';
     await bot.sendMessage(chatId, '🔄 Перегенерирую контент...');
 
     // Объединяем текст и голосовые транскрипции
@@ -1345,14 +1564,18 @@ export async function regenerateAIContent(chatId: number): Promise<void> {
     // Используем ручную дату если указана
     const finalDate = pending.manualDate || pending.date;
     
-    const expanded = await expandTextWithAI(combinedText, {
-      date: finalDate.toLocaleDateString('ru-RU'),
-      location: locationAddress,
-      imagesCount: pending.images.length,
-      videosCount: pending.videos.length,
-      voiceTranscriptions: pending.voiceTranscriptions,
-      isFromVoice: pending.voiceTranscriptions.length > 0,
-    });
+    const expanded = await withTimeout(
+      expandTextWithAI(combinedText, {
+        date: finalDate.toLocaleDateString('ru-RU'),
+        location: locationAddress,
+        imagesCount: pending.images.length,
+        videosCount: pending.videos.length,
+        voiceTranscriptions: pending.voiceTranscriptions,
+        isFromVoice: pending.voiceTranscriptions.length > 0,
+      }),
+      90000,
+      'AI перегенерация превысила таймаут (90 сек)'
+    );
 
     // Обновляем AI-сгенерированный контент
     pending.aiGenerated = {
@@ -1363,8 +1586,11 @@ export async function regenerateAIContent(chatId: number): Promise<void> {
 
     // Показываем обновленный предпросмотр
     await showAIPreview(chatId);
+    pending.state = 'preview';
     
   } catch (error) {
+    const p = pendingNews.get(chatId);
+    if (p) p.state = 'preview';
     console.error('[BOT] ❌ Ошибка при перегенерации:', error);
     await bot.sendMessage(chatId, '❌ Произошла ошибка при перегенерации. Попробуйте еще раз.');
   }
@@ -1438,4 +1664,3 @@ export async function sendNewsActionsMenu(
     },
   });
 }
-

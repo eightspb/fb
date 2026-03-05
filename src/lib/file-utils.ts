@@ -192,7 +192,7 @@ export async function downloadTelegramFile(
     const fileInfoUrl = `https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`;
     console.log(`[FILE] 🔍 Запрос информации о файле: ${fileInfoUrl.replace(botToken, 'TOKEN')}`);
     
-    const fileInfoResponse = await axios.get(fileInfoUrl);
+    const fileInfoResponse = await axios.get(fileInfoUrl, { timeout: 15000 });
 
     if (!fileInfoResponse.data.ok) {
       console.error('[FILE] ❌ Ошибка получения информации о файле:', fileInfoResponse.data);
@@ -206,6 +206,7 @@ export async function downloadTelegramFile(
     // Скачиваем файл
     const fileResponse = await axios.get(fileUrl, {
       responseType: 'arraybuffer',
+      timeout: 30000,
     });
 
     const buffer = Buffer.from(fileResponse.data);
@@ -327,7 +328,7 @@ export async function geocodeLocation(
     });
 
     console.log('[FILE] 📤 Запрос к Yandex Geocoder API...');
-    const response = await axios.get(`${url}?${params.toString()}`);
+    const response = await axios.get(`${url}?${params.toString()}`, { timeout: 15000 });
 
     const geoObject = response.data?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject;
 
@@ -401,4 +402,3 @@ export function getFileExtension(filename: string, mimeType?: string): string {
 
   return '.bin';
 }
-
