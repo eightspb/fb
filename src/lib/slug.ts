@@ -22,7 +22,7 @@ const translitMap: Record<string, string> = {
 export function transliterate(text: string): string {
   return text
     .split('')
-    .map(char => translitMap[char] || char)
+    .map(char => translitMap[char] !== undefined ? translitMap[char] : char)
     .join('');
 }
 
