@@ -9,8 +9,12 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
 });
 
-// In-memory cache: imageId -> WebP buffer
-const webpCache = new Map<string, Uint8Array>();
+// In-memory cache: imageId -> ArrayBuffer
+const webpCache = new Map<string, ArrayBuffer>();
+
+function toArrayBuffer(buffer: Buffer): ArrayBuffer {
+  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+}
 
 export async function GET(
   request: Request,
@@ -52,10 +56,10 @@ export async function GET(
         .webp({ quality: 82 })
         .toBuffer();
 
-      const webpUint8 = new Uint8Array(webpBuffer);
-      webpCache.set(id, webpUint8);
+      const arrayBuffer = toArrayBuffer(webpBuffer);
+      webpCache.set(id, arrayBuffer);
 
-      return new NextResponse(webpUint8, {
+      return new NextResponse(arrayBuffer, {
         headers: {
           'Content-Type': 'image/webp',
           'Cache-Control': 'public, max-age=31536000, immutable',
@@ -65,7 +69,7 @@ export async function GET(
     }
 
     // Fallback: return original image for clients that don't support WebP
-    return new NextResponse(new Uint8Array(image_data), {
+    return new NextResponse(toArrayBuffer(image_data), {
       headers: {
         'Content-Type': mime_type || 'image/jpeg',
         'Cache-Control': 'public, max-age=31536000, immutable',
