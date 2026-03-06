@@ -49,6 +49,23 @@ interface CrmEmailAttachment {
   created_at: string;
 }
 
+const EXISTING_MESSAGE_IDS_CHUNK_SIZE = 1000;
+
+const EMAIL_PARTICIPANT_WHERE = `(
+  LOWER(e.contact_email) = LOWER($1)
+  OR LOWER(e.from_address) = LOWER($1)
+  OR EXISTS (
+    SELECT 1
+    FROM unnest(COALESCE(e.to_addresses, ARRAY[]::text[])) AS addr
+    WHERE LOWER(addr) = LOWER($1)
+  )
+  OR EXISTS (
+    SELECT 1
+    FROM unnest(COALESCE(e.cc_addresses, ARRAY[]::text[])) AS addr
+    WHERE LOWER(addr) = LOWER($1)
+  )
+)`;
+
 function createImapClient(): ImapFlow {
   const host = process.env.IMAP_HOST || 'imap.mail.ru';
   const port = parseInt(process.env.IMAP_PORT || '993');
@@ -248,35 +265,17 @@ async function syncFolder(
         lastSyncedUid = 0;
       }
 
-      // Формируем диапазон для загрузки
-      const totalMessages = mailbox.exists || 0;
-      // useUid: true/false определяет тип диапазона (UID vs sequence)
-      let searchRange: string;
-      let useUid: boolean;
-
-      if (lastSyncedUid > 0) {
-        // Инкрементальный синк: берём по UID начиная с последнего+1
-        searchRange = `${lastSyncedUid + 1}:*`;
-        useUid = true;
-      } else if (totalMessages > 50) {
-        // Первый синк большого ящика: последние 50 по sequence number
-        searchRange = `${totalMessages - 49}:*`;
-        useUid = false;
-        console.log(`[IMAP] ${folderName}: large mailbox (${totalMessages} msgs), fetching last 50 by seq`);
-      } else {
-        searchRange = '1:*';
-        useUid = false;
-      }
-
-      console.log(`[IMAP] ${folderName}: range=${searchRange} uid=${useUid} lastSyncedUid=${lastSyncedUid}`);
+      console.log(
+        `[IMAP] ${folderName}: full envelope scan, total=${mailbox.exists || 0}, lastSyncedUid=${lastSyncedUid}`
+      );
       let maxUid = lastSyncedUid;
 
-      // Шаг 1: загружаем только UID и envelope (без тела — быстро)
+      // Ручной sync должен уметь добирать старую историю, поэтому сканируем всю папку.
       const envelopes: Array<{ uid: number; messageId: string | undefined }> = [];
-      for await (const msg of imapClient.fetch(searchRange, {
+      for await (const msg of imapClient.fetch('1:*', {
         uid: true,
         envelope: true,
-      }, { uid: useUid })) {
+      })) {
         envelopes.push({ uid: msg.uid, messageId: msg.envelope?.messageId });
         if (msg.uid > maxUid) maxUid = msg.uid;
       }
@@ -286,16 +285,28 @@ async function syncFolder(
       // Шаг 2: фильтруем уже существующие в БД по message_id
       const messageIds = envelopes.map(e => e.messageId).filter(Boolean) as string[];
       let existingIds = new Set<string>();
-      if (messageIds.length > 0) {
+
+      for (let i = 0; i < messageIds.length; i += EXISTING_MESSAGE_IDS_CHUNK_SIZE) {
+        const chunk = messageIds.slice(i, i + EXISTING_MESSAGE_IDS_CHUNK_SIZE);
+        if (chunk.length === 0) continue;
+
         const existing = await pgClient.query(
           `SELECT message_id FROM crm_emails WHERE message_id = ANY($1)`,
-          [messageIds]
+          [chunk]
         );
-        existingIds = new Set(existing.rows.map((r: any) => r.message_id));
+
+        for (const row of existing.rows) {
+          if (row.message_id) existingIds.add(row.message_id);
+        }
       }
 
-      // Шаг 3: скачиваем тело только для новых писем
-      const newEnvelopes = envelopes.filter(e => !e.messageId || !existingIds.has(e.messageId));
+      // Для писем без message-id используем UID как защиту от повторного импорта.
+      const newEnvelopes = envelopes.filter((envelope) => {
+        if (envelope.messageId) {
+          return !existingIds.has(envelope.messageId);
+        }
+        return envelope.uid > lastSyncedUid;
+      });
       console.log(`[IMAP] ${folderName}: ${newEnvelopes.length} new messages to fetch`);
 
       for (const env of newEnvelopes) {
@@ -474,7 +485,7 @@ export async function getEmailsForContact(contactEmail: string): Promise<CrmEmai
           '[]'::json
         ) as attachments
        FROM crm_emails e
-       WHERE LOWER(e.contact_email) = LOWER($1)
+       WHERE ${EMAIL_PARTICIPANT_WHERE}
        ORDER BY e.sent_at DESC`,
       [contactEmail]
     );
@@ -516,7 +527,7 @@ export async function getEmailsForSubmission(submissionId: string): Promise<CrmE
           '[]'::json
         ) as attachments
        FROM crm_emails e
-       WHERE LOWER(e.contact_email) = LOWER($1)
+       WHERE ${EMAIL_PARTICIPANT_WHERE}
        ORDER BY e.sent_at DESC`,
       [contactEmail]
     );
