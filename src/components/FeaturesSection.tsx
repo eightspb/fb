@@ -35,7 +35,7 @@ function FeatureCardComponent({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay }}
-      className="group bg-white/80 backdrop-blur-sm relative isolate z-0 flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-teal-200/50 px-6 py-8 transition-all duration-300 hover:shadow-xl hover:border-teal-300"
+      className="group bg-white/80 backdrop-blur-sm relative isolate z-0 flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-teal-200/50 px-6 py-5 md:py-8 transition-all duration-300 hover:shadow-xl hover:border-teal-300"
     >
       <div className="absolute inset-0">
         <div className="absolute -inset-[25%] -skew-y-12 [mask-image:linear-gradient(225deg,black,transparent)]">
@@ -50,12 +50,14 @@ function FeatureCardComponent({
         </div>
         <div className="absolute -inset-[10%] opacity-0 blur-[50px] transition-opacity duration-150 group-hover:opacity-20 bg-gradient-to-br from-teal-400 via-blue-300 to-teal-300" />
       </div>
-      <div className="relative z-10">
-        <div className="mb-4 inline-flex p-3 rounded-xl bg-gradient-to-br from-teal-100 to-blue-100">
+      <div className="relative z-10 flex items-start gap-4 md:block">
+        <div className="shrink-0 mb-0 md:mb-4 inline-flex p-3 rounded-xl bg-gradient-to-br from-teal-100 to-blue-100">
           <Icon className="w-6 h-6 text-teal-600" />
         </div>
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">{title}</h3>
-        <p className="text-gray-600">{description}</p>
+        <div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-1 md:mb-2">{title}</h3>
+          <p className="text-gray-600">{description}</p>
+        </div>
       </div>
     </motion.div>
   );

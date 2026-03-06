@@ -49,7 +49,7 @@ export default async function News({ searchParams }: NewsPageProps) {
         <div className="container mx-auto px-4 md:px-6">
           <Breadcrumbs items={[{ label: "Новости" }]} />
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mt-6 mb-4">
-            Новости и события
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#34D399] to-[#1E3A8A]">Новости</span> и события
           </h1>
           <p className="text-xl text-slate-600 max-w-3xl">
             Будьте в курсе последних обновлений компании, мероприятий и новинок оборудования для вакуумной биопсии.

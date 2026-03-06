@@ -55,7 +55,7 @@ export default function Patients() {
         <div className="container mx-auto px-4 md:px-6">
           <Breadcrumbs items={[{ label: "Пациентам" }]} />
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mt-6 mb-4">
-            Удаление фиброаденомы методом ВАБ: Без шрамов и боли
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#34D399] to-[#1E3A8A]">Удаление фиброаденомы</span> методом ВАБ: Без шрамов и боли
           </h1>
           <p className="text-xl text-slate-600 max-w-3xl">
             Вакуумная аспирационная биопсия (ВАБ) — современная альтернатива традиционной операции. 

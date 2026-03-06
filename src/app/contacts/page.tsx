@@ -55,7 +55,7 @@ export default function Contacts() {
         <div className="container mx-auto px-4 md:px-6">
           <Breadcrumbs items={[{ label: "Контакты" }]} />
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mt-6 mb-4">
-            Свяжитесь с нами
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#34D399] to-[#1E3A8A]">Свяжитесь с</span> нами
           </h1>
           <p className="text-xl text-slate-600 max-w-3xl">
             Мы всегда открыты для сотрудничества. Ответим на любые вопросы о продукции, обучении и партнерстве.

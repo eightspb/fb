@@ -32,7 +32,7 @@ export default function PrivacyPolicy() {
         <div className="container mx-auto px-4 md:px-6">
           <Breadcrumbs items={[{ label: "Политика конфиденциальности" }]} />
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mt-6 mb-4">
-            Политика конфиденциальности
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#34D399] to-[#1E3A8A]">Политика</span> конфиденциальности
           </h1>
           <p className="text-xl text-slate-600 max-w-3xl">
             ООО «ЗЕНИТ» обязуется защищать конфиденциальность и безопасность персональных данных пользователей нашего сайта.

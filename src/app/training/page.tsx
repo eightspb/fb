@@ -53,7 +53,7 @@ export default function Training() {
         <div className="container mx-auto px-4 md:px-6">
           <Breadcrumbs items={[{ label: "Обучение" }]} />
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mt-6 mb-4 leading-tight">
-            Обучение ВАБ: Курс интервенционной маммологии
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#34D399] to-[#1E3A8A]">Обучение ВАБ:</span> Курс интервенционной маммологии
           </h1>
           <p className="text-xl text-slate-600 max-w-3xl leading-relaxed">
             Повышение квалификации для врачей-маммологов, онкологов и хирургов. 
