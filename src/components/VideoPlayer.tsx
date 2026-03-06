@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { PlayCircle } from "lucide-react";
 
 interface VideoPlayerProps {
@@ -13,15 +13,14 @@ export function VideoPlayer({ src, title = "Демонстрация работ�
   const [hasStarted, setHasStarted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const startPlayback = useCallback(() => {
-    if (videoRef.current && !hasStarted) {
-      setHasStarted(true);
-      videoRef.current.play().catch(console.error);
-    }
-  }, [hasStarted]);
-
   const handleOverlayClick = () => {
-    startPlayback();
+    const video = videoRef.current;
+    if (!video) return;
+
+    setHasStarted(true);
+    // play() вызывается синхронно в обработчике клика —
+    // мобильные браузеры разрешают это как жест пользователя
+    video.play().catch(console.error);
   };
 
   const handlePlay = () => {
@@ -32,6 +31,7 @@ export function VideoPlayer({ src, title = "Демонстрация работ�
 
   return (
     <div className="relative aspect-video bg-slate-800 rounded-2xl overflow-hidden border border-slate-700 shadow-2xl group">
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <video
         ref={videoRef}
         src={src}
@@ -39,9 +39,7 @@ export function VideoPlayer({ src, title = "Демонстрация работ�
         controls={hasStarted}
         onPlay={handlePlay}
         playsInline
-        webkit-playsinline=""
-        x5-playsinline=""
-        preload="metadata"
+        preload="auto"
       />
 
       {!hasStarted && (
