@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -25,7 +23,13 @@ import {
   Clock,
   Inbox,
   ArrowUpDown,
-  SlidersHorizontal
+  Building2,
+  MapPin,
+  MessageSquare,
+  Filter,
+  ChevronDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 import { RequestDetailsModal, RequestItem } from '@/components/admin/RequestDetailsModal';
@@ -52,19 +56,79 @@ const formTypeLabels: Record<string, string> = {
   'conference_registration': 'Конференция'
 };
 
-const statusOptions = [
-  { value: 'new', label: 'Новая', color: 'bg-blue-100 text-blue-800', icon: Inbox },
-  { value: 'in_progress', label: 'В работе', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
-  { value: 'processed', label: 'Обработана', color: 'bg-green-100 text-green-800', icon: CheckCircle2 },
-  { value: 'archived', label: 'В архиве', color: 'bg-gray-100 text-gray-800', icon: Archive }
+const formTypeBadgeStyle: Record<string, string> = {
+  'contact': 'bg-violet-50 text-violet-700 border-violet-200',
+  'cp': 'bg-blue-50 text-blue-700 border-blue-200',
+  'training': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'conference_registration': 'bg-amber-50 text-amber-700 border-amber-200',
+};
+
+const statusConfig = [
+  { value: 'new', label: 'Новая', pill: 'bg-blue-50 text-blue-700 border border-blue-200', dot: 'bg-blue-500', icon: Inbox },
+  { value: 'in_progress', label: 'В работе', pill: 'bg-amber-50 text-amber-700 border border-amber-200', dot: 'bg-amber-500', icon: Clock },
+  { value: 'processed', label: 'Обработана', pill: 'bg-emerald-50 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-500', icon: CheckCircle2 },
+  { value: 'archived', label: 'В архиве', pill: 'bg-slate-100 text-slate-500 border border-slate-200', dot: 'bg-slate-400', icon: Archive },
 ];
 
-const priorityOptions = [
-  { value: 'low', label: 'Низкий', color: 'bg-gray-100 text-gray-600' },
-  { value: 'normal', label: 'Обычный', color: 'bg-blue-100 text-blue-600' },
-  { value: 'high', label: 'Высокий', color: 'bg-orange-100 text-orange-600' },
-  { value: 'urgent', label: 'Срочный', color: 'bg-red-100 text-red-600' }
+const priorityConfig = [
+  { value: 'low', label: 'Низкий', pill: 'bg-slate-50 text-slate-500 border border-slate-200' },
+  { value: 'normal', label: 'Обычный', pill: 'bg-slate-50 text-slate-600 border border-slate-200' },
+  { value: 'high', label: 'Высокий', pill: 'bg-orange-50 text-orange-700 border border-orange-200' },
+  { value: 'urgent', label: 'Срочный', pill: 'bg-red-50 text-red-700 border border-red-200' },
 ];
+
+function getStatusConfig(status: string) {
+  return statusConfig.find(s => s.value === status) || statusConfig[0];
+}
+
+function getPriorityConfig(priority?: string) {
+  return priorityConfig.find(p => p.value === (priority || 'normal')) || priorityConfig[1];
+}
+
+function getRowAccent(req: RequestItem) {
+  if (req.priority === 'urgent') return 'border-l-red-500 bg-red-50/30';
+  if (req.priority === 'high') return 'border-l-orange-400 bg-orange-50/20';
+  if (req.status === 'new') return 'border-l-blue-400';
+  if (req.status === 'in_progress') return 'border-l-amber-400';
+  if (req.status === 'processed') return 'border-l-emerald-400';
+  return 'border-l-transparent';
+}
+
+// Inline status selector that matches pill style
+function StatusPill({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const cfg = getStatusConfig(value);
+
+  return (
+    <div className="relative" onClick={e => e.stopPropagation()}>
+      <button
+        onClick={() => setOpen(!open)}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-all hover:opacity-80 ${cfg.pill}`}
+      >
+        <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+        {cfg.label}
+        <ChevronDown className="w-3 h-3 opacity-60" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[140px]">
+            {statusConfig.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => { onChange(opt.value); setOpen(false); }}
+                className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-slate-50 transition-colors ${value === opt.value ? 'font-semibold' : ''}`}
+              >
+                <span className={`w-2 h-2 rounded-full ${opt.dot}`} />
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function AdminRequestsPage() {
   const router = useRouter();
@@ -73,8 +137,7 @@ export default function AdminRequestsPage() {
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: 25, totalCount: 0, totalPages: 0 });
   const [stats, setStats] = useState<Stats | null>(null);
-  
-  // Фильтры
+
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -82,20 +145,15 @@ export default function AdminRequestsPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  
-  // Сортировка
+
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  
-  // Выбор для массовых действий
+
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
-  
-  // Модальное окно
+
   const [selectedRequest, setSelectedRequest] = useState<RequestItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  // Подтверждение массового удаления
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   const loadRequests = useCallback(async () => {
@@ -114,110 +172,70 @@ export default function AdminRequestsPage() {
       params.set('page', pagination.page.toString());
       params.set('limit', pagination.limit.toString());
 
-      const response = await fetch(`/api/admin/requests?${params}`, {
-        credentials: 'include'
-      });
-      
+      const response = await fetch(`/api/admin/requests?${params}`, { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setRequests(data.requests);
         setPagination(data.pagination);
         setStats(data.stats);
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        setError(errorData.error || 'Ошибка загрузки заявок');
+        const err = await response.json().catch(() => ({}));
+        setError(err.error || 'Ошибка загрузки заявок');
       }
-    } catch (error) {
-      console.error('Error loading requests:', error);
+    } catch {
       setError('Ошибка соединения');
     } finally {
       setLoading(false);
     }
   }, [search, filterType, filterStatus, filterPriority, dateFrom, dateTo, sortBy, sortOrder, pagination.page, pagination.limit]);
 
-  useEffect(() => {
-    loadRequests();
-  }, [loadRequests]);
+  useEffect(() => { loadRequests(); }, [loadRequests]);
 
-  // Сброс выбора при смене страницы/фильтров
   useEffect(() => {
     setSelectedIds(new Set());
     setSelectAll(false);
   }, [pagination.page, filterType, filterStatus, search]);
 
   const handleSelectAll = () => {
-    if (selectAll) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(requests.map(r => r.id)));
-    }
+    if (selectAll) { setSelectedIds(new Set()); } else { setSelectedIds(new Set(requests.map(r => r.id))); }
     setSelectAll(!selectAll);
   };
 
   const handleSelectOne = (id: string) => {
-    const newSelected = new Set(selectedIds);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
-    setSelectedIds(newSelected);
-    setSelectAll(newSelected.size === requests.length);
+    const next = new Set(selectedIds);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelectedIds(next);
+    setSelectAll(next.size === requests.length);
   };
 
   const handleBulkStatusChange = async (newStatus: string) => {
-    if (selectedIds.size === 0) return;
-    
+    if (!selectedIds.size) return;
     try {
-      const response = await adminCsrfFetch('/api/admin/requests', {
+      const res = await adminCsrfFetch('/api/admin/requests', {
         method: 'PATCH',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          ids: Array.from(selectedIds), 
-          status: newStatus 
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds), status: newStatus }),
       });
-
-      if (response.ok) {
-        loadRequests();
-        setSelectedIds(new Set());
-        setSelectAll(false);
-      }
-    } catch (error) {
-      console.error('Error bulk updating:', error);
-    }
+      if (res.ok) { loadRequests(); setSelectedIds(new Set()); setSelectAll(false); }
+    } catch { /* silent */ }
   };
 
   const handleBulkDelete = async () => {
-    if (selectedIds.size === 0) return;
-    
+    if (!selectedIds.size) return;
     try {
-      const response = await adminCsrfFetch('/api/admin/requests', {
+      const res = await adminCsrfFetch('/api/admin/requests', {
         method: 'DELETE',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ids: Array.from(selectedIds) })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
       });
-
-      if (response.ok) {
-        loadRequests();
-        setSelectedIds(new Set());
-        setSelectAll(false);
-        setShowBulkDeleteConfirm(false);
-      }
-    } catch (error) {
-      console.error('Error bulk deleting:', error);
-    }
+      if (res.ok) { loadRequests(); setSelectedIds(new Set()); setSelectAll(false); setShowBulkDeleteConfirm(false); }
+    } catch { /* silent */ }
   };
 
-  const handleExport = (exportAll: boolean = true) => {
+  const handleExport = (exportAll = true) => {
     const params = new URLSearchParams();
-    
     if (!exportAll && selectedIds.size > 0) {
       params.set('ids', Array.from(selectedIds).join(','));
     } else {
@@ -226,7 +244,6 @@ export default function AdminRequestsPage() {
       if (dateFrom) params.set('date_from', dateFrom);
       if (dateTo) params.set('date_to', dateTo);
     }
-
     window.open(`/api/admin/requests/export?${params}`, '_blank');
   };
 
@@ -239,684 +256,505 @@ export default function AdminRequestsPage() {
     }
   };
 
-  const openRequestDetails = (request: RequestItem) => {
-    setSelectedRequest(request);
-    setIsModalOpen(true);
+  const handleStatusChange = async (req: RequestItem, newStatus: string) => {
+    setRequests(requests.map(r => r.id === req.id ? { ...r, status: newStatus } : r));
+    try {
+      await adminCsrfFetch(`/api/admin/requests/${req.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+    } catch { loadRequests(); }
   };
 
-  const handleRequestUpdate = (updatedRequest: RequestItem) => {
-    setRequests(requests.map(r => r.id === updatedRequest.id ? updatedRequest : r));
-    setSelectedRequest(updatedRequest);
+  const handleRequestUpdate = (updated: RequestItem) => {
+    setRequests(requests.map(r => r.id === updated.id ? updated : r));
+    setSelectedRequest(updated);
   };
 
   const handleRequestDelete = (id: string) => {
     setRequests(requests.filter(r => r.id !== id));
-    if (stats) {
-      setStats({
-        ...stats,
-        total_count: (parseInt(stats.total_count) - 1).toString()
-      });
-    }
+    if (stats) setStats({ ...stats, total_count: (parseInt(stats.total_count) - 1).toString() });
   };
 
   const clearFilters = () => {
-    setSearch('');
-    setFilterType('');
-    setFilterStatus('');
-    setFilterPriority('');
-    setDateFrom('');
-    setDateTo('');
+    setSearch(''); setFilterType(''); setFilterStatus('');
+    setFilterPriority(''); setDateFrom(''); setDateTo('');
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
   const hasActiveFilters = search || filterType || filterStatus || filterPriority || dateFrom || dateTo;
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: '2-digit'
-    });
-  };
+  const formatDate = (s: string) => new Date(s).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  const formatTime = (s: string) => new Date(s).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString('ru-RU', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getStatusColor = (status: string) => {
-    const option = statusOptions.find(s => s.value === status);
-    return option?.color || 'bg-gray-100 text-gray-800';
-  };
-
-  const getStatusLabel = (status: string) => {
-    const option = statusOptions.find(s => s.value === status);
-    return option?.label || status;
-  };
-
-  const getPriorityColor = (priority?: string) => {
-    if (!priority) return 'bg-slate-100 text-slate-600';
-    const option = priorityOptions.find(p => p.value === priority);
-    return option?.color || 'bg-slate-100 text-slate-600';
-  };
-
-  const getPriorityLabel = (priority?: string) => {
-    if (!priority) return 'Обычный';
-    const option = priorityOptions.find(p => p.value === priority);
-    return option?.label || priority;
-  };
+  function SortIcon({ field }: { field: string }) {
+    if (sortBy !== field) return <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />;
+    return sortOrder === 'asc'
+      ? <ArrowUp className="w-3.5 h-3.5 text-blue-500" />
+      : <ArrowDown className="w-3.5 h-3.5 text-blue-500" />;
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Заголовок */}
+    <div className="space-y-5">
+      {/* ── Заголовок ── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Заявки</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Заявки</h1>
+          {stats && (
+            <p className="text-sm text-slate-500 mt-0.5">
+              Всего {stats.total_count} · {stats.new_count} новых
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => loadRequests()} title="Обновить">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => loadRequests()}
+            title="Обновить"
+            className="h-9 w-9 shrink-0"
+          >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
-          <Button variant="outline" onClick={() => handleExport(true)} className="gap-2 flex-1 sm:flex-none">
+          <Button variant="outline" onClick={() => handleExport(true)} className="gap-2 h-9">
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">Экспорт CSV</span>
-            <span className="sm:hidden">Экспорт</span>
           </Button>
         </div>
       </div>
 
-      {/* Карточки статистики */}
+      {/* ── Статистика ── */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-blue-600 text-white rounded-xl p-4 flex flex-col gap-1 shadow-sm">
-            <div className="flex items-center gap-2 opacity-80">
-              <Inbox className="w-4 h-4" />
-              <span className="text-xs font-medium uppercase tracking-wide">Новые</span>
-            </div>
-            <div className="text-3xl font-bold">{stats.new_count}</div>
-          </div>
-          <div className="bg-amber-500 text-white rounded-xl p-4 flex flex-col gap-1 shadow-sm">
-            <div className="flex items-center gap-2 opacity-80">
-              <Clock className="w-4 h-4" />
-              <span className="text-xs font-medium uppercase tracking-wide">В работе</span>
-            </div>
-            <div className="text-3xl font-bold">{stats.in_progress_count}</div>
-          </div>
-          <div className="bg-emerald-600 text-white rounded-xl p-4 flex flex-col gap-1 shadow-sm">
-            <div className="flex items-center gap-2 opacity-80">
-              <CheckCircle2 className="w-4 h-4" />
-              <span className="text-xs font-medium uppercase tracking-wide">Обработано</span>
-            </div>
-            <div className="text-3xl font-bold">{stats.processed_count}</div>
-          </div>
-          <div className="bg-slate-700 text-white rounded-xl p-4 flex flex-col gap-1 shadow-sm">
-            <div className="flex items-center gap-2 opacity-80">
-              <Archive className="w-4 h-4" />
-              <span className="text-xs font-medium uppercase tracking-wide">Всего</span>
-            </div>
-            <div className="text-3xl font-bold">{stats.total_count}</div>
-          </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { label: 'Новые', value: stats.new_count, icon: Inbox, from: 'from-blue-500', to: 'to-blue-600', filterVal: 'new' },
+            { label: 'В работе', value: stats.in_progress_count, icon: Clock, from: 'from-amber-400', to: 'to-amber-500', filterVal: 'in_progress' },
+            { label: 'Обработано', value: stats.processed_count, icon: CheckCircle2, from: 'from-emerald-500', to: 'to-emerald-600', filterVal: 'processed' },
+            { label: 'В архиве', value: stats.archived_count, icon: Archive, from: 'from-slate-500', to: 'to-slate-600', filterVal: 'archived' },
+          ].map(card => (
+            <button
+              key={card.filterVal}
+              onClick={() => {
+                setFilterStatus(filterStatus === card.filterVal ? '' : card.filterVal);
+                setPagination(p => ({ ...p, page: 1 }));
+              }}
+              className={`relative overflow-hidden rounded-2xl p-4 text-left transition-all bg-gradient-to-br ${card.from} ${card.to} text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 ${filterStatus === card.filterVal ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-100' : ''}`}
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider opacity-80">{card.label}</p>
+                  <p className="text-3xl font-bold mt-1 tabular-nums">{card.value}</p>
+                </div>
+                <card.icon className="w-5 h-5 opacity-50 mt-0.5" />
+              </div>
+              <div className="absolute -bottom-3 -right-3 w-16 h-16 rounded-full bg-white/10" />
+            </button>
+          ))}
         </div>
       )}
 
-      {/* Поиск и фильтры */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Поиск */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input
-                placeholder="Поиск по имени, email, телефону, городу..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPagination(prev => ({ ...prev, page: 1 }));
-                }}
-                className="pl-10"
-              />
-            </div>
-            
-            {/* Быстрые фильтры */}
-            <div className="flex flex-wrap gap-2">
-              <select
-                className="h-10 px-3 py-2 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
-                value={filterType}
-                onChange={(e) => {
-                  setFilterType(e.target.value);
-                  setPagination(prev => ({ ...prev, page: 1 }));
-                }}
-              >
-                <option value="">Все типы</option>
-                <option value="contact">Контактная форма</option>
-                <option value="cp">Запрос КП</option>
-                <option value="training">Обучение</option>
-                <option value="conference_registration">Конференция</option>
-              </select>
-              
-              <select
-                className="h-10 px-3 py-2 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
-                value={filterStatus}
-                onChange={(e) => {
-                  setFilterStatus(e.target.value);
-                  setPagination(prev => ({ ...prev, page: 1 }));
-                }}
-              >
-                <option value="">Все статусы</option>
-                {statusOptions.map(option => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
+      {/* ── Поиск и фильтры ── */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="p-4 flex flex-col lg:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <Input
+              placeholder="Поиск по имени, email, телефону..."
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
+              className="pl-10 h-9 bg-slate-50 border-slate-200 focus:bg-white"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <select
+              className="h-9 px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+              value={filterType}
+              onChange={e => { setFilterType(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
+            >
+              <option value="">Все типы</option>
+              <option value="contact">Контактная форма</option>
+              <option value="cp">Запрос КП</option>
+              <option value="training">Обучение</option>
+              <option value="conference_registration">Конференция</option>
+            </select>
 
-              <Button 
-                variant={showFilters ? "secondary" : "outline"}
-                onClick={() => setShowFilters(!showFilters)}
-                className="gap-2 w-full sm:w-auto"
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-                <span className="hidden sm:inline">Ещё</span>
-                <span className="sm:hidden">Доп. фильтры</span>
-              </Button>
+            <select
+              className="h-9 px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+              value={filterStatus}
+              onChange={e => { setFilterStatus(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
+            >
+              <option value="">Все статусы</option>
+              {statusConfig.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
 
-              {hasActiveFilters && (
-                <Button variant="ghost" onClick={clearFilters} className="gap-1 text-slate-500 w-full sm:w-auto">
-                  <X className="w-4 h-4" />
-                  Сбросить
-                </Button>
+            <Button
+              variant={showFilters ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className="gap-1.5 h-9"
+            >
+              <Filter className="w-3.5 h-3.5" />
+              Фильтры
+              {(filterPriority || dateFrom || dateTo) && (
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ml-0.5" />
               )}
+            </Button>
+
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-slate-500 h-9">
+                <X className="w-3.5 h-3.5" />
+                Сбросить
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {showFilters && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 px-4 pb-4 pt-0 border-t border-slate-100 mt-0 pt-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">Приоритет</label>
+              <select
+                className="h-9 w-full px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={filterPriority}
+                onChange={e => { setFilterPriority(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
+              >
+                <option value="">Любой</option>
+                {priorityConfig.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">Дата от</label>
+              <Input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPagination(p => ({ ...p, page: 1 })); }} className="h-9 bg-slate-50" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">Дата до</label>
+              <Input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPagination(p => ({ ...p, page: 1 })); }} className="h-9 bg-slate-50" />
             </div>
           </div>
+        )}
+      </div>
 
-          {/* Расширенные фильтры */}
-          {showFilters && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4 pt-4 border-t">
-              <div>
-                <label className="block text-xs text-slate-500 mb-1">Приоритет</label>
-                <select
-                  className="h-9 w-full px-3 py-1 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={filterPriority}
-                  onChange={(e) => {
-                    setFilterPriority(e.target.value);
-                    setPagination(prev => ({ ...prev, page: 1 }));
-                  }}
-                >
-                  <option value="">Любой</option>
-                  {priorityOptions.map(option => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-slate-500 mb-1">Дата от</label>
-                <Input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => {
-                    setDateFrom(e.target.value);
-                    setPagination(prev => ({ ...prev, page: 1 }));
-                  }}
-                  className="h-9 w-full"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-500 mb-1">Дата до</label>
-                <Input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => {
-                    setDateTo(e.target.value);
-                    setPagination(prev => ({ ...prev, page: 1 }));
-                  }}
-                  className="h-9 w-full"
-                />
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Массовые действия */}
+      {/* ── Массовые действия ── */}
       {selectedIds.size > 0 && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardContent className="p-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-sm font-medium text-blue-800">
-                Выбрано: {selectedIds.size}
-              </span>
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" onClick={() => handleBulkStatusChange('in_progress')}>
-                  <Clock className="w-4 h-4 mr-1" />
-                  В работу
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => handleBulkStatusChange('processed')}>
-                  <CheckCircle2 className="w-4 h-4 mr-1" />
-                  Обработано
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => handleBulkStatusChange('archived')}>
-                  <Archive className="w-4 h-4 mr-1" />
-                  В архив
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => handleExport(false)}>
-                  <Download className="w-4 h-4 mr-1" />
-                  Экспорт
-                </Button>
-                {!showBulkDeleteConfirm ? (
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="text-red-600 hover:bg-red-50"
-                    onClick={() => setShowBulkDeleteConfirm(true)}
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Удалить
-                  </Button>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-red-600">Удалить {selectedIds.size} заявок?</span>
-                    <Button size="sm" variant="destructive" onClick={handleBulkDelete}>Да</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setShowBulkDeleteConfirm(false)}>Нет</Button>
-                  </div>
-                )}
-              </div>
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                onClick={() => { setSelectedIds(new Set()); setSelectAll(false); }}
-                className="sm:ml-auto w-full sm:w-auto"
-              >
-                Снять выбор
+        <div className="bg-blue-600 text-white rounded-2xl px-4 py-3 flex flex-wrap items-center gap-3 shadow-md">
+          <span className="text-sm font-semibold">Выбрано: {selectedIds.size}</span>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={() => handleBulkStatusChange('in_progress')} className="h-7 text-xs bg-white/20 hover:bg-white/30 text-white border-0">
+              <Clock className="w-3.5 h-3.5 mr-1" /> В работу
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => handleBulkStatusChange('processed')} className="h-7 text-xs bg-white/20 hover:bg-white/30 text-white border-0">
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Обработано
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => handleBulkStatusChange('archived')} className="h-7 text-xs bg-white/20 hover:bg-white/30 text-white border-0">
+              <Archive className="w-3.5 h-3.5 mr-1" /> В архив
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => handleExport(false)} className="h-7 text-xs bg-white/20 hover:bg-white/30 text-white border-0">
+              <Download className="w-3.5 h-3.5 mr-1" /> Экспорт
+            </Button>
+            {!showBulkDeleteConfirm ? (
+              <Button size="sm" variant="secondary" onClick={() => setShowBulkDeleteConfirm(true)} className="h-7 text-xs bg-red-500/30 hover:bg-red-500/50 text-white border-0">
+                <Trash2 className="w-3.5 h-3.5 mr-1" /> Удалить
               </Button>
-            </div>
-          </CardContent>
-        </Card>
+            ) : (
+              <div className="flex items-center gap-2 bg-white/10 rounded-lg px-2 py-1">
+                <span className="text-xs">Удалить {selectedIds.size}?</span>
+                <button onClick={handleBulkDelete} className="text-xs bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded">Да</button>
+                <button onClick={() => setShowBulkDeleteConfirm(false)} className="text-xs hover:underline">Нет</button>
+              </div>
+            )}
+          </div>
+          <button onClick={() => { setSelectedIds(new Set()); setSelectAll(false); }} className="sm:ml-auto text-xs opacity-70 hover:opacity-100 transition-opacity">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       )}
 
-      {/* Ошибка */}
+      {/* ── Ошибка ── */}
       {error && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="p-4 flex items-center gap-2 text-red-600">
-            <AlertCircle className="w-5 h-5" />
-            {error}
-          </CardContent>
-        </Card>
+        <div className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          {error}
+        </div>
       )}
 
-      {/* Мобильный список заявок */}
-      <div className="lg:hidden space-y-3">
+      {/* ── Мобильные карточки ── */}
+      <div className="lg:hidden space-y-2">
         {!loading && requests.length > 0 && (
-          <div className="flex items-center justify-between rounded-lg border bg-white px-3 py-2">
-            <label className="flex items-center gap-2 text-sm text-slate-700">
+          <div className="flex items-center justify-between rounded-xl border bg-white px-3 py-2.5">
+            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
               <Checkbox checked={selectAll} onChange={handleSelectAll} />
               Выбрать все
             </label>
-            <span className="text-xs text-slate-500">{requests.length} на странице</span>
+            <span className="text-xs text-slate-400">{requests.length} на странице</span>
           </div>
         )}
 
         {loading ? (
-          <Card>
-            <CardContent className="py-12 text-center text-slate-500">
-              <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
-              Загрузка...
-            </CardContent>
-          </Card>
+          <div className="bg-white rounded-2xl border p-12 text-center text-slate-400">
+            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
+            Загрузка...
+          </div>
         ) : requests.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center text-slate-500">
-              <Inbox className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-              Заявок не найдено
-            </CardContent>
-          </Card>
+          <div className="bg-white rounded-2xl border p-12 text-center text-slate-400">
+            <Inbox className="w-10 h-10 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">Заявок не найдено</p>
+          </div>
         ) : (
-          requests.map((req) => (
-            <Card
-              key={req.id}
-              className={`border transition-colors ${
-                req.priority === 'urgent' ? 'border-red-200 bg-red-50/40' :
-                req.priority === 'high' ? 'border-orange-200 bg-orange-50/30' :
-                req.status === 'new' ? 'border-blue-200 bg-blue-50/20' :
-                'border-slate-200'
-              }`}
-            >
-              <CardContent className="p-3">
+          requests.map(req => {
+            const pc = getPriorityConfig(req.priority);
+            return (
+              <div
+                key={req.id}
+                className={`bg-white rounded-2xl border border-l-4 ${getRowAccent(req)} p-4 transition-all`}
+              >
                 <div className="flex items-start gap-3">
-                  <div className="pt-0.5">
-                    <Checkbox
-                      checked={selectedIds.has(req.id)}
-                      onChange={() => handleSelectOne(req.id)}
-                    />
+                  <div className="pt-0.5" onClick={e => e.stopPropagation()}>
+                    <Checkbox checked={selectedIds.has(req.id)} onChange={() => handleSelectOne(req.id)} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <button
-                        type="button"
-                        className="min-w-0 text-left"
-                        onClick={() => router.push(`/requests/${req.id}`)}
-                      >
-                        <div className="font-semibold text-slate-900 truncate">{req.name}</div>
-                        <div className="text-xs text-slate-500 mt-0.5">
-                          {formatDate(req.created_at)} · {formatTime(req.created_at)}
-                        </div>
+                      <button className="min-w-0 text-left" onClick={() => router.push(`/requests/${req.id}`)}>
+                        <div className="font-semibold text-slate-900">{req.name}</div>
+                        <div className="text-xs text-slate-400 mt-0.5">{formatDate(req.created_at)} · {formatTime(req.created_at)}</div>
                       </button>
-                      <Badge variant="outline" className="text-xs shrink-0">
+                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium shrink-0 ${formTypeBadgeStyle[req.form_type] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
                         {formTypeLabels[req.form_type] || req.form_type}
-                      </Badge>
+                      </span>
                     </div>
 
-                    <div className="mt-2 space-y-1 text-xs text-slate-600">
-                      <div className="flex items-center gap-1 min-w-0">
-                        <Mail className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{req.email}</span>
-                      </div>
-                      <div className="flex items-center gap-1 min-w-0">
-                        <Phone className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{req.phone}</span>
-                      </div>
+                    <div className="mt-2.5 space-y-1 text-xs text-slate-500">
+                      {req.email && <div className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 shrink-0" /><span className="truncate">{req.email}</span></div>}
+                      {req.phone && <div className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 shrink-0" /><span>{req.phone}</span></div>}
+                      {req.institution && <div className="flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5 shrink-0" /><span className="truncate">{req.institution}</span></div>}
+                      {req.city && <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>{req.city}</span></div>}
                       {req.message && (
-                        <div className="text-slate-600">
-                          {req.message.substring(0, 90)}{req.message.length > 90 ? '...' : ''}
+                        <div className="flex items-start gap-1.5 text-slate-400 mt-1">
+                          <MessageSquare className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                          <span className="line-clamp-2">{req.message}</span>
                         </div>
                       )}
-                      {req.institution && (
-                        <div className="text-slate-500 truncate">{req.institution}</div>
-                      )}
-                      {req.city && (
-                        <div className="text-slate-500 truncate">{req.city}</div>
+                    </div>
+
+                    <div className="mt-3 flex items-center gap-2">
+                      <StatusPill value={req.status} onChange={v => handleStatusChange(req, v)} />
+                      {req.priority && req.priority !== 'normal' && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${pc.pill}`}>
+                          {pc.label}
+                        </span>
                       )}
                     </div>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <Badge className={`text-xs ${getStatusColor(req.status)}`}>
-                        {getStatusLabel(req.status)}
-                      </Badge>
-                      <Badge className={`text-xs ${getPriorityColor(req.priority)}`}>
-                        {getPriorityLabel(req.priority)}
-                      </Badge>
-                    </div>
-
-                    <div className="mt-3 flex flex-col gap-2">
-                      <select
-                        className={`h-9 w-full text-xs px-3 rounded-md border font-medium cursor-pointer focus:ring-2 ring-offset-1 ${getStatusColor(req.status)}`}
-                        value={req.status || 'new'}
-                        onChange={async (e) => {
-                          const newStatus = e.target.value;
-                          setRequests(requests.map(r => r.id === req.id ? { ...r, status: newStatus } : r));
-                          try {
-                            await adminCsrfFetch(`/api/admin/requests/${req.id}`, {
-                              method: 'PATCH',
-                              credentials: 'include',
-                              headers: {
-                                'Content-Type': 'application/json',
-                              },
-                              body: JSON.stringify({ status: newStatus })
-                            });
-                          } catch {
-                            loadRequests();
-                          }
-                        }}
-                      >
-                        {statusOptions.map(option => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                      </select>
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => router.push(`/requests/${req.id}`)}
-                      >
-                        <ExternalLink className="w-4 h-4 mr-1" />
-                        Открыть заявку
+                    <div className="mt-3 flex gap-2">
+                      <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" onClick={() => router.push(`/requests/${req.id}`)}>
+                        <ExternalLink className="w-3.5 h-3.5 mr-1" />
+                        Открыть
                       </Button>
                     </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))
+              </div>
+            );
+          })
         )}
       </div>
 
-      {/* Таблица заявок (десктоп) */}
-      <Card className="hidden lg:block">
-        <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full min-w-[980px] text-sm text-left">
-            <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+      {/* ── Таблица (десктоп) ── */}
+      <div className="hidden lg:block bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <table className="w-full text-sm text-left">
+          <thead>
+            <tr className="border-b border-slate-100">
+              <th className="px-4 py-3 w-10">
+                <Checkbox checked={selectAll} onChange={handleSelectAll} />
+              </th>
+              <th
+                className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-slate-700 select-none whitespace-nowrap"
+                onClick={() => handleSort('created_at')}
+              >
+                <div className="flex items-center gap-1.5">
+                  Дата <SortIcon field="created_at" />
+                </div>
+              </th>
+              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Тип</th>
+              <th
+                className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-slate-700 select-none"
+                onClick={() => handleSort('name')}
+              >
+                <div className="flex items-center gap-1.5">
+                  Контакт <SortIcon field="name" />
+                </div>
+              </th>
+              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Детали</th>
+              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Статус</th>
+              <th className="px-4 py-3 w-16"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {loading ? (
               <tr>
-                <th className="px-4 py-3 w-10">
-                  <Checkbox 
-                    checked={selectAll}
-                    onChange={handleSelectAll}
-                  />
-                </th>
-                <th 
-                  className="px-4 py-3 cursor-pointer hover:bg-slate-100"
-                  onClick={() => handleSort('created_at')}
-                >
-                  <div className="flex items-center gap-1">
-                    Дата
-                    {sortBy === 'created_at' && (
-                      <ArrowUpDown className={`w-3 h-3 ${sortOrder === 'asc' ? 'rotate-180' : ''}`} />
-                    )}
-                  </div>
-                </th>
-                <th className="px-4 py-3">Тип</th>
-                <th 
-                  className="px-4 py-3 cursor-pointer hover:bg-slate-100"
-                  onClick={() => handleSort('name')}
-                >
-                  <div className="flex items-center gap-1">
-                    Контакт
-                    {sortBy === 'name' && (
-                      <ArrowUpDown className={`w-3 h-3 ${sortOrder === 'asc' ? 'rotate-180' : ''}`} />
-                    )}
-                  </div>
-                </th>
-                <th className="px-4 py-3">Детали</th>
-                <th 
-                  className="px-4 py-3 cursor-pointer hover:bg-slate-100"
-                  onClick={() => handleSort('status')}
-                >
-                  <div className="flex items-center gap-1">
-                    Статус
-                    {sortBy === 'status' && (
-                      <ArrowUpDown className={`w-3 h-3 ${sortOrder === 'asc' ? 'rotate-180' : ''}`} />
-                    )}
-                  </div>
-                </th>
-                <th className="px-4 py-3 w-10"></th>
+                <td colSpan={7} className="text-center py-16 text-slate-400">
+                  <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
+                  Загрузка...
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-500">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
-                    Загрузка...
-                  </td>
-                </tr>
-              ) : requests.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-500">
-                    <Inbox className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                    Заявок не найдено
-                  </td>
-                </tr>
-              ) : (
-                requests.map((req) => (
+            ) : requests.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="text-center py-16 text-slate-400">
+                  <Inbox className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                  <p>Заявок не найдено</p>
+                  {hasActiveFilters && (
+                    <button onClick={clearFilters} className="mt-2 text-blue-500 hover:underline text-sm">Сбросить фильтры</button>
+                  )}
+                </td>
+              </tr>
+            ) : (
+              requests.map(req => {
+                const pc = getPriorityConfig(req.priority);
+                return (
                   <tr
                     key={req.id}
-                    className={`border-b cursor-pointer transition-colors hover:bg-slate-50 ${
-                      req.priority === 'urgent' ? 'border-l-4 border-l-red-500 bg-red-50/40' :
-                      req.priority === 'high'   ? 'border-l-4 border-l-orange-400 bg-orange-50/30' :
-                      req.status === 'new'      ? 'border-l-4 border-l-blue-400 bg-blue-50/20' :
-                      req.status === 'in_progress' ? 'border-l-4 border-l-amber-400' :
-                      req.status === 'processed'   ? 'border-l-4 border-l-emerald-400' :
-                                                     'border-l-4 border-l-transparent'
-                    }`}
-                    onClick={() => openRequestDetails(req)}
+                    className={`border-l-4 cursor-pointer transition-colors hover:bg-slate-50/80 group ${getRowAccent(req)}`}
+                    onClick={() => { setSelectedRequest(req); setIsModalOpen(true); }}
                   >
-                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      <Checkbox 
-                        checked={selectedIds.has(req.id)}
-                        onChange={() => handleSelectOne(req.id)}
-                      />
+                    <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
+                      <Checkbox checked={selectedIds.has(req.id)} onChange={() => handleSelectOne(req.id)} />
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="font-medium">{formatDate(req.created_at)}</div>
-                      <div className="text-xs text-slate-500">{formatTime(req.created_at)}</div>
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <div className="font-medium text-slate-800">{formatDate(req.created_at)}</div>
+                      <div className="text-xs text-slate-400">{formatTime(req.created_at)}</div>
                     </td>
-                    <td className="px-4 py-3">
-                      <Badge variant="outline" className="text-xs whitespace-nowrap">
+                    <td className="px-4 py-3.5">
+                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${formTypeBadgeStyle[req.form_type] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
                         {formTypeLabels[req.form_type] || req.form_type}
-                      </Badge>
+                      </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium">{req.name}</div>
-                      <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                        <span className="flex items-center gap-1">
-                          <Mail className="w-3 h-3" />
-                          {req.email}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-slate-500">
-                        <Phone className="w-3 h-3" />
-                        {req.phone}
+                    <td className="px-4 py-3.5">
+                      <div className="font-semibold text-slate-900">{req.name}</div>
+                      <div className="flex flex-col gap-0.5 mt-1">
+                        {req.email && (
+                          <div className="flex items-center gap-1 text-xs text-slate-400">
+                            <Mail className="w-3 h-3 shrink-0" />
+                            <span className="truncate max-w-[160px]">{req.email}</span>
+                          </div>
+                        )}
+                        {req.phone && (
+                          <div className="flex items-center gap-1 text-xs text-slate-400">
+                            <Phone className="w-3 h-3 shrink-0" />
+                            {req.phone}
+                          </div>
+                        )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 max-w-xs">
+                    <td className="px-4 py-3.5 max-w-[220px]">
                       {req.message && (
-                        <div className="text-sm text-slate-600 truncate mb-1" title={req.message}>
-                          {req.message.substring(0, 50)}{req.message.length > 50 ? '...' : ''}
-                        </div>
+                        <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{req.message}</p>
                       )}
                       {req.institution && (
-                        <div className="text-xs text-slate-500 truncate">{req.institution}</div>
+                        <div className="flex items-center gap-1 text-xs text-slate-400 mt-1">
+                          <Building2 className="w-3 h-3 shrink-0" />
+                          <span className="truncate">{req.institution}</span>
+                        </div>
                       )}
                       {req.city && (
-                        <div className="text-xs text-slate-500">{req.city}</div>
-                      )}
-                      {req.metadata?.conference && (
-                        <div className="text-xs text-blue-600 truncate" title={req.metadata.conference}>
-                          {req.metadata.conference.substring(0, 30)}...
+                        <div className="flex items-center gap-1 text-xs text-slate-400">
+                          <MapPin className="w-3 h-3 shrink-0" />
+                          {req.city}
                         </div>
                       )}
                       {req.notes && (
-                        <div className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        <div className="flex items-center gap-1 text-xs text-amber-600 mt-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
                           Есть заметки
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      <select
-                        className={`text-xs px-2 py-1 rounded-full border-0 font-medium cursor-pointer focus:ring-2 ring-offset-1 ${getStatusColor(req.status)}`}
-                        value={req.status || 'new'}
-                        onChange={async (e) => {
-                          const newStatus = e.target.value;
-                          setRequests(requests.map(r => r.id === req.id ? { ...r, status: newStatus } : r));
-                          try {
-                            await adminCsrfFetch(`/api/admin/requests/${req.id}`, {
-                              method: 'PATCH',
-                              credentials: 'include',
-                              headers: {
-                                'Content-Type': 'application/json',
-                              },
-                              body: JSON.stringify({ status: newStatus })
-                            });
-                          } catch {
-                            loadRequests();
-                          }
-                        }}
-                      >
-                        {statusOptions.map(option => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                      </select>
+                    <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
+                      <div className="flex flex-col gap-1.5">
+                        <StatusPill value={req.status} onChange={v => handleStatusChange(req, v)} />
+                        {req.priority && req.priority !== 'normal' && (
+                          <span className={`inline-flex text-xs px-2 py-0.5 rounded-full border font-medium w-fit ${pc.pill}`}>
+                            {pc.label}
+                          </span>
+                        )}
+                      </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Быстрый просмотр">
+                    <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          title="Быстрый просмотр"
+                          onClick={() => { setSelectedRequest(req); setIsModalOpen(true); }}
+                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
+                        >
                           <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
+                        </button>
+                        <button
                           title="Открыть полностью"
-                          onClick={(e) => { e.stopPropagation(); router.push(`/requests/${req.id}`); }}
+                          onClick={() => router.push(`/requests/${req.id}`)}
+                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
                         >
                           <ExternalLink className="w-4 h-4" />
-                        </Button>
+                        </button>
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
 
-      {/* Пагинация */}
+      {/* ── Пагинация ── */}
       {pagination.totalPages > 1 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-sm text-slate-500">
-            Показано {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.totalCount)} из {pagination.totalCount}
+            {((pagination.page - 1) * pagination.limit) + 1}–{Math.min(pagination.page * pagination.limit, pagination.totalCount)} из {pagination.totalCount}
           </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+          <div className="flex items-center gap-1.5">
             <Button
               variant="outline"
               size="sm"
               disabled={pagination.page <= 1}
-              onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+              onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}
+              className="h-8 w-8 p-0"
             >
               <ChevronLeft className="w-4 h-4" />
-              Назад
             </Button>
-            <div className="hidden sm:flex items-center gap-1">
+            <div className="flex items-center gap-1">
               {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                let pageNum;
-                if (pagination.totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (pagination.page <= 3) {
-                  pageNum = i + 1;
-                } else if (pagination.page >= pagination.totalPages - 2) {
-                  pageNum = pagination.totalPages - 4 + i;
-                } else {
-                  pageNum = pagination.page - 2 + i;
-                }
+                let p: number;
+                if (pagination.totalPages <= 5) p = i + 1;
+                else if (pagination.page <= 3) p = i + 1;
+                else if (pagination.page >= pagination.totalPages - 2) p = pagination.totalPages - 4 + i;
+                else p = pagination.page - 2 + i;
                 return (
                   <Button
-                    key={pageNum}
-                    variant={pagination.page === pageNum ? "default" : "outline"}
+                    key={p}
+                    variant={pagination.page === p ? 'default' : 'outline'}
                     size="sm"
-                    className="w-9"
-                    onClick={() => setPagination(prev => ({ ...prev, page: pageNum }))}
+                    className="h-8 w-8 p-0"
+                    onClick={() => setPagination(prev => ({ ...prev, page: p }))}
                   >
-                    {pageNum}
+                    {p}
                   </Button>
                 );
               })}
             </div>
-            <span className="sm:hidden text-sm text-slate-500">
-              {pagination.page} / {pagination.totalPages}
-            </span>
             <Button
               variant="outline"
               size="sm"
               disabled={pagination.page >= pagination.totalPages}
-              onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+              onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}
+              className="h-8 w-8 p-0"
             >
-              Вперёд
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
         </div>
       )}
 
-      {/* Модальное окно деталей */}
+      {/* ── Модалка ── */}
       <RequestDetailsModal
         request={selectedRequest}
         isOpen={isModalOpen}

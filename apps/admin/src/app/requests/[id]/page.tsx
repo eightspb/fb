@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, User, Mail, Loader2 } from 'lucide-react';
+import { ArrowLeft, Mail, Loader2, Inbox, Clock, CheckCircle2, Archive, AlertCircle } from 'lucide-react';
 import { LeadInfoPanel } from '@/components/admin/LeadInfoPanel';
 import { EmailThread } from '@/components/admin/EmailThread';
 import type { RequestItem } from '@/components/admin/RequestDetailsModal';
@@ -14,14 +14,21 @@ const formTypeLabels: Record<string, string> = {
   'contact': 'Контактная форма',
   'cp': 'Запрос КП',
   'training': 'Заявка на обучение',
-  'conference_registration': 'Регистрация на конференцию'
+  'conference_registration': 'Регистрация на конференцию',
 };
 
-const statusLabels: Record<string, { label: string; color: string }> = {
-  'new': { label: 'Новая', color: 'bg-blue-100 text-blue-800' },
-  'in_progress': { label: 'В работе', color: 'bg-yellow-100 text-yellow-800' },
-  'processed': { label: 'Обработана', color: 'bg-green-100 text-green-800' },
-  'archived': { label: 'В архиве', color: 'bg-gray-100 text-gray-800' },
+const formTypeBadgeStyle: Record<string, string> = {
+  'contact': 'bg-violet-50 text-violet-700 border-violet-200',
+  'cp': 'bg-blue-50 text-blue-700 border-blue-200',
+  'training': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'conference_registration': 'bg-amber-50 text-amber-700 border-amber-200',
+};
+
+const statusConfig: Record<string, { label: string; pill: string; dot: string; icon: React.ElementType }> = {
+  new: { label: 'Новая', pill: 'bg-blue-50 text-blue-700 border-blue-200', dot: 'bg-blue-500', icon: Inbox },
+  in_progress: { label: 'В работе', pill: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500', icon: Clock },
+  processed: { label: 'Обработана', pill: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500', icon: CheckCircle2 },
+  archived: { label: 'В архиве', pill: 'bg-slate-100 text-slate-500 border-slate-200', dot: 'bg-slate-400', icon: Archive },
 };
 
 export default function RequestDetailPage() {
@@ -38,17 +45,12 @@ export default function RequestDetailPage() {
       try {
         const response = await fetch(`/api/admin/requests/${id}`, { credentials: 'include' });
         if (!response.ok) {
-          if (response.status === 404) {
-            setError('Заявка не найдена');
-          } else if (response.status === 401) {
-            setError('Требуется авторизация');
-          } else {
-            setError('Ошибка загрузки');
-          }
+          if (response.status === 404) setError('Заявка не найдена');
+          else if (response.status === 401) setError('Требуется авторизация');
+          else setError('Ошибка загрузки');
           return;
         }
-        const data = await response.json();
-        setRequest(data);
+        setRequest(await response.json());
       } catch {
         setError('Ошибка подключения');
       } finally {
@@ -58,86 +60,90 @@ export default function RequestDetailPage() {
     fetchRequest();
   }, [id]);
 
-  const handleUpdate = (updatedRequest: RequestItem) => {
-    setRequest(updatedRequest);
-  };
-
-  const handleDelete = () => {
-    router.push('/requests');
-  };
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+      <div className="flex items-center justify-center py-32">
+        <Loader2 className="w-8 h-8 animate-spin text-slate-300" />
       </div>
     );
   }
 
   if (error || !request) {
     return (
-      <div className="max-w-4xl mx-auto py-12 text-center">
-        <p className="text-slate-500 mb-4">{error || 'Заявка не найдена'}</p>
+      <div className="max-w-lg mx-auto py-24 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
+          <AlertCircle className="w-7 h-7 text-red-400" />
+        </div>
+        <p className="text-slate-600 mb-6">{error || 'Заявка не найдена'}</p>
         <Button variant="outline" onClick={() => router.push('/requests')}>
-          <ArrowLeft className="w-4 h-4 mr-1" />
+          <ArrowLeft className="w-4 h-4 mr-2" />
           Назад к заявкам
         </Button>
       </div>
     );
   }
 
-  const statusInfo = statusLabels[request.status] || statusLabels['new'];
+  const sc = statusConfig[request.status] || statusConfig['new'];
+  const StatusIcon = sc.icon;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6 min-w-0">
-      {/* Хлебные крошки и заголовок */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <Button variant="ghost" size="sm" className="shrink-0" onClick={() => router.push('/requests')}>
-            <ArrowLeft className="w-4 h-4 mr-1" />
+    <div className="max-w-5xl mx-auto space-y-5 min-w-0">
+      {/* ── Шапка ── */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="shrink-0 h-8 gap-1.5 text-slate-500 hover:text-slate-800 -ml-2"
+            onClick={() => router.push('/requests')}
+          >
+            <ArrowLeft className="w-4 h-4" />
             Заявки
           </Button>
-          <span className="text-slate-300 shrink-0">/</span>
-          <div className="flex items-center gap-2 min-w-0">
-            <User className="w-5 h-5 text-slate-500 shrink-0" />
-            <span className="font-semibold text-xl leading-tight break-words">{request.name}</span>
-          </div>
+          <span className="text-slate-300">/</span>
+          <span className="font-semibold text-slate-900 truncate text-lg">{request.name}</span>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="text-xs">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${formTypeBadgeStyle[request.form_type] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
             {formTypeLabels[request.form_type] || request.form_type}
-          </Badge>
-          <Badge className={`text-xs ${statusInfo.color}`}>
-            {statusInfo.label}
-          </Badge>
+          </span>
+          <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${sc.pill}`}>
+            <StatusIcon className="w-3.5 h-3.5" />
+            {sc.label}
+          </span>
         </div>
       </div>
 
-      {/* Табы */}
+      {/* ── Контент с табами ── */}
       <Tabs defaultValue="info" className="w-full">
-        <TabsList className="w-full justify-start overflow-x-auto">
-          <TabsTrigger value="info" className="flex-none">
-            <User className="w-4 h-4 mr-1" />
+        <TabsList className="bg-white border border-slate-200 rounded-xl p-1 h-auto w-full sm:w-auto">
+          <TabsTrigger
+            value="info"
+            className="flex-1 sm:flex-none rounded-lg data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none text-slate-500 h-8 px-4 text-sm"
+          >
             Информация
           </TabsTrigger>
-          <TabsTrigger value="emails" className="flex-none">
-            <Mail className="w-4 h-4 mr-1" />
+          <TabsTrigger
+            value="emails"
+            className="flex-1 sm:flex-none rounded-lg data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none text-slate-500 h-8 px-4 text-sm"
+          >
+            <Mail className="w-3.5 h-3.5 mr-1.5" />
             Переписка
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="info" className="mt-4">
-          <div className="bg-white border rounded-lg p-4 sm:p-6">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
             <LeadInfoPanel
               request={request}
-              onUpdate={handleUpdate}
-              onDelete={handleDelete}
+              onUpdate={setRequest}
+              onDelete={() => router.push('/requests')}
             />
           </div>
         </TabsContent>
 
         <TabsContent value="emails" className="mt-4">
-          <div className="bg-white border rounded-lg p-3 sm:p-6">
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm">
             <EmailThread
               contactEmail={request.email}
               contactName={request.name}

@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -34,6 +32,9 @@ import {
   Upload,
   FileText,
   AlertTriangle,
+  ArrowUp,
+  ArrowDown,
+  Filter,
 } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 
@@ -68,32 +69,70 @@ interface Stats {
   total_count: string;
 }
 
-const statusOptions = [
-  { value: 'new', label: 'Новый', color: 'bg-blue-100 text-blue-800' },
-  { value: 'in_progress', label: 'В работе', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'processed', label: 'Обработан', color: 'bg-green-100 text-green-800' },
-  { value: 'archived', label: 'В архиве', color: 'bg-gray-100 text-gray-800' },
+const statusConfig = [
+  { value: 'new', label: 'Новый', pill: 'bg-blue-50 text-blue-700 border border-blue-200', dot: 'bg-blue-500' },
+  { value: 'in_progress', label: 'В работе', pill: 'bg-amber-50 text-amber-700 border border-amber-200', dot: 'bg-amber-500' },
+  { value: 'processed', label: 'Обработан', pill: 'bg-emerald-50 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-500' },
+  { value: 'archived', label: 'В архиве', pill: 'bg-slate-100 text-slate-500 border border-slate-200', dot: 'bg-slate-400' },
 ];
 
-function getStatusColor(status: string) {
-  return statusOptions.find(s => s.value === status)?.color || 'bg-gray-100 text-gray-800';
+function getStatusConfig(status: string) {
+  return statusConfig.find(s => s.value === status) || statusConfig[0];
 }
 
-function getStatusLabel(status: string) {
-  return statusOptions.find(s => s.value === status)?.label || status;
+function formatDate(s: string) {
+  return new Date(s).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' });
+// Аватар с инициалами
+function Avatar({ name }: { name: string }) {
+  const initials = name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  const colors = ['bg-violet-100 text-violet-700', 'bg-blue-100 text-blue-700', 'bg-emerald-100 text-emerald-700', 'bg-amber-100 text-amber-700', 'bg-rose-100 text-rose-700'];
+  const color = colors[name.charCodeAt(0) % colors.length];
+  return (
+    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${color}`}>
+      {initials || '?'}
+    </div>
+  );
 }
 
-// ── Inline editable field ──────────────────────────────────────────────────────
+// Status pill dropdown
+function StatusPill({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const cfg = getStatusConfig(value);
+  return (
+    <div className="relative" onClick={e => e.stopPropagation()}>
+      <button
+        onClick={() => setOpen(!open)}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-all ${cfg.pill}`}
+      >
+        <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+        {cfg.label}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[140px]">
+            {statusConfig.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => { onChange(opt.value); setOpen(false); }}
+                className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-slate-50 transition-colors ${value === opt.value ? 'font-semibold' : ''}`}
+              >
+                <span className={`w-2 h-2 rounded-full ${opt.dot}`} />
+                {opt.label}
+                {value === opt.value && <Check className="w-3 h-3 ml-auto text-emerald-500" />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
-function EditableField({
-  value,
-  onSave,
-  placeholder = '—',
-}: {
+// Inline editable text
+function EditableField({ value, onSave, placeholder = '—' }: {
   value: string | null;
   onSave: (val: string) => Promise<void>;
   placeholder?: string;
@@ -102,29 +141,22 @@ function EditableField({
   const [draft, setDraft] = useState(value || '');
   const [saving, setSaving] = useState(false);
 
-  // Sync draft when value changes externally (e.g. contact updated from another action)
-  useEffect(() => {
-    if (!editing) setDraft(value || '');
-  }, [value, editing]);
+  useEffect(() => { if (!editing) setDraft(value || ''); }, [value, editing]);
 
   const handleSave = async () => {
     setSaving(true);
-    try {
-      await onSave(draft);
-      setEditing(false);
-    } finally {
-      setSaving(false);
-    }
+    try { await onSave(draft); setEditing(false); }
+    finally { setSaving(false); }
   };
 
   if (!editing) {
     return (
       <span
-        className="group flex items-center gap-1 cursor-pointer text-slate-700 hover:text-slate-900"
+        className="group flex items-center gap-1 cursor-pointer hover:text-slate-900 transition-colors"
         onClick={() => { setDraft(value || ''); setEditing(true); }}
       >
-        <span className={value ? '' : 'text-slate-400 italic'}>{value || placeholder}</span>
-        <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50 shrink-0" />
+        <span className={value ? 'text-slate-700' : 'text-slate-300 italic text-xs'}>{value || placeholder}</span>
+        <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-40 shrink-0 transition-opacity" />
       </span>
     );
   }
@@ -133,59 +165,22 @@ function EditableField({
     <span className="flex items-center gap-1">
       <Input
         value={draft}
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={e => setDraft(e.target.value)}
         className="h-7 text-sm py-0 px-2"
         autoFocus
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') handleSave();
-          if (e.key === 'Escape') setEditing(false);
-        }}
+        onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false); }}
       />
-      <button onClick={handleSave} disabled={saving} className="text-green-600 hover:text-green-700">
-        <Check className="w-4 h-4" />
+      <button onClick={handleSave} disabled={saving} className="p-1 text-emerald-600 hover:text-emerald-700">
+        <Check className="w-3.5 h-3.5" />
       </button>
-      <button onClick={() => setEditing(false)} className="text-slate-400 hover:text-slate-600">
-        <XCircle className="w-4 h-4" />
+      <button onClick={() => setEditing(false)} className="p-1 text-slate-400 hover:text-slate-600">
+        <XCircle className="w-3.5 h-3.5" />
       </button>
     </span>
   );
 }
 
-function EditableSelect({
-  value,
-  options,
-  onSave,
-}: {
-  value: string;
-  options: { value: string; label: string; color: string }[];
-  onSave: (val: string) => Promise<void>;
-}) {
-  const [saving, setSaving] = useState(false);
-
-  const handleChange = async (newVal: string) => {
-    setSaving(true);
-    try {
-      await onSave(newVal);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <select
-      className={`text-xs px-2 py-1 rounded-full border-0 font-medium cursor-pointer focus:ring-2 ring-offset-1 ${getStatusColor(value)} ${saving ? 'opacity-60' : ''}`}
-      value={value}
-      disabled={saving}
-      onChange={(e) => handleChange(e.target.value)}
-    >
-      {options.map(o => (
-        <option key={o.value} value={o.value}>{o.label}</option>
-      ))}
-    </select>
-  );
-}
-
-// ── Import modal ───────────────────────────────────────────────────────────────
+// ── Import modal ──────────────────────────────────────────────────────────────
 
 const STATUS_OPTIONS_IMPORT = [
   { value: 'archived', label: 'В архиве' },
@@ -194,13 +189,7 @@ const STATUS_OPTIONS_IMPORT = [
   { value: 'processed', label: 'Обработан' },
 ];
 
-function ImportModal({
-  onClose,
-  onDone,
-}: {
-  onClose: () => void;
-  onDone: () => void;
-}) {
+function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [tags, setTags] = useState('');
   const [status, setStatus] = useState('archived');
@@ -212,151 +201,108 @@ function ImportModal({
 
   const handleSubmit = async () => {
     if (!file) return;
-    setLoading(true);
-    setError(null);
-    setResult(null);
+    setLoading(true); setError(null); setResult(null);
     try {
       const fd = new FormData();
       fd.append('file', file);
       fd.append('tags', tags);
       fd.append('status', status);
       fd.append('import_source', importSource || 'csv');
-      const res = await adminCsrfFetch('/api/admin/contacts/import', {
-        method: 'POST',
-        credentials: 'include',
-        body: fd,
-      });
+      const res = await adminCsrfFetch('/api/admin/contacts/import', { method: 'POST', credentials: 'include', body: fd });
       const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Ошибка импорта');
-      } else {
-        setResult(data);
-        onDone();
-      }
-    } catch {
-      setError('Ошибка соединения');
-    } finally {
-      setLoading(false);
-    }
+      if (!res.ok) setError(data.error || 'Ошибка импорта');
+      else { setResult(data); onDone(); }
+    } catch { setError('Ошибка соединения'); }
+    finally { setLoading(false); }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div
-        className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <div className="flex items-center gap-2">
-            <Upload className="w-5 h-5 text-blue-600" />
-            <h2 className="font-semibold text-lg text-slate-900">Импорт контактов из CSV</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+              <Upload className="w-4 h-4 text-blue-600" />
+            </div>
+            <h2 className="font-semibold text-slate-900">Импорт контактов из CSV</h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <XCircle className="w-5 h-5" />
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="px-6 py-5 space-y-4">
-          {/* File */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Файл CSV *</label>
+            <label className="block text-xs font-medium text-slate-500 mb-2 uppercase tracking-wider">Файл CSV</label>
             <div
-              className="border-2 border-dashed border-slate-200 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 transition-colors"
+              className="border-2 border-dashed border-slate-200 rounded-xl p-5 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/40 transition-all"
               onClick={() => fileRef.current?.click()}
             >
               {file ? (
                 <div className="flex items-center justify-center gap-2 text-sm text-slate-700">
                   <FileText className="w-4 h-4 text-blue-500" />
-                  {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                  <span className="font-medium">{file.name}</span>
+                  <span className="text-slate-400">({(file.size / 1024).toFixed(1)} KB)</span>
                 </div>
               ) : (
                 <div className="text-slate-400 text-sm">
-                  <Upload className="w-6 h-6 mx-auto mb-1" />
+                  <Upload className="w-6 h-6 mx-auto mb-2 opacity-50" />
                   Нажмите для выбора файла (.csv, .txt)
                 </div>
               )}
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".csv,.txt"
-                className="hidden"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-              />
+              <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={e => setFile(e.target.files?.[0] || null)} />
             </div>
-            <p className="mt-1 text-xs text-slate-400">
-              Поддерживаемые колонки: ФИО / full_name, email, телефон / phone, город / city, организация / institution, специальность / speciality, теги / tags, заметки / notes
+            <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">
+              Поля: ФИО, email, телефон, город, организация, специальность, теги, заметки
             </p>
           </div>
 
-          {/* Source */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Источник импорта</label>
-            <Input
-              value={importSource}
-              onChange={(e) => setImportSource(e.target.value)}
-              placeholder="tilda, excel, manual..."
-              className="h-9"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wider">Источник</label>
+              <Input value={importSource} onChange={e => setImportSource(e.target.value)} placeholder="tilda, excel..." className="h-9 bg-slate-50" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wider">Статус по умолчанию</label>
+              <select
+                className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={status}
+                onChange={e => setStatus(e.target.value)}
+              >
+                {STATUS_OPTIONS_IMPORT.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
           </div>
 
-          {/* Default status */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Статус по умолчанию</label>
-            <select
-              className="w-full h-9 px-3 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              {STATUS_OPTIONS_IMPORT.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+            <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wider">Теги для всех (через запятую)</label>
+            <Input value={tags} onChange={e => setTags(e.target.value)} placeholder="conf-2025, tilda-import..." className="h-9 bg-slate-50" />
           </div>
 
-          {/* Default tags */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Добавить теги всем (через запятую)</label>
-            <Input
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              placeholder="tilda-import, conf-2025..."
-              className="h-9"
-            />
-          </div>
-
-          {/* Error */}
           {error && (
-            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">
               <AlertTriangle className="w-4 h-4 shrink-0" /> {error}
             </div>
           )}
 
-          {/* Result */}
           {result && (
-            <div className="bg-green-50 rounded-lg px-4 py-3 text-sm space-y-1">
-              <div className="font-medium text-green-800">
+            <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 text-sm space-y-1">
+              <div className="font-semibold text-emerald-800 flex items-center gap-2">
+                <Check className="w-4 h-4" />
                 Импортировано: {result.imported} из {result.total}
               </div>
-              {result.skipped > 0 && (
-                <div className="text-slate-500">Пропущено: {result.skipped}</div>
-              )}
+              {result.skipped > 0 && <div className="text-slate-500">Пропущено: {result.skipped}</div>}
               {result.errors.length > 0 && (
-                <div className="mt-2 space-y-0.5">
-                  {result.errors.map((e, i) => (
-                    <div key={i} className="text-xs text-red-600">{e}</div>
-                  ))}
+                <div className="mt-1 space-y-0.5">
+                  {result.errors.map((e, i) => <div key={i} className="text-xs text-red-600">{e}</div>)}
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t bg-slate-50 flex justify-end gap-3">
-          <Button variant="ghost" onClick={onClose}>
-            {result ? 'Закрыть' : 'Отмена'}
-          </Button>
+        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/60 flex justify-end gap-3">
+          <Button variant="ghost" onClick={onClose}>{result ? 'Закрыть' : 'Отмена'}</Button>
           {!result && (
             <Button onClick={handleSubmit} disabled={!file || loading} className="gap-2">
               {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
@@ -369,13 +315,10 @@ function ImportModal({
   );
 }
 
-// ── Contact detail panel ───────────────────────────────────────────────────────
+// ── Contact detail slide-over panel ──────────────────────────────────────────
 
 function ContactPanel({
-  contact,
-  onUpdate,
-  onClose,
-  onDelete,
+  contact, onUpdate, onClose, onDelete,
 }: {
   contact: Contact;
   onUpdate: (c: Contact) => void;
@@ -385,23 +328,15 @@ function ContactPanel({
   const [tagInput, setTagInput] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Сбрасываем подтверждение удаления при переключении на другой контакт
-  useEffect(() => {
-    setShowDeleteConfirm(false);
-    setTagInput('');
-  }, [contact.id]);
+  useEffect(() => { setShowDeleteConfirm(false); setTagInput(''); }, [contact.id]);
 
   const patchField = async (fields: Partial<Contact>) => {
     const res = await adminCsrfFetch(`/api/admin/contacts/${contact.id}`, {
-      method: 'PATCH',
-      credentials: 'include',
+      method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(fields),
     });
-    if (res.ok) {
-      const updated = await res.json();
-      onUpdate(updated);
-    }
+    if (res.ok) onUpdate(await res.json());
   };
 
   const addTag = async () => {
@@ -416,137 +351,165 @@ function ContactPanel({
   };
 
   const handleDelete = async () => {
-    const res = await adminCsrfFetch(`/api/admin/contacts/${contact.id}`, {
-      method: 'DELETE',
-      credentials: 'include',
-    });
-    if (res.ok) {
-      onDelete(contact.id);
-      onClose();
-    }
+    const res = await adminCsrfFetch(`/api/admin/contacts/${contact.id}`, { method: 'DELETE', credentials: 'include' });
+    if (res.ok) { onDelete(contact.id); onClose(); }
   };
 
+  const sc = getStatusConfig(contact.status);
+
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" />
+
+      {/* Panel */}
       <div
-        className="relative w-full max-w-md bg-white h-full overflow-y-auto shadow-xl flex flex-col"
-        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-md bg-white h-full overflow-y-auto shadow-2xl flex flex-col"
+        onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b bg-slate-50 sticky top-0 z-10">
-          <div>
-            <h2 className="font-semibold text-lg text-slate-900 leading-tight">{contact.full_name}</h2>
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getStatusColor(contact.status)}`}>
-              {getStatusLabel(contact.status)}
-            </span>
+        <div className="sticky top-0 z-10 bg-white border-b border-slate-100 px-5 py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <Avatar name={contact.full_name} />
+              <div className="min-w-0">
+                <h2 className="font-semibold text-slate-900 leading-tight truncate">{contact.full_name}</h2>
+                <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full mt-0.5 ${sc.pill}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
+                  {sc.label}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
-            <XCircle className="w-5 h-5" />
-          </button>
         </div>
 
-        <div className="flex-1 px-5 py-4 space-y-5">
-          {/* Status */}
+        {/* Content */}
+        <div className="flex-1 px-5 py-5 space-y-5">
+          {/* Статус */}
           <div>
-            <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Статус</div>
-            <EditableSelect
-              value={contact.status}
-              options={statusOptions}
-              onSave={(val) => patchField({ status: val })}
-            />
-          </div>
-
-          {/* Contact details */}
-          <div className="space-y-2">
-            <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Контакты</div>
-            <div className="flex items-center gap-2 text-sm">
-              <Mail className="w-4 h-4 text-slate-400 shrink-0" />
-              <EditableField value={contact.email} onSave={(v) => patchField({ email: v || null } as Partial<Contact>)} placeholder="не указан" />
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Phone className="w-4 h-4 text-slate-400 shrink-0" />
-              <EditableField value={contact.phone} onSave={(v) => patchField({ phone: v || null } as Partial<Contact>)} placeholder="не указан" />
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
-              <EditableField value={contact.city} onSave={(v) => patchField({ city: v || null } as Partial<Contact>)} placeholder="город не указан" />
+            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Статус</div>
+            <div className="flex flex-wrap gap-2">
+              {statusConfig.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => patchField({ status: opt.value })}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                    contact.status === opt.value
+                      ? opt.pill + ' shadow-sm'
+                      : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${opt.dot}`} />
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Work */}
-          <div className="space-y-2">
-            <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Место работы</div>
-            <div className="flex items-center gap-2 text-sm">
-              <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
-              <EditableField value={contact.institution} onSave={(v) => patchField({ institution: v || null } as Partial<Contact>)} placeholder="организация не указана" />
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Stethoscope className="w-4 h-4 text-slate-400 shrink-0" />
-              <EditableField value={contact.speciality} onSave={(v) => patchField({ speciality: v || null } as Partial<Contact>)} placeholder="специальность не указана" />
-            </div>
-          </div>
+          <div className="h-px bg-slate-100" />
 
-          {/* Tags */}
+          {/* Контакты */}
           <div>
-            <div className="text-xs text-slate-500 uppercase tracking-wide mb-2">Теги</div>
-            <div className="flex flex-wrap gap-1 mb-2">
+            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Контактные данные</div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 text-sm">
+                <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                <EditableField value={contact.email} onSave={v => patchField({ email: v || null } as Partial<Contact>)} placeholder="email не указан" />
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <Phone className="w-4 h-4 text-slate-400 shrink-0" />
+                <EditableField value={contact.phone} onSave={v => patchField({ phone: v || null } as Partial<Contact>)} placeholder="телефон не указан" />
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+                <EditableField value={contact.city} onSave={v => patchField({ city: v || null } as Partial<Contact>)} placeholder="город не указан" />
+              </div>
+            </div>
+          </div>
+
+          {/* Место работы */}
+          <div>
+            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Место работы</div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 text-sm">
+                <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+                <EditableField value={contact.institution} onSave={v => patchField({ institution: v || null } as Partial<Contact>)} placeholder="организация не указана" />
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <Stethoscope className="w-4 h-4 text-slate-400 shrink-0" />
+                <EditableField value={contact.speciality} onSave={v => patchField({ speciality: v || null } as Partial<Contact>)} placeholder="специальность не указана" />
+              </div>
+            </div>
+          </div>
+
+          {/* Теги */}
+          <div>
+            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Теги</div>
+            <div className="flex flex-wrap gap-1.5 mb-3">
               {contact.tags.map(tag => (
                 <span
                   key={tag}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-medium"
                 >
                   {tag}
-                  <button onClick={() => removeTag(tag)} className="text-slate-400 hover:text-red-500">
+                  <button onClick={() => removeTag(tag)} className="text-slate-400 hover:text-red-500 transition-colors ml-0.5">
                     <X className="w-3 h-3" />
                   </button>
                 </span>
               ))}
-              {contact.tags.length === 0 && <span className="text-xs text-slate-400 italic">нет тегов</span>}
+              {contact.tags.length === 0 && <span className="text-xs text-slate-300 italic">нет тегов</span>}
             </div>
             <div className="flex gap-2">
               <Input
                 value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
+                onChange={e => setTagInput(e.target.value)}
                 placeholder="Добавить тег..."
-                className="h-8 text-sm"
-                onKeyDown={(e) => { if (e.key === 'Enter') addTag(); }}
+                className="h-8 text-sm bg-slate-50"
+                onKeyDown={e => { if (e.key === 'Enter') addTag(); }}
               />
-              <Button size="sm" variant="outline" onClick={addTag} className="h-8 px-2">
-                <Plus className="w-4 h-4" />
+              <Button size="sm" variant="outline" onClick={addTag} className="h-8 w-8 p-0 shrink-0">
+                <Plus className="w-3.5 h-3.5" />
               </Button>
             </div>
           </div>
 
-          {/* Notes */}
+          {/* Заметки */}
           <div>
-            <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Заметки</div>
-            <EditableField value={contact.notes} onSave={(v) => patchField({ notes: v || null } as Partial<Contact>)} placeholder="добавить заметку..." />
+            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Заметки</div>
+            <div className="text-sm">
+              <EditableField value={contact.notes} onSave={v => patchField({ notes: v || null } as Partial<Contact>)} placeholder="добавить заметку..." />
+            </div>
           </div>
 
-          {/* Meta */}
-          <div className="text-xs text-slate-400 pt-2 border-t space-y-0.5">
-            <div>Источник: <span className="font-medium">{contact.import_source}</span></div>
-            <div>Добавлен: {formatDate(contact.created_at)}</div>
+          {/* Мета */}
+          <div className="text-xs text-slate-400 pt-3 border-t border-slate-100 space-y-1">
+            <div>Источник: <span className="text-slate-600 font-medium">{contact.import_source}</span></div>
+            <div>Добавлен: <span className="text-slate-600">{formatDate(contact.created_at)}</span></div>
           </div>
         </div>
 
-        {/* Delete */}
-        <div className="px-5 py-4 border-t bg-slate-50">
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/60">
           {!showDeleteConfirm ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-red-600 hover:bg-red-50 w-full"
+            <button
               onClick={() => setShowDeleteConfirm(true)}
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-500 transition-colors"
             >
-              <Trash2 className="w-4 h-4 mr-1" />
+              <Trash2 className="w-3.5 h-3.5" />
               Удалить контакт
-            </Button>
+            </button>
           ) : (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-red-600 flex-1">Удалить навсегда?</span>
-              <Button size="sm" variant="destructive" onClick={handleDelete}>Да</Button>
-              <Button size="sm" variant="ghost" onClick={() => setShowDeleteConfirm(false)}>Нет</Button>
+            <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
+              <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+              <span className="text-sm text-red-700 flex-1">Удалить без возможности восстановления?</span>
+              <Button variant="destructive" size="sm" className="h-7 text-xs shrink-0" onClick={handleDelete}>Удалить</Button>
+              <Button variant="ghost" size="sm" className="h-7 text-xs shrink-0" onClick={() => setShowDeleteConfirm(false)}>Отмена</Button>
             </div>
           )}
         </div>
@@ -557,7 +520,7 @@ function ContactPanel({
 
 // ── Column resize ─────────────────────────────────────────────────────────────
 
-const DEFAULT_COL_WIDTHS = [40, 200, 200, 120, 160, 180, 120, 90];
+const DEFAULT_COL_WIDTHS = [40, 200, 200, 120, 160, 180, 110, 80];
 
 function useColumnResize(defaultWidths: number[]) {
   const [widths, setWidths] = useState<number[]>(defaultWidths);
@@ -568,11 +531,7 @@ function useColumnResize(defaultWidths: number[]) {
       if (!dragging.current) return;
       const { col, startX, startW } = dragging.current;
       const delta = e.clientX - startX;
-      setWidths(prev => {
-        const next = [...prev];
-        next[col] = Math.max(40, startW + delta);
-        return next;
-      });
+      setWidths(prev => { const next = [...prev]; next[col] = Math.max(40, startW + delta); return next; });
     };
     const onUp = () => { dragging.current = null; document.body.style.cursor = ''; document.body.style.userSelect = ''; };
     window.addEventListener('mousemove', onMove);
@@ -589,7 +548,7 @@ function useColumnResize(defaultWidths: number[]) {
   return { widths, onResizeStart };
 }
 
-// ── Main page ──────────────────────────────────────────────────────────────────
+// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ContactsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -602,15 +561,21 @@ export default function ContactsPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterTag, setFilterTag] = useState('');
   const [filterCity, setFilterCity] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
-
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
 
+  const [showBulkTagInput, setShowBulkTagInput] = useState(false);
+  const [bulkTagValue, setBulkTagValue] = useState('');
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+
   const searchParams = useSearchParams();
+  const { widths, onResizeStart } = useColumnResize(DEFAULT_COL_WIDTHS);
 
   useEffect(() => {
     const contactId = searchParams.get('contact');
@@ -621,16 +586,8 @@ export default function ContactsPage() {
       .catch(() => {});
   }, [searchParams]);
 
-  const [showBulkTagInput, setShowBulkTagInput] = useState(false);
-  const [bulkTagValue, setBulkTagValue] = useState('');
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-  const [showImport, setShowImport] = useState(false);
-
-  const { widths, onResizeStart } = useColumnResize(DEFAULT_COL_WIDTHS);
-
   const loadContacts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     try {
       const params = new URLSearchParams();
       if (search) params.set('search', search);
@@ -652,50 +609,34 @@ export default function ContactsPage() {
         const err = await res.json().catch(() => ({}));
         setError(err.error || 'Ошибка загрузки');
       }
-    } catch {
-      setError('Ошибка соединения');
-    } finally {
-      setLoading(false);
-    }
+    } catch { setError('Ошибка соединения'); }
+    finally { setLoading(false); }
   }, [search, filterStatus, filterTag, filterCity, sortBy, sortOrder, pagination.page, pagination.limit]);
 
   useEffect(() => { loadContacts(); }, [loadContacts]);
-
-  useEffect(() => {
-    setSelectedIds(new Set());
-    setSelectAll(false);
-  }, [pagination.page, filterStatus, filterTag, search]);
+  useEffect(() => { setSelectedIds(new Set()); setSelectAll(false); }, [pagination.page, filterStatus, filterTag, search]);
 
   const handleSelectAll = () => {
-    if (selectAll) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(contacts.map(c => c.id)));
-    }
+    if (selectAll) setSelectedIds(new Set()); else setSelectedIds(new Set(contacts.map(c => c.id)));
     setSelectAll(!selectAll);
   };
 
   const handleSelectOne = (id: string) => {
     const next = new Set(selectedIds);
-    if (next.has(id)) next.delete(id); else next.add(id);
+    next.has(id) ? next.delete(id) : next.add(id);
     setSelectedIds(next);
     setSelectAll(next.size === contacts.length);
   };
 
   const handleSort = (field: string) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(field);
-      setSortOrder('desc');
-    }
+    if (sortBy === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(field); setSortOrder('desc'); }
   };
 
   const handleBulkStatus = async (status: string) => {
     if (!selectedIds.size) return;
     const res = await adminCsrfFetch('/api/admin/contacts', {
-      method: 'PATCH',
-      credentials: 'include',
+      method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids: Array.from(selectedIds), status }),
     });
@@ -706,8 +647,7 @@ export default function ContactsPage() {
     const tag = bulkTagValue.trim();
     if (!tag || !selectedIds.size) return;
     const res = await adminCsrfFetch('/api/admin/contacts', {
-      method: 'PATCH',
-      credentials: 'include',
+      method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids: Array.from(selectedIds), tags_add: [tag] }),
     });
@@ -717,17 +657,11 @@ export default function ContactsPage() {
   const handleBulkDelete = async () => {
     if (!selectedIds.size) return;
     const res = await adminCsrfFetch('/api/admin/contacts', {
-      method: 'DELETE',
-      credentials: 'include',
+      method: 'DELETE', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids: Array.from(selectedIds) }),
     });
-    if (res.ok) {
-      loadContacts();
-      setSelectedIds(new Set());
-      setSelectAll(false);
-      setShowBulkDeleteConfirm(false);
-    }
+    if (res.ok) { loadContacts(); setSelectedIds(new Set()); setSelectAll(false); setShowBulkDeleteConfirm(false); }
   };
 
   const handleContactUpdate = (updated: Contact) => {
@@ -735,324 +669,349 @@ export default function ContactsPage() {
     setSelectedContact(updated);
   };
 
-  const handleContactDelete = (id: string) => {
-    setContacts(prev => prev.filter(c => c.id !== id));
-  };
+  const handleContactDelete = (id: string) => setContacts(prev => prev.filter(c => c.id !== id));
 
   const clearFilters = () => {
-    setSearch('');
-    setFilterStatus('');
-    setFilterTag('');
-    setFilterCity('');
+    setSearch(''); setFilterStatus(''); setFilterTag(''); setFilterCity('');
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
   const hasActiveFilters = search || filterStatus || filterTag || filterCity;
 
+  function SortIcon({ field }: { field: string }) {
+    if (sortBy !== field) return <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />;
+    return sortOrder === 'asc'
+      ? <ArrowUp className="w-3.5 h-3.5 text-blue-500" />
+      : <ArrowDown className="w-3.5 h-3.5 text-blue-500" />;
+  }
+
+  const handleStatusChange = async (c: Contact, newStatus: string) => {
+    setContacts(prev => prev.map(x => x.id === c.id ? { ...x, status: newStatus } : x));
+    try {
+      const res = await adminCsrfFetch(`/api/admin/contacts/${c.id}`, {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setContacts(prev => prev.map(x => x.id === c.id ? updated : x));
+        if (selectedContact?.id === c.id) setSelectedContact(updated);
+      }
+    } catch { /* silent */ }
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-5">
+      {/* ── Заголовок ── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Контакты</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Контакты</h1>
+          {stats && <p className="text-sm text-slate-500 mt-0.5">Всего {stats.total_count} контактов</p>}
+        </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowImport(true)} className="gap-2">
-            <Upload className="w-4 h-4" /> Импорт CSV
+          <Button variant="outline" size="sm" onClick={() => setShowImport(true)} className="gap-2 h-9">
+            <Upload className="w-4 h-4" />
+            <span className="hidden sm:inline">Импорт CSV</span>
           </Button>
-          <Button variant="outline" size="icon" onClick={loadContacts} title="Обновить">
+          <Button variant="outline" size="icon" onClick={loadContacts} title="Обновить" className="h-9 w-9">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </div>
 
-      {/* Stats */}
+      {/* ── Статистика ── */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-blue-600 text-white rounded-xl p-4 flex flex-col gap-1 shadow-sm">
-            <div className="flex items-center gap-2 opacity-80">
-              <Inbox className="w-4 h-4" />
-              <span className="text-xs font-medium uppercase tracking-wide">Новые</span>
-            </div>
-            <div className="text-3xl font-bold">{stats.new_count}</div>
-          </div>
-          <div className="bg-amber-500 text-white rounded-xl p-4 flex flex-col gap-1 shadow-sm">
-            <div className="flex items-center gap-2 opacity-80">
-              <Clock className="w-4 h-4" />
-              <span className="text-xs font-medium uppercase tracking-wide">В работе</span>
-            </div>
-            <div className="text-3xl font-bold">{stats.in_progress_count}</div>
-          </div>
-          <div className="bg-emerald-600 text-white rounded-xl p-4 flex flex-col gap-1 shadow-sm">
-            <div className="flex items-center gap-2 opacity-80">
-              <CheckCircle2 className="w-4 h-4" />
-              <span className="text-xs font-medium uppercase tracking-wide">Обработано</span>
-            </div>
-            <div className="text-3xl font-bold">{stats.processed_count}</div>
-          </div>
-          <div className="bg-slate-700 text-white rounded-xl p-4 flex flex-col gap-1 shadow-sm">
-            <div className="flex items-center gap-2 opacity-80">
-              <Users className="w-4 h-4" />
-              <span className="text-xs font-medium uppercase tracking-wide">Всего</span>
-            </div>
-            <div className="text-3xl font-bold">{stats.total_count}</div>
-          </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { label: 'Новые', value: stats.new_count, icon: Inbox, from: 'from-blue-500', to: 'to-blue-600', filterVal: 'new' },
+            { label: 'В работе', value: stats.in_progress_count, icon: Clock, from: 'from-amber-400', to: 'to-amber-500', filterVal: 'in_progress' },
+            { label: 'Обработано', value: stats.processed_count, icon: CheckCircle2, from: 'from-emerald-500', to: 'to-emerald-600', filterVal: 'processed' },
+            { label: 'Всего', value: stats.total_count, icon: Users, from: 'from-slate-600', to: 'to-slate-700', filterVal: '' },
+          ].map(card => (
+            <button
+              key={card.label}
+              onClick={() => { if (card.filterVal) { setFilterStatus(filterStatus === card.filterVal ? '' : card.filterVal); setPagination(p => ({ ...p, page: 1 })); } }}
+              className={`relative overflow-hidden rounded-2xl p-4 text-left transition-all bg-gradient-to-br ${card.from} ${card.to} text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 ${filterStatus === card.filterVal && card.filterVal ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-100' : ''}`}
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider opacity-80">{card.label}</p>
+                  <p className="text-3xl font-bold mt-1 tabular-nums">{card.value}</p>
+                </div>
+                <card.icon className="w-5 h-5 opacity-50 mt-0.5" />
+              </div>
+              <div className="absolute -bottom-3 -right-3 w-16 h-16 rounded-full bg-white/10" />
+            </button>
+          ))}
         </div>
       )}
 
-      {/* Search & filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col lg:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input
-                placeholder="Поиск по имени, email, телефону, городу, специальности..."
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <select
-                className="h-10 px-3 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={filterStatus}
-                onChange={(e) => { setFilterStatus(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
-              >
-                <option value="">Все статусы</option>
-                {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+      {/* ── Поиск и фильтры ── */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="p-4 flex flex-col lg:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <Input
+              placeholder="Поиск по имени, email, телефону, городу, специальности..."
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
+              className="pl-10 h-9 bg-slate-50 border-slate-200 focus:bg-white"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <select
+              className="h-9 px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+              value={filterStatus}
+              onChange={e => { setFilterStatus(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
+            >
+              <option value="">Все статусы</option>
+              {statusConfig.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+            <Button
+              variant={showFilters ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className="gap-1.5 h-9"
+            >
+              <Filter className="w-3.5 h-3.5" />
+              Фильтры
+              {(filterTag || filterCity) && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ml-0.5" />}
+            </Button>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-slate-500 h-9">
+                <X className="w-3.5 h-3.5" /> Сбросить
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {showFilters && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-4 pb-4 border-t border-slate-100 pt-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">Тег</label>
               <div className="relative">
-                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                 <Input
                   placeholder="Фильтр по тегу"
                   value={filterTag}
-                  onChange={(e) => { setFilterTag(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
-                  className="pl-9 h-10 w-40"
+                  onChange={e => { setFilterTag(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
+                  className="pl-9 h-9 bg-slate-50"
                 />
               </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">Город</label>
               <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                 <Input
                   placeholder="Город"
                   value={filterCity}
-                  onChange={(e) => { setFilterCity(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
-                  className="pl-9 h-10 w-36"
+                  onChange={e => { setFilterCity(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
+                  className="pl-9 h-9 bg-slate-50"
                 />
               </div>
-              {hasActiveFilters && (
-                <Button variant="ghost" onClick={clearFilters} className="gap-1 text-slate-500">
-                  <X className="w-4 h-4" />
-                  Сбросить
-                </Button>
-              )}
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Bulk actions */}
-      {selectedIds.size > 0 && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardContent className="p-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-sm font-medium text-blue-800">Выбрано: {selectedIds.size}</span>
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" onClick={() => handleBulkStatus('in_progress')}>
-                  <Clock className="w-4 h-4 mr-1" /> В работу
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => handleBulkStatus('processed')}>
-                  <CheckCircle2 className="w-4 h-4 mr-1" /> Обработан
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => handleBulkStatus('archived')}>
-                  <Archive className="w-4 h-4 mr-1" /> В архив
-                </Button>
-
-                {!showBulkTagInput ? (
-                  <Button size="sm" variant="outline" onClick={() => setShowBulkTagInput(true)}>
-                    <Tag className="w-4 h-4 mr-1" /> Добавить тег
-                  </Button>
-                ) : (
-                  <div className="flex items-center gap-1">
-                    <Input
-                      value={bulkTagValue}
-                      onChange={(e) => setBulkTagValue(e.target.value)}
-                      placeholder="Тег..."
-                      className="h-8 text-sm w-32"
-                      autoFocus
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleBulkAddTag(); if (e.key === 'Escape') setShowBulkTagInput(false); }}
-                    />
-                    <Button size="sm" variant="outline" onClick={handleBulkAddTag}><Check className="w-4 h-4" /></Button>
-                    <Button size="sm" variant="ghost" onClick={() => setShowBulkTagInput(false)}><X className="w-4 h-4" /></Button>
-                  </div>
-                )}
-
-                {!showBulkDeleteConfirm ? (
-                  <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" onClick={() => setShowBulkDeleteConfirm(true)}>
-                    <Trash2 className="w-4 h-4 mr-1" /> Удалить
-                  </Button>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-red-600">Удалить {selectedIds.size}?</span>
-                    <Button size="sm" variant="destructive" onClick={handleBulkDelete}>Да</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setShowBulkDeleteConfirm(false)}>Нет</Button>
-                  </div>
-                )}
-              </div>
-              <Button size="sm" variant="ghost" onClick={() => { setSelectedIds(new Set()); setSelectAll(false); }} className="sm:ml-auto">
-                Снять выбор
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Error */}
-      {error && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="p-4 flex items-center gap-2 text-red-600">
-            <AlertCircle className="w-5 h-5" /> {error}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Mobile list */}
-      <div className="lg:hidden space-y-3">
-        {loading ? (
-          <Card><CardContent className="py-12 text-center text-slate-500"><RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />Загрузка...</CardContent></Card>
-        ) : contacts.length === 0 ? (
-          <Card><CardContent className="py-12 text-center text-slate-500"><Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />Контактов не найдено</CardContent></Card>
-        ) : (
-          contacts.map(c => (
-            <Card key={c.id} className="border-slate-200 cursor-pointer hover:border-blue-300 transition-colors" onClick={() => setSelectedContact(c)}>
-              <CardContent className="p-3">
-                <div className="flex items-start gap-3">
-                  <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox checked={selectedIds.has(c.id)} onChange={() => handleSelectOne(c.id)} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="font-semibold text-slate-900 truncate">{c.full_name}</div>
-                      <Badge className={`text-xs shrink-0 ${getStatusColor(c.status)}`}>{getStatusLabel(c.status)}</Badge>
-                    </div>
-                    <div className="mt-1 space-y-0.5 text-xs text-slate-500">
-                      {c.email && <div className="flex items-center gap-1"><Mail className="w-3 h-3 shrink-0" /><span className="truncate">{c.email}</span></div>}
-                      {c.phone && <div className="flex items-center gap-1"><Phone className="w-3 h-3 shrink-0" />{c.phone}</div>}
-                      {(c.city || c.institution) && (
-                        <div className="flex items-center gap-1"><MapPin className="w-3 h-3 shrink-0" />{[c.city, c.institution].filter(Boolean).join(' · ')}</div>
-                      )}
-                      {c.speciality && <div className="flex items-center gap-1"><Stethoscope className="w-3 h-3 shrink-0" />{c.speciality}</div>}
-                    </div>
-                    {c.tags.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {c.tags.slice(0, 4).map(t => (
-                          <span key={t} className="px-1.5 py-0.5 rounded text-xs bg-slate-100 text-slate-600">{t}</span>
-                        ))}
-                        {c.tags.length > 4 && <span className="text-xs text-slate-400">+{c.tags.length - 4}</span>}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
         )}
       </div>
 
-      {/* Desktop table */}
-      <Card className="hidden lg:block">
-        <CardContent className="p-0 overflow-x-auto">
+      {/* ── Массовые действия ── */}
+      {selectedIds.size > 0 && (
+        <div className="bg-blue-600 text-white rounded-2xl px-4 py-3 flex flex-wrap items-center gap-3 shadow-md">
+          <span className="text-sm font-semibold">Выбрано: {selectedIds.size}</span>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={() => handleBulkStatus('in_progress')} className="h-7 text-xs bg-white/20 hover:bg-white/30 text-white border-0">
+              <Clock className="w-3.5 h-3.5 mr-1" /> В работу
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => handleBulkStatus('processed')} className="h-7 text-xs bg-white/20 hover:bg-white/30 text-white border-0">
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Обработан
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => handleBulkStatus('archived')} className="h-7 text-xs bg-white/20 hover:bg-white/30 text-white border-0">
+              <Archive className="w-3.5 h-3.5 mr-1" /> В архив
+            </Button>
+            {!showBulkTagInput ? (
+              <Button size="sm" variant="secondary" onClick={() => setShowBulkTagInput(true)} className="h-7 text-xs bg-white/20 hover:bg-white/30 text-white border-0">
+                <Tag className="w-3.5 h-3.5 mr-1" /> Добавить тег
+              </Button>
+            ) : (
+              <div className="flex items-center gap-1.5 bg-white/10 rounded-lg px-2 py-1">
+                <Input
+                  value={bulkTagValue}
+                  onChange={e => setBulkTagValue(e.target.value)}
+                  placeholder="Тег..."
+                  className="h-6 text-xs w-28 bg-white/20 border-0 text-white placeholder:text-white/60 focus-visible:ring-0"
+                  autoFocus
+                  onKeyDown={e => { if (e.key === 'Enter') handleBulkAddTag(); if (e.key === 'Escape') setShowBulkTagInput(false); }}
+                />
+                <button onClick={handleBulkAddTag} className="p-0.5 hover:text-emerald-300"><Check className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setShowBulkTagInput(false)} className="p-0.5 hover:text-slate-300"><X className="w-3.5 h-3.5" /></button>
+              </div>
+            )}
+            {!showBulkDeleteConfirm ? (
+              <Button size="sm" variant="secondary" onClick={() => setShowBulkDeleteConfirm(true)} className="h-7 text-xs bg-red-500/30 hover:bg-red-500/50 text-white border-0">
+                <Trash2 className="w-3.5 h-3.5 mr-1" /> Удалить
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2 bg-white/10 rounded-lg px-2 py-1">
+                <span className="text-xs">Удалить {selectedIds.size}?</span>
+                <button onClick={handleBulkDelete} className="text-xs bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded">Да</button>
+                <button onClick={() => setShowBulkDeleteConfirm(false)} className="text-xs hover:underline">Нет</button>
+              </div>
+            )}
+          </div>
+          <button onClick={() => { setSelectedIds(new Set()); setSelectAll(false); }} className="sm:ml-auto opacity-70 hover:opacity-100 transition-opacity">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* ── Ошибка ── */}
+      {error && (
+        <div className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm">
+          <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+        </div>
+      )}
+
+      {/* ── Мобильные карточки ── */}
+      <div className="lg:hidden space-y-2">
+        {!loading && contacts.length > 0 && (
+          <div className="flex items-center justify-between rounded-xl border bg-white px-3 py-2.5">
+            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+              <Checkbox checked={selectAll} onChange={handleSelectAll} />
+              Выбрать все
+            </label>
+            <span className="text-xs text-slate-400">{contacts.length} на странице</span>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="bg-white rounded-2xl border p-12 text-center text-slate-400">
+            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
+            Загрузка...
+          </div>
+        ) : contacts.length === 0 ? (
+          <div className="bg-white rounded-2xl border p-12 text-center text-slate-400">
+            <Users className="w-10 h-10 mx-auto mb-3 opacity-20" />
+            <p className="text-sm">Контактов не найдено</p>
+          </div>
+        ) : (
+          contacts.map(c => {
+            const sc = getStatusConfig(c.status);
+            return (
+              <div
+                key={c.id}
+                className="bg-white rounded-2xl border border-slate-200 p-4 cursor-pointer hover:border-slate-300 transition-all"
+                onClick={() => setSelectedContact(c)}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="pt-0.5" onClick={e => e.stopPropagation()}>
+                    <Checkbox checked={selectedIds.has(c.id)} onChange={() => handleSelectOne(c.id)} />
+                  </div>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <Avatar name={c.full_name} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="font-semibold text-slate-900 truncate">{c.full_name}</div>
+                        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${sc.pill}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
+                          {sc.label}
+                        </span>
+                      </div>
+                      <div className="mt-1 space-y-0.5 text-xs text-slate-500">
+                        {c.email && <div className="flex items-center gap-1.5"><Mail className="w-3 h-3 shrink-0" /><span className="truncate">{c.email}</span></div>}
+                        {c.phone && <div className="flex items-center gap-1.5"><Phone className="w-3 h-3 shrink-0" />{c.phone}</div>}
+                        {(c.city || c.institution) && (
+                          <div className="flex items-center gap-1.5"><MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{[c.city, c.institution].filter(Boolean).join(' · ')}</span></div>
+                        )}
+                      </div>
+                      {c.tags.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {c.tags.slice(0, 4).map(t => (
+                            <span key={t} className="px-1.5 py-0.5 rounded-full text-xs bg-slate-100 text-slate-500">{t}</span>
+                          ))}
+                          {c.tags.length > 4 && <span className="text-xs text-slate-400">+{c.tags.length - 4}</span>}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* ── Таблица (десктоп) ── */}
+      <div className="hidden lg:block bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
           <table className="text-sm text-left" style={{ tableLayout: 'fixed', width: widths.reduce((a, b) => a + b, 0) }}>
             <colgroup>
               {widths.map((w, i) => <col key={i} style={{ width: w }} />)}
             </colgroup>
-            <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b">
-              <tr>
-                {/* 0: checkbox */}
+            <thead>
+              <tr className="border-b border-slate-100">
                 <th className="px-4 py-3 relative" style={{ width: widths[0] }}>
                   <Checkbox checked={selectAll} onChange={handleSelectAll} />
-                  <span
-                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-300 select-none"
-                    onMouseDown={(e) => { e.preventDefault(); onResizeStart(0, e.clientX, widths[0]); }}
-                  />
+                  <span className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-300 select-none" onMouseDown={e => { e.preventDefault(); onResizeStart(0, e.clientX, widths[0]); }} />
                 </th>
-                {/* 1: Имя */}
-                <th className="px-4 py-3 relative cursor-pointer hover:bg-slate-100" style={{ width: widths[1] }} onClick={() => handleSort('full_name')}>
-                  <div className="flex items-center gap-1 overflow-hidden">Имя {sortBy === 'full_name' && <ArrowUpDown className="w-3 h-3 shrink-0" />}</div>
-                  <span
-                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-300 select-none"
-                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(1, e.clientX, widths[1]); }}
-                  />
-                </th>
-                {/* 2: Контакты */}
-                <th className="px-4 py-3 relative" style={{ width: widths[2] }}>
-                  Контакты
-                  <span
-                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-300 select-none"
-                    onMouseDown={(e) => { e.preventDefault(); onResizeStart(2, e.clientX, widths[2]); }}
-                  />
-                </th>
-                {/* 3: Город */}
-                <th className="px-4 py-3 relative cursor-pointer hover:bg-slate-100" style={{ width: widths[3] }} onClick={() => handleSort('city')}>
-                  <div className="flex items-center gap-1 overflow-hidden">Город {sortBy === 'city' && <ArrowUpDown className="w-3 h-3 shrink-0" />}</div>
-                  <span
-                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-300 select-none"
-                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(3, e.clientX, widths[3]); }}
-                  />
-                </th>
-                {/* 4: Специальность */}
-                <th className="px-4 py-3 relative cursor-pointer hover:bg-slate-100" style={{ width: widths[4] }} onClick={() => handleSort('speciality')}>
-                  <div className="flex items-center gap-1 overflow-hidden">Специальность {sortBy === 'speciality' && <ArrowUpDown className="w-3 h-3 shrink-0" />}</div>
-                  <span
-                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-300 select-none"
-                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(4, e.clientX, widths[4]); }}
-                  />
-                </th>
-                {/* 5: Теги */}
-                <th className="px-4 py-3 relative" style={{ width: widths[5] }}>
-                  Теги
-                  <span
-                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-300 select-none"
-                    onMouseDown={(e) => { e.preventDefault(); onResizeStart(5, e.clientX, widths[5]); }}
-                  />
-                </th>
-                {/* 6: Статус */}
-                <th className="px-4 py-3 relative cursor-pointer hover:bg-slate-100" style={{ width: widths[6] }} onClick={() => handleSort('status')}>
-                  <div className="flex items-center gap-1 overflow-hidden">Статус {sortBy === 'status' && <ArrowUpDown className="w-3 h-3 shrink-0" />}</div>
-                  <span
-                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-300 select-none"
-                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(6, e.clientX, widths[6]); }}
-                  />
-                </th>
-                {/* 7: Дата */}
-                <th className="px-4 py-3 relative cursor-pointer hover:bg-slate-100" style={{ width: widths[7] }} onClick={() => handleSort('created_at')}>
-                  <div className="flex items-center gap-1 overflow-hidden">Дата {sortBy === 'created_at' && <ArrowUpDown className="w-3 h-3 shrink-0" />}</div>
-                  <span
-                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-300 select-none"
-                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(7, e.clientX, widths[7]); }}
-                  />
-                </th>
+                {[
+                  { label: 'Имя', field: 'full_name', idx: 1 },
+                  { label: 'Контакты', field: null, idx: 2 },
+                  { label: 'Город', field: 'city', idx: 3 },
+                  { label: 'Специальность', field: 'speciality', idx: 4 },
+                  { label: 'Теги', field: null, idx: 5 },
+                  { label: 'Статус', field: 'status', idx: 6 },
+                  { label: 'Дата', field: 'created_at', idx: 7 },
+                ].map(col => (
+                  <th
+                    key={col.idx}
+                    className={`px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider relative ${col.field ? 'cursor-pointer hover:text-slate-700 select-none' : ''}`}
+                    style={{ width: widths[col.idx] }}
+                    onClick={col.field ? () => handleSort(col.field!) : undefined}
+                  >
+                    <div className="flex items-center gap-1.5 overflow-hidden">
+                      {col.label}
+                      {col.field && <SortIcon field={col.field} />}
+                    </div>
+                    <span
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-300 select-none"
+                      onMouseDown={e => { e.preventDefault(); e.stopPropagation(); onResizeStart(col.idx, e.clientX, widths[col.idx]); }}
+                    />
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-50">
               {loading ? (
-                <tr><td colSpan={8} className="text-center py-12 text-slate-500"><RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />Загрузка...</td></tr>
+                <tr><td colSpan={8} className="text-center py-16 text-slate-400">
+                  <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />Загрузка...
+                </td></tr>
               ) : contacts.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-12 text-slate-500"><Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />Контактов не найдено</td></tr>
+                <tr><td colSpan={8} className="text-center py-16 text-slate-400">
+                  <Users className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                  <p>Контактов не найдено</p>
+                  {hasActiveFilters && <button onClick={clearFilters} className="mt-2 text-blue-500 hover:underline text-sm">Сбросить фильтры</button>}
+                </td></tr>
               ) : (
                 contacts.map(c => (
                   <tr
                     key={c.id}
-                    className="border-b cursor-pointer transition-colors hover:bg-slate-50"
+                    className="cursor-pointer hover:bg-slate-50/80 transition-colors group"
                     onClick={() => setSelectedContact(c)}
                   >
-                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <Checkbox checked={selectedIds.has(c.id)} onChange={() => handleSelectOne(c.id)} />
                     </td>
-                    <td className="px-4 py-3 font-medium text-slate-900" style={{ maxWidth: widths[1] }}>
-                      <div className="truncate">{c.full_name}</div>
+                    <td className="px-4 py-3" style={{ maxWidth: widths[1] }}>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Avatar name={c.full_name} />
+                        <span className="font-semibold text-slate-900 truncate">{c.full_name}</span>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-500 space-y-0.5" style={{ maxWidth: widths[2] }}>
-                      {c.email && <div className="flex items-center gap-1"><Mail className="w-3 h-3 shrink-0" /><span className="truncate">{c.email}</span></div>}
-                      {c.phone && <div className="flex items-center gap-1"><Phone className="w-3 h-3 shrink-0" />{c.phone}</div>}
+                      {c.email && <div className="flex items-center gap-1.5"><Mail className="w-3 h-3 shrink-0 text-slate-400" /><span className="truncate">{c.email}</span></div>}
+                      {c.phone && <div className="flex items-center gap-1.5"><Phone className="w-3 h-3 shrink-0 text-slate-400" />{c.phone}</div>}
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-600" style={{ maxWidth: widths[3] }}>
                       <div className="truncate">{c.city || <span className="text-slate-300">—</span>}</div>
@@ -1063,57 +1022,42 @@ export default function ContactsPage() {
                     <td className="px-4 py-3" style={{ maxWidth: widths[5] }}>
                       <div className="flex flex-wrap gap-1">
                         {c.tags.slice(0, 3).map(t => (
-                          <span key={t} className="px-1.5 py-0.5 rounded text-xs bg-slate-100 text-slate-600">{t}</span>
+                          <span key={t} className="px-1.5 py-0.5 rounded-full text-xs bg-slate-100 text-slate-500">{t}</span>
                         ))}
                         {c.tags.length > 3 && <span className="text-xs text-slate-400">+{c.tags.length - 3}</span>}
                       </div>
                     </td>
-                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      <EditableSelect
-                        value={c.status}
-                        options={statusOptions}
-                        onSave={async (val) => {
-                          const res = await adminCsrfFetch(`/api/admin/contacts/${c.id}`, {
-                            method: 'PATCH',
-                            credentials: 'include',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ status: val }),
-                          });
-                          if (res.ok) {
-                            const updated = await res.json();
-                            setContacts(prev => prev.map(x => x.id === c.id ? updated : x));
-                          }
-                        }}
-                      />
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                      <StatusPill value={c.status} onChange={v => handleStatusChange(c, v)} />
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{formatDate(c.created_at)}</td>
+                    <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">{formatDate(c.created_at)}</td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Pagination */}
+      {/* ── Пагинация ── */}
       {pagination.totalPages > 1 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-sm text-slate-500">
             {((pagination.page - 1) * pagination.limit) + 1}–{Math.min(pagination.page * pagination.limit, pagination.totalCount)} из {pagination.totalCount}
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled={pagination.page <= 1} onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}>
-              <ChevronLeft className="w-4 h-4" /> Назад
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="sm" disabled={pagination.page <= 1} onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))} className="h-8 w-8 p-0">
+              <ChevronLeft className="w-4 h-4" />
             </Button>
-            <span className="text-sm text-slate-500">{pagination.page} / {pagination.totalPages}</span>
-            <Button variant="outline" size="sm" disabled={pagination.page >= pagination.totalPages} onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}>
-              Вперёд <ChevronRight className="w-4 h-4" />
+            <span className="text-sm text-slate-500 px-2">{pagination.page} / {pagination.totalPages}</span>
+            <Button variant="outline" size="sm" disabled={pagination.page >= pagination.totalPages} onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))} className="h-8 w-8 p-0">
+              <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
         </div>
       )}
 
-      {/* Contact detail panel */}
+      {/* ── Панель контакта ── */}
       {selectedContact && (
         <ContactPanel
           contact={selectedContact}
@@ -1123,7 +1067,7 @@ export default function ContactsPage() {
         />
       )}
 
-      {/* Import modal */}
+      {/* ── Импорт ── */}
       {showImport && (
         <ImportModal
           onClose={() => setShowImport(false)}
