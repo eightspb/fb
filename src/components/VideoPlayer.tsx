@@ -1,60 +1,22 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { PlayCircle } from "lucide-react";
-
 interface VideoPlayerProps {
   src: string;
   title?: string;
   duration?: string;
 }
 
-export function VideoPlayer({ src, title = "Демонстрация работы системы DK-B-MS", duration }: VideoPlayerProps) {
-  const [hasStarted, setHasStarted] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  const handleOverlayClick = () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    // Сначала запускаем воспроизведение, потом убираем overlay.
-    // На iOS play() должен быть вызван ДО любого setState,
-    // иначе ре-рендер React "разрывает" контекст жеста пользователя.
-    video.play().then(() => {
-      setHasStarted(true);
-    }).catch(console.error);
-  };
-
+export function VideoPlayer({ src }: VideoPlayerProps) {
   return (
-    <div className="relative aspect-video bg-slate-800 rounded-2xl overflow-hidden border border-slate-700 shadow-2xl group">
+    <div className="relative aspect-video bg-slate-800 rounded-2xl overflow-hidden border border-slate-700 shadow-2xl">
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <video
-        ref={videoRef}
         src={src}
         className="w-full h-full object-cover"
         controls
         playsInline
-        preload="auto"
+        preload="metadata"
       />
-
-      {!hasStarted && (
-        <>
-          <div
-            className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors cursor-pointer z-10 touch-manipulation"
-            onClick={handleOverlayClick}
-          >
-            <div className="w-20 h-20 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-              <PlayCircle className="w-10 h-10 text-white fill-white/20" />
-            </div>
-          </div>
-          <div className="absolute bottom-4 left-4 right-4 p-4 bg-black/60 backdrop-blur-sm rounded-xl pointer-events-none z-10">
-            <p className="text-white font-medium">{title}</p>
-            {duration && (
-              <p className="text-slate-300 text-sm">{duration}</p>
-            )}
-          </div>
-        </>
-      )}
     </div>
   );
 }
