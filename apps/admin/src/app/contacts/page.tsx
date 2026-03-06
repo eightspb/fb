@@ -29,9 +29,13 @@ import {
   Plus,
   Pencil,
   Check,
-  XCircle
+  XCircle,
+  Upload,
+  FileText,
+  AlertTriangle,
 } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
+import { useRef } from 'react';
 
 interface Contact {
   id: string;
@@ -178,6 +182,190 @@ function EditableSelect({
         <option key={o.value} value={o.value}>{o.label}</option>
       ))}
     </select>
+  );
+}
+
+// ── Import modal ───────────────────────────────────────────────────────────────
+
+const STATUS_OPTIONS_IMPORT = [
+  { value: 'archived', label: 'В архиве' },
+  { value: 'new', label: 'Новый' },
+  { value: 'in_progress', label: 'В работе' },
+  { value: 'processed', label: 'Обработан' },
+];
+
+function ImportModal({
+  onClose,
+  onDone,
+}: {
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [tags, setTags] = useState('');
+  const [status, setStatus] = useState('archived');
+  const [importSource, setImportSource] = useState('csv');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ imported: number; skipped: number; total: number; errors: string[] } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleSubmit = async () => {
+    if (!file) return;
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('tags', tags);
+      fd.append('status', status);
+      fd.append('import_source', importSource || 'csv');
+      const res = await adminCsrfFetch('/api/admin/contacts/import', {
+        method: 'POST',
+        credentials: 'include',
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Ошибка импорта');
+      } else {
+        setResult(data);
+        onDone();
+      }
+    } catch {
+      setError('Ошибка соединения');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div
+        className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div className="flex items-center gap-2">
+            <Upload className="w-5 h-5 text-blue-600" />
+            <h2 className="font-semibold text-lg text-slate-900">Импорт контактов из CSV</h2>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+            <XCircle className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          {/* File */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Файл CSV *</label>
+            <div
+              className="border-2 border-dashed border-slate-200 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 transition-colors"
+              onClick={() => fileRef.current?.click()}
+            >
+              {file ? (
+                <div className="flex items-center justify-center gap-2 text-sm text-slate-700">
+                  <FileText className="w-4 h-4 text-blue-500" />
+                  {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                </div>
+              ) : (
+                <div className="text-slate-400 text-sm">
+                  <Upload className="w-6 h-6 mx-auto mb-1" />
+                  Нажмите для выбора файла (.csv, .txt)
+                </div>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".csv,.txt"
+                className="hidden"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+              />
+            </div>
+            <p className="mt-1 text-xs text-slate-400">
+              Поддерживаемые колонки: ФИО / full_name, email, телефон / phone, город / city, организация / institution, специальность / speciality, теги / tags, заметки / notes
+            </p>
+          </div>
+
+          {/* Source */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Источник импорта</label>
+            <Input
+              value={importSource}
+              onChange={(e) => setImportSource(e.target.value)}
+              placeholder="tilda, excel, manual..."
+              className="h-9"
+            />
+          </div>
+
+          {/* Default status */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Статус по умолчанию</label>
+            <select
+              className="w-full h-9 px-3 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              {STATUS_OPTIONS_IMPORT.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Default tags */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Добавить теги всем (через запятую)</label>
+            <Input
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="tilda-import, conf-2025..."
+              className="h-9"
+            />
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 rounded-lg px-3 py-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" /> {error}
+            </div>
+          )}
+
+          {/* Result */}
+          {result && (
+            <div className="bg-green-50 rounded-lg px-4 py-3 text-sm space-y-1">
+              <div className="font-medium text-green-800">
+                Импортировано: {result.imported} из {result.total}
+              </div>
+              {result.skipped > 0 && (
+                <div className="text-slate-500">Пропущено: {result.skipped}</div>
+              )}
+              {result.errors.length > 0 && (
+                <div className="mt-2 space-y-0.5">
+                  {result.errors.map((e, i) => (
+                    <div key={i} className="text-xs text-red-600">{e}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t bg-slate-50 flex justify-end gap-3">
+          <Button variant="ghost" onClick={onClose}>
+            {result ? 'Закрыть' : 'Отмена'}
+          </Button>
+          {!result && (
+            <Button onClick={handleSubmit} disabled={!file || loading} className="gap-2">
+              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              Импортировать
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -391,6 +579,7 @@ export default function ContactsPage() {
   const [showBulkTagInput, setShowBulkTagInput] = useState(false);
   const [bulkTagValue, setBulkTagValue] = useState('');
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const loadContacts = useCallback(async () => {
     setLoading(true);
@@ -518,9 +707,14 @@ export default function ContactsPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Контакты</h1>
-        <Button variant="outline" size="icon" onClick={loadContacts} title="Обновить">
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowImport(true)} className="gap-2">
+            <Upload className="w-4 h-4" /> Импорт CSV
+          </Button>
+          <Button variant="outline" size="icon" onClick={loadContacts} title="Обновить">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -830,6 +1024,14 @@ export default function ContactsPage() {
           onUpdate={handleContactUpdate}
           onClose={() => setSelectedContact(null)}
           onDelete={handleContactDelete}
+        />
+      )}
+
+      {/* Import modal */}
+      {showImport && (
+        <ImportModal
+          onClose={() => setShowImport(false)}
+          onDone={() => { loadContacts(); }}
         />
       )}
     </div>
