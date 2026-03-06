@@ -3,6 +3,7 @@ import { createEmailTransporter, getSenderEmail, getTargetEmail } from '@/lib/em
 import { escapeHtml } from '@/lib/sanitize';
 import { getRenderedEmailTemplate } from '@/lib/email-templates';
 import { notifyAdminAboutFormSubmission, notifyAdminAboutError } from '@/lib/telegram-notifications';
+import { upsertContact } from '@/lib/contact-upsert';
 import { Pool } from 'pg';
 
 // Явно указываем Node.js runtime для работы с PostgreSQL
@@ -54,24 +55,33 @@ export async function POST(request: NextRequest) {
     try {
       const client = await pool.connect();
       try {
+        const contactId = await upsertContact(client, {
+          fullName: body.name,
+          email: body.email,
+          phone: body.phone,
+          city: body.city,
+          institution: body.institution,
+          tag: 'form-conference',
+          sourceUrl: request.headers.get('referer') || undefined,
+        });
+
         await client.query(
-          `INSERT INTO form_submissions (form_type, name, email, phone, city, institution, status, page_url, metadata)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          `INSERT INTO form_submissions (form_type, name, email, phone, city, institution, status, page_url, metadata, contact_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
           [
-            'conference_registration', 
-            body.name, 
-            body.email, 
-            body.phone, 
+            'conference_registration',
+            body.name,
+            body.email,
+            body.phone,
             body.city,
-            body.institution, 
-            'new', 
+            body.institution,
+            'new',
             request.headers.get('referer') || '',
-            JSON.stringify({ 
-              conference: body.conference
-            })
+            JSON.stringify({ conference: body.conference }),
+            contactId,
           ]
         );
-        console.log('[Conference Register] Заявка сохранена в БД');
+        console.log('[Conference Register] Заявка сохранена в БД, contact_id:', contactId);
         
         // Отправляем уведомление в Telegram
         notifyAdminAboutFormSubmission({

@@ -24,6 +24,7 @@ export interface RequestItem {
   metadata?: any;
   notes?: string;
   assigned_to?: string;
+  contact_id?: string;
 }
 
 interface RequestDetailsModalProps {
@@ -127,6 +128,18 @@ export function RequestDetailsModal({
               <Badge className={`text-xs px-1.5 py-0 ${currentPriority.color}`}>
                 {currentPriority.label}
               </Badge>
+            )}
+            {request.contact_id && (
+              <>
+                <span className="text-xs text-slate-300">·</span>
+                <button
+                  onClick={() => { onClose(); router.push('/contacts'); }}
+                  className="text-xs text-violet-600 hover:underline flex items-center gap-0.5"
+                >
+                  <User className="w-3 h-3" />
+                  Контакт
+                </button>
+              </>
             )}
           </div>
         </DialogHeader>

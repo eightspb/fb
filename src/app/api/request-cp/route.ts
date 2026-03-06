@@ -4,6 +4,7 @@ import { escapeHtml } from '@/lib/sanitize';
 import { getRenderedEmailTemplate } from '@/lib/email-templates';
 import { notifyAdminAboutFormSubmission, notifyAdminAboutError } from '@/lib/telegram-notifications';
 import { withApiLogging } from '@/lib/api-logger';
+import { upsertContact } from '@/lib/contact-upsert';
 import { Pool } from 'pg';
 
 // Явно указываем Node.js runtime для работы с PostgreSQL
@@ -68,22 +69,33 @@ export const POST = withApiLogging('/api/request-cp', async (request: NextReques
     try {
       const client = await pool.connect();
       try {
+        const contactId = await upsertContact(client, {
+          fullName: name!,
+          email: email,
+          phone: phone,
+          city: city,
+          institution: institution,
+          tag: 'form-cp',
+          sourceUrl: request.headers.get('referer') || undefined,
+        });
+
         await client.query(
-          `INSERT INTO form_submissions (form_type, name, email, phone, city, institution, status, page_url, metadata)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          `INSERT INTO form_submissions (form_type, name, email, phone, city, institution, status, page_url, metadata, contact_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
           [
-            formType, 
-            name, 
-            email, 
-            phone, 
-            city, 
-            institution, 
-            'new', 
+            formType,
+            name,
+            email,
+            phone,
+            city,
+            institution,
+            'new',
             request.headers.get('referer') || '',
-            JSON.stringify({ city, institution })
+            JSON.stringify({ city, institution }),
+            contactId,
           ]
         );
-        console.log('[Request CP] Заявка сохранена в БД');
+        console.log('[Request CP] Заявка сохранена в БД, contact_id:', contactId);
         
         // Отправляем уведомление в Telegram
         notifyAdminAboutFormSubmission({

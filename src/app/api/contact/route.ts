@@ -4,6 +4,7 @@ import { escapeHtml } from '@/lib/sanitize';
 import { getRenderedEmailTemplate } from '@/lib/email-templates';
 import { notifyAdminAboutFormSubmission, notifyAdminAboutError } from '@/lib/telegram-notifications';
 import { withApiLogging } from '@/lib/api-logger';
+import { upsertContact } from '@/lib/contact-upsert';
 import { Pool } from 'pg';
 
 // Явно указываем Node.js runtime для работы с PostgreSQL
@@ -61,12 +62,20 @@ export const POST = withApiLogging('/api/contact', async (request: NextRequest) 
     try {
       const client = await pool.connect();
       try {
+        const contactId = await upsertContact(client, {
+          fullName: body.name,
+          email: body.email,
+          phone: body.phone,
+          tag: 'form-contact',
+          sourceUrl: request.headers.get('referer') || undefined,
+        });
+
         await client.query(
-          `INSERT INTO form_submissions (form_type, name, email, phone, message, status, page_url)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          ['contact', body.name, body.email, body.phone, body.message, 'new', request.headers.get('referer') || '']
+          `INSERT INTO form_submissions (form_type, name, email, phone, message, status, page_url, contact_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          ['contact', body.name, body.email, body.phone, body.message, 'new', request.headers.get('referer') || '', contactId]
         );
-        console.log('[Contact Form] Заявка сохранена в БД');
+        console.log('[Contact Form] Заявка сохранена в БД, contact_id:', contactId);
         
         // Отправляем уведомление в Telegram
         notifyAdminAboutFormSubmission({
