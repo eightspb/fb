@@ -144,34 +144,44 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
 
   if (submitStatus === 'success') {
     return (
-      <div className="max-w-md mx-auto">
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
-          <div className="text-green-600 text-4xl mb-4">✓</div>
-          <h3 className="text-xl font-semibold text-green-900 mb-2">Регистрация успешна!</h3>
-          <p className="text-green-700 mb-4">{submitMessage}</p>
+      <div className="max-w-md mx-auto py-4">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg shadow-green-500/30">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h3 className="text-2xl font-bold text-slate-900 mb-2">Регистрация успешна!</h3>
+          <p className="text-slate-600 mb-6">{submitMessage}</p>
           <Button
             onClick={() => setSubmitStatus('idle')}
             variant="outline"
-            className="border-green-300 text-green-700 hover:bg-green-100"
+            className="border-2 border-teal-200 text-teal-700 hover:bg-teal-50 rounded-xl px-6"
           >
-            Зарегистрировать еще одного участника
+            Зарегистрировать ещё одного участника
           </Button>
         </div>
       </div>
     );
   }
 
+  const inputClasses = (field: string) =>
+    `w-full px-4 py-3 bg-slate-50 border-2 rounded-xl focus:ring-0 focus:border-teal-500 focus:bg-white outline-none transition-all duration-200 placeholder:text-slate-400 ${
+      errors[field] ? 'border-red-300 bg-red-50/50' : 'border-slate-200 hover:border-slate-300'
+    }`;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {submitStatus === 'error' && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+        <div className="bg-red-50 border-l-4 border-red-500 rounded-r-xl p-4 text-red-700 text-sm">
           {submitMessage}
         </div>
       )}
 
+      {/* Full name — full width */}
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-2">
-          ФИО *
+        <label htmlFor="name" className="block text-sm font-semibold text-slate-700 mb-1.5">
+          ФИО <span className="text-red-400">*</span>
         </label>
         <input
           type="text"
@@ -180,74 +190,90 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
           value={formData.name}
           onChange={handleChange}
           required
-          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all ${
-            errors.name ? 'border-red-300' : 'border-slate-300'
-          }`}
+          className={inputClasses('name')}
           placeholder="Иванов Иван Иванович"
         />
-        {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+        {errors.name && <p className="mt-1.5 text-xs text-red-600">{errors.name}</p>}
       </div>
 
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
-          Email *
-        </label>
-        <input
-          type="email"
-          id="email"
-          name="email"
-          value={formData.email}
-          onChange={handleChange}
-          required
-          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all ${
-            errors.email ? 'border-red-300' : 'border-slate-300'
-          }`}
-          placeholder="doctor@clinic.ru"
-        />
-        {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
+      {/* Email + Phone — 2 columns */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-1.5">
+            Email <span className="text-red-400">*</span>
+          </label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            className={inputClasses('email')}
+            placeholder="doctor@clinic.ru"
+          />
+          {errors.email && <p className="mt-1.5 text-xs text-red-600">{errors.email}</p>}
+        </div>
+
+        <div>
+          <label htmlFor="phone" className="block text-sm font-semibold text-slate-700 mb-1.5">
+            Телефон <span className="text-red-400">*</span>
+          </label>
+          <input
+            type="tel"
+            id="phone"
+            name="phone"
+            value={formData.phone}
+            onChange={handleChange}
+            required
+            className={inputClasses('phone')}
+            placeholder="+7 (999) 000-00-00"
+          />
+          {errors.phone && <p className="mt-1.5 text-xs text-red-600">{errors.phone}</p>}
+        </div>
       </div>
 
-      <div>
-        <label htmlFor="phone" className="block text-sm font-medium text-slate-700 mb-2">
-          Телефон *
-        </label>
-        <input
-          type="tel"
-          id="phone"
-          name="phone"
-          value={formData.phone}
-          onChange={handleChange}
-          required
-          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all ${
-            errors.phone ? 'border-red-300' : 'border-slate-300'
-          }`}
-          placeholder="+7 (999) 000-00-00"
-        />
-        {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
+      {/* City + Speciality — 2 columns */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="city" className="block text-sm font-semibold text-slate-700 mb-1.5">
+            Город <span className="text-red-400">*</span>
+          </label>
+          <input
+            type="text"
+            id="city"
+            name="city"
+            value={formData.city}
+            onChange={handleChange}
+            required
+            className={inputClasses('city')}
+            placeholder="Москва"
+          />
+          {errors.city && <p className="mt-1.5 text-xs text-red-600">{errors.city}</p>}
+        </div>
+
+        <div>
+          <label htmlFor="speciality" className="block text-sm font-semibold text-slate-700 mb-1.5">
+            Специальность <span className="text-red-400">*</span>
+          </label>
+          <input
+            type="text"
+            id="speciality"
+            name="speciality"
+            value={formData.speciality}
+            onChange={handleChange}
+            required
+            className={inputClasses('speciality')}
+            placeholder="Хирург, онколог..."
+          />
+          {errors.speciality && <p className="mt-1.5 text-xs text-red-600">{errors.speciality}</p>}
+        </div>
       </div>
 
+      {/* Institution — full width */}
       <div>
-        <label htmlFor="city" className="block text-sm font-medium text-slate-700 mb-2">
-          Город *
-        </label>
-        <input
-          type="text"
-          id="city"
-          name="city"
-          value={formData.city}
-          onChange={handleChange}
-          required
-          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all ${
-            errors.city ? 'border-red-300' : 'border-slate-300'
-          }`}
-          placeholder="Москва"
-        />
-        {errors.city && <p className="mt-1 text-sm text-red-600">{errors.city}</p>}
-      </div>
-
-      <div>
-        <label htmlFor="institution" className="block text-sm font-medium text-slate-700 mb-2">
-          Медицинское учреждение *
+        <label htmlFor="institution" className="block text-sm font-semibold text-slate-700 mb-1.5">
+          Медицинское учреждение <span className="text-red-400">*</span>
         </label>
         <input
           type="text"
@@ -256,35 +282,17 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
           value={formData.institution}
           onChange={handleChange}
           required
-          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all ${
-            errors.institution ? 'border-red-300' : 'border-slate-300'
-          }`}
+          className={inputClasses('institution')}
           placeholder="Название клиники"
         />
-        {errors.institution && <p className="mt-1 text-sm text-red-600">{errors.institution}</p>}
+        {errors.institution && <p className="mt-1.5 text-xs text-red-600">{errors.institution}</p>}
       </div>
 
-      <div>
-        <label htmlFor="speciality" className="block text-sm font-medium text-slate-700 mb-2">
-          Специальность *
-        </label>
-        <input
-          type="text"
-          id="speciality"
-          name="speciality"
-          value={formData.speciality}
-          onChange={handleChange}
-          required
-          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all ${
-            errors.speciality ? 'border-red-300' : 'border-slate-300'
-          }`}
-          placeholder="Хирург, онколог, терапевт..."
-        />
-        {errors.speciality && <p className="mt-1 text-sm text-red-600">{errors.speciality}</p>}
-      </div>
+      {/* Divider */}
+      <div className="border-t border-slate-200" />
 
-
-      <div className="flex items-start gap-3">
+      {/* Consent */}
+      <label htmlFor="consent" className="flex items-start gap-3 cursor-pointer group">
         <input
           type="checkbox"
           id="consent"
@@ -292,26 +300,26 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
           checked={formData.consent}
           onChange={handleChange}
           required
-          className={`mt-1 w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500 ${
+          className={`mt-0.5 w-5 h-5 text-teal-600 border-2 border-slate-300 rounded focus:ring-teal-500 transition-colors group-hover:border-teal-400 ${
             errors.consent ? 'border-red-300' : ''
           }`}
         />
-        <label htmlFor="consent" className="text-sm text-slate-600">
-          Согласен на обработку персональных данных и получение информационных сообщений *
-        </label>
-      </div>
-      {errors.consent && <p className="text-sm text-red-600 -mt-2">{errors.consent}</p>}
+        <span className="text-sm text-slate-600 leading-snug">
+          Согласен на обработку персональных данных и получение информационных сообщений <span className="text-red-400">*</span>
+        </span>
+      </label>
+      {errors.consent && <p className="text-xs text-red-600 -mt-3">{errors.consent}</p>}
 
-      <SimpleCaptcha 
+      <SimpleCaptcha
         onVerify={() => setCaptchaVerified(true)}
         onError={(error) => setSubmitMessage(error)}
       />
-      {errors.captcha && <p className="text-sm text-red-600">{errors.captcha}</p>}
+      {errors.captcha && <p className="text-xs text-red-600">{errors.captcha}</p>}
 
       <Button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-teal-600 hover:bg-teal-700 text-white rounded-full py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-teal-500 hover:bg-teal-600 text-white rounded-xl py-6 text-lg font-bold shadow-lg shadow-teal-500/25 hover:shadow-xl hover:shadow-teal-500/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
       >
         {isSubmitting ? 'Отправка...' : 'Зарегистрироваться'}
       </Button>

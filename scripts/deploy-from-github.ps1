@@ -251,7 +251,7 @@ function Initialize-Server {
     # Напоминаем про .env
     Write-Warn ""
     Write-Warn "ВАЖНО! Не забудьте создать файл .env на сервере:"
-    Write-Warn "  ssh $Server"
+    Write-Warn "  ssh -p $SshPort $Server"
     Write-Warn "  cd $RemotePath"
     Write-Warn "  cp ENV_EXAMPLE.txt .env"
     Write-Warn "  nano .env  # Заполните все переменные"
@@ -479,7 +479,7 @@ function Setup-TelegramWebhook {
         Write-Host $result
         Write-Info ""
         Write-Info "Настройте webhook вручную на сервере:"
-        Write-Info "  ssh $Server"
+        Write-Info "  ssh -p $SshPort $Server"
         Write-Info "  cd $RemotePath"
         Write-Info "  bash scripts/fix-telegram-now.sh"
     } else {

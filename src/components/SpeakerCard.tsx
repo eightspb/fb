@@ -1,5 +1,6 @@
 import Image from 'next/image';
-import { User, Plus } from 'lucide-react';
+import { User, Briefcase, Building2 } from 'lucide-react';
+
 import type { Speaker } from '@/lib/types/conference';
 
 interface SpeakerCardProps {
@@ -16,37 +17,31 @@ export function SpeakerCard({ speaker, variant = 'default' }: SpeakerCardProps) 
   
   // Dimensions based on variant
   const headerHeight = isCompact ? 'h-20' : 'h-24';
-  const avatarSize = isCompact ? 'w-20 h-20' : 'w-28 h-28';
-  const avatarOffset = isCompact ? '-mt-10' : '-mt-14'; // Half of height
-  const iconSize = isCompact ? 'w-4 h-4' : 'w-5 h-5';
+  const avatarSize = isCompact ? 'w-[104px] h-[104px]' : 'w-[146px] h-[146px]';
+  const avatarOffset = isCompact ? '-mt-[52px]' : '-mt-[73px]'; // Half of height
 
   return (
     <div className="group h-full bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col">
       {/* Colored Header */}
-      <div className={`${headerHeight} bg-teal-500 relative w-full`}>
-        {/* Decorative Icon */}
-        <div className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
-          <Plus className={`${iconSize} text-white`} />
-        </div>
-      </div>
+      <div className={`${headerHeight} bg-teal-500 relative w-full`} />
 
       {/* Body Content */}
-      <div className="px-4 pb-6 flex flex-col items-center text-center flex-grow">
+      <div className="px-4 pb-6 flex flex-col items-start text-left flex-grow">
         {/* Overlapping Avatar */}
-        <div className={`relative ${avatarSize} ${avatarOffset} mb-3 flex-shrink-0 z-10`}>
+        <div className={`relative ${avatarSize} ${avatarOffset} mb-3 flex-shrink-0 z-10 self-center`}>
           {speaker.photo ? (
-            <div className="relative w-full h-full rounded-full overflow-hidden border-[4px] border-white shadow-sm bg-white">
+            <div className="relative w-full h-full rounded-full overflow-hidden border-[4px] border-white ring-[4px] ring-teal-500 shadow-lg shadow-teal-500/20 bg-white">
               <Image
                 src={speaker.photo}
                 alt={speaker.name}
                 fill
-                sizes={isCompact ? '80px' : '112px'}
+                sizes={isCompact ? '104px' : '146px'}
                 className="object-cover"
                 unoptimized
               />
             </div>
           ) : (
-            <div className="w-full h-full rounded-full bg-slate-100 flex items-center justify-center border-[4px] border-white shadow-sm text-slate-300">
+            <div className="w-full h-full rounded-full bg-slate-100 flex items-center justify-center border-[4px] border-white ring-[4px] ring-teal-500 shadow-lg shadow-teal-500/20 text-slate-300">
               <User className={isCompact ? 'w-8 h-8' : 'w-12 h-12'} />
             </div>
           )}
@@ -57,19 +52,19 @@ export function SpeakerCard({ speaker, variant = 'default' }: SpeakerCardProps) 
           {speaker.name}
         </h3>
 
-        {/* Credentials */}
+        {/* Credentials (должность) */}
         {speaker.credentials && (
-          <p className={`text-slate-500 mb-3 ${isCompact ? 'text-xs' : 'text-sm'} leading-relaxed`}>
-            {speaker.credentials}
-          </p>
+          <div className={`flex items-start gap-1.5 text-slate-500 mb-2 ${isCompact ? 'text-xs' : 'text-sm'}`}>
+            <Briefcase className={`${isCompact ? 'w-3 h-3' : 'w-4 h-4'} mt-0.5 flex-shrink-0 text-slate-400`} />
+            <span className="leading-snug">{speaker.credentials}</span>
+          </div>
         )}
 
-        {/* Institution */}
+        {/* Institution (место работы) */}
         {speaker.institution && (
-          <div className="mt-auto pt-2 w-full border-t border-slate-100">
-            <p className={`text-teal-600 font-medium ${isCompact ? 'text-xs' : 'text-sm'} py-1`}>
-              {speaker.institution}
-            </p>
+          <div className={`flex items-start gap-1.5 mt-auto pt-2 w-full ${isCompact ? 'text-xs' : 'text-sm'}`}>
+            <Building2 className={`${isCompact ? 'w-3 h-3' : 'w-4 h-4'} mt-0.5 flex-shrink-0 text-teal-500`} />
+            <span className="text-teal-600 font-medium leading-snug">{speaker.institution}</span>
           </div>
         )}
       </div>

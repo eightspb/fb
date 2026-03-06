@@ -24,6 +24,7 @@ import {
   CheckCircle,
   ChevronLeft,
   Phone,
+  ArrowDown,
 } from 'lucide-react';
 
 const pool = new Pool({
@@ -202,9 +203,9 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
             {/* Description */}
             {conference.description && (
               <section>
-                <div className="prose prose-lg prose-slate max-w-none">
+                <div className="prose prose-xl prose-slate max-w-none">
                   {conference.description.split('\n').map((paragraph, index) => (
-                    <p key={index} className="text-slate-700 leading-relaxed">
+                    <p key={index} className="text-slate-700 text-lg md:text-xl leading-relaxed">
                       {paragraph}
                     </p>
                   ))}
@@ -212,51 +213,63 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
               </section>
             )}
 
-            {/* Event Details - Inline */}
+            {/* Event Details Card */}
             <section>
-              <Card>
-                <CardContent className="p-6">
-                  <div className="space-y-4">
+              <div className="relative overflow-hidden rounded-2xl bg-teal-500 shadow-xl">
+                {/* Decorative elements */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/3" />
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/3 -translate-x-1/4" />
+
+                <div className="relative p-8 md:p-10">
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-6">
                     {/* Date */}
-                    <div className="flex items-center gap-3 text-slate-700">
-                      <Calendar className="w-5 h-5 text-teal-600 flex-shrink-0" />
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                        <Calendar className="w-6 h-6 text-white" />
+                      </div>
                       <div>
-                        <p className="text-xs text-slate-400 uppercase">Дата</p>
-                        <p className="font-medium">{formatDateRange(conference.date, conference.date_end)}</p>
+                        <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-1">Дата</p>
+                        <p className="text-white font-semibold text-lg leading-tight">{formatDateRange(conference.date, conference.date_end)}</p>
                       </div>
                     </div>
 
                     {/* Location */}
                     {conference.location && (
-                      <div className="flex items-center gap-3 text-slate-700">
-                        <MapPin className="w-5 h-5 text-teal-600 flex-shrink-0" />
+                      <div className="flex items-start gap-4">
+                        <div className="flex-shrink-0 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                          <MapPin className="w-6 h-6 text-white" />
+                        </div>
                         <div>
-                          <p className="text-xs text-slate-400 uppercase">Место</p>
-                          <p className="font-medium">{conference.location}</p>
+                          <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-1">Место</p>
+                          <p className="text-white font-semibold text-lg leading-tight">{conference.location}</p>
                         </div>
                       </div>
                     )}
 
-                    {/* CME Hours - только если > 0 */}
+                    {/* CME Hours */}
                     {typeof conference.cme_hours === 'number' && conference.cme_hours > 0 && (
-                      <div className="flex items-center gap-3 text-slate-700">
-                        <Clock className="w-5 h-5 text-teal-600 flex-shrink-0" />
+                      <div className="flex items-start gap-4">
+                        <div className="flex-shrink-0 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                          <Clock className="w-6 h-6 text-white" />
+                        </div>
                         <div>
-                          <p className="text-xs text-slate-400 uppercase">Часы CME</p>
-                          <p className="font-medium">{conference.cme_hours} часов</p>
+                          <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-1">Часы CME</p>
+                          <p className="text-white font-semibold text-lg leading-tight">{conference.cme_hours} часов</p>
                         </div>
                       </div>
                     )}
 
                     {/* Contacts */}
                     {hasContacts && conference.organizer_contacts?.phone && (
-                      <div className="flex items-center gap-3 text-slate-700">
-                        <Phone className="w-5 h-5 text-teal-600 flex-shrink-0" />
+                      <div className="flex items-start gap-4">
+                        <div className="flex-shrink-0 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                          <Phone className="w-6 h-6 text-white" />
+                        </div>
                         <div>
-                          <p className="text-xs text-slate-400 uppercase">Контакты</p>
-                          <a 
+                          <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-1">Контакты</p>
+                          <a
                             href={`tel:${conference.organizer_contacts.phone}`}
-                            className="font-medium hover:text-teal-600 transition-colors"
+                            className="text-white font-semibold text-lg leading-tight hover:text-white/80 transition-colors"
                           >
                             {conference.organizer_contacts.phone}
                           </a>
@@ -264,8 +277,21 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
                       </div>
                     )}
                   </div>
-                </CardContent>
-              </Card>
+
+                  {/* Register Button */}
+                  {upcoming && (
+                    <div className="mt-8 pt-6 border-t border-white/20">
+                      <a
+                        href="#register"
+                        className="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-teal-600 font-bold rounded-full hover:bg-teal-50 hover:shadow-lg transition-all duration-200 text-lg"
+                      >
+                        Зарегистрироваться
+                        <ArrowDown className="w-5 h-5" />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
             </section>
 
             {/* Organizers Section */}
@@ -411,14 +437,22 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
         {/* Registration Form */}
         {upcoming && (
           <section id="register" className="mt-16 scroll-mt-24">
-            <Card className="max-w-2xl mx-auto">
-              <CardContent className="p-8">
-                <h2 className="text-2xl font-bold text-slate-900 mb-6 text-center">
+            <div className="max-w-2xl mx-auto overflow-hidden rounded-2xl shadow-xl border border-slate-200">
+              {/* Gradient header */}
+              <div className="relative bg-teal-500 px-8 py-8 text-center">
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyem0wLTMwVjBoLTEydjRoMTJ6TTI0IDI0aDEydi0ySDI0djJ6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30" />
+                <h2 className="relative text-2xl md:text-3xl font-bold text-white mb-2">
                   Регистрация на мероприятие
                 </h2>
+                <p className="relative text-teal-100 text-sm">
+                  Заполните форму и мы свяжемся с вами для подтверждения
+                </p>
+              </div>
+              {/* Form body */}
+              <div className="bg-white px-8 py-8">
                 <ConferenceRegistrationForm conferenceId={conference.id} conferenceTitle={conference.title} />
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </section>
         )}
 
