@@ -97,30 +97,32 @@ export default function Patients() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-4 md:gap-6">
             {/* Method 1: Needle Biopsy */}
             <Card className="border-slate-200 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-24 h-24 bg-amber-100 rounded-bl-full opacity-50"></div>
-              <CardContent className="p-6 relative z-10">
-                <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center mb-4">
-                  <Search className="w-6 h-6 text-amber-600" />
+              <CardContent className="p-4 md:p-6 relative z-10">
+                <div className="flex items-center gap-3 mb-3 md:block md:mb-0">
+                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-amber-100 flex items-center justify-center md:mb-4 flex-shrink-0">
+                    <Search className="w-5 h-5 md:w-6 md:h-6 text-amber-600" />
+                  </div>
+                  <h3 className="font-bold text-lg md:text-xl text-slate-900 md:mb-3">Тонкоигольная биопсия</h3>
                 </div>
-                <h3 className="font-bold text-xl text-slate-900 mb-3">Тонкоигольная биопсия</h3>
-                <p className="text-sm text-slate-600 mb-4 leading-relaxed">
+                <p className="text-base text-slate-600 mb-3 leading-snug md:leading-relaxed">
                   Быстрый метод «взять пробу». С помощью тонкой иглы врач получает клетки или фрагмент ткани.
                 </p>
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-start gap-2 text-sm">
+                <div className="space-y-1.5 mb-3">
+                  <div className="flex items-start gap-2 text-base">
                     <Check className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
                     <span className="text-slate-600">Только для диагностики</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm">
+                  <div className="flex items-start gap-2 text-base">
                     <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
                     <span className="text-slate-600">Образование НЕ удаляется</span>
                   </div>
                 </div>
-                <div className="bg-amber-50 rounded-lg p-3 border border-amber-100">
-                  <p className="text-xs text-slate-600 font-medium">
+                <div className="bg-amber-50 rounded-lg p-2.5 border border-amber-100">
+                  <p className="text-sm text-slate-600 font-medium">
                     <span className="font-bold text-slate-900">Итог:</span> После такой биопсии обычно назначают операцию
                   </p>
                 </div>
@@ -133,30 +135,32 @@ export default function Patients() {
                 Рекомендуем
               </div>
               <div className="absolute top-0 right-0 w-32 h-32 bg-teal-100 rounded-bl-full opacity-30"></div>
-              <CardContent className="p-6 relative z-10">
-                <div className="w-12 h-12 rounded-xl bg-teal-100 flex items-center justify-center mb-4">
-                  <Heart className="w-6 h-6 text-teal-600" />
+              <CardContent className="p-4 md:p-6 relative z-10">
+                <div className="flex items-center gap-3 mb-3 md:block md:mb-0">
+                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-teal-100 flex items-center justify-center md:mb-4 flex-shrink-0">
+                    <Heart className="w-5 h-5 md:w-6 md:h-6 text-teal-600" />
+                  </div>
+                  <h3 className="font-bold text-lg md:text-xl text-slate-900 md:mb-3">Вакуумная биопсия (ВАБ)</h3>
                 </div>
-                <h3 className="font-bold text-xl text-slate-900 mb-3">Вакуумная биопсия (ВАБ)</h3>
-                <p className="text-sm text-slate-600 mb-4 leading-relaxed">
+                <p className="text-base text-slate-600 mb-3 leading-snug md:leading-relaxed">
                   Революционный метод, который объединяет точность диагностики и эффективность операции.
                 </p>
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-start gap-2 text-sm">
+                <div className="space-y-1.5 mb-3">
+                  <div className="flex items-start gap-2 text-base">
                     <Check className="w-4 h-4 text-teal-500 mt-0.5 flex-shrink-0" />
                     <span className="text-slate-600">Диагностика + лечение</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm">
+                  <div className="flex items-start gap-2 text-base">
                     <Check className="w-4 h-4 text-teal-500 mt-0.5 flex-shrink-0" />
                     <span className="text-slate-600"><strong>Полное удаление</strong> образования</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm">
+                  <div className="flex items-start gap-2 text-base">
                     <Check className="w-4 h-4 text-teal-500 mt-0.5 flex-shrink-0" />
                     <span className="text-slate-600">Без разрезов и швов</span>
                   </div>
                 </div>
-                <div className="bg-teal-50 rounded-lg p-3 border border-teal-200">
-                  <p className="text-xs text-slate-600 font-medium">
+                <div className="bg-teal-50 rounded-lg p-2.5 border border-teal-200">
+                  <p className="text-sm text-slate-600 font-medium">
                     <span className="font-bold text-teal-900">Итог:</span> Проблема решена. Операция не нужна.
                   </p>
                 </div>
@@ -166,30 +170,32 @@ export default function Patients() {
             {/* Method 3: Open Surgery */}
             <Card className="border-slate-200 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-24 h-24 bg-red-100 rounded-bl-full opacity-50"></div>
-              <CardContent className="p-6 relative z-10">
-                <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center mb-4">
-                  <AlertCircle className="w-6 h-6 text-red-600" />
+              <CardContent className="p-4 md:p-6 relative z-10">
+                <div className="flex items-center gap-3 mb-3 md:block md:mb-0">
+                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-red-100 flex items-center justify-center md:mb-4 flex-shrink-0">
+                    <AlertCircle className="w-5 h-5 md:w-6 md:h-6 text-red-600" />
+                  </div>
+                  <h3 className="font-bold text-lg md:text-xl text-slate-900 md:mb-3">Открытая операция</h3>
                 </div>
-                <h3 className="font-bold text-xl text-slate-900 mb-3">Открытая операция</h3>
-                <p className="text-sm text-slate-600 mb-4 leading-relaxed">
+                <p className="text-base text-slate-600 mb-3 leading-snug md:leading-relaxed">
                   Традиционная операция: разрез кожи скальпелем, разделение тканей, наложение швов.
                 </p>
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-start gap-2 text-sm">
+                <div className="space-y-1.5 mb-3">
+                  <div className="flex items-start gap-2 text-base">
                     <Check className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
                     <span className="text-slate-600">Полное удаление</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm">
+                  <div className="flex items-start gap-2 text-base">
                     <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
                     <span className="text-slate-600">Общий наркоз, шрамы</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm">
+                  <div className="flex items-start gap-2 text-base">
                     <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
                     <span className="text-slate-600">Длительное восстановление</span>
                   </div>
                 </div>
-                <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
-                  <p className="text-xs text-slate-600 font-medium">
+                <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-200">
+                  <p className="text-sm text-slate-600 font-medium">
                     <span className="font-bold text-slate-900">Итог:</span> Только в сложных случаях
                   </p>
                 </div>
@@ -447,44 +453,44 @@ export default function Patients() {
             <h3 className="text-2xl font-bold text-slate-900">Этапы проведения вакуумно-аспирационной биопсии</h3>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
             {[
-              { title: "Выявление", desc: "Врач определяет образование по УЗИ", img: "/images/vab-steps/step-1.png" },
-              { title: "Анестезия", desc: "Местное обезболивание области", img: "/images/vab-steps/step-2.png" },
-              { title: "Микро-прокол", desc: "Всего 1-2 мм для введения иглы", img: "/images/vab-steps/step-3.png" },
-              { title: "Введение", desc: "Зонд подводится под контролем УЗИ", img: "/images/vab-steps/step-5.png" },
-              { title: "Удаление", desc: "Вакуумная аспирация образования", img: "/images/vab-steps/step-6.png" },
-              { title: "Гистология", desc: "Отправка материала на анализ", img: "/images/vab-steps/step-8.png" },
-              { title: "Повязка", desc: "Профилактика гематомы", img: "/images/vab-steps/step-10.png" },
-              { title: "Результат", desc: "Без шрамов и госпитализации", img: "/images/vab-steps/step-11.png" },
+              { title: "Выявление", desc: "Врач определяет образование по УЗИ", img: "/images/vab-steps/step-1.png", color: "from-blue-400 to-cyan-400" },
+              { title: "Анестезия", desc: "Местное обезболивание области", img: "/images/vab-steps/step-2.png", color: "from-violet-400 to-purple-400" },
+              { title: "Микро-прокол", desc: "Всего 1-2 мм для введения иглы", img: "/images/vab-steps/step-3.png", color: "from-teal-400 to-emerald-400" },
+              { title: "Введение", desc: "Зонд подводится под контролем УЗИ", img: "/images/vab-steps/step-5.png", color: "from-sky-400 to-blue-400" },
+              { title: "Удаление", desc: "Вакуумная аспирация образования", img: "/images/vab-steps/step-6.png", color: "from-rose-400 to-pink-400" },
+              { title: "Гистология", desc: "Отправка материала на анализ", img: "/images/vab-steps/step-8.png", color: "from-amber-400 to-orange-400" },
+              { title: "Повязка", desc: "Профилактика гематомы", img: "/images/vab-steps/step-10.png", color: "from-lime-400 to-green-400" },
+              { title: "Результат", desc: "Без шрамов и госпитализации", img: "/images/vab-steps/step-11.png", color: "from-teal-400 to-cyan-400" },
             ].map((step, i) => (
-              <Card key={i} className="overflow-hidden border-slate-200 hover:shadow-md transition-all group">
-                <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
-                  <Image 
-                    src={step.img} 
-                    alt={step.title} 
-                    fill 
-                    className="object-cover transition-transform duration-500 group-hover:scale-105" 
+              <div key={i} className="group rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 bg-white border border-slate-100">
+                <div className={`relative aspect-[4/3] bg-gradient-to-br ${step.color} overflow-hidden`}>
+                  <Image
+                    src={step.img}
+                    alt={step.title}
+                    fill
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
                   />
-                  <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md text-xs font-bold text-slate-900 shadow-sm">
+                  <div className="absolute top-2 left-2 w-8 h-8 md:w-9 md:h-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-lg md:text-xl font-bold text-slate-900 shadow-sm">
                     {i + 1}
                   </div>
                 </div>
-                <CardContent className="p-4">
-                  <h3 className="font-bold text-lg text-slate-900 mb-1">{step.title}</h3>
-                  <p className="text-base text-slate-600 leading-snug">{step.desc}</p>
-                </CardContent>
-              </Card>
+                <div className="px-3 py-2.5 md:px-4 md:py-3">
+                  <h3 className="font-bold text-sm md:text-base text-slate-900 mb-0.5 leading-tight">{step.title}</h3>
+                  <p className="text-xs md:text-sm text-slate-500 leading-snug">{step.desc}</p>
+                </div>
+              </div>
             ))}
           </div>
         </section>
 
         {/* Benefits Section */}
         <section className="mb-20">
-          <div className="bg-gradient-to-br from-slate-700 to-slate-800 text-white rounded-3xl p-8 md:p-12 overflow-hidden relative">
+          <div className="bg-gradient-to-br from-slate-700 to-slate-800 text-white rounded-3xl p-6 md:p-12 overflow-hidden relative">
             <div className="relative z-10">
-              <h2 className="text-3xl font-bold text-center mb-12">Преимущества метода</h2>
-              <div className="grid md:grid-cols-4 gap-8">
+              <h2 className="text-2xl md:text-3xl font-bold text-center mb-6 md:mb-12">Преимущества метода</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
                 {[
                   { icon: Clock, title: "15-20 минут", desc: "Длительность процедуры" },
                   { icon: ShieldCheck, title: "Безопасно", desc: "Без общего наркоза" },
@@ -496,11 +502,11 @@ export default function Patients() {
                   { icon: AlertCircle, title: "Минимум рисков", desc: "Отсутствие осложнений" },
                 ].map((item, i) => (
                   <div key={i} className="flex flex-col items-center text-center group">
-                    <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mb-4 group-hover:bg-white/20 transition-colors group-hover:scale-110 duration-300">
-                      <item.icon className="w-6 h-6 text-blue-300" />
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white/10 flex items-center justify-center mb-2 md:mb-4 group-hover:bg-white/20 transition-colors group-hover:scale-110 duration-300">
+                      <item.icon className="w-5 h-5 md:w-6 md:h-6 text-blue-300" />
                     </div>
-                    <h3 className="font-bold text-lg mb-1">{item.title}</h3>
-                    <p className="text-slate-400 text-sm">{item.desc}</p>
+                    <h3 className="font-bold text-sm md:text-lg mb-1 leading-tight">{item.title}</h3>
+                    <p className="text-slate-400 text-xs md:text-sm leading-tight">{item.desc}</p>
                   </div>
                 ))}
               </div>

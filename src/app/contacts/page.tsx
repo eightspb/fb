@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "@/components/Header";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Footer } from "@/components/Footer";
@@ -68,72 +67,47 @@ export default function Contacts() {
 
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-24">
           {/* Contact Info */}
-          <div className="space-y-12">
+          <div className="space-y-8">
             <section>
               <h2 className="text-2xl font-bold text-slate-900 mb-6">Контактная информация</h2>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Card className="border-slate-200 shadow-sm hover:shadow-md transition-all">
-                  <CardContent className="p-6 flex flex-col items-start gap-4">
-                    <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
-                      <Phone className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-slate-500 font-medium mb-1">Телефон</p>
-                      <a href="tel:+78127482213" className="text-lg font-semibold text-slate-900 hover:text-teal-600 transition-colors">
-                        +7 (812) 748-22-13
-                      </a>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-slate-200 shadow-sm hover:shadow-md transition-all">
-                  <CardContent className="p-6 flex flex-col items-start gap-4">
-                    <div className="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center text-teal-600">
-                      <Mail className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-slate-500 font-medium mb-1">Email</p>
-                      <a href="mailto:info@zenitmed.ru" className="text-lg font-semibold text-slate-900 hover:text-teal-600 transition-colors">
-                        info@zenitmed.ru
-                      </a>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              
-              <Card className="mt-4 border-slate-200 shadow-sm bg-slate-50">
-                <CardContent className="p-6 flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 shrink-0">
-                    <MapPin className="w-5 h-5" />
+              <div className="space-y-3">
+                <a href="tel:+78127482213" className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 bg-white hover:border-teal-200 hover:bg-teal-50/50 transition-all group">
+                  <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 shrink-0 group-hover:bg-blue-100 transition-colors">
+                    <Phone className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-sm text-slate-500 font-medium mb-1">Центральный офис</p>
-                    <p className="font-semibold text-slate-900 mb-1">ООО «ЗЕНИТ»</p>
-                    <p className="text-slate-600 text-sm mb-2">Официальный дистрибьютор завода Xishan в РФ</p>
-                    <p className="text-slate-600 text-sm">197348, г. Санкт-Петербург, Богатырский проспект, 22</p>
+                    <p className="text-xs text-slate-500 font-medium">Телефон</p>
+                    <p className="text-base font-semibold text-slate-900 group-hover:text-teal-600 transition-colors">+7 (812) 748-22-13</p>
                   </div>
-                </CardContent>
-              </Card>
-            </section>
+                </a>
 
-            <section>
-               <h2 className="text-2xl font-bold text-slate-900 mb-6">Документы</h2>
-               <div className="grid sm:grid-cols-2 gap-4">
-                 <Link href="/privacy" className="flex items-center p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 transition-all group">
-                   <Shield className="w-5 h-5 text-slate-400 mr-3 group-hover:text-slate-600" />
-                   <span className="text-sm font-medium text-slate-700">Политика конфиденциальности</span>
-                 </Link>
-                 <Link href="/terms" className="flex items-center p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 transition-all group">
-                   <FileText className="w-5 h-5 text-slate-400 mr-3 group-hover:text-slate-600" />
-                   <span className="text-sm font-medium text-slate-700">Условия использования</span>
-                 </Link>
-               </div>
+                <a href="mailto:info@zenitmed.ru" className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 bg-white hover:border-teal-200 hover:bg-teal-50/50 transition-all group">
+                  <div className="w-9 h-9 rounded-full bg-teal-50 flex items-center justify-center text-teal-600 shrink-0 group-hover:bg-teal-100 transition-colors">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 font-medium">Email</p>
+                    <p className="text-base font-semibold text-slate-900 group-hover:text-teal-600 transition-colors">info@zenitmed.ru</p>
+                  </div>
+                </a>
+
+                <div className="flex items-start gap-3 p-4 rounded-xl border border-slate-200 bg-slate-50/80">
+                  <div className="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 shrink-0">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 font-medium mb-0.5">Центральный офис</p>
+                    <p className="font-semibold text-slate-900 text-sm">ООО «ЗЕНИТ»</p>
+                    <p className="text-slate-500 text-xs mt-0.5">197348, г. Санкт-Петербург, Богатырский проспект, 22</p>
+                  </div>
+                </div>
+              </div>
             </section>
           </div>
 
           {/* Form */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 h-fit lg:sticky lg:top-24">
-            <div className="mb-8">
+          <div className="h-fit lg:sticky lg:top-24">
+            <div className="mb-6">
               <h2 className="text-2xl font-bold text-slate-900 mb-2">Напишите нам</h2>
               <p className="text-slate-600">
                 Оставьте заявку, и мы свяжемся с вами в течение рабочего дня.
@@ -142,6 +116,21 @@ export default function Contacts() {
             <ContactForm />
           </div>
         </div>
+
+        {/* Документы */}
+        <section className="mt-12">
+          <h2 className="text-2xl font-bold text-slate-900 mb-6">Документы</h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link href="/privacy" className="flex items-center p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 transition-all group">
+              <Shield className="w-5 h-5 text-slate-400 mr-3 group-hover:text-slate-600 shrink-0" />
+              <span className="text-sm font-medium text-slate-700">Политика конфиденциальности</span>
+            </Link>
+            <Link href="/terms" className="flex items-center p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 transition-all group">
+              <FileText className="w-5 h-5 text-slate-400 mr-3 group-hover:text-slate-600 shrink-0" />
+              <span className="text-sm font-medium text-slate-700">Условия использования</span>
+            </Link>
+          </div>
+        </section>
 
       </main>
 

@@ -240,12 +240,14 @@ export default function Training() {
                         desc: "Индивидуальный подход к каждому курсанту, персональные фантомы для отработки навыков."
                     }
                 ].map((item, idx) => (
-                    <div key={idx} className="bg-white p-8 rounded-3xl border border-slate-100 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                        <div className={`w-16 h-16 rounded-2xl ${item.color} flex items-center justify-center mb-6 shadow-md transform rotate-3`}>
-                            {item.icon}
+                    <div key={idx} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                        <div className="flex items-center gap-4 mb-3">
+                            <div className={`w-12 h-12 rounded-xl ${item.color} flex items-center justify-center shrink-0 shadow-md transform rotate-3`}>
+                                {item.icon}
+                            </div>
+                            <h4 className="text-lg font-bold text-slate-900">{item.title}</h4>
                         </div>
-                        <h4 className="text-xl font-bold text-slate-900 mb-3">{item.title}</h4>
-                        <p className="text-slate-600 leading-relaxed">
+                        <p className="text-slate-600 leading-relaxed text-sm">
                             {item.desc}
                         </p>
                     </div>

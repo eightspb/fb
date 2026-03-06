@@ -21,11 +21,29 @@ const nextConfig: NextConfig = {
   },
   
   images: {
-    remotePatterns: [],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'fibroadenoma.net',
+      },
+    ],
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
+  async rewrites() {
+    // In development, proxy /uploads to the production server
+    if (process.env.NODE_ENV === 'development') {
+      return [
+        {
+          source: '/uploads/:path*',
+          destination: 'https://fibroadenoma.net/uploads/:path*',
+        },
+      ];
+    }
+    return [];
+  },
+
   async headers() {
     return [
       {

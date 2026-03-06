@@ -94,7 +94,7 @@ export function QuickLinksSection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
           {quickLinks.map((link) => {
             const Icon = link.icon;
             return (
@@ -102,31 +102,31 @@ export function QuickLinksSection() {
                 <Card className="h-full hover:shadow-xl transition-all duration-300 border-0 group cursor-pointer overflow-hidden relative">
                   {/* Декоративный фон */}
                   <div className={`absolute inset-0 bg-gradient-to-br ${link.gradient} opacity-50`} />
-                  
+
                   {/* Декоративные элементы */}
                   <div className={`absolute -top-12 -right-12 w-32 h-32 rounded-full ${link.decoration} blur-2xl group-hover:scale-150 transition-transform duration-500`} />
                   <div className={`absolute -bottom-8 -left-8 w-24 h-24 rounded-full ${link.decoration} blur-xl group-hover:scale-125 transition-transform duration-500`} />
-                  
-                  <CardContent className="p-6 relative z-10">
-                    {/* Иконка с градиентным фоном */}
-                    <div className={`w-14 h-14 rounded-2xl ${link.iconBg} flex items-center justify-center mb-5 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg`}>
-                      <Icon className={`w-7 h-7 ${link.iconColor}`} />
+
+                  <CardContent className="p-3 md:p-6 relative z-10">
+                    {/* Иконка */}
+                    <div className={`w-9 h-9 md:w-14 md:h-14 rounded-xl md:rounded-2xl ${link.iconBg} flex items-center justify-center mb-2 md:mb-5 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg`}>
+                      <Icon className={`w-4 h-4 md:w-7 md:h-7 ${link.iconColor}`} />
                     </div>
-                    
+
                     {/* Заголовок */}
-                    <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-teal-600 transition-colors relative z-10">
+                    <h3 className="text-base md:text-xl font-bold text-slate-900 mb-0.5 md:mb-2 group-hover:text-teal-600 transition-colors leading-tight">
                       {link.title}
                     </h3>
-                    
-                    {/* Описание */}
-                    <p className="text-slate-700 mb-5 line-clamp-2 leading-relaxed relative z-10">
+
+                    {/* Описание — скрыто на мобильном */}
+                    <p className="hidden md:block text-slate-700 mb-5 line-clamp-2 leading-relaxed">
                       {link.description}
                     </p>
-                    
+
                     {/* Ссылка */}
-                    <div className={`flex items-center ${link.accentColor} font-medium text-sm group-hover:gap-2 transition-all relative z-10`}>
+                    <div className={`flex items-center ${link.accentColor} font-medium text-xs md:text-sm group-hover:gap-2 transition-all mt-1 md:mt-0`}>
                       Перейти
-                      <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                      <ArrowRight className="ml-1 h-3 w-3 md:h-4 md:w-4 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </CardContent>
                 </Card>

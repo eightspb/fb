@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, FormEvent } from 'react';
-import { Card, CardContent } from "@/components/ui/card";
 import { getCsrfToken } from '@/lib/csrf-client';
 import { SimpleCaptcha } from '@/components/SimpleCaptcha';
 
@@ -159,9 +158,8 @@ export function ContactForm() {
   };
 
   return (
-    <Card className="card-hover gradient-card-pink shine-effect">
-      <CardContent className="card-content">
-        <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="neumorphic-card p-6 sm:p-8">
+      <form onSubmit={handleSubmit} className="space-y-6">
           {submitStatus === 'success' && (
             <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-800">
               {submitMessage}
@@ -184,9 +182,7 @@ export function ContactForm() {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className={`neumorphic-input w-full ${
-                errors.name ? 'ring-2 ring-red-400' : ''
-              }`}
+              className={`neumorphic-input w-full ${errors.name ? 'ring-2 ring-red-400' : ''}`}
               disabled={isSubmitting}
             />
             {errors.name && (
@@ -204,9 +200,7 @@ export function ContactForm() {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className={`neumorphic-input w-full ${
-                errors.email ? 'ring-2 ring-red-400' : ''
-              }`}
+              className={`neumorphic-input w-full ${errors.email ? 'ring-2 ring-red-400' : ''}`}
               disabled={isSubmitting}
             />
             {errors.email && (
@@ -215,7 +209,7 @@ export function ContactForm() {
           </div>
 
           <div>
-            <label htmlFor="phone" className="block text-sm font-semibold mb-2 gradient-text-purple">
+            <label htmlFor="phone" className="block text-sm font-semibold mb-2 gradient-text-pink">
               Телефон *
             </label>
             <input
@@ -224,9 +218,7 @@ export function ContactForm() {
               name="phone"
               value={formData.phone}
               onChange={handleChange}
-              className={`neumorphic-input w-full ${
-                errors.phone ? 'ring-2 ring-red-400' : ''
-              }`}
+              className={`neumorphic-input w-full ${errors.phone ? 'ring-2 ring-red-400' : ''}`}
               disabled={isSubmitting}
             />
             {errors.phone && (
@@ -235,7 +227,7 @@ export function ContactForm() {
           </div>
 
           <div>
-            <label htmlFor="message" className="block text-sm font-semibold mb-2 gradient-text-rose">
+            <label htmlFor="message" className="block text-sm font-semibold mb-2 gradient-text-blue">
               Сообщение *
             </label>
             <textarea
@@ -244,9 +236,7 @@ export function ContactForm() {
               value={formData.message}
               onChange={handleChange}
               rows={4}
-              className={`neumorphic-textarea w-full ${
-                errors.message ? 'ring-2 ring-red-400' : ''
-              }`}
+              className={`neumorphic-textarea w-full ${errors.message ? 'ring-2 ring-red-400' : ''}`}
               disabled={isSubmitting}
             />
             {errors.message && (
@@ -273,7 +263,7 @@ export function ContactForm() {
             )}
           </div>
 
-          <SimpleCaptcha 
+          <SimpleCaptcha
             onVerify={() => setCaptchaVerified(true)}
             onError={(error) => setSubmitMessage(error)}
           />
@@ -283,14 +273,13 @@ export function ContactForm() {
 
           <button
             type="submit"
-            className="neumorphic-button w-full py-3 text-lg font-medium"
+            className="gradient-button-pink w-full py-3 text-lg font-medium rounded-[15px]"
             disabled={isSubmitting}
           >
             {isSubmitting ? 'Отправка...' : 'Отправить сообщение'}
           </button>
         </form>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 

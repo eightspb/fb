@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, Users, Clock, ArrowRight } from "lucide-react";
+import { Calendar, MapPin, Users, ArrowRight } from "lucide-react";
 
 interface Speaker {
   id: string;
@@ -139,7 +139,7 @@ export function ConferencesList() {
     const conferenceUrl = event.slug || event.id;
 
     return (
-      <Card key={event.id} className="group hover:shadow-xl transition-all border-slate-200 bg-white overflow-hidden">
+      <div key={event.id} className="group hover:shadow-xl transition-all border border-slate-200 bg-white overflow-hidden rounded-xl">
         <div className="grid md:grid-cols-2 gap-0">
           {/* Image Section */}
           <div className="relative w-full aspect-[16/10] md:aspect-auto md:min-h-[400px] overflow-hidden bg-slate-100">
@@ -255,197 +255,141 @@ export function ConferencesList() {
             </div>
           </CardContent>
         </div>
-      </Card>
+      </div>
     );
   };
 
   // Компактная карточка для прошедших конференций из таблицы conferences
   const renderPastCard = (event: Conference) => {
-    const speakersCount = event.speakers?.length || 0;
     const conferenceUrl = event.slug || event.id;
 
     return (
-      <Card key={event.id} className="group hover:shadow-lg transition-all border-slate-200 bg-white flex flex-col overflow-hidden h-full">
-        {/* Image Section */}
-        <div className="relative w-full aspect-[4/3] overflow-hidden bg-slate-100">
-          {event.cover_image ? (
-            <Image
-              src={event.cover_image}
-              alt={event.title}
-              fill
-              sizes="(max-width: 768px) 100vw, 33vw"
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              style={{ objectPosition: 'center 30%' }}
-              unoptimized
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-              <Calendar className="w-12 h-12 text-slate-300" />
-            </div>
-          )}
-          
-          {/* Date Badge */}
-          <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold text-slate-700 shadow-sm">
-            {formatDateRange(event.date, event.date_end)}
-          </div>
-        </div>
+      <Link key={event.id} href={`/conferences/${conferenceUrl}`} className="block h-full">
+        <Card className="group hover:shadow-lg transition-all border-slate-200 bg-white flex flex-col overflow-hidden h-full py-0 gap-0">
+          {/* Image Section — flush to top */}
+          <div className="relative w-full aspect-video overflow-hidden bg-slate-100 shrink-0">
+            {event.cover_image ? (
+              <Image
+                src={event.cover_image}
+                alt={event.title}
+                fill
+                sizes="(max-width: 768px) 100vw, 33vw"
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
+                style={{ objectPosition: 'center 30%' }}
+                unoptimized
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-teal-50 to-blue-50">
+                <Calendar className="w-12 h-12 text-teal-300" />
+              </div>
+            )}
 
-        <CardContent className="p-6 flex flex-col flex-grow">
-          {/* Category/Type */}
-          <div className="mb-4">
-            <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-200 border-0">
-              {event.type}
-            </Badge>
+            {/* Date Badge */}
+            <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-xs font-semibold text-slate-900 shadow-sm">
+              {formatDateRange(event.date, event.date_end)}
+            </div>
           </div>
-          
-          <Link href={`/conferences/${conferenceUrl}`} className="block group-hover:text-teal-600 transition-colors mb-3">
-            <h3 className="text-xl font-bold text-slate-900 line-clamp-3">
+
+          <CardContent className="px-4 pt-3 pb-3 flex flex-col flex-grow">
+            {/* Category/Type */}
+            <div className="mb-2">
+              <Badge className="bg-teal-50 text-teal-700 hover:bg-teal-100 border-0">
+                {event.type}
+              </Badge>
+            </div>
+
+            <h3 className="text-lg font-bold text-slate-900 line-clamp-2 mb-2 group-hover:text-teal-600 transition-colors">
               {event.title}
             </h3>
-          </Link>
-          
-          {event.description && (
-            <p className="text-slate-600 text-sm line-clamp-3 mb-4 flex-grow">
-              {event.description}
-            </p>
-          )}
-          
-          {/* Meta info */}
-          <div className="space-y-2 text-slate-500 text-sm mb-6">
-            {event.location && (
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-slate-400" />
-                <span className="truncate">{event.location}</span>
-              </div>
-            )}
-            {speakersCount > 0 && (
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-slate-400" />
-                <span>{speakersCount} {speakersCount === 1 ? 'спикер' : speakersCount < 5 ? 'спикера' : 'спикеров'}</span>
-              </div>
-            )}
-          </div>
 
-          {/* Speakers preview */}
-          {event.speakers && event.speakers.length > 0 && (
-            <div className="flex items-center gap-2 mb-6">
-              <div className="flex -space-x-2">
-                {event.speakers.slice(0, 4).map((speaker, idx) => (
-                  <div 
-                    key={speaker.id || idx}
-                    className="w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-slate-200"
-                    title={speaker.name}
-                  >
-                    {speaker.photo ? (
-                      <Image
-                        src={speaker.photo}
-                        alt={speaker.name}
-                        width={32}
-                        height={32}
-                        className="w-full h-full object-cover"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-xs font-medium text-slate-500">
-                        {speaker.name?.charAt(0) || '?'}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {event.speakers.length > 4 && (
-                  <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-600">
-                    +{event.speakers.length - 4}
+            {event.description && (
+              <p className="text-slate-600 text-sm line-clamp-2 mb-3 flex-grow">
+                {event.description}
+              </p>
+            )}
+
+            <div className="flex items-center justify-between pt-2 mt-auto border-t border-slate-100">
+              <div className="flex gap-2 text-slate-400">
+                {event.location && (
+                  <div className="flex items-center gap-1" title={event.location}>
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span className="text-xs font-medium truncate max-w-[120px]">{event.location}</span>
                   </div>
                 )}
               </div>
+              <span className="text-sm font-semibold text-teal-600 group-hover:text-teal-700 transition-colors">
+                Подробнее
+              </span>
             </div>
-          )}
-
-          {/* Footer */}
-          <div className="flex items-center justify-between pt-4 mt-auto border-t border-slate-100">
-            <div className="flex gap-3 text-slate-400">
-              {event.materials && event.materials.length > 0 && (
-                <div className="flex items-center gap-1" title="Есть материалы">
-                  <Calendar className="w-4 h-4" />
-                  <span className="text-xs font-medium">{event.materials.length}</span>
-                </div>
-              )}
-            </div>
-            <Link 
-              href={`/conferences/${conferenceUrl}`} 
-              className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
-            >
-              Подробнее
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </Link>
     );
   };
 
   // Компактная карточка для прошедших конференций из таблицы news
   const renderPastNewsCard = (news: NewsItem) => {
     const mainImage = news.images && news.images.length > 0 ? news.images[0] : null;
-    
-    return (
-      <Card key={news.id} className="group hover:shadow-lg transition-all border-slate-200 bg-white flex flex-col overflow-hidden h-full">
-        {/* Image Section */}
-        <div className="relative w-full aspect-[4/3] overflow-hidden bg-slate-100">
-          {mainImage ? (
-            <Image
-              src={mainImage}
-              alt={news.title}
-              fill
-              sizes="(max-width: 768px) 100vw, 33vw"
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              style={{ objectPosition: 'center 30%' }}
-              unoptimized
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-              <Calendar className="w-12 h-12 text-slate-300" />
-            </div>
-          )}
-          
-          {/* Date Badge */}
-          <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold text-slate-700 shadow-sm">
-            {news.date}
-          </div>
-        </div>
 
-        <CardContent className="p-6 flex flex-col flex-grow">
-          {/* Category */}
-          {news.category && (
-            <div className="mb-4">
-              <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-200 border-0">
-                {news.category}
-              </Badge>
+    return (
+      <Link key={news.id} href={`/news/${news.id}`} className="block h-full">
+        <Card className="group hover:shadow-lg transition-all border-slate-200 bg-white flex flex-col overflow-hidden h-full py-0 gap-0">
+          {/* Image Section — flush to top */}
+          <div className="relative w-full aspect-video overflow-hidden bg-slate-100 shrink-0">
+            {mainImage ? (
+              <Image
+                src={mainImage}
+                alt={news.title}
+                fill
+                sizes="(max-width: 768px) 100vw, 33vw"
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
+                style={{ objectPosition: news.imageFocalPoint || 'center 30%' }}
+                unoptimized
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-teal-50 to-blue-50">
+                <Calendar className="w-12 h-12 text-teal-300" />
+              </div>
+            )}
+
+            {/* Date Badge */}
+            <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-xs font-semibold text-slate-900 shadow-sm">
+              {news.date}
             </div>
-          )}
-          
-          <Link href={`/news/${news.id}`} className="block group-hover:text-teal-600 transition-colors mb-3">
-            <h3 className="text-xl font-bold text-slate-900 line-clamp-3">
+          </div>
+
+          <CardContent className="px-4 pt-3 pb-3 flex flex-col flex-grow">
+            {/* Category */}
+            <div className="mb-2">
+              {news.category ? (
+                <Badge className="bg-teal-50 text-teal-700 hover:bg-teal-100 border-0">
+                  {news.category}
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">
+                  Конференции
+                </Badge>
+              )}
+            </div>
+
+            <h3 className="text-lg font-bold text-slate-900 line-clamp-2 mb-2 group-hover:text-teal-600 transition-colors">
               {news.title}
             </h3>
-          </Link>
-          
-          {news.shortDescription && (
-            <p className="text-slate-600 text-sm line-clamp-4 mb-4 flex-grow">
-              {news.shortDescription}
-            </p>
-          )}
 
-          {/* Footer */}
-          <div className="flex items-center justify-end pt-4 mt-auto border-t border-slate-100">
-            <Link 
-              href={`/news/${news.id}`} 
-              className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
-            >
-              Подробнее
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+            {news.shortDescription && (
+              <p className="text-slate-600 text-sm line-clamp-2 mb-3 flex-grow">
+                {news.shortDescription}
+              </p>
+            )}
+
+            <div className="flex items-center justify-end pt-2 mt-auto border-t border-slate-100">
+              <span className="text-sm font-semibold text-teal-600 group-hover:text-teal-700 transition-colors">
+                Подробнее
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
     );
   };
 

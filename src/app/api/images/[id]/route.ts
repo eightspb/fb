@@ -52,6 +52,7 @@ export async function GET(
 
     if (acceptsWebP) {
       const webpBuffer = await sharp(image_data)
+        .rotate()
         .resize(1400, null, { withoutEnlargement: true })
         .webp({ quality: 82 })
         .toBuffer();
