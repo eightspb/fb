@@ -20,13 +20,15 @@ CREATE TABLE IF NOT EXISTS form_submissions (
   institution TEXT,
   city TEXT,
   page_url TEXT, -- where the form was submitted from
-  metadata JSONB DEFAULT '{}'::jsonb -- for any extra fields
+  metadata JSONB DEFAULT '{}'::jsonb, -- for any extra fields
+  contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL
 );
 
 -- Индексы для form_submissions
 CREATE INDEX IF NOT EXISTS idx_form_submissions_created_at ON form_submissions(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_form_submissions_status ON form_submissions(status);
 CREATE INDEX IF NOT EXISTS idx_form_submissions_type ON form_submissions(form_type);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_contact_id ON form_submissions(contact_id);
 
 -- RLS для form_submissions (разрешаем INSERT для всех, SELECT/UPDATE/DELETE только для postgres)
 ALTER TABLE form_submissions ENABLE ROW LEVEL SECURITY;
