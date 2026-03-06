@@ -13,13 +13,16 @@
 param(
     [Parameter(Mandatory=$false)]
     [string]$Server = "root@155.212.217.60",
-    
+
+    [Parameter(Mandatory=$false)]
+    [int]$SshPort = 2222,
+
     [Parameter(Mandatory=$false)]
     [int]$LocalPort = 54321,
-    
+
     [Parameter(Mandatory=$false)]
     [int]$RemotePort = 5432,
-    
+
     [Parameter(Mandatory=$false)]
     [string]$DbContainer = "fb-net-db"
 )
@@ -57,7 +60,7 @@ function Write-Warning-Custom {
 Write-Info "Проверка SSH подключения к серверу..."
 
 try {
-    $null = ssh -o ConnectTimeout=5 -o BatchMode=yes $Server "echo 'OK'" 2>&1
+    $null = ssh -p $SshPort -o ConnectTimeout=5 -o BatchMode=yes $Server "echo 'OK'" 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Error-Custom "Не удалось подключиться к серверу $Server"
         Write-Info "Убедитесь, что:"
@@ -79,11 +82,11 @@ try {
 Write-Info "Проверка PostgreSQL контейнера на сервере..."
 
 try {
-    $dbCheck = ssh $Server "docker ps --filter name=$DbContainer --format '{{.Names}}'" 2>&1
+    $dbCheck = ssh -p $SshPort $Server "docker ps --filter name=$DbContainer --format '{{.Names}}'" 2>&1
     if ($dbCheck -notmatch $DbContainer) {
         Write-Error-Custom "PostgreSQL контейнер '$DbContainer' не запущен на сервере"
         Write-Info "Запустите контейнер на сервере:"
-        Write-Host "  ssh $Server 'cd /opt/fb-net && docker compose -f docker-compose.production.yml up -d postgres'" -ForegroundColor Gray
+        Write-Host "  ssh -p $SshPort $Server 'cd /opt/fb-net && docker compose -f docker-compose.production.yml up -d postgres'" -ForegroundColor Gray
         exit 1
     }
     Write-Success "PostgreSQL контейнер '$DbContainer' запущен"
@@ -130,7 +133,7 @@ if ($portInUse) {
 Write-Info "Получение IP адреса PostgreSQL контейнера на сервере..."
 
 # Получаем IP адрес Docker контейнера PostgreSQL
-$containerIp = ssh $Server "docker inspect $DbContainer --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'" 2>&1
+$containerIp = ssh -p $SshPort $Server "docker inspect $DbContainer --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'" 2>&1
 $containerIp = $containerIp.Trim()
 
 if (-not $containerIp -or $containerIp -match "Error") {
@@ -145,9 +148,9 @@ Write-Info "Создание SSH туннеля: localhost:$LocalPort -> $contai
 # Запускаем SSH туннель в фоновом режиме
 # ВАЖНО: Подключаемся к IP контейнера в Docker сети, а не к localhost
 $tunnelJob = Start-Job -ScriptBlock {
-    param($Server, $LocalPort, $ContainerIp, $RemotePort)
-    ssh -N -L "${LocalPort}:${ContainerIp}:${RemotePort}" $Server
-} -ArgumentList $Server, $LocalPort, $containerIp, $RemotePort
+    param($Server, $SshPort, $LocalPort, $ContainerIp, $RemotePort)
+    ssh -p $SshPort -N -L "${LocalPort}:${ContainerIp}:${RemotePort}" $Server
+} -ArgumentList $Server, $SshPort, $LocalPort, $containerIp, $RemotePort
 
 # Ждём, пока туннель установится
 Start-Sleep -Seconds 2
@@ -170,7 +173,7 @@ Write-Success "SSH туннель создан (localhost:$LocalPort -> server:$
 Write-Info "Проверка подключения к базе данных через туннель..."
 
 try {
-    $dbVersion = ssh $Server "docker exec $DbContainer psql -U postgres -d postgres -t -c 'SELECT version();'" 2>&1
+    $dbVersion = ssh -p $SshPort $Server "docker exec $DbContainer psql -U postgres -d postgres -t -c 'SELECT version();'" 2>&1
     if ($LASTEXITCODE -eq 0) {
         Write-Success "Подключение к базе данных работает"
         Write-Host "  PostgreSQL версия: $($dbVersion.Trim().Substring(0, 50))..." -ForegroundColor Gray
