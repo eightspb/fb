@@ -118,9 +118,10 @@ src/
 ```typescript
 import { Pool } from 'pg';
 
+// Pool объявляется на уровне модуля — соединения переиспользуются между запросами
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
 // Использование
@@ -437,7 +438,13 @@ export default function YourPage() {
 import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// ВАЖНО: Pool объявляется на уровне модуля (не внутри handler'а)
+// Это позволяет переиспользовать соединения между запросами
+// и избегает 1-3с задержки на TCP/TLS handshake при каждом запросе.
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+});
 
 export async function GET(request: NextRequest) {
   try {
