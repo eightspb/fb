@@ -7,7 +7,12 @@ import { Footer } from '@/components/Footer';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { NewsGallery } from '@/components/NewsGallery';
 import { NewsViewTracker } from '@/components/NewsViewTracker';
+import { Pool } from 'pg';
 import { Calendar, MapPin, PenTool, Download, ChevronLeft, MessageSquare } from 'lucide-react';
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
+});
 
 interface NewsPageProps {
   params: Promise<{ id: string }>;
@@ -42,115 +47,98 @@ export async function generateStaticParams() {
   return [];
 }
 
-export default async function NewsPage({ params }: NewsPageProps) {
-  const { id } = await params;
-  
+const NEWS_QUERY = `
+  SELECT
+    n.*,
+    COALESCE(
+      (SELECT json_agg(jsonb_build_object(
+        'id', id,
+        'image_url', image_url,
+        'order', "order",
+        'has_data', (image_data IS NOT NULL)
+      ))
+       FROM news_images WHERE news_id = n.id),
+      '[]'::json
+    ) as images,
+    COALESCE(
+      (SELECT json_agg(jsonb_build_object('tag', tag))
+       FROM news_tags WHERE news_id = n.id),
+      '[]'::json
+    ) as tags,
+    COALESCE(
+      (SELECT json_agg(jsonb_build_object('video_url', video_url, 'order', "order"))
+       FROM news_videos WHERE news_id = n.id),
+      '[]'::json
+    ) as videos,
+    COALESCE(
+      (SELECT json_agg(jsonb_build_object('document_url', document_url, 'order', "order"))
+       FROM news_documents WHERE news_id = n.id),
+      '[]'::json
+    ) as documents
+  FROM news n
+  WHERE (n.id = $1 OR n.id = $2)
+`;
+
+function parseJsonArray(value: any): any[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function parseNewsRow(row: any) {
+  const images = parseJsonArray(row.images);
+  const tags = parseJsonArray(row.tags);
+  const videos = parseJsonArray(row.videos);
+  const documents = parseJsonArray(row.documents);
+
+  return {
+    id: row.id,
+    title: row.title,
+    shortDescription: row.short_description,
+    fullDescription: row.full_description,
+    date: row.date,
+    year: row.year,
+    category: row.category || undefined,
+    location: row.location || undefined,
+    author: row.author || undefined,
+    images: images
+      .filter((img: any) => img.has_data)
+      .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+      .map((img: any) => `/api/images/${img.id}`),
+    videos: videos.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((vid: any) => vid.video_url),
+    documents: documents.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((doc: any) => doc.document_url),
+    tags: tags.map((tag: any) => tag.tag),
+  };
+}
+
+async function getNews(id: string) {
   const decodedId = decodeURIComponent(id);
-  console.log(`[PAGE] Поиск новости: оригинальный ID="${id}", декодированный ID="${decodedId}"`);
-  
-  let news = null;
   try {
-    if (process.env.DATABASE_URL) {
-      const { Pool } = await import('pg');
-      const pool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-      });
-      
-      const client = await pool.connect();
-      try {
-        // Показываем новость по ID (включая черновики — для предпросмотра по прямой ссылке)
-        const query = `
-          SELECT
-            n.*,
-            COALESCE(
-              (SELECT json_agg(jsonb_build_object(
-                'id', id,
-                'image_url', image_url,
-                'order', "order",
-                'has_data', (image_data IS NOT NULL)
-              ))
-               FROM news_images WHERE news_id = n.id),
-              '[]'::json
-            ) as images,
-            COALESCE(
-              (SELECT json_agg(jsonb_build_object('tag', tag))
-               FROM news_tags WHERE news_id = n.id),
-              '[]'::json
-            ) as tags,
-            COALESCE(
-              (SELECT json_agg(jsonb_build_object('video_url', video_url, 'order', "order"))
-               FROM news_videos WHERE news_id = n.id),
-              '[]'::json
-            ) as videos,
-            COALESCE(
-              (SELECT json_agg(jsonb_build_object('document_url', document_url, 'order', "order"))
-               FROM news_documents WHERE news_id = n.id),
-              '[]'::json
-            ) as documents
-          FROM news n
-          WHERE (n.id = $1 OR n.id = $2)
-        `;
-        
-        const result = await client.query(query, [id, decodedId]);
-        
-        if (result.rows.length > 0) {
-          const row = result.rows[0];
-          
-          const parseJsonArray = (value: any): any[] => {
-            if (Array.isArray(value)) return value;
-            if (typeof value === 'string') {
-              try {
-                const parsed = JSON.parse(value);
-                return Array.isArray(parsed) ? parsed : [];
-              } catch {
-                return [];
-              }
-            }
-            return [];
-          };
-
-          const images = parseJsonArray(row.images);
-          const tags = parseJsonArray(row.tags);
-          const videos = parseJsonArray(row.videos);
-          const documents = parseJsonArray(row.documents);
-
-          news = {
-            id: row.id,
-            title: row.title,
-            shortDescription: row.short_description,
-            fullDescription: row.full_description,
-            date: row.date,
-            year: row.year,
-            category: row.category || undefined,
-            location: row.location || undefined,
-            author: row.author || undefined,
-            // Используем только изображения из БД
-            images: images
-              .filter((img: any) => img.has_data) // Только изображения из БД
-              .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
-              .map((img: any) => `/api/images/${img.id}`),
-            videos: videos.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((vid: any) => vid.video_url),
-            documents: documents.sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((doc: any) => doc.document_url),
-            tags: tags.map((tag: any) => tag.tag),
-          };
-        }
-      } finally {
-        client.release();
-        await pool.end();
+    const client = await pool.connect();
+    try {
+      const result = await client.query(NEWS_QUERY, [id, decodedId]);
+      if (result.rows.length > 0) {
+        return parseNewsRow(result.rows[0]);
       }
-    } else if (process.env.NODE_ENV !== 'production') {
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-      const response = await fetch(`${baseUrl}/api/news/${encodeURIComponent(decodedId)}`, {
-        cache: 'no-store',
-      });
-      
-      if (response.ok) {
-        news = await response.json();
-      }
+    } finally {
+      client.release();
     }
   } catch (error) {
     console.error('Error loading news from database:', error);
   }
+  return null;
+}
+
+export default async function NewsPage({ params }: NewsPageProps) {
+  const { id } = await params;
+  const news = await getNews(id);
 
   if (!news) {
     notFound();
@@ -288,109 +276,7 @@ export default async function NewsPage({ params }: NewsPageProps) {
 
 export async function generateMetadata({ params }: NewsPageProps): Promise<import('next').Metadata> {
   const { id } = await params;
-  const decodedId = decodeURIComponent(id);
-  
-  let news = null;
-  try {
-    if (process.env.DATABASE_URL) {
-      const { Pool } = await import('pg');
-      const pool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-      });
-      
-      const client = await pool.connect();
-      try {
-        // Показываем новость по ID (включая черновики)
-        const query = `
-          SELECT
-            n.*,
-            COALESCE(
-              (SELECT json_agg(jsonb_build_object(
-                'id', id,
-                'image_url', image_url,
-                'order', "order",
-                'has_data', (image_data IS NOT NULL)
-              ))
-               FROM news_images WHERE news_id = n.id),
-              '[]'::json
-            ) as images,
-            COALESCE(
-              (SELECT json_agg(jsonb_build_object('tag', tag))
-               FROM news_tags WHERE news_id = n.id),
-              '[]'::json
-            ) as tags,
-            COALESCE(
-              (SELECT json_agg(jsonb_build_object('video_url', video_url, 'order', "order"))
-               FROM news_videos WHERE news_id = n.id),
-              '[]'::json
-            ) as videos,
-            COALESCE(
-              (SELECT json_agg(jsonb_build_object('document_url', document_url, 'order', "order"))
-               FROM news_documents WHERE news_id = n.id),
-              '[]'::json
-            ) as documents
-          FROM news n
-          WHERE (n.id = $1 OR n.id = $2)
-        `;
-        
-        const result = await client.query(query, [id, decodedId]);
-        
-        if (result.rows.length > 0) {
-          const row = result.rows[0];
-          
-          const parseJsonArray = (value: any): any[] => {
-            if (Array.isArray(value)) return value;
-            if (typeof value === 'string') {
-              try {
-                const parsed = JSON.parse(value);
-                return Array.isArray(parsed) ? parsed : [];
-              } catch {
-                return [];
-              }
-            }
-            return [];
-          };
-
-          const images = parseJsonArray(row.images);
-
-          news = {
-            id: row.id,
-            title: row.title,
-            shortDescription: row.short_description,
-            fullDescription: row.full_description,
-            date: row.date,
-            year: row.year,
-            category: row.category || undefined,
-            location: row.location || undefined,
-            author: row.author || undefined,
-            // Используем только изображения из БД (has_data = true)
-            // Изображения без данных в БД пропускаются - они должны быть загружены через миграцию
-            images: images
-              .filter((img: any) => img.has_data) // Только изображения из БД
-              .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
-              .map((img: any) => `/api/images/${img.id}`),
-            videos: parseJsonArray(row.videos).sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((vid: any) => vid.video_url),
-            documents: parseJsonArray(row.documents).sort((a: any, b: any) => (a.order || 0) - (b.order || 0)).map((doc: any) => doc.document_url),
-            tags: parseJsonArray(row.tags).map((tag: any) => tag.tag),
-          };
-        }
-      } finally {
-        client.release();
-        await pool.end();
-      }
-    } else if (process.env.NODE_ENV !== 'production') {
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-      const response = await fetch(`${baseUrl}/api/news/${encodeURIComponent(decodedId)}`, {
-        cache: 'no-store',
-      });
-      
-      if (response.ok) {
-        news = await response.json();
-      }
-    }
-  } catch (error) {
-    console.error('Error loading news for metadata:', error);
-  }
+  const news = await getNews(id);
 
   if (!news) {
     return {

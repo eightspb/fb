@@ -16,16 +16,8 @@ export const GET = withApiLogging('/api/conferences', async (request: NextReques
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/conferences/route.ts:19',message:'Conferences GET - before connect',data:{dbUrl:process.env.DATABASE_URL||'NOT_SET',status:status},timestamp:Date.now(),runId:'debug-remote-db',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-    
     const client = await pool.connect();
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/conferences/route.ts:25',message:'Conferences - connected',data:{connected:true},timestamp:Date.now(),runId:'debug-remote-db',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
       const query = `
         SELECT * FROM conferences 
         ${status ? 'WHERE status = $1' : ''}
@@ -41,10 +33,6 @@ export const GET = withApiLogging('/api/conferences', async (request: NextReques
         ? await client.query(query, [status])
         : await client.query(query);
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/92421fa6-390c-44f6-b364-97de3045a7b0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/conferences/route.ts:42',message:'Conferences - query result',data:{rowsFound:result.rows.length},timestamp:Date.now(),runId:'debug-remote-db',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
-        
       return NextResponse.json(result.rows);
     } finally {
       client.release();
