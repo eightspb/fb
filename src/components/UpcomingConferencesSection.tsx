@@ -99,7 +99,7 @@ export function UpcomingConferencesSection() {
   };
 
   return (
-    <section className="w-full py-24 bg-white">
+    <section className="w-full py-24 bg-white overflow-hidden">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between mb-12">
           <div>
@@ -125,7 +125,7 @@ export function UpcomingConferencesSection() {
               : `/conferences/${conference.id}`;
 
             return (
-              <Link key={conference.id} href={conferenceUrl} className="block h-full">
+              <Link key={conference.id} href={conferenceUrl} className="block h-full min-w-0">
                 <div className="group hover:shadow-lg transition-all border border-slate-200 bg-white flex flex-col overflow-hidden h-full rounded-xl">
                   {/* Image Section — flush to top */}
                   <div className="relative w-full aspect-video overflow-hidden shrink-0">
@@ -169,12 +169,6 @@ export function UpcomingConferencesSection() {
 
                     <div className="flex items-center justify-between pt-2 mt-auto border-t border-slate-100">
                       <div className="flex gap-3 text-slate-400">
-                        {conference.location && (
-                          <div className="flex items-center gap-1" title={conference.location}>
-                            <MapPin className="w-3.5 h-3.5" />
-                            <span className="text-xs font-medium truncate max-w-[150px]">{conference.location}</span>
-                          </div>
-                        )}
                         {conference.speakers && Array.isArray(conference.speakers) && conference.speakers.length > 0 && (
                           <div className="flex items-center gap-1">
                             <Users className="w-3.5 h-3.5" />

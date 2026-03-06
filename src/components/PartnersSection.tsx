@@ -80,6 +80,15 @@ export function PartnersSection() {
               </div>
             </motion.a>
           ))}
+          <motion.div
+            className="w-full h-24 flex items-center justify-center p-4 bg-slate-100 rounded-xl border border-dashed border-slate-300"
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: PARTNERS.length * 0.05 }}
+            viewport={{ once: true }}
+          >
+            <span className="text-slate-400 text-sm font-medium">и многие другие...</span>
+          </motion.div>
         </div>
       </div>
     </section>
