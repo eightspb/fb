@@ -47,6 +47,7 @@ interface NewsItem {
   images?: string[];
   category?: string;
   status?: string;
+  imageFocalPoint?: string;
 }
 
 export function ConferencesList() {
