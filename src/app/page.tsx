@@ -164,7 +164,7 @@ export default function Home() {
         <FeaturesSection />
 
         {/* Video Spotlight */}
-        <section className="w-full py-24 bg-slate-900 text-white overflow-hidden relative">
+        <section className="w-full py-12 md:py-24 bg-slate-900 text-white overflow-hidden relative">
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2"></div>
           <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-teal-500/20 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2"></div>
           
@@ -208,7 +208,7 @@ export default function Home() {
         </section>
 
         {/* Academy / Events */}
-        <section className="w-full py-24 bg-slate-50">
+        <section className="w-full py-12 md:py-24 bg-slate-50">
           <div className="container mx-auto px-4">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div>
@@ -268,11 +268,11 @@ export default function Home() {
         <FAQPreviewSection />
 
         {/* Expert Reviews */}
-        <section className="w-full py-24 bg-white">
+        <section className="w-full py-12 md:py-24 bg-white">
           <div className="container mx-auto px-4">
-            <h2 className="text-3xl font-bold text-center text-slate-900 mb-16">Отзывы врачей о системе Xishan DK-B-MS</h2>
+            <h2 className="text-3xl font-bold text-center text-slate-900 mb-8 md:mb-16">Отзывы врачей о системе Xishan DK-B-MS</h2>
             
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="flex flex-col gap-4">
               {[
                 {
                   icon: Microscope,
@@ -296,15 +296,17 @@ export default function Home() {
                   role: "Онколог-маммолог, хирург"
                 }
               ].map((review, i) => (
-                <div key={i} className="flex flex-col items-center text-center p-8 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors">
-                  <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center mb-6 text-teal-500">
-                    <review.icon className="w-8 h-8" />
+                <div key={i} className="w-full flex items-start gap-4 p-5 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors">
+                  <div className="w-14 h-14 rounded-2xl bg-white shadow-sm flex items-center justify-center flex-shrink-0 text-teal-500">
+                    <review.icon className="w-7 h-7" />
                   </div>
-                  <h3 className="text-xl font-bold mb-3 text-slate-900">{review.title}</h3>
-                  <p className="text-slate-600 mb-6 italic">&quot;{review.desc}&quot;</p>
-                  <div className="mt-auto">
-                    <p className="font-semibold text-slate-900">{review.author}</p>
-                    <p className="text-sm text-slate-500">{review.role}</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-bold mb-1 text-slate-900">{review.title}</h3>
+                    <p className="text-slate-600 mb-3 italic text-sm leading-relaxed">&quot;{review.desc}&quot;</p>
+                    <div>
+                      <p className="font-semibold text-slate-900 text-sm">{review.author}</p>
+                      <p className="text-xs text-slate-500">{review.role}</p>
+                    </div>
                   </div>
                 </div>
               ))}

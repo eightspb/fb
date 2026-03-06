@@ -67,7 +67,7 @@ export default function Patients() {
       <main className="container mx-auto px-4 md:px-6 py-12">
 
         {/* Hero Message - Emotional Introduction */}
-        <section className="mb-20">
+        <section className="mb-8 md:mb-20">
           <div className="bg-gradient-to-br from-blue-100 to-teal-100 rounded-3xl p-8 md:p-12 border border-blue-200">
             <div className="max-w-4xl mx-auto text-center">
               <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-6">
@@ -89,8 +89,8 @@ export default function Patients() {
         </section>
 
         {/* Comparison of 3 Methods */}
-        <section className="mb-20">
-          <div className="text-center mb-12">
+        <section className="mb-8 md:mb-20">
+          <div className="text-center mb-6 md:mb-12">
             <h2 className="text-3xl font-bold text-slate-900 mb-4">Какой метод выбрать?</h2>
             <p className="text-slate-600 max-w-2xl mx-auto">
               Разберем три основных подхода к диагностике и лечению образований молочной железы
@@ -205,8 +205,8 @@ export default function Patients() {
         </section>
 
         {/* Comparison Table: VAB vs Surgery */}
-        <section className="mb-20">
-          <div className="text-center mb-12">
+        <section className="mb-8 md:mb-20">
+          <div className="text-center mb-6 md:mb-12">
             <h2 className="text-3xl font-bold text-slate-900 mb-4">ВАБ или операция: в чем разница?</h2>
             <p className="text-slate-600 max-w-2xl mx-auto">
               Наглядное сравнение показывает, почему ВАБ стала золотым стандартом
@@ -339,8 +339,8 @@ export default function Patients() {
         </section>
 
         {/* How VAB Works */}
-        <section className="mb-20">
-          <div className="text-center mb-12">
+        <section className="mb-8 md:mb-20">
+          <div className="text-center mb-6 md:mb-12">
             <h2 className="text-3xl font-bold text-slate-900 mb-4">Как проходит Вакуумная аспирационная биопсия?</h2>
             <p className="text-slate-600 max-w-2xl mx-auto">
               Неоспоримое преимущество Вакуумной аспирационной биопсии в том, что с её помощью 
@@ -419,33 +419,33 @@ export default function Patients() {
           </div>
           
           {/* Technical advantages */}
-          <div className="bg-white rounded-2xl p-8 mb-12 border border-slate-200 shadow-sm">
-            <div className="flex items-start gap-4 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-                <Search className="w-6 h-6 text-blue-600" />
+          <div className="flex flex-col gap-4 mb-8 md:mb-12">
+            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm w-full">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <Search className="w-5 h-5 text-blue-600" />
+                </div>
+                <h3 className="font-bold text-slate-900 text-lg">Роботизированная точность</h3>
               </div>
-              <div>
-                <h3 className="font-bold text-slate-900 text-xl mb-2">Роботизированная точность</h3>
-                <p className="text-slate-600 leading-relaxed">
-                  Специальная роботизированная игла входит в нужное место без какой-либо кровопотери и разрезов тканей. 
-                  Процедура проходит под постоянным контролем УЗИ, что обеспечивает максимальную точность и безопасность.
-                </p>
-              </div>
+              <p className="text-slate-600 leading-relaxed text-sm">
+                Специальная роботизированная игла входит в нужное место без какой-либо кровопотери и разрезов тканей.
+                Процедура проходит под постоянным контролем УЗИ, что обеспечивает максимальную точность и безопасность.
+              </p>
             </div>
-            
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-pink-100 flex items-center justify-center flex-shrink-0">
-                <Heart className="w-6 h-6 text-pink-600" />
+
+            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm w-full">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-pink-100 flex items-center justify-center flex-shrink-0">
+                  <Heart className="w-5 h-5 text-pink-600" />
+                </div>
+                <h3 className="font-bold text-slate-900 text-lg">Важно для планирующих беременность</h3>
               </div>
-              <div>
-                <h3 className="font-bold text-slate-900 text-xl mb-2">Важно для планирующих беременность</h3>
-                <p className="text-slate-600 leading-relaxed">
-                  При использовании метода вакуумной аспирационной биопсии млечные протоки остаются совершенно неповрежденными. 
-                  Это особенно важно для женщин, планирующих беременность, так как при стандартной процедуре 
-                  протоки часто рассекаются, что может привести к развитию мастита при лактации. 
-                  При ВАБ подобная вероятность <span className="font-semibold text-slate-900">полностью исключена</span>.
-                </p>
-              </div>
+              <p className="text-slate-600 leading-relaxed text-sm">
+                При использовании метода вакуумной аспирационной биопсии млечные протоки остаются совершенно неповрежденными.
+                Это особенно важно для женщин, планирующих беременность, так как при стандартной процедуре
+                протоки часто рассекаются, что может привести к развитию мастита при лактации.
+                При ВАБ подобная вероятность <span className="font-semibold text-slate-900">полностью исключена</span>.
+              </p>
             </div>
           </div>
           
@@ -486,7 +486,7 @@ export default function Patients() {
         </section>
 
         {/* Benefits Section */}
-        <section className="mb-20">
+        <section className="mb-8 md:mb-20">
           <div className="bg-gradient-to-br from-slate-700 to-slate-800 text-white rounded-3xl p-6 md:p-12 overflow-hidden relative">
             <div className="relative z-10">
               <h2 className="text-2xl md:text-3xl font-bold text-center mb-6 md:mb-12">Преимущества метода</h2>
@@ -515,7 +515,7 @@ export default function Patients() {
         </section>
 
         {/* Info Section */}
-        <section className="mb-20">
+        <section className="mb-8 md:mb-20">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="order-2 md:order-1">
               <h2 className="text-3xl font-bold text-slate-900 mb-6">
@@ -567,8 +567,8 @@ export default function Patients() {
         </section>
 
         {/* FAQ Section */}
-        <section className="mb-20 max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-slate-900 mb-12">Часто задаваемые вопросы</h2>
+        <section className="mb-8 md:mb-20 max-w-3xl mx-auto">
+          <h2 className="text-3xl font-bold text-center text-slate-900 mb-6 md:mb-12">Часто задаваемые вопросы</h2>
           <Accordion type="single" collapsible className="w-full">
             {faqItems.map((item, index) => (
               <AccordionItem key={index} value={`item-${index}`} className="border-slate-200">
