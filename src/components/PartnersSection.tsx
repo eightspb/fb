@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 const PARTNERS = [
   { name: 'МНИОИ им. П.А. Герцена', logo: '/images/partners/mnioi.jpg', url: 'http://mnioi.ru' },
@@ -34,16 +35,48 @@ const PARTNERS = [
   { name: 'НМИЦ онкологии им. Петрова', logo: '/images/partners/petrova.png', url: 'https://niioncologii.ru/' },
 ];
 
-export function PartnersSection() {
+const VISIBLE_COUNT = 9;
+
+function PartnerCard({ partner, index }: { partner: typeof PARTNERS[0]; index: number }) {
   return (
-    <section className="w-full py-24 bg-white overflow-hidden">
+    <motion.a
+      href={partner.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group relative w-full h-24 flex items-center justify-center p-4 bg-slate-200 rounded-xl border border-slate-300 hover:border-teal-300 hover:shadow-lg transition-all duration-300 grayscale hover:grayscale-0 hover:z-10"
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.4, delay: index * 0.04 }}
+    >
+      <div className="relative w-full h-full">
+        <Image
+          src={partner.logo}
+          alt={partner.name}
+          fill
+          className="object-contain p-2"
+        />
+      </div>
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1 bg-slate-800 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap shadow-xl z-20">
+        {partner.name}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
+      </div>
+    </motion.a>
+  );
+}
+
+export function PartnersSection() {
+  const [expanded, setExpanded] = useState(false);
+  const visiblePartners = expanded ? PARTNERS : PARTNERS.slice(0, VISIBLE_COUNT);
+
+  return (
+    <section className="w-full py-12 md:py-24 bg-white overflow-hidden">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           viewport={{ once: true }}
-          className="text-center mb-16"
+          className="text-center mb-8 md:mb-16"
         >
           <h2 className="text-3xl md:text-4xl font-bold mb-4 text-slate-900">
             Наши партнеры
@@ -53,43 +86,39 @@ export function PartnersSection() {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8 items-center justify-items-center">
-          {PARTNERS.map((partner, index) => (
-            <motion.a
-              key={index}
-              href={partner.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group relative w-full h-24 flex items-center justify-center p-4 bg-slate-200 rounded-xl border border-slate-300 hover:border-teal-300 hover:shadow-lg transition-all duration-300 grayscale hover:grayscale-0 hover:z-10"
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: index * 0.05 }}
-              viewport={{ once: true }}
-            >
-              <div className="relative w-full h-full">
-                <Image
-                  src={partner.logo}
-                  alt={partner.name}
-                  fill
-                  className="object-contain p-2"
-                />
-              </div>
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1 bg-slate-800 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap shadow-xl z-20">
-                {partner.name}
-                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
-              </div>
-            </motion.a>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-8 items-center justify-items-center">
+          {visiblePartners.map((partner, index) => (
+            <PartnerCard key={partner.name} partner={partner} index={index} />
           ))}
-          <motion.div
-            className="w-full h-24 flex items-center justify-center p-4 bg-slate-100 rounded-xl border border-dashed border-slate-300"
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: PARTNERS.length * 0.05 }}
-            viewport={{ once: true }}
-          >
-            <span className="text-slate-400 text-sm font-medium">и многие другие...</span>
-          </motion.div>
+          {!expanded && (
+            <button
+              onClick={() => setExpanded(true)}
+              className="w-full h-24 flex flex-col items-center justify-center gap-2 p-4 bg-slate-100 rounded-xl border border-dashed border-slate-300 hover:border-teal-300 hover:bg-teal-50 transition-all duration-200 cursor-pointer"
+            >
+              <span className="text-slate-600 text-sm font-medium">и многие другие...</span>
+              <ChevronDown className="w-4 h-4 text-slate-400" />
+            </button>
+          )}
         </div>
+
+        <AnimatePresence>
+          {expanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-4 flex justify-center"
+            >
+              <button
+                onClick={() => setExpanded(false)}
+                className="flex items-center gap-2 px-5 py-2 rounded-full border border-slate-200 text-slate-500 text-sm hover:border-teal-300 hover:text-teal-600 transition-colors"
+              >
+                <ChevronUp className="w-4 h-4" />
+                Свернуть
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </section>
   );

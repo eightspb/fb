@@ -180,16 +180,16 @@ export default function Equipment() {
       </section>
 
       {/* Technical Advantages Grid */}
-      <section className="py-20 bg-white">
+      <section className="py-10 md:py-20 bg-white">
         <div className="container mx-auto px-4 md:px-6">
-          <div className="text-center mb-12">
+          <div className="text-center mb-6 md:mb-12">
             <h2 className="text-3xl font-bold text-slate-900 mb-4">Технические характеристики Xishan DK-B-MS</h2>
             <p className="text-slate-700 max-w-2xl mx-auto">
               Технологическое превосходство системы для эффективной вакуумной аспирационной резекции
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="flex flex-col gap-3">
             {[
               { icon: Settings, title: "Плавная регулировка", desc: "Шаг настройки апертуры 1 мм", color: "text-blue-600", bg: "bg-blue-50" },
               { icon: VolumeX, title: "Тихая работа", desc: "Комфорт для врача и пациента", color: "text-teal-600", bg: "bg-teal-50" },
@@ -202,14 +202,16 @@ export default function Equipment() {
             ].map((item, i) => (
               <motion.div
                 key={i}
-                whileHover={{ y: -5 }}
-                className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300"
+                whileHover={{ x: 4 }}
+                className="flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 w-full"
               >
-                <div className={`w-12 h-12 rounded-xl ${item.bg} flex items-center justify-center mb-3`}>
-                  <item.icon className={`w-6 h-6 ${item.color}`} />
+                <div className={`w-11 h-11 rounded-xl ${item.bg} flex items-center justify-center flex-shrink-0`}>
+                  <item.icon className={`w-5 h-5 ${item.color}`} />
                 </div>
-                <h3 className="font-bold text-slate-900 mb-1.5 text-lg">{item.title}</h3>
-                <p className="text-base text-slate-700">{item.desc}</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-slate-900 text-base leading-tight">{item.title}</h3>
+                  <p className="text-sm text-slate-600 mt-0.5">{item.desc}</p>
+                </div>
               </motion.div>
             ))}
           </div>
@@ -217,7 +219,7 @@ export default function Equipment() {
       </section>
 
       {/* System Components & Dimensions */}
-      <section className="py-20 bg-slate-50">
+      <section className="py-10 md:py-20 bg-slate-50">
         <div className="container mx-auto px-4 md:px-6">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
@@ -285,25 +287,24 @@ export default function Equipment() {
       </section>
 
       {/* Procedure Steps */}
-      <section className="py-20 bg-white">
+      <section className="py-10 md:py-20 bg-white">
         <div className="container mx-auto px-4 md:px-6">
-          <h2 className="text-3xl font-bold text-slate-900 text-center mb-12">Этапы вакуумной аспирационной биопсии</h2>
-          <div className="grid md:grid-cols-4 gap-6 relative">
-            {/* Connecting Line */}
-            <div className="hidden md:block absolute top-8 left-[12%] right-[12%] h-0.5 bg-slate-100 z-0"></div>
-            
+          <h2 className="text-3xl font-bold text-slate-900 text-center mb-6 md:mb-12">Этапы вакуумной аспирационной биопсии</h2>
+          <div className="flex flex-col gap-3">
             {[
               { step: "01", title: "Наведение", desc: "Позиционирование иглы под контролем УЗИ" },
               { step: "02", title: "Аспирация", desc: "Вакуумная фиксация образования" },
               { step: "03", title: "Срез", desc: "Ротационное иссечение тканей" },
               { step: "04", title: "Забор", desc: "Вакуумная транспортировка образца" },
             ].map((item, i) => (
-              <div key={i} className="relative z-10 flex flex-col items-center text-center group">
-                <div className="w-16 h-16 rounded-2xl bg-white border-2 border-slate-100 shadow-sm flex items-center justify-center text-xl font-bold text-slate-900 mb-4 group-hover:border-[#34D399] group-hover:text-[#34D399] transition-colors duration-300">
+              <div key={i} className="flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm hover:border-[#34D399]/50 transition-colors group w-full">
+                <div className="w-12 h-12 rounded-xl bg-slate-50 border-2 border-slate-100 flex items-center justify-center text-lg font-bold text-slate-900 flex-shrink-0 group-hover:border-[#34D399] group-hover:text-[#34D399] transition-colors duration-300">
                   {item.step}
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-1.5">{item.title}</h3>
-                <p className="text-slate-500 text-base">{item.desc}</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-slate-900 text-base">{item.title}</h3>
+                  <p className="text-slate-500 text-sm mt-0.5">{item.desc}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -311,25 +312,27 @@ export default function Equipment() {
       </section>
 
       {/* Clinical Value Cards */}
-      <section className="py-20 bg-slate-50">
+      <section className="py-10 md:py-20 bg-slate-50">
         <div className="container mx-auto px-4 md:px-6">
-          <h2 className="text-3xl font-bold text-slate-900 text-center mb-8">Преимущества для клиники</h2>
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-4">
-                  <Maximize2 className="w-6 h-6 text-blue-600" />
+          <h2 className="text-3xl font-bold text-slate-900 text-center mb-5 md:mb-8">Преимущества для клиники</h2>
+          <div className="flex flex-col gap-4">
+            <Card className="border border-slate-100 shadow-sm hover:shadow-md transition-shadow w-full">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <Maximize2 className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">Регулировка апертуры</h3>
                 </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-3">Регулировка апертуры</h3>
-                <ul className="space-y-2">
+                <ul className="space-y-1.5">
                   {[
                     "Точность регулировки 1 мм",
                     "Длина образца от 5 мм до 30 мм",
                     "Минимальная длина всего 5 мм",
                     "Максимальное сохранение здоровых тканей"
                   ].map((text, i) => (
-                    <li key={i} className="flex items-start gap-3 text-slate-700 text-base">
-                      <Check className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                    <li key={i} className="flex items-start gap-2 text-slate-700 text-sm">
+                      <Check className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                       <span>{text}</span>
                     </li>
                   ))}
@@ -337,21 +340,23 @@ export default function Equipment() {
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center mb-4">
-                  <Scissors className="w-6 h-6 text-teal-600" />
+            <Card className="border border-slate-100 shadow-sm hover:shadow-md transition-shadow w-full">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
+                    <Scissors className="w-5 h-5 text-teal-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">Тройная заточка</h3>
                 </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-3">Тройная заточка</h3>
-                <ul className="space-y-2">
+                <ul className="space-y-1.5">
                   {[
                     "Более острый и безопасный прокол",
                     "Плавная ротационная резка",
                     "Полная обработка образцов",
                     "Однонаправленный вращающийся нож"
                   ].map((text, i) => (
-                    <li key={i} className="flex items-start gap-3 text-slate-700 text-base">
-                      <Check className="w-5 h-5 text-teal-600 shrink-0 mt-0.5" />
+                    <li key={i} className="flex items-start gap-2 text-slate-700 text-sm">
+                      <Check className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
                       <span>{text}</span>
                     </li>
                   ))}
@@ -363,7 +368,7 @@ export default function Equipment() {
       </section>
 
       {/* Detailed Tech Specs (Light Table) */}
-      <section className="py-20 bg-white">
+      <section className="py-10 md:py-20 bg-white">
         <div className="container mx-auto px-4 md:px-6">
           <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-6">
             <div>
