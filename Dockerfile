@@ -9,7 +9,7 @@ WORKDIR /app
 # Install dependencies with Bun
 COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile && \
-    bun install lightningcss-linux-x64-musl @tailwindcss/oxide-linux-x64-musl sharp-linux-x64-musl --no-save
+    bun install lightningcss-linux-x64-musl @tailwindcss/oxide-linux-x64-musl @img/sharp-linux-x64-musl --no-save
 
 # Rebuild the source code only when needed
 FROM base AS builder
