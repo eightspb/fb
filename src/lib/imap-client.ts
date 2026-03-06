@@ -10,8 +10,8 @@ const pool = new Pool({
 
 const ATTACHMENTS_DIR = process.env.CRM_ATTACHMENTS_DIR || '/data/crm-attachments';
 const EXISTING_MESSAGE_IDS_CHUNK_SIZE = 1000;
-const ENVELOPE_BATCH_SIZE = 400;
-const BACKFILL_BATCHES_PER_SYNC = 4;
+const ENVELOPE_BATCH_SIZE = 100;
+const BACKFILL_BATCHES_PER_SYNC = 1;
 
 interface SyncResult {
   synced: number;
