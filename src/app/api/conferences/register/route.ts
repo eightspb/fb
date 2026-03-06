@@ -17,8 +17,9 @@ interface ConferenceRegistrationData {
   name: string;
   email: string;
   phone: string;
-  city?: string;
-  institution?: string;
+  city: string;
+  institution: string;
+  speciality: string;
   consent: boolean;
   conference: string;
 }
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
     const body: ConferenceRegistrationData = await request.json();
 
     // Validate required fields
-    if (!body.name || !body.email || !body.phone) {
+    if (!body.name || !body.email || !body.phone || !body.city || !body.institution || !body.speciality) {
       return NextResponse.json(
         { error: 'Все обязательные поля должны быть заполнены' },
         { status: 400 }
@@ -61,6 +62,7 @@ export async function POST(request: NextRequest) {
           phone: body.phone,
           city: body.city,
           institution: body.institution,
+          speciality: body.speciality,
           tag: 'form-conference',
           sourceUrl: request.headers.get('referer') || undefined,
         });
@@ -73,11 +75,11 @@ export async function POST(request: NextRequest) {
             body.name,
             body.email,
             body.phone,
-            body.city || null,
-            body.institution || null,
+            body.city,
+            body.institution,
             'new',
             request.headers.get('referer') || '',
-            JSON.stringify({ conference: body.conference }),
+            JSON.stringify({ conference: body.conference, speciality: body.speciality }),
             contactId,
           ]
         );
@@ -94,6 +96,7 @@ export async function POST(request: NextRequest) {
           pageUrl: request.headers.get('referer') || undefined,
           metadata: {
             conference: body.conference,
+            speciality: body.speciality,
           },
         }).catch(err => {
           console.error('[Conference Register] Ошибка отправки уведомления в Telegram:', err);

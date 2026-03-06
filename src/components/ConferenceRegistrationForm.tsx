@@ -19,6 +19,7 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
     phone: '',
     city: '',
     institution: '',
+    speciality: '',
     consent: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -46,6 +47,18 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
       newErrors.phone = 'Телефон обязателен для заполнения';
     } else if (!/^[\d\s\-\+\(\)]+$/.test(formData.phone)) {
       newErrors.phone = 'Введите корректный номер телефона';
+    }
+
+    if (!formData.city.trim()) {
+      newErrors.city = 'Город обязателен для заполнения';
+    }
+
+    if (!formData.institution.trim()) {
+      newErrors.institution = 'Медицинское учреждение обязательно для заполнения';
+    }
+
+    if (!formData.speciality.trim()) {
+      newErrors.speciality = 'Специальность обязательна для заполнения';
     }
 
     if (!formData.consent) {
@@ -97,6 +110,7 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
           phone: '',
           city: '',
           institution: '',
+          speciality: '',
           consent: false,
         });
       } else {
@@ -214,7 +228,7 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
 
       <div>
         <label htmlFor="city" className="block text-sm font-medium text-slate-700 mb-2">
-          Город
+          Город *
         </label>
         <input
           type="text"
@@ -222,14 +236,18 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
           name="city"
           value={formData.city}
           onChange={handleChange}
-          className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
+          required
+          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all ${
+            errors.city ? 'border-red-300' : 'border-slate-300'
+          }`}
           placeholder="Москва"
         />
+        {errors.city && <p className="mt-1 text-sm text-red-600">{errors.city}</p>}
       </div>
 
       <div>
         <label htmlFor="institution" className="block text-sm font-medium text-slate-700 mb-2">
-          Медицинское учреждение
+          Медицинское учреждение *
         </label>
         <input
           type="text"
@@ -237,9 +255,32 @@ export function ConferenceRegistrationForm({ conferenceName, conferenceId, confe
           name="institution"
           value={formData.institution}
           onChange={handleChange}
-          className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
+          required
+          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all ${
+            errors.institution ? 'border-red-300' : 'border-slate-300'
+          }`}
           placeholder="Название клиники"
         />
+        {errors.institution && <p className="mt-1 text-sm text-red-600">{errors.institution}</p>}
+      </div>
+
+      <div>
+        <label htmlFor="speciality" className="block text-sm font-medium text-slate-700 mb-2">
+          Специальность *
+        </label>
+        <input
+          type="text"
+          id="speciality"
+          name="speciality"
+          value={formData.speciality}
+          onChange={handleChange}
+          required
+          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all ${
+            errors.speciality ? 'border-red-300' : 'border-slate-300'
+          }`}
+          placeholder="Хирург, онколог, терапевт..."
+        />
+        {errors.speciality && <p className="mt-1 text-sm text-red-600">{errors.speciality}</p>}
       </div>
 
 

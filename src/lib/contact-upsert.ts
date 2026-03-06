@@ -6,6 +6,7 @@ export interface ContactFormData {
   phone?: string;
   city?: string;
   institution?: string;
+  speciality?: string;
   tag: string;         // e.g. 'form-contact', 'form-cp', 'form-conference'
   sourceUrl?: string;
 }
@@ -19,7 +20,7 @@ export async function upsertContact(
   client: PoolClient,
   data: ContactFormData
 ): Promise<string> {
-  const { fullName, email, phone, city, institution, tag, sourceUrl } = data;
+  const { fullName, email, phone, city, institution, speciality, tag, sourceUrl } = data;
 
   // 1. Try to find existing contact
   let existing: { id: string } | null = null;
@@ -48,9 +49,10 @@ export async function upsertContact(
         phone       = COALESCE(NULLIF(phone, ''),       $3),
         city        = COALESCE(NULLIF(city, ''),        $4),
         institution = COALESCE(NULLIF(institution, ''), $5),
-        tags        = CASE WHEN $6 = ANY(tags) THEN tags ELSE array_append(tags, $6) END,
-        source_urls = CASE WHEN $7 IS NULL OR $7 = ANY(source_urls) THEN source_urls
-                          ELSE array_append(source_urls, $7) END,
+        speciality  = COALESCE(NULLIF(speciality, ''),  $6),
+        tags        = CASE WHEN $7 = ANY(tags) THEN tags ELSE array_append(tags, $7) END,
+        source_urls = CASE WHEN $8 IS NULL OR $8 = ANY(source_urls) THEN source_urls
+                          ELSE array_append(source_urls, $8) END,
         import_source = CASE WHEN import_source = 'tilda' THEN 'form' ELSE import_source END,
         updated_at  = NOW()
        WHERE id = $1`,
@@ -60,6 +62,7 @@ export async function upsertContact(
         phone ? phone.trim() : null,
         city || null,
         institution || null,
+        speciality || null,
         tag,
         sourceUrl || null,
       ]
@@ -70,8 +73,8 @@ export async function upsertContact(
   // 2b. Insert new contact
   const res = await client.query<{ id: string }>(
     `INSERT INTO contacts
-       (full_name, email, phone, city, institution, tags, status, import_source, source_urls)
-     VALUES ($1, $2, $3, $4, $5, $6, 'new', 'form', $7)
+       (full_name, email, phone, city, institution, speciality, tags, status, import_source, source_urls)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 'new', 'form', $8)
      RETURNING id`,
     [
       fullName.trim(),
@@ -79,6 +82,7 @@ export async function upsertContact(
       phone ? phone.trim() : null,
       city || null,
       institution || null,
+      speciality || null,
       [tag],
       sourceUrl ? [sourceUrl] : [],
     ]
