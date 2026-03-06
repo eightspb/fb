@@ -10,7 +10,7 @@ const pool = new Pool({
 });
 
 // In-memory cache: imageId -> WebP buffer
-const webpCache = new Map<string, Buffer>();
+const webpCache = new Map<string, Uint8Array>();
 
 export async function GET(
   request: Request,
@@ -52,9 +52,10 @@ export async function GET(
         .webp({ quality: 82 })
         .toBuffer();
 
-      webpCache.set(id, webpBuffer);
+      const webpUint8 = new Uint8Array(webpBuffer);
+      webpCache.set(id, webpUint8);
 
-      return new NextResponse(webpBuffer, {
+      return new NextResponse(webpUint8, {
         headers: {
           'Content-Type': 'image/webp',
           'Cache-Control': 'public, max-age=31536000, immutable',
@@ -64,7 +65,7 @@ export async function GET(
     }
 
     // Fallback: return original image for clients that don't support WebP
-    return new NextResponse(image_data, {
+    return new NextResponse(new Uint8Array(image_data), {
       headers: {
         'Content-Type': mime_type || 'image/jpeg',
         'Cache-Control': 'public, max-age=31536000, immutable',
@@ -78,4 +79,3 @@ export async function GET(
     client.release();
   }
 }
-
