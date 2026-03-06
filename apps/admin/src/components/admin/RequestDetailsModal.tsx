@@ -133,7 +133,7 @@ export function RequestDetailsModal({
               <>
                 <span className="text-xs text-slate-300">·</span>
                 <button
-                  onClick={() => { onClose(); router.push('/contacts'); }}
+                  onClick={() => { onClose(); router.push(`/contacts?contact=${request.contact_id}`); }}
                   className="text-xs text-violet-600 hover:underline flex items-center gap-0.5"
                 >
                   <User className="w-3 h-3" />

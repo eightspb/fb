@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -608,6 +609,17 @@ export default function ContactsPage() {
   const [selectAll, setSelectAll] = useState(false);
 
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const contactId = searchParams.get('contact');
+    if (!contactId) return;
+    fetch(`/api/admin/contacts/${contactId}`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setSelectedContact(data); })
+      .catch(() => {});
+  }, [searchParams]);
 
   const [showBulkTagInput, setShowBulkTagInput] = useState(false);
   const [bulkTagValue, setBulkTagValue] = useState('');
