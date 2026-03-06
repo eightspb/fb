@@ -9,6 +9,9 @@ const pool = new Pool({
 });
 
 const ATTACHMENTS_DIR = process.env.CRM_ATTACHMENTS_DIR || '/data/crm-attachments';
+const EXISTING_MESSAGE_IDS_CHUNK_SIZE = 1000;
+const ENVELOPE_BATCH_SIZE = 400;
+const BACKFILL_BATCHES_PER_SYNC = 4;
 
 interface SyncResult {
   synced: number;
@@ -49,8 +52,6 @@ interface CrmEmailAttachment {
   created_at: string;
 }
 
-const EXISTING_MESSAGE_IDS_CHUNK_SIZE = 1000;
-
 const EMAIL_PARTICIPANT_WHERE = `(
   LOWER(e.contact_email) = LOWER($1)
   OR LOWER(e.from_address) = LOWER($1)
@@ -66,6 +67,12 @@ const EMAIL_PARTICIPANT_WHERE = `(
   )
 )`;
 
+interface SyncBatch {
+  range: string;
+  useUid: boolean;
+  label: string;
+}
+
 function createImapClient(): ImapFlow {
   const host = process.env.IMAP_HOST || 'imap.mail.ru';
   const port = parseInt(process.env.IMAP_PORT || '993');
@@ -80,7 +87,7 @@ function createImapClient(): ImapFlow {
     },
     logger: false,
     // Таймаут на соединение и команды (мс)
-    socketTimeout: 30000,
+    socketTimeout: 120000,
   });
 
   // Предотвращаем uncaughtException от socket timeout
@@ -134,6 +141,102 @@ async function findSentFolder(client: ImapFlow): Promise<string | null> {
     }
   }
   return null;
+}
+
+function buildSyncBatches(
+  totalMessages: number,
+  lastSyncedUid: number,
+  backfillSeqCursor: number | null,
+  backfillCompleted: boolean
+): { batches: SyncBatch[]; nextBackfillCursor: number | null; backfillDoneAfterRun: boolean } {
+  const batches: SyncBatch[] = [];
+
+  if (lastSyncedUid > 0) {
+    batches.push({
+      range: `${lastSyncedUid + 1}:*`,
+      useUid: true,
+      label: 'incremental',
+    });
+  } else if (totalMessages > 0) {
+    const recentStart = Math.max(1, totalMessages - ENVELOPE_BATCH_SIZE + 1);
+    batches.push({
+      range: `${recentStart}:*`,
+      useUid: false,
+      label: 'recent',
+    });
+  }
+
+  if (totalMessages === 0 || backfillCompleted) {
+    return {
+      batches,
+      nextBackfillCursor: backfillCompleted ? 0 : backfillSeqCursor,
+      backfillDoneAfterRun: backfillCompleted || totalMessages === 0,
+    };
+  }
+
+  let cursor = backfillSeqCursor;
+  if (cursor === null) {
+    cursor = lastSyncedUid > 0
+      ? totalMessages
+      : Math.max(0, totalMessages - ENVELOPE_BATCH_SIZE);
+  }
+
+  for (let i = 0; i < BACKFILL_BATCHES_PER_SYNC && cursor > 0; i++) {
+    const end = cursor;
+    const start = Math.max(1, end - ENVELOPE_BATCH_SIZE + 1);
+    batches.push({
+      range: `${start}:${end}`,
+      useUid: false,
+      label: `backfill-${i + 1}`,
+    });
+    cursor = start - 1;
+  }
+
+  return {
+    batches,
+    nextBackfillCursor: cursor,
+    backfillDoneAfterRun: cursor <= 0,
+  };
+}
+
+async function getExistingEnvelopeRefs(
+  pgClient: any,
+  folderName: string,
+  envelopes: Array<{ uid: number; messageId: string | undefined }>
+): Promise<{ existingIds: Set<string>; existingUids: Set<number> }> {
+  const existingIds = new Set<string>();
+  const existingUids = new Set<number>();
+
+  const messageIds = envelopes.map((e) => e.messageId).filter(Boolean) as string[];
+  for (let i = 0; i < messageIds.length; i += EXISTING_MESSAGE_IDS_CHUNK_SIZE) {
+    const chunk = messageIds.slice(i, i + EXISTING_MESSAGE_IDS_CHUNK_SIZE);
+    if (chunk.length === 0) continue;
+
+    const existing = await pgClient.query(
+      `SELECT message_id FROM crm_emails WHERE message_id = ANY($1)`,
+      [chunk]
+    );
+
+    for (const row of existing.rows) {
+      if (row.message_id) existingIds.add(row.message_id);
+    }
+  }
+
+  const uids = envelopes.map((e) => e.uid);
+  if (uids.length > 0) {
+    const existingByUid = await pgClient.query(
+      `SELECT imap_uid FROM crm_emails WHERE imap_folder = $1 AND imap_uid = ANY($2::bigint[])`,
+      [folderName, uids]
+    );
+
+    for (const row of existingByUid.rows) {
+      if (row.imap_uid !== null && row.imap_uid !== undefined) {
+        existingUids.add(Number(row.imap_uid));
+      }
+    }
+  }
+
+  return { existingIds, existingUids };
 }
 
 /**
@@ -246,6 +349,8 @@ async function syncFolder(
 
     let lastUidValidity = stateResult.rows[0]?.last_uid_validity;
     let lastSyncedUid = stateResult.rows[0]?.last_synced_uid || 0;
+    let backfillSeqCursor = stateResult.rows[0]?.backfill_seq_cursor ?? null;
+    let backfillCompleted = stateResult.rows[0]?.backfill_completed ?? false;
 
     // Открываем папку
     const lock = await imapClient.getMailboxLock(folderName);
@@ -263,138 +368,144 @@ async function syncFolder(
       if (lastUidValidity && currentUidValidity !== lastUidValidity) {
         console.log(`[IMAP] UIDVALIDITY changed for ${folderName}, resetting sync state`);
         lastSyncedUid = 0;
+        backfillSeqCursor = null;
+        backfillCompleted = false;
       }
 
-      console.log(
-        `[IMAP] ${folderName}: full envelope scan, total=${mailbox.exists || 0}, lastSyncedUid=${lastSyncedUid}`
-      );
+      const totalMessages = mailbox.exists || 0;
+      const batchPlan = buildSyncBatches(totalMessages, lastSyncedUid, backfillSeqCursor, backfillCompleted);
+      console.log(`[IMAP] ${folderName}: total=${totalMessages}, lastSyncedUid=${lastSyncedUid}, backfillSeqCursor=${backfillSeqCursor}, backfillCompleted=${backfillCompleted}`);
       let maxUid = lastSyncedUid;
 
-      // Ручной sync должен уметь добирать старую историю, поэтому сканируем всю папку.
-      const envelopes: Array<{ uid: number; messageId: string | undefined }> = [];
-      for await (const msg of imapClient.fetch('1:*', {
-        uid: true,
-        envelope: true,
-      })) {
-        envelopes.push({ uid: msg.uid, messageId: msg.envelope?.messageId });
-        if (msg.uid > maxUid) maxUid = msg.uid;
-      }
-
-      console.log(`[IMAP] ${folderName}: got ${envelopes.length} envelopes, maxUid=${maxUid}`);
-
-      // Шаг 2: фильтруем уже существующие в БД по message_id
-      const messageIds = envelopes.map(e => e.messageId).filter(Boolean) as string[];
-      let existingIds = new Set<string>();
-
-      for (let i = 0; i < messageIds.length; i += EXISTING_MESSAGE_IDS_CHUNK_SIZE) {
-        const chunk = messageIds.slice(i, i + EXISTING_MESSAGE_IDS_CHUNK_SIZE);
-        if (chunk.length === 0) continue;
-
-        const existing = await pgClient.query(
-          `SELECT message_id FROM crm_emails WHERE message_id = ANY($1)`,
-          [chunk]
-        );
-
-        for (const row of existing.rows) {
-          if (row.message_id) existingIds.add(row.message_id);
+      for (const batch of batchPlan.batches) {
+        const envelopes: Array<{ uid: number; messageId: string | undefined }> = [];
+        for await (const msg of imapClient.fetch(batch.range, {
+          uid: true,
+          envelope: true,
+        }, { uid: batch.useUid })) {
+          envelopes.push({ uid: msg.uid, messageId: msg.envelope?.messageId });
+          if (msg.uid > maxUid) maxUid = msg.uid;
         }
-      }
 
-      // Для писем без message-id используем UID как защиту от повторного импорта.
-      const newEnvelopes = envelopes.filter((envelope) => {
-        if (envelope.messageId) {
-          return !existingIds.has(envelope.messageId);
+        if (envelopes.length === 0) {
+          console.log(`[IMAP] ${folderName}: batch ${batch.label} ${batch.range} empty`);
+          continue;
         }
-        return envelope.uid > lastSyncedUid;
-      });
-      console.log(`[IMAP] ${folderName}: ${newEnvelopes.length} new messages to fetch`);
 
-      for (const env of newEnvelopes) {
-        try {
-          // Загружаем source отдельным запросом по конкретному UID
-          let source: Buffer | undefined;
-          for await (const msg of imapClient.fetch({ uid: env.uid }, { uid: true, source: true }, { uid: true })) {
-            source = msg.source;
+        const { existingIds, existingUids } = await getExistingEnvelopeRefs(pgClient, folderName, envelopes);
+        const newEnvelopes = envelopes.filter((envelope) => {
+          if (existingUids.has(envelope.uid)) {
+            return false;
           }
-          if (!source) continue;
+          if (envelope.messageId && existingIds.has(envelope.messageId)) {
+            return false;
+          }
+          return true;
+        });
 
-          const parsed: ParsedMail = await simpleParser(source) as ParsedMail;
+        console.log(`[IMAP] ${folderName}: batch ${batch.label} ${batch.range} envelopes=${envelopes.length} new=${newEnvelopes.length}`);
 
-          const messageId = parsed.messageId || null;
-          const fromAddress = parsed.from?.value?.[0]?.address || '';
-          const fromName = parsed.from?.value?.[0]?.name || null;
-
-          const toField = parsed.to;
-          const toAddresses: string[] = toField
-            ? (Array.isArray(toField)
-              ? toField.flatMap((t: any) => t.value)
-              : toField.value
-            ).map((a: any) => a.address || '').filter(Boolean)
-            : [];
-
-          const ccField = parsed.cc;
-          const ccAddresses: string[] = ccField
-            ? (Array.isArray(ccField)
-              ? ccField.flatMap((t: any) => t.value)
-              : ccField.value
-            ).map((a: any) => a.address || '').filter(Boolean)
-            : [];
-
-          const contactEmail = determineContactEmail(direction, fromAddress, toAddresses);
-          const inReplyTo = typeof parsed.inReplyTo === 'string' ? parsed.inReplyTo : null;
-          const refs = parsed.references;
-          const referencesHeader = refs
-            ? (Array.isArray(refs) ? refs.join(' ') : String(refs))
-            : null;
-
-          const hasAttachments = (parsed.attachments?.length || 0) > 0;
-          const sentAt = parsed.date || new Date();
-
-          const insertResult = await pgClient.query(
-            `INSERT INTO crm_emails
-             (message_id, in_reply_to, references_header, direction, channel,
-              from_address, from_name, to_addresses, cc_addresses,
-              subject, body_html, body_text, has_attachments,
-              contact_email, sent_at)
-             VALUES ($1, $2, $3, $4, 'email', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-             ON CONFLICT (message_id) DO NOTHING
-             RETURNING id`,
-            [
-              messageId, inReplyTo, referencesHeader, direction,
-              fromAddress, fromName,
-              toAddresses.length > 0 ? toAddresses : [''],
-              ccAddresses.length > 0 ? ccAddresses : null,
-              parsed.subject || null,
-              parsed.html || null,
-              parsed.text || null,
-              hasAttachments,
-              contactEmail,
-              sentAt,
-            ]
-          );
-
-          if (insertResult.rows.length > 0) {
-            synced++;
-            if (hasAttachments && parsed.attachments) {
-              await saveAttachmentMetadata(insertResult.rows[0].id, parsed.attachments as Attachment[], env.uid, folderName, pgClient);
+        for (const env of newEnvelopes) {
+          try {
+            let source: Buffer | undefined;
+            for await (const msg of imapClient.fetch({ uid: env.uid }, { uid: true, source: true }, { uid: true })) {
+              source = msg.source;
             }
+            if (!source) continue;
+
+            const parsed: ParsedMail = await simpleParser(source) as ParsedMail;
+
+            const messageId = parsed.messageId || null;
+            const fromAddress = parsed.from?.value?.[0]?.address || '';
+            const fromName = parsed.from?.value?.[0]?.name || null;
+
+            const toField = parsed.to;
+            const toAddresses: string[] = toField
+              ? (Array.isArray(toField)
+                ? toField.flatMap((t: any) => t.value)
+                : toField.value
+              ).map((a: any) => a.address || '').filter(Boolean)
+              : [];
+
+            const ccField = parsed.cc;
+            const ccAddresses: string[] = ccField
+              ? (Array.isArray(ccField)
+                ? ccField.flatMap((t: any) => t.value)
+                : ccField.value
+              ).map((a: any) => a.address || '').filter(Boolean)
+              : [];
+
+            const contactEmail = determineContactEmail(direction, fromAddress, toAddresses);
+            const inReplyTo = typeof parsed.inReplyTo === 'string' ? parsed.inReplyTo : null;
+            const refs = parsed.references;
+            const referencesHeader = refs
+              ? (Array.isArray(refs) ? refs.join(' ') : String(refs))
+              : null;
+
+            const hasAttachments = (parsed.attachments?.length || 0) > 0;
+            const sentAt = parsed.date || new Date();
+
+            const insertResult = await pgClient.query(
+              `INSERT INTO crm_emails
+               (message_id, in_reply_to, references_header, direction, channel,
+                from_address, from_name, to_addresses, cc_addresses,
+                subject, body_html, body_text, has_attachments,
+                contact_email, sent_at, imap_uid, imap_folder)
+               VALUES ($1, $2, $3, $4, 'email', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+               ON CONFLICT DO NOTHING
+               RETURNING id`,
+              [
+                messageId, inReplyTo, referencesHeader, direction,
+                fromAddress, fromName,
+                toAddresses.length > 0 ? toAddresses : [''],
+                ccAddresses.length > 0 ? ccAddresses : null,
+                parsed.subject || null,
+                parsed.html || null,
+                parsed.text || null,
+                hasAttachments,
+                contactEmail,
+                sentAt,
+                env.uid,
+                folderName,
+              ]
+            );
+
+            if (insertResult.rows.length > 0) {
+              synced++;
+              if (hasAttachments && parsed.attachments) {
+                await saveAttachmentMetadata(insertResult.rows[0].id, parsed.attachments as Attachment[], env.uid, folderName, pgClient);
+              }
+            }
+          } catch (fetchError: any) {
+            console.error(`[IMAP] Error fetching/parsing UID ${env.uid}:`, fetchError.message);
           }
-        } catch (fetchError: any) {
-          console.error(`[IMAP] Error fetching/parsing UID ${env.uid}:`, fetchError.message);
         }
       }
 
-      // Обновляем состояние синхронизации
-      if (maxUid > lastSyncedUid || !lastUidValidity) {
+      const shouldPersistState =
+        maxUid > lastSyncedUid ||
+        !lastUidValidity ||
+        batchPlan.nextBackfillCursor !== backfillSeqCursor ||
+        batchPlan.backfillDoneAfterRun !== backfillCompleted;
+
+      if (shouldPersistState) {
         await pgClient.query(
-          `INSERT INTO crm_imap_sync_state (folder_name, last_uid_validity, last_synced_uid, last_sync_at, updated_at)
-           VALUES ($1, $2, $3, NOW(), NOW())
+          `INSERT INTO crm_imap_sync_state (folder_name, last_uid_validity, last_synced_uid, backfill_seq_cursor, backfill_completed, last_sync_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
            ON CONFLICT (folder_name) DO UPDATE SET
              last_uid_validity = $2,
              last_synced_uid = $3,
+             backfill_seq_cursor = $4,
+             backfill_completed = $5,
              last_sync_at = NOW(),
              updated_at = NOW()`,
-          [folderName, currentUidValidity, maxUid > 0 ? maxUid : lastSyncedUid]
+          [
+            folderName,
+            currentUidValidity,
+            maxUid > 0 ? maxUid : lastSyncedUid,
+            batchPlan.nextBackfillCursor,
+            batchPlan.backfillDoneAfterRun,
+          ]
         );
       }
     } finally {
@@ -413,32 +524,35 @@ async function syncFolder(
 export async function syncAll(): Promise<SyncResult> {
   const result: SyncResult = { synced: 0, folders: [], errors: [] };
 
-  const client = createImapClient();
-
+  // Синхронизируем INBOX
   try {
-    await client.connect();
-
-    // Синхронизируем INBOX
+    const inboxClient = createImapClient();
+    await inboxClient.connect();
     try {
-      const inboxCount = await syncFolder(client, 'INBOX', 'inbound');
+      const inboxCount = await syncFolder(inboxClient, 'INBOX', 'inbound');
       result.synced += inboxCount;
       result.folders.push('INBOX');
       console.log(`[IMAP] Synced ${inboxCount} emails from INBOX`);
-    } catch (error: any) {
-      console.error('[IMAP] Error syncing INBOX:', error.message);
-      result.errors.push(`INBOX: ${error.message}`);
+    } finally {
+      await inboxClient.logout().catch(() => {});
     }
+  } catch (error: any) {
+    console.error('[IMAP] Error syncing INBOX:', error.message);
+    result.errors.push(`INBOX: ${error.message}`);
+  }
 
-    // Находим и синхронизируем папку "Отправленные"
+  // Находим и синхронизируем папку "Отправленные"
+  try {
+    const sentClient = createImapClient();
+    await sentClient.connect();
     try {
-      const sentFolder = await findSentFolder(client);
+      const sentFolder = await findSentFolder(sentClient);
       if (sentFolder) {
-        const sentCount = await syncFolder(client, sentFolder, 'outbound');
+        const sentCount = await syncFolder(sentClient, sentFolder, 'outbound');
         result.synced += sentCount;
         result.folders.push(sentFolder);
         console.log(`[IMAP] Synced ${sentCount} emails from ${sentFolder}`);
 
-        // Удаляем устаревшую запись 'Sent' если реальная папка называется иначе
         if (sentFolder !== 'Sent') {
           const pgClient = await pool.connect();
           try {
@@ -453,12 +567,12 @@ export async function syncAll(): Promise<SyncResult> {
         console.warn('[IMAP] Sent folder not found');
         result.errors.push('Sent folder not found');
       }
-    } catch (error: any) {
-      console.error('[IMAP] Error syncing Sent:', error.message);
-      result.errors.push(`Sent: ${error.message}`);
+    } finally {
+      await sentClient.logout().catch(() => {});
     }
-  } finally {
-    await client.logout().catch(() => {});
+  } catch (error: any) {
+    console.error('[IMAP] Error syncing Sent:', error.message);
+    result.errors.push(`Sent: ${error.message}`);
   }
 
   return result;

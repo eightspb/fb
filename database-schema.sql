@@ -614,6 +614,8 @@ CREATE TABLE IF NOT EXISTS crm_emails (
   submission_id UUID REFERENCES form_submissions(id) ON DELETE SET NULL,
   contact_email TEXT NOT NULL,
   sent_at TIMESTAMPTZ NOT NULL,
+  imap_uid BIGINT,
+  imap_folder TEXT,
   synced_at TIMESTAMPTZ DEFAULT NOW(),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -623,6 +625,9 @@ CREATE INDEX IF NOT EXISTS idx_crm_emails_submission_id ON crm_emails(submission
 CREATE INDEX IF NOT EXISTS idx_crm_emails_message_id ON crm_emails(message_id);
 CREATE INDEX IF NOT EXISTS idx_crm_emails_sent_at ON crm_emails(sent_at DESC);
 CREATE INDEX IF NOT EXISTS idx_crm_emails_direction ON crm_emails(direction);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_emails_imap_folder_uid
+  ON crm_emails (imap_folder, imap_uid)
+  WHERE imap_folder IS NOT NULL AND imap_uid IS NOT NULL;
 
 ALTER TABLE crm_emails ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow all for postgres on crm_emails" ON crm_emails;
@@ -651,6 +656,8 @@ CREATE TABLE IF NOT EXISTS crm_imap_sync_state (
   folder_name TEXT NOT NULL UNIQUE,
   last_uid_validity INTEGER,
   last_synced_uid INTEGER DEFAULT 0,
+  backfill_seq_cursor INTEGER,
+  backfill_completed BOOLEAN NOT NULL DEFAULT false,
   last_sync_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
