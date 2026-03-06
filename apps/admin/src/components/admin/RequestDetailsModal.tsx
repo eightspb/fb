@@ -2,8 +2,7 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ExternalLink, User } from 'lucide-react';
+import { ExternalLink, User, Inbox, Clock, CheckCircle2, Archive } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { LeadInfoPanel } from './LeadInfoPanel';
 
@@ -39,28 +38,27 @@ const formTypeLabels: Record<string, string> = {
   'contact': 'Контактная форма',
   'cp': 'Запрос КП',
   'training': 'Заявка на обучение',
-  'conference_registration': 'Регистрация на конференцию'
+  'conference_registration': 'Регистрация на конференцию',
 };
 
-const statusOptions = [
-  { value: 'new', label: 'Новая', color: 'bg-blue-100 text-blue-800' },
-  { value: 'in_progress', label: 'В работе', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'processed', label: 'Обработана', color: 'bg-green-100 text-green-800' },
-  { value: 'archived', label: 'В архиве', color: 'bg-gray-100 text-gray-800' }
-];
+const formTypeBadgeStyle: Record<string, string> = {
+  'contact': 'bg-violet-50 text-violet-700 border-violet-200',
+  'cp': 'bg-blue-50 text-blue-700 border-blue-200',
+  'training': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'conference_registration': 'bg-amber-50 text-amber-700 border-amber-200',
+};
 
-// Цвета приоритета: высокий/срочный — красный, низкий — зелёный
-const priorityOptions = [
-  { value: 'low', label: 'Низкий', color: 'bg-green-100 text-green-700' },
-  { value: 'normal', label: 'Обычный', color: 'bg-slate-100 text-slate-600' },
-  { value: 'high', label: 'Высокий', color: 'bg-red-100 text-red-700' },
-  { value: 'urgent', label: 'Срочный', color: 'bg-red-200 text-red-800 font-semibold' }
-];
+const statusConfig: Record<string, { label: string; pill: string; dot: string; icon: React.ElementType }> = {
+  new: { label: 'Новая', pill: 'bg-blue-50 text-blue-700 border-blue-100', dot: 'bg-blue-500', icon: Inbox },
+  in_progress: { label: 'В работе', pill: 'bg-amber-50 text-amber-700 border-amber-100', dot: 'bg-amber-500', icon: Clock },
+  processed: { label: 'Обработана', pill: 'bg-emerald-50 text-emerald-700 border-emerald-100', dot: 'bg-emerald-500', icon: CheckCircle2 },
+  archived: { label: 'В архиве', pill: 'bg-slate-100 text-slate-500 border-slate-200', dot: 'bg-slate-400', icon: Archive },
+};
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleString('ru-RU', {
     day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
+    hour: '2-digit', minute: '2-digit',
   });
 }
 
@@ -69,15 +67,15 @@ export function RequestDetailsModal({
   isOpen,
   onClose,
   onUpdate,
-  onDelete
+  onDelete,
 }: RequestDetailsModalProps) {
   const router = useRouter();
 
   if (!request) return null;
 
-  const currentStatus = statusOptions.find(s => s.value === request.status) || statusOptions[0];
-  const currentPriority = priorityOptions.find(p => p.value === (request.priority || 'normal')) || priorityOptions[1];
-  const showPriority = request.priority && request.priority !== 'normal';
+  const sc = statusConfig[request.status] || statusConfig['new'];
+  const priorityUrgent = request.priority === 'urgent';
+  const priorityHigh = request.priority === 'high';
 
   const handleOpenFull = () => {
     onClose();
@@ -86,82 +84,69 @@ export function RequestDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
-        <DialogHeader className="border-b pb-3">
-          {/* Строка 1: имя + кнопка "Открыть полностью" */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <DialogTitle className="text-lg font-semibold flex items-center gap-2 min-w-0">
-              <User className="w-5 h-5 shrink-0" />
-              <span className="truncate">{request.name}</span>
-            </DialogTitle>
-            <Button variant="outline" size="sm" onClick={handleOpenFull} className="w-full sm:w-auto shrink-0">
-              <ExternalLink className="w-4 h-4 mr-1" />
-              <span className="sm:hidden">Открыть</span>
-              <span className="hidden sm:inline">Открыть полностью</span>
-            </Button>
-          </div>
-
-          {/* Строка 2: тип · дата · источник · статус · приоритет — всё в одну строку */}
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 pr-8 sm:pr-0">
-            <Badge variant="outline" className="text-xs font-normal">
-              {formTypeLabels[request.form_type] || request.form_type}
-            </Badge>
-            <span className="text-xs text-slate-400">{formatDate(request.created_at)}</span>
-            {request.page_url && (
-              <>
-                <span className="text-xs text-slate-300">·</span>
-                <a
-                  href={request.page_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-blue-500 hover:underline truncate max-w-[160px]"
-                >
-                  {request.page_url.replace(/^https?:\/\/[^/]+/, '') || '/'}
-                </a>
-              </>
-            )}
-            <span className="text-xs text-slate-300">·</span>
-            <Badge className={`text-xs px-1.5 py-0 ${currentStatus.color}`}>
-              {currentStatus.label}
-            </Badge>
-            {showPriority && (
-              <Badge className={`text-xs px-1.5 py-0 ${currentPriority.color}`}>
-                {currentPriority.label}
-              </Badge>
-            )}
-            {request.contact_id && (
-              <>
-                <span className="text-xs text-slate-300">·</span>
-                <button
-                  onClick={() => { onClose(); router.push(`/contacts?contact=${request.contact_id}`); }}
-                  className="text-xs text-violet-600 hover:underline flex items-center gap-0.5"
-                >
-                  <User className="w-3 h-3" />
-                  Контакт
-                </button>
-              </>
-            )}
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[92dvh] overflow-hidden p-0 gap-0 rounded-2xl border-slate-200 shadow-xl">
+        {/* ── Шапка модалки ── */}
+        <DialogHeader className="px-5 pt-5 pb-4 border-b border-slate-100 shrink-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <DialogTitle className="text-base font-semibold text-slate-900 flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                  <User className="w-3.5 h-3.5 text-slate-500" />
+                </div>
+                <span className="truncate">{request.name}</span>
+              </DialogTitle>
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${formTypeBadgeStyle[request.form_type] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                  {formTypeLabels[request.form_type] || request.form_type}
+                </span>
+                <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${sc.pill}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
+                  {sc.label}
+                </span>
+                {priorityUrgent && (
+                  <span className="text-xs px-2 py-0.5 rounded-full border font-medium bg-red-50 text-red-700 border-red-200">
+                    Срочный
+                  </span>
+                )}
+                {priorityHigh && !priorityUrgent && (
+                  <span className="text-xs px-2 py-0.5 rounded-full border font-medium bg-orange-50 text-orange-700 border-orange-200">
+                    Высокий приоритет
+                  </span>
+                )}
+                <span className="text-xs text-slate-400">{formatDate(request.created_at)}</span>
+                {request.contact_id && (
+                  <button
+                    onClick={() => { onClose(); router.push(`/contacts?contact=${request.contact_id}`); }}
+                    className="text-xs text-violet-600 hover:text-violet-800 hover:underline flex items-center gap-1 transition-colors"
+                  >
+                    <User className="w-3 h-3" />
+                    Перейти к контакту
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleOpenFull}
+                className="h-8 gap-1.5 text-xs border-slate-200"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Открыть</span>
+              </Button>
+            </div>
           </div>
         </DialogHeader>
 
-        <div className="py-3">
+        {/* ── Контент ── */}
+        <div className="overflow-y-auto flex-1 px-5 py-4">
           <LeadInfoPanel
             request={request}
             onUpdate={onUpdate}
             onDelete={(id) => { onDelete(id); onClose(); }}
             compact
           />
-        </div>
-
-        {/* Нижние кнопки */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-3 border-t">
-          <Button variant="outline" onClick={handleOpenFull} className="w-full sm:w-auto">
-            <ExternalLink className="w-4 h-4 mr-1" />
-            Открыть полностью
-          </Button>
-          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
-            Закрыть
-          </Button>
         </div>
       </DialogContent>
     </Dialog>

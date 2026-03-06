@@ -19,6 +19,12 @@ import {
   User,
   Pencil,
   X,
+  Trash2,
+  ChevronDown,
+  Inbox,
+  CheckCircle2,
+  Archive,
+  Save,
 } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 import type { RequestItem } from './RequestDetailsModal';
@@ -30,21 +36,21 @@ interface LeadInfoPanelProps {
   compact?: boolean;
 }
 
-const statusOptions = [
-  { value: 'new', label: 'Новая', color: 'bg-blue-100 text-blue-800' },
-  { value: 'in_progress', label: 'В работе', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'processed', label: 'Обработана', color: 'bg-green-100 text-green-800' },
-  { value: 'archived', label: 'В архиве', color: 'bg-gray-100 text-gray-800' }
+const statusConfig = [
+  { value: 'new', label: 'Новая', pill: 'bg-blue-50 text-blue-700 border border-blue-200', dot: 'bg-blue-500', icon: Inbox },
+  { value: 'in_progress', label: 'В работе', pill: 'bg-amber-50 text-amber-700 border border-amber-200', dot: 'bg-amber-500', icon: Clock },
+  { value: 'processed', label: 'Обработана', pill: 'bg-emerald-50 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-500', icon: CheckCircle2 },
+  { value: 'archived', label: 'В архиве', pill: 'bg-slate-100 text-slate-500 border border-slate-200', dot: 'bg-slate-400', icon: Archive },
 ];
 
-const priorityOptions = [
-  { value: 'low', label: 'Низкий', color: 'bg-gray-100 text-gray-600' },
-  { value: 'normal', label: 'Обычный', color: 'bg-blue-100 text-blue-600' },
-  { value: 'high', label: 'Высокий', color: 'bg-orange-100 text-orange-600' },
-  { value: 'urgent', label: 'Срочный', color: 'bg-red-100 text-red-600' }
+const priorityConfig = [
+  { value: 'low', label: 'Низкий', pill: 'bg-slate-50 text-slate-500 border border-slate-200' },
+  { value: 'normal', label: 'Обычный', pill: 'bg-slate-50 text-slate-600 border border-slate-200' },
+  { value: 'high', label: 'Высокий', pill: 'bg-orange-50 text-orange-700 border border-orange-200' },
+  { value: 'urgent', label: 'Срочный', pill: 'bg-red-50 text-red-700 border border-red-200' },
 ];
 
-// Редактируемое поле — просто текст
+// Inline-редактируемое поле с hover-эффектом
 function EditableField({
   label,
   value,
@@ -71,45 +77,58 @@ function EditableField({
   };
 
   return (
-    <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-      <div className="text-slate-500 shrink-0">{icon}</div>
-      <div className="flex-1 min-w-0">
-        <div className="text-xs text-slate-500">{label}</div>
-        {editing ? (
-          <div className="flex items-center gap-1 mt-1">
-            <Input
-              type={type}
-              value={draft}
-              onChange={e => setDraft(e.target.value)}
-              className="h-7 text-sm py-0"
-              autoFocus
-              onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') { setDraft(value); setEditing(false); } }}
-            />
-            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-green-600" onClick={handleSave} disabled={saving}>
-              <Check className="w-3.5 h-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-slate-400" onClick={() => { setDraft(value); setEditing(false); }}>
-              <X className="w-3.5 h-3.5" />
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1 group">
-            <span className="text-sm font-medium truncate">{value || <span className="text-slate-400 italic text-xs">не указано</span>}</span>
-            <Button
-              variant="ghost" size="icon"
-              className="h-6 w-6 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-              onClick={() => { setDraft(value); setEditing(true); }}
-            >
-              <Pencil className="w-3 h-3" />
-            </Button>
-          </div>
-        )}
+    <div className="group relative">
+      <div className="flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors">
+        <div className="text-slate-400 mt-0.5 shrink-0">{icon}</div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-0.5">{label}</div>
+          {editing ? (
+            <div className="flex items-center gap-1.5">
+              <Input
+                type={type}
+                value={draft}
+                onChange={e => setDraft(e.target.value)}
+                className="h-7 text-sm py-0 px-2 bg-white"
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleSave();
+                  if (e.key === 'Escape') { setDraft(value); setEditing(false); }
+                }}
+              />
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="p-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-colors shrink-0"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => { setDraft(value); setEditing(false); }}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-medium text-slate-800 truncate">
+                {value || <span className="text-slate-300 font-normal italic text-xs">не указано</span>}
+              </span>
+              <button
+                onClick={() => { setDraft(value); setEditing(true); }}
+                className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-all shrink-0"
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-// Редактируемое поле с autocomplete из списка
+// Поле с autocomplete
 function EditableSelectField({
   label,
   value,
@@ -156,58 +175,112 @@ function EditableSelectField({
   }, [editing]);
 
   return (
-    <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg" ref={containerRef}>
-      <div className="text-slate-500 shrink-0">{icon}</div>
-      <div className="flex-1 min-w-0">
-        <div className="text-xs text-slate-500">{label}</div>
-        {editing ? (
-          <div className="relative mt-1">
-            <div className="flex items-center gap-1">
-              <Input
-                value={draft}
-                onChange={e => { setDraft(e.target.value); setShowDropdown(true); }}
-                onFocus={() => setShowDropdown(true)}
-                className="h-7 text-sm py-0"
-                autoFocus
-                onKeyDown={e => {
-                  if (e.key === 'Enter') handleSave();
-                  if (e.key === 'Escape') { setEditing(false); setShowDropdown(false); }
-                }}
-              />
-              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-green-600" onClick={() => handleSave()} disabled={saving}>
-                <Check className="w-3.5 h-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-slate-400" onClick={() => { setDraft(value); setEditing(false); setShowDropdown(false); }}>
-                <X className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-            {showDropdown && filtered.length > 0 && (
-              <div className="absolute z-50 top-full left-0 mt-1 w-full max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-md shadow-lg">
-                {filtered.slice(0, 50).map(opt => (
-                  <div
-                    key={opt}
-                    className="px-3 py-1.5 text-sm cursor-pointer hover:bg-slate-100 truncate"
-                    onMouseDown={e => { e.preventDefault(); handleSave(opt); }}
-                  >
-                    {opt}
-                  </div>
-                ))}
+    <div className="group relative" ref={containerRef}>
+      <div className="flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors">
+        <div className="text-slate-400 mt-0.5 shrink-0">{icon}</div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-0.5">{label}</div>
+          {editing ? (
+            <div className="relative">
+              <div className="flex items-center gap-1.5">
+                <Input
+                  value={draft}
+                  onChange={e => { setDraft(e.target.value); setShowDropdown(true); }}
+                  onFocus={() => setShowDropdown(true)}
+                  className="h-7 text-sm py-0 px-2 bg-white"
+                  autoFocus
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleSave();
+                    if (e.key === 'Escape') { setEditing(false); setShowDropdown(false); }
+                  }}
+                />
+                <button
+                  onClick={() => handleSave()}
+                  disabled={saving}
+                  className="p-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-colors shrink-0"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => { setDraft(value); setEditing(false); setShowDropdown(false); }}
+                  className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors shrink-0"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex items-center gap-1 group">
-            <span className="text-sm font-medium truncate">{value || <span className="text-slate-400 italic text-xs">не указано</span>}</span>
-            <Button
-              variant="ghost" size="icon"
-              className="h-6 w-6 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-              onClick={() => { setDraft(value); setEditing(true); setShowDropdown(true); }}
-            >
-              <Pencil className="w-3 h-3" />
-            </Button>
-          </div>
-        )}
+              {showDropdown && filtered.length > 0 && (
+                <div className="absolute z-50 top-full left-0 mt-1 w-full max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg py-1">
+                  {filtered.slice(0, 50).map(opt => (
+                    <div
+                      key={opt}
+                      className="px-3 py-1.5 text-sm cursor-pointer hover:bg-slate-50 truncate"
+                      onMouseDown={e => { e.preventDefault(); handleSave(opt); }}
+                    >
+                      {opt}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-medium text-slate-800 truncate">
+                {value || <span className="text-slate-300 font-normal italic text-xs">не указано</span>}
+              </span>
+              <button
+                onClick={() => { setDraft(value); setEditing(true); setShowDropdown(true); }}
+                className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-all shrink-0"
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+    </div>
+  );
+}
+
+// Dropdown-выбор статуса в стиле пилюли
+function StatusDropdown({ value, options, onChange, className }: {
+  value: string;
+  options: typeof statusConfig | typeof priorityConfig;
+  onChange: (v: string) => void;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = options.find(o => o.value === value) || options[0];
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all hover:opacity-90 w-full justify-between ${(current as typeof statusConfig[0]).pill || ''} ${className || ''}`}
+      >
+        <span className="flex items-center gap-1.5">
+          {'dot' in current && <span className={`w-2 h-2 rounded-full ${'dot' in current ? current.dot : ''}`} />}
+          {current.label}
+        </span>
+        <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-full">
+            {options.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => { onChange(opt.value); setOpen(false); }}
+                className={`flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-slate-50 transition-colors ${value === opt.value ? 'font-semibold' : ''}`}
+              >
+                {'dot' in opt && <span className={`w-2 h-2 rounded-full ${opt.dot}`} />}
+                {opt.label}
+                {value === opt.value && <Check className="w-3.5 h-3.5 ml-auto text-emerald-500" />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -217,6 +290,7 @@ export function LeadInfoPanel({ request, onUpdate, onDelete, compact }: LeadInfo
   const [status, setStatus] = useState(request.status || 'new');
   const [priority, setPriority] = useState(request.priority || 'normal');
   const [isSaving, setIsSaving] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [cities, setCities] = useState<string[]>([]);
   const [institutions, setInstitutions] = useState<string[]>([]);
@@ -231,229 +305,230 @@ export function LeadInfoPanel({ request, onUpdate, onDelete, compact }: LeadInfo
     fetch('/api/admin/requests/options', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (data) {
-          setCities(data.cities || []);
-          setInstitutions(data.institutions || []);
-        }
+        if (data) { setCities(data.cities || []); setInstitutions(data.institutions || []); }
       })
       .catch(() => {});
   }, []);
 
   const handleFieldUpdate = async (field: string, value: string) => {
     try {
-      const response = await adminCsrfFetch(`/api/admin/requests/${request.id}`, {
+      const res = await adminCsrfFetch(`/api/admin/requests/${request.id}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [field]: value })
+        body: JSON.stringify({ [field]: value }),
       });
-      if (response.ok) {
-        const updated = await response.json();
-        onUpdate(updated);
-      }
-    } catch (error) {
-      console.error(`Error updating ${field}:`, error);
-    }
+      if (res.ok) onUpdate(await res.json());
+    } catch { /* silent */ }
   };
 
   const handleSaveNotes = async () => {
     setIsSaving(true);
     try {
-      const response = await adminCsrfFetch(`/api/admin/requests/${request.id}`, {
+      const res = await adminCsrfFetch(`/api/admin/requests/${request.id}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notes })
+        body: JSON.stringify({ notes }),
       });
-      if (response.ok) {
-        const updated = await response.json();
-        onUpdate(updated);
+      if (res.ok) {
+        onUpdate(await res.json());
+        setNotesSaved(true);
+        setTimeout(() => setNotesSaved(false), 2000);
       }
-    } catch (error) {
-      console.error('Error saving notes:', error);
-    } finally {
-      setIsSaving(false);
-    }
+    } catch { /* silent */ }
+    finally { setIsSaving(false); }
   };
 
   const handleDelete = async () => {
     try {
-      const response = await adminCsrfFetch(`/api/admin/requests/${request.id}`, {
+      const res = await adminCsrfFetch(`/api/admin/requests/${request.id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
-      if (response.ok && onDelete) {
-        onDelete(request.id);
-      }
-    } catch (error) {
-      console.error('Error deleting request:', error);
-    }
+      if (res.ok && onDelete) onDelete(request.id);
+    } catch { /* silent */ }
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('ru-RU', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
+  const formatDate = (s: string) =>
+    new Date(s).toLocaleString('ru-RU', {
+      day: '2-digit', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
     });
-  };
 
   return (
-    <div className={compact ? 'space-y-3' : 'space-y-4'}>
-      {/* Контактная информация — всегда редактируема */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <EditableField
-          label="Имя"
-          value={request.name}
-          icon={<User className="w-4 h-4" />}
-          onSave={val => handleFieldUpdate('name', val)}
-        />
+    <div className={compact ? 'space-y-4' : 'space-y-5'}>
 
-        <EditableField
-          label="Email"
-          value={request.email || ''}
-          icon={<Mail className="w-4 h-4" />}
-          type="email"
-          onSave={val => handleFieldUpdate('email', val)}
-        />
-
-        <EditableField
-          label="Телефон"
-          value={request.phone || ''}
-          icon={<Phone className="w-4 h-4" />}
-          type="tel"
-          onSave={val => handleFieldUpdate('phone', val)}
-        />
-
-        <EditableSelectField
-          label="Город"
-          value={request.city || ''}
-          options={cities}
-          icon={<MapPin className="w-4 h-4" />}
-          onSave={val => handleFieldUpdate('city', val)}
-        />
-
-        <EditableSelectField
-          label="Учреждение"
-          value={request.institution || ''}
-          options={institutions}
-          icon={<Building2 className="w-4 h-4" />}
-          onSave={val => handleFieldUpdate('institution', val)}
-        />
+      {/* ── Статус и приоритет ── */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1.5">Статус</div>
+          <StatusDropdown
+            value={status}
+            options={statusConfig}
+            onChange={v => { setStatus(v); handleFieldUpdate('status', v); }}
+          />
+        </div>
+        <div>
+          <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1.5">Приоритет</div>
+          <StatusDropdown
+            value={priority}
+            options={priorityConfig}
+            onChange={v => { setPriority(v); handleFieldUpdate('priority', v); }}
+          />
+        </div>
       </div>
 
-      {/* Сообщение */}
+      <div className="h-px bg-slate-100" />
+
+      {/* ── Контактная информация ── */}
+      <div>
+        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Контактные данные</h3>
+        <div className="divide-y divide-slate-50 border border-slate-100 rounded-xl overflow-hidden">
+          <EditableField
+            label="Имя"
+            value={request.name}
+            icon={<User className="w-4 h-4" />}
+            onSave={v => handleFieldUpdate('name', v)}
+          />
+          <EditableField
+            label="Email"
+            value={request.email || ''}
+            icon={<Mail className="w-4 h-4" />}
+            type="email"
+            onSave={v => handleFieldUpdate('email', v)}
+          />
+          <EditableField
+            label="Телефон"
+            value={request.phone || ''}
+            icon={<Phone className="w-4 h-4" />}
+            type="tel"
+            onSave={v => handleFieldUpdate('phone', v)}
+          />
+          <EditableSelectField
+            label="Город"
+            value={request.city || ''}
+            options={cities}
+            icon={<MapPin className="w-4 h-4" />}
+            onSave={v => handleFieldUpdate('city', v)}
+          />
+          <EditableSelectField
+            label="Учреждение"
+            value={request.institution || ''}
+            options={institutions}
+            icon={<Building2 className="w-4 h-4" />}
+            onSave={v => handleFieldUpdate('institution', v)}
+          />
+        </div>
+      </div>
+
+      {/* ── Сообщение ── */}
       {request.message && (
-        <div className="p-3 bg-slate-50 rounded-lg">
-          <div className="flex items-center gap-2 mb-1">
-            <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
-            <span className="text-xs font-medium text-slate-500 uppercase">Сообщение</span>
+        <div className="rounded-xl border border-slate-100 overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-100">
+            <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Сообщение</span>
           </div>
-          <p className="text-sm whitespace-pre-wrap">{request.message}</p>
+          <p className="text-sm text-slate-700 whitespace-pre-wrap px-4 py-3 leading-relaxed">{request.message}</p>
         </div>
       )}
 
-      {/* Метаданные конференции */}
+      {/* ── Конференция ── */}
       {request.metadata?.conference && (
-        <div className="p-3 bg-blue-50 rounded-lg">
-          <div className="flex items-center gap-2 mb-1">
+        <div className="rounded-xl border border-blue-100 bg-blue-50/60 overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-blue-100">
             <Calendar className="w-3.5 h-3.5 text-blue-500" />
-            <span className="text-xs font-medium text-blue-500 uppercase">Конференция</span>
+            <span className="text-[11px] font-semibold text-blue-500 uppercase tracking-wider">Конференция</span>
           </div>
-          <p className="text-sm font-medium">{request.metadata.conference}</p>
-          {request.metadata.certificate && (
-            <p className="text-xs text-blue-600 mt-1">Требуется сертификат</p>
-          )}
+          <div className="px-4 py-3">
+            <p className="text-sm font-medium text-blue-900">{request.metadata.conference}</p>
+            {request.metadata.certificate && (
+              <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                <Check className="w-3.5 h-3.5" /> Требуется сертификат
+              </p>
+            )}
+          </div>
         </div>
       )}
 
-      {/* Даты и источник */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-        <div className="flex items-center gap-1">
+      {/* ── Мета-информация ── */}
+      <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-slate-400">
+        <div className="flex items-center gap-1.5">
           <Calendar className="w-3.5 h-3.5" />
-          <span>Создана: {formatDate(request.created_at)}</span>
+          <span>Создана: <span className="text-slate-600">{formatDate(request.created_at)}</span></span>
         </div>
         {request.updated_at && request.updated_at !== request.created_at && (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5" />
-            <span>Обновлена: {formatDate(request.updated_at)}</span>
+            <span>Обновлена: <span className="text-slate-600">{formatDate(request.updated_at)}</span></span>
           </div>
         )}
         {request.page_url && (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <ExternalLink className="w-3.5 h-3.5" />
-            <a href={request.page_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-[200px]">
-              {request.page_url}
+            <a
+              href={request.page_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500 hover:underline truncate max-w-[200px]"
+            >
+              {request.page_url.replace(/^https?:\/\/[^/]+/, '') || '/'}
             </a>
           </div>
         )}
       </div>
 
-      {/* Статус и приоритет */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t">
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1.5">Статус</label>
-          <select
-            value={status}
-            onChange={(e) => {
-              const newStatus = e.target.value;
-              setStatus(newStatus);
-              handleFieldUpdate('status', newStatus);
-            }}
-            className="w-full h-9 px-3 py-1.5 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {statusOptions.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1.5">Приоритет</label>
-          <select
-            value={priority}
-            onChange={(e) => {
-              const newPriority = e.target.value;
-              setPriority(newPriority);
-              handleFieldUpdate('priority', newPriority);
-            }}
-            className="w-full h-9 px-3 py-1.5 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {priorityOptions.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <div className="h-px bg-slate-100" />
 
-      {/* Заметки */}
+      {/* ── Заметки ── */}
       <div>
-        <label className="block text-xs font-medium text-slate-500 mb-1.5">
-          <FileText className="w-3.5 h-3.5 inline mr-1" />
-          Заметки менеджера
-        </label>
+        <div className="flex items-center gap-2 mb-2">
+          <FileText className="w-3.5 h-3.5 text-slate-400" />
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Заметки менеджера</span>
+        </div>
         <Textarea
           value={notes}
-          onChange={(e) => setNotes(e.target.value)}
+          onChange={e => setNotes(e.target.value)}
           placeholder="Добавьте заметки по этой заявке..."
-          className="min-h-[80px] resize-none text-sm"
+          className="min-h-[100px] resize-none text-sm bg-slate-50 border-slate-200 focus:bg-white rounded-xl"
         />
-        <Button onClick={handleSaveNotes} disabled={isSaving} size="sm" className="mt-2">
-          {isSaving ? 'Сохранение...' : 'Сохранить заметки'}
-        </Button>
+        <div className="flex items-center justify-between mt-2">
+          <Button
+            onClick={handleSaveNotes}
+            disabled={isSaving}
+            size="sm"
+            className={`gap-1.5 h-8 transition-all ${notesSaved ? 'bg-emerald-500 hover:bg-emerald-600' : ''}`}
+          >
+            {notesSaved ? (
+              <><Check className="w-3.5 h-3.5" /> Сохранено</>
+            ) : (
+              <><Save className="w-3.5 h-3.5" /> {isSaving ? 'Сохранение...' : 'Сохранить заметки'}</>
+            )}
+          </Button>
+        </div>
       </div>
 
-      {/* Удаление */}
+      {/* ── Опасная зона ── */}
       {onDelete && (
-        <div className="pt-3 border-t">
+        <div className="pt-2">
           {!showDeleteConfirm ? (
-            <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => setShowDeleteConfirm(true)}>
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-500 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
               Удалить заявку
-            </Button>
+            </button>
           ) : (
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-500" />
-              <span className="text-sm text-red-600">Удалить заявку?</span>
-              <Button variant="destructive" size="sm" onClick={handleDelete}>Да</Button>
-              <Button variant="ghost" size="sm" onClick={() => setShowDeleteConfirm(false)}>Нет</Button>
+            <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
+              <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+              <span className="text-sm text-red-700 flex-1">Удалить эту заявку без возможности восстановления?</span>
+              <Button variant="destructive" size="sm" className="h-7 text-xs shrink-0" onClick={handleDelete}>
+                Удалить
+              </Button>
+              <Button variant="ghost" size="sm" className="h-7 text-xs shrink-0" onClick={() => setShowDeleteConfirm(false)}>
+                Отмена
+              </Button>
             </div>
           )}
         </div>
