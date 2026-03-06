@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Pool } from 'pg';
+import sharp from 'sharp';
 
 // Явно указываем Node.js runtime для работы с PostgreSQL
 export const runtime = 'nodejs';
@@ -8,14 +9,30 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
 });
 
+// In-memory cache: imageId -> WebP buffer
+const webpCache = new Map<string, Buffer>();
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  
+
   if (!id) {
     return new NextResponse('Image ID required', { status: 400 });
+  }
+
+  const acceptsWebP = request.headers.get('accept')?.includes('image/webp');
+
+  // Serve from cache if available
+  if (acceptsWebP && webpCache.has(id)) {
+    return new NextResponse(webpCache.get(id)!, {
+      headers: {
+        'Content-Type': 'image/webp',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Vary': 'Accept',
+      },
+    });
   }
 
   const client = await pool.connect();
@@ -29,12 +46,29 @@ export async function GET(
 
     const { image_data, mime_type } = result.rows[0];
 
-    // Return the image data with correct headers
-    // image_data is a Buffer from pg
+    if (acceptsWebP) {
+      const webpBuffer = await sharp(image_data)
+        .resize(1400, null, { withoutEnlargement: true })
+        .webp({ quality: 82 })
+        .toBuffer();
+
+      webpCache.set(id, webpBuffer);
+
+      return new NextResponse(webpBuffer, {
+        headers: {
+          'Content-Type': 'image/webp',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+          'Vary': 'Accept',
+        },
+      });
+    }
+
+    // Fallback: return original image for clients that don't support WebP
     return new NextResponse(image_data, {
       headers: {
         'Content-Type': mime_type || 'image/jpeg',
         'Cache-Control': 'public, max-age=31536000, immutable',
+        'Vary': 'Accept',
       },
     });
   } catch (error) {
