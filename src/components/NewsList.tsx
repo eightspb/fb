@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { NewsItem } from '@/lib/news-data';
-import { ImageIcon, Video, FileText, X, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ImageIcon, Video, FileText, X, Filter, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { NewsPlaceholder } from '@/components/NewsPlaceholder';
 
 interface NewsListProps {
@@ -18,6 +18,7 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
   const [selectedYear, setSelectedYear] = useState<string | null>(initialYear || null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory || null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [newsData, setNewsData] = useState<NewsItem[]>([]);
   const [years, setYears] = useState<string[]>([]);
   const [tagsWithCounts, setTagsWithCounts] = useState<Array<{ filter: string; count: number }>>([]);
@@ -170,90 +171,123 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
     );
   }
 
+  const hasActiveFilters = selectedYear || selectedCategory;
+
+  // Sidebar content (reused for desktop and mobile)
+  const filterContent = (
+    <>
+      {/* Years */}
+      <div className="mb-4">
+        <button
+          onClick={() => handleYearChange(null)}
+          className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium mb-2 transition-colors flex justify-between items-center ${
+            !selectedYear
+              ? 'bg-slate-100 text-slate-900'
+              : 'text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          <span>Все годы</span>
+          <span className="text-xs bg-slate-200 px-2 py-0.5 rounded-full text-slate-600">{newsData.length}</span>
+        </button>
+
+        <div className="flex flex-wrap gap-2">
+          {years.map(year => {
+            const isSelected = selectedYear === year;
+            const count = newsData.filter(news => String(news.year) === String(year)).length;
+            return (
+              <button
+                key={year}
+                onClick={() => handleYearChange(year)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                  isSelected
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                {year} <span className="ml-1 opacity-60">({count})</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Categories */}
+      <div>
+        <h4 className="font-semibold text-slate-900 text-sm mb-2">Категории</h4>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => handleCategoryChange(null)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+              !selectedCategory
+                ? 'bg-slate-900 text-white border-slate-900'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            Все <span className="ml-1 opacity-60">({newsData.length})</span>
+          </button>
+
+          {tagsWithCounts.map(({ filter, count }) => {
+            const isSelected = selectedCategory === filter;
+            return (
+              <button
+                key={filter}
+                onClick={() => handleCategoryChange(filter)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                  isSelected
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                {filter} <span className="ml-1 opacity-60">({count})</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-      {/* Sidebar */}
-      <div className="lg:col-span-1 space-y-6">
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
+      {/* Mobile: collapsible filter button */}
+      <div className="lg:hidden">
+        <button
+          onClick={() => setFilterOpen(v => !v)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-xl shadow-sm text-sm font-medium text-slate-900"
+        >
+          <span className="flex items-center gap-2">
+            <Filter className="w-4 h-4" />
+            Фильтры
+            {hasActiveFilters && (
+              <span className="w-2 h-2 rounded-full bg-teal-500 inline-block" />
+            )}
+          </span>
+          <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${filterOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        {filterOpen && (
+          <Card className="border-slate-200 shadow-sm mt-2">
+            <CardContent className="p-4">
+              {filterContent}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Desktop: sidebar */}
+      <div className="hidden lg:block lg:col-span-1 space-y-6">
         <Card className="border-slate-200 shadow-sm sticky top-24">
-          <CardContent className="p-6">
+          <CardContent className="p-5">
             <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
               <Filter className="w-4 h-4" />
               Архив новостей
             </h3>
-            
-            {/* Years */}
-            <div className="mb-6">
-              <button
-                onClick={() => handleYearChange(null)}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium mb-2 transition-colors flex justify-between items-center ${
-                  !selectedYear 
-                    ? 'bg-slate-100 text-slate-900' 
-                    : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                <span>Все годы</span>
-                <span className="text-xs bg-slate-200 px-2 py-0.5 rounded-full text-slate-600">{newsData.length}</span>
-              </button>
-              
-              <div className="flex flex-wrap gap-2">
-                {years.map(year => {
-                  const isSelected = selectedYear === year;
-                  const count = newsData.filter(news => String(news.year) === String(year)).length;
-                  return (
-                    <button
-                      key={year}
-                      onClick={() => handleYearChange(year)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
-                        isSelected 
-                          ? 'bg-slate-900 text-white border-slate-900' 
-                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      {year} <span className={`ml-1 opacity-60`}>({count})</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Categories */}
-            <div>
-              <h4 className="font-semibold text-slate-900 text-sm mb-3">Категории</h4>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => handleCategoryChange(null)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
-                    !selectedCategory
-                      ? 'bg-slate-900 text-white border-slate-900' 
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                  }`}
-                >
-                  Все <span className="ml-1 opacity-60">({newsData.length})</span>
-                </button>
-                
-                {tagsWithCounts.map(({ filter, count }) => {
-                  const isSelected = selectedCategory === filter;
-                  return (
-                    <button
-                      key={filter}
-                      onClick={() => handleCategoryChange(filter)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
-                        isSelected 
-                          ? 'bg-slate-900 text-white border-slate-900' 
-                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      {filter} <span className={`ml-1 opacity-60`}>({count})</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            {filterContent}
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-teal-50 to-blue-50 border-slate-200">
-          <CardContent className="p-6">
+          <CardContent className="p-5">
             <h4 className="font-bold text-slate-900 mb-2">Подписка</h4>
             <p className="text-sm text-slate-600 mb-4">
               Получайте свежие новости о мероприятиях и оборудовании.
@@ -265,7 +299,7 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
         </Card>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content — full width on mobile, 3 cols on desktop */}
       <div className="lg:col-span-3">
         {/* Active Filters */}
         {(selectedYear || selectedCategory) && (
@@ -301,84 +335,81 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
           <div className="space-y-6">
             <p className="text-sm text-slate-500">Найдено публикаций: {filteredNews.length}</p>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {paginatedNews.map((news) => (
-                <Card key={news.id} className="group hover:shadow-lg transition-all border-slate-200 bg-white flex flex-col overflow-hidden h-full">
-                  {/* Image Section */}
-                  <div className="relative w-full aspect-[4/3] overflow-hidden bg-slate-100">
-                    {news.images && news.images.length > 0 ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img 
-                        src={news.images[0]} 
-                        alt={news.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        style={{ objectPosition: news.imageFocalPoint || 'center 30%' }}
-                      />
-                    ) : (
-                      <NewsPlaceholder />
-                    )}
-                    
-                    {/* Date Badge */}
-                    <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold text-slate-900 shadow-sm">
-                      {news.date}
-                    </div>
-                  </div>
-
-                  <CardContent className="p-6 flex flex-col flex-grow">
-                    {/* Category */}
-                    <div className="mb-4">
-                      {news.category ? (
-                        <Badge className="bg-teal-50 text-teal-700 hover:bg-teal-100 border-0">
-                          {news.category}
-                        </Badge>
+                <Link key={news.id} href={`/news/${news.id}`} className="block h-full">
+                  <Card className="group hover:shadow-lg transition-all border-slate-200 bg-white flex flex-col overflow-hidden h-full py-0 gap-0">
+                    {/* Image Section — flush to top, no padding above */}
+                    <div className="relative w-full aspect-video overflow-hidden bg-slate-100 shrink-0">
+                      {news.images && news.images.length > 0 ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={news.images[0]}
+                          alt={news.title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          style={{ objectPosition: news.imageFocalPoint || 'center 30%' }}
+                        />
                       ) : (
-                        <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">
-                          Новости
-                        </Badge>
+                        <NewsPlaceholder />
                       )}
-                    </div>
-                    
-                    <Link href={`/news/${news.id}`} className="block group-hover:text-teal-600 transition-colors mb-3">
-                      <h3 className="text-xl font-bold text-slate-900 line-clamp-3">
-                        {news.title}
-                      </h3>
-                    </Link>
-                    
-                    <p className="text-slate-600 text-sm line-clamp-3 mb-6 flex-grow">
-                      {news.shortDescription}
-                    </p>
 
-                    <div className="flex items-center justify-between pt-4 mt-auto border-t border-slate-100">
-                      <div className="flex gap-3 text-slate-400">
-                        {news.images && news.images.length > 0 && (
-                          <div className="flex items-center gap-1" title={`${news.images.length} фото`}>
-                            <ImageIcon className="w-4 h-4" />
-                            <span className="text-xs font-medium">{news.images.length}</span>
-                          </div>
-                        )}
-                        {news.videos && news.videos.length > 0 && (
-                          <div className="flex items-center gap-1" title={`${news.videos.length} видео`}>
-                            <Video className="w-4 h-4" />
-                            <span className="text-xs font-medium">{news.videos.length}</span>
-                          </div>
-                        )}
-                        {news.documents && news.documents.length > 0 && (
-                          <div className="flex items-center gap-1" title={`${news.documents.length} документов`}>
-                            <FileText className="w-4 h-4" />
-                            <span className="text-xs font-medium">{news.documents.length}</span>
-                          </div>
+                      {/* Date Badge */}
+                      <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-xs font-semibold text-slate-900 shadow-sm">
+                        {news.date}
+                      </div>
+                    </div>
+
+                    <CardContent className="px-4 pt-3 pb-3 flex flex-col flex-grow">
+                      {/* Category */}
+                      <div className="mb-2">
+                        {news.category ? (
+                          <Badge className="bg-teal-50 text-teal-700 hover:bg-teal-100 border-0">
+                            {news.category}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">
+                            Новости
+                          </Badge>
                         )}
                       </div>
-                      
-                      <Link 
-                        href={`/news/${news.id}`} 
-                        className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
-                      >
-                        Подробнее
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
+
+                      <h3 className="text-lg font-bold text-slate-900 line-clamp-2 mb-2 group-hover:text-teal-600 transition-colors">
+                        {news.title}
+                      </h3>
+
+                      <p className="text-slate-600 text-sm line-clamp-2 mb-3 flex-grow">
+                        {news.shortDescription}
+                      </p>
+
+                      <div className="flex items-center justify-between pt-2 mt-auto border-t border-slate-100">
+                        <div className="flex gap-2 text-slate-400">
+                          {news.images && news.images.length > 0 && (
+                            <div className="flex items-center gap-1" title={`${news.images.length} фото`}>
+                              <ImageIcon className="w-3.5 h-3.5" />
+                              <span className="text-xs font-medium">{news.images.length}</span>
+                            </div>
+                          )}
+                          {news.videos && news.videos.length > 0 && (
+                            <div className="flex items-center gap-1" title={`${news.videos.length} видео`}>
+                              <Video className="w-3.5 h-3.5" />
+                              <span className="text-xs font-medium">{news.videos.length}</span>
+                            </div>
+                          )}
+                          {news.documents && news.documents.length > 0 && (
+                            <div className="flex items-center gap-1" title={`${news.documents.length} документов`}>
+                              <FileText className="w-3.5 h-3.5" />
+                              <span className="text-xs font-medium">{news.documents.length}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <span className="text-sm font-semibold text-teal-600 group-hover:text-teal-700 transition-colors">
+                          Подробнее
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
               ))}
             </div>
 
@@ -444,6 +475,20 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
             </Button>
           </div>
         )}
+        {/* Mobile: subscription block at the bottom */}
+        <div className="lg:hidden mt-6">
+          <Card className="bg-gradient-to-br from-teal-50 to-blue-50 border-slate-200">
+            <CardContent className="p-4">
+              <h4 className="font-bold text-slate-900 mb-1">Подписка</h4>
+              <p className="text-sm text-slate-600 mb-3">
+                Получайте свежие новости о мероприятиях и оборудовании.
+              </p>
+              <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white" asChild>
+                <Link href="/contacts">Подписаться</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

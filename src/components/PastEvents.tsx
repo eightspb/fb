@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { NewsItem } from '@/lib/news-data';
 import { ImageIcon, Video, FileText, ChevronLeft, ChevronRight, Loader2, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { NewsPlaceholder } from '@/components/NewsPlaceholder';
 
 export interface PastEventsProps {
   categories?: string[];
@@ -172,84 +172,79 @@ export function PastEvents({ categories }: PastEventsProps) {
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {paginatedEvents.map((event) => (
-          <Card key={event.id} className="group hover:shadow-lg transition-all border-slate-200 bg-white flex flex-col overflow-hidden h-full">
-            {/* Image Section - same as NewsList */}
-            <div className="relative w-full aspect-[4/3] overflow-hidden bg-slate-100">
-              {event.images && event.images.length > 0 ? (
-                <Image 
-                  src={event.images[0]} 
-                  alt={event.title}
-                  fill
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  style={{ objectPosition: event.imageFocalPoint || 'center 30%' }}
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-slate-300">
-                  <ImageIcon className="w-12 h-12" />
-                </div>
-              )}
-              
-              {/* Date Badge */}
-              <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold text-slate-900 shadow-sm">
-                {event.date}
-              </div>
-            </div>
-
-            <CardContent className="p-6 flex flex-col flex-grow">
-              {/* Category */}
-              <div className="mb-4">
-                {event.category ? (
-                  <Badge className="bg-teal-50 text-teal-700 hover:bg-teal-100 border-0">
-                    {event.category}
-                  </Badge>
+          <Link key={event.id} href={`/news/${event.id}`} className="block h-full">
+            <Card className="group hover:shadow-lg transition-all border-slate-200 bg-white flex flex-col overflow-hidden h-full py-0 gap-0">
+              {/* Image Section */}
+              <div className="relative w-full aspect-video overflow-hidden bg-slate-100 shrink-0">
+                {event.images && event.images.length > 0 ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={event.images[0]}
+                    alt={event.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    style={{ objectPosition: event.imageFocalPoint || 'center 30%' }}
+                  />
                 ) : (
-                  <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">
-                    Новости
-                  </Badge>
+                  <NewsPlaceholder />
                 )}
+
+                {/* Date Badge */}
+                <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-xs font-semibold text-slate-900 shadow-sm">
+                  {event.date}
+                </div>
               </div>
-              
-              <Link href={`/news/${event.id}`} className="block group-hover:text-teal-600 transition-colors mb-3">
-                <h3 className="text-xl font-bold text-slate-900 line-clamp-3">
+
+              <CardContent className="px-4 pt-3 pb-3 flex flex-col flex-grow">
+                {/* Category */}
+                <div className="mb-2">
+                  {event.category ? (
+                    <Badge className="bg-teal-50 text-teal-700 hover:bg-teal-100 border-0">
+                      {event.category}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">
+                      Новости
+                    </Badge>
+                  )}
+                </div>
+
+                <h3 className="text-lg font-bold text-slate-900 line-clamp-2 mb-2 group-hover:text-teal-600 transition-colors">
                   {event.title}
                 </h3>
-              </Link>
-              
-              <p className="text-slate-600 text-sm line-clamp-3 mb-6 flex-grow">
-                {event.shortDescription}
-              </p>
 
-              <div className="flex items-center justify-between pt-4 mt-auto border-t border-slate-100">
-                <div className="flex gap-3 text-slate-400">
-                  {event.images && event.images.length > 0 && (
-                    <div className="flex items-center gap-1" title={`${event.images.length} фото`}>
-                      <ImageIcon className="w-4 h-4" />
-                      <span className="text-xs font-medium">{event.images.length}</span>
-                    </div>
-                  )}
-                  {event.videos && event.videos.length > 0 && (
-                    <div className="flex items-center gap-1" title={`${event.videos.length} видео`}>
-                      <Video className="w-4 h-4" />
-                      <span className="text-xs font-medium">{event.videos.length}</span>
-                    </div>
-                  )}
-                  {event.documents && event.documents.length > 0 && (
-                    <div className="flex items-center gap-1" title={`${event.documents.length} документов`}>
-                      <FileText className="w-4 h-4" />
-                      <span className="text-xs font-medium">{event.documents.length}</span>
-                    </div>
-                  )}
+                <p className="text-slate-600 text-sm line-clamp-2 mb-3 flex-grow">
+                  {event.shortDescription}
+                </p>
+
+                <div className="flex items-center justify-between pt-2 mt-auto border-t border-slate-100">
+                  <div className="flex gap-2 text-slate-400">
+                    {event.images && event.images.length > 0 && (
+                      <div className="flex items-center gap-1" title={`${event.images.length} фото`}>
+                        <ImageIcon className="w-3.5 h-3.5" />
+                        <span className="text-xs font-medium">{event.images.length}</span>
+                      </div>
+                    )}
+                    {event.videos && event.videos.length > 0 && (
+                      <div className="flex items-center gap-1" title={`${event.videos.length} видео`}>
+                        <Video className="w-3.5 h-3.5" />
+                        <span className="text-xs font-medium">{event.videos.length}</span>
+                      </div>
+                    )}
+                    {event.documents && event.documents.length > 0 && (
+                      <div className="flex items-center gap-1" title={`${event.documents.length} документов`}>
+                        <FileText className="w-3.5 h-3.5" />
+                        <span className="text-xs font-medium">{event.documents.length}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <span className="text-sm font-semibold text-teal-600 group-hover:text-teal-700 transition-colors">
+                    Подробнее
+                  </span>
                 </div>
-                
-                <Link 
-                  href={`/news/${event.id}`} 
-                  className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
-                >
-                  Подробнее
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
       )}

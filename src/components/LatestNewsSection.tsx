@@ -64,9 +64,9 @@ export function LatestNewsSection() {
   };
 
   return (
-    <section className="w-full py-24 bg-gradient-to-b from-white to-slate-50">
+    <section className="w-full py-12 md:py-16 bg-gradient-to-b from-white to-slate-50">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between mb-12">
+        <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
               Последние новости
@@ -86,7 +86,7 @@ export function LatestNewsSection() {
         <div className="grid md:grid-cols-3 gap-6">
           {news.map((item) => (
             <Link key={item.id} href={`/news/${encodeURIComponent(item.id)}`}>
-              <Card className="h-full hover:shadow-lg transition-all duration-300 border-slate-200 group cursor-pointer">
+              <Card className="h-full hover:shadow-lg transition-all duration-300 border-slate-200 group cursor-pointer py-0 gap-0">
                 <div className="relative aspect-video overflow-hidden rounded-t-lg">
                   {item.images && item.images.length > 0 ? (
                     <Image
@@ -109,22 +109,22 @@ export function LatestNewsSection() {
                     </div>
                   )}
                 </div>
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-2 text-sm text-slate-500 mb-3">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 text-sm text-slate-500 mb-2">
                     <Calendar className="w-4 h-4" />
                     <span>{formatDate(item.date)}</span>
                     {item.location && (
                       <>
                         <span className="mx-1">•</span>
                         <MapPin className="w-4 h-4" />
-                        <span>{item.location}</span>
+                        <span className="truncate max-w-[120px]">{item.location}</span>
                       </>
                     )}
                   </div>
                   <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-teal-600 transition-colors line-clamp-2">
                     {item.title}
                   </h3>
-                  <p className="text-slate-600 line-clamp-3 mb-4">
+                  <p className="text-slate-600 line-clamp-2 mb-3">
                     {item.shortDescription || item.fullDescription?.substring(0, 150)}
                   </p>
                   <div className="flex items-center text-teal-600 font-medium text-sm group-hover:gap-2 transition-all">
