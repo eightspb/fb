@@ -57,6 +57,7 @@ services:
       IMAP_PORT: ${IMAP_PORT:-993}
     volumes:
       - crm-attachments-data:/data/crm-attachments
+      - ./public/uploads:/app/public/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -113,6 +114,7 @@ services:
       - ./certbot/www:/var/www/certbot:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./public/videos:/var/www/videos:ro
+      - ./public/uploads:/var/www/uploads:ro
     depends_on:
       - site
       - admin

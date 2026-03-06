@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -26,6 +27,8 @@ import {
   Phone,
   ArrowDown,
 } from 'lucide-react';
+
+export const revalidate = 600; // Cache page for 10 minutes
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
@@ -58,7 +61,7 @@ function parseRow(row: any): Conference {
   };
 }
 
-async function getConference(idOrSlug: string): Promise<Conference | null> {
+const getConference = cache(async (idOrSlug: string): Promise<Conference | null> => {
   try {
     const client = await pool.connect();
     try {
@@ -85,7 +88,7 @@ async function getConference(idOrSlug: string): Promise<Conference | null> {
     console.error('Error loading conference:', error);
   }
   return null;
-}
+});
 
 function parseDate(dateStr: string): Date {
   if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
