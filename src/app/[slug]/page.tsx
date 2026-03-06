@@ -1,4 +1,9 @@
 import { notFound, permanentRedirect } from 'next/navigation';
+import { Pool } from 'pg';
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
+});
 
 interface SlugPageProps {
   params: Promise<{ slug: string }>;
@@ -6,31 +11,15 @@ interface SlugPageProps {
 
 async function getConferenceBySlug(slug: string): Promise<boolean> {
   try {
-    if (process.env.DATABASE_URL) {
-      const { Pool } = await import('pg');
-      const pool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-      });
-      
-      const client = await pool.connect();
-      try {
-        const result = await client.query(
-          'SELECT 1 FROM conferences WHERE slug = $1 LIMIT 1',
-          [slug]
-        );
-        
-        return result.rows.length > 0;
-      } finally {
-        client.release();
-        await pool.end();
-      }
-    } else {
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-      const response = await fetch(`${baseUrl}/api/conferences/${slug}`, {
-        cache: 'no-store'
-      });
-      
-      return response.ok;
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        'SELECT 1 FROM conferences WHERE slug = $1 LIMIT 1',
+        [slug]
+      );
+      return result.rows.length > 0;
+    } finally {
+      client.release();
     }
   } catch (error) {
     console.error('Error checking conference:', error);

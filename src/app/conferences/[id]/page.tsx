@@ -12,83 +12,73 @@ import { CountdownTimer } from '@/components/CountdownTimer';
 import { SpeakerCard } from '@/components/SpeakerCard';
 import { ConferenceSchedule } from '@/components/ConferenceSchedule';
 import { ConferenceVideos } from '@/components/ConferenceVideos';
+import { Pool } from 'pg';
 import { isUUID } from '@/lib/slug';
 import { getSpeakers, getPresidiumMembers, isStructuredProgram } from '@/lib/types/conference';
 import type { Conference, ProgramItem } from '@/lib/types/conference';
-import { 
-  Calendar, 
-  MapPin, 
-  Users, 
-  Clock, 
-  CheckCircle, 
+import {
+  Calendar,
+  MapPin,
+  Users,
+  Clock,
+  CheckCircle,
   ChevronLeft,
   Phone,
 } from 'lucide-react';
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
+});
 
 interface ConferencePageProps {
   params: Promise<{ id: string }>;
 }
 
+function parseRow(row: any): Conference {
+  return {
+    id: row.id,
+    slug: row.slug || undefined,
+    title: row.title,
+    date: row.date,
+    date_end: row.date_end || undefined,
+    description: row.description || '',
+    type: row.type,
+    location: row.location,
+    speaker: row.speaker,
+    cme_hours: row.cme_hours,
+    program: Array.isArray(row.program) ? row.program : (typeof row.program === 'string' ? JSON.parse(row.program) : []),
+    materials: Array.isArray(row.materials) ? row.materials : (typeof row.materials === 'string' ? JSON.parse(row.materials) : []),
+    status: row.status,
+    cover_image: row.cover_image || undefined,
+    speakers: Array.isArray(row.speakers) ? row.speakers : (typeof row.speakers === 'string' ? JSON.parse(row.speakers) : []),
+    organizer_contacts: typeof row.organizer_contacts === 'object' ? row.organizer_contacts : (typeof row.organizer_contacts === 'string' ? JSON.parse(row.organizer_contacts) : {}),
+    additional_info: row.additional_info || undefined,
+    videos: Array.isArray(row.videos) ? row.videos : (typeof row.videos === 'string' ? JSON.parse(row.videos) : []),
+  };
+}
+
 async function getConference(idOrSlug: string): Promise<Conference | null> {
   try {
-    if (process.env.DATABASE_URL) {
-      const { Pool } = await import('pg');
-      const pool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-      });
-      
-      const client = await pool.connect();
-      try {
-        // Поиск по UUID или slug
-        let result;
-        if (isUUID(idOrSlug)) {
-          result = await client.query(
-            'SELECT * FROM conferences WHERE id = $1',
-            [idOrSlug]
-          );
-        } else {
-          result = await client.query(
-            'SELECT * FROM conferences WHERE slug = $1',
-            [idOrSlug]
-          );
-        }
-        
-        if (result.rows.length > 0) {
-          const row = result.rows[0];
-          return {
-            id: row.id,
-            slug: row.slug || undefined,
-            title: row.title,
-            date: row.date,
-            date_end: row.date_end || undefined,
-            description: row.description || '',
-            type: row.type,
-            location: row.location,
-            speaker: row.speaker,
-            cme_hours: row.cme_hours,
-            program: Array.isArray(row.program) ? row.program : (typeof row.program === 'string' ? JSON.parse(row.program) : []),
-            materials: Array.isArray(row.materials) ? row.materials : (typeof row.materials === 'string' ? JSON.parse(row.materials) : []),
-            status: row.status,
-            cover_image: row.cover_image || undefined,
-            speakers: Array.isArray(row.speakers) ? row.speakers : (typeof row.speakers === 'string' ? JSON.parse(row.speakers) : []),
-            organizer_contacts: typeof row.organizer_contacts === 'object' ? row.organizer_contacts : (typeof row.organizer_contacts === 'string' ? JSON.parse(row.organizer_contacts) : {}),
-            additional_info: row.additional_info || undefined,
-            videos: Array.isArray(row.videos) ? row.videos : (typeof row.videos === 'string' ? JSON.parse(row.videos) : []),
-          };
-        }
-      } finally {
-        client.release();
-        await pool.end();
+    const client = await pool.connect();
+    try {
+      let result;
+      if (isUUID(idOrSlug)) {
+        result = await client.query(
+          'SELECT * FROM conferences WHERE id = $1',
+          [idOrSlug]
+        );
+      } else {
+        result = await client.query(
+          'SELECT * FROM conferences WHERE slug = $1',
+          [idOrSlug]
+        );
       }
-    } else {
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-      const response = await fetch(`${baseUrl}/api/conferences/${idOrSlug}`, {
-        cache: 'no-store'
-      });
-      
-      if (response.ok) {
-        return await response.json();
+
+      if (result.rows.length > 0) {
+        return parseRow(result.rows[0]);
       }
+    } finally {
+      client.release();
     }
   } catch (error) {
     console.error('Error loading conference:', error);
