@@ -21,6 +21,9 @@ param(
     [string]$Server = "root@155.212.217.60",
 
     [Parameter(Mandatory=$false)]
+    [int]$SshPort = 2222,
+
+    [Parameter(Mandatory=$false)]
     [string]$RemotePath = "/opt/fb-net",
 
     [Parameter(Mandatory=$false)]
@@ -103,6 +106,7 @@ function Get-ComposeFile {
 $RemoteBackupDir = "$RemotePath/backups"  # Папка для бэкапов на сервере
 $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $SshCommonArgs = @(
+    "-p", "$SshPort",
     "-o", "ServerAliveInterval=30",
     "-o", "ServerAliveCountMax=6",
     "-o", "TCPKeepAlive=yes",
