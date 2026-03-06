@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,7 +35,6 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
-import { useRef } from 'react';
 
 interface Contact {
   id: string;
@@ -555,6 +554,40 @@ function ContactPanel({
   );
 }
 
+// ── Column resize ─────────────────────────────────────────────────────────────
+
+const DEFAULT_COL_WIDTHS = [40, 200, 200, 120, 160, 180, 120, 90];
+
+function useColumnResize(defaultWidths: number[]) {
+  const [widths, setWidths] = useState<number[]>(defaultWidths);
+  const dragging = useRef<{ col: number; startX: number; startW: number } | null>(null);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragging.current) return;
+      const { col, startX, startW } = dragging.current;
+      const delta = e.clientX - startX;
+      setWidths(prev => {
+        const next = [...prev];
+        next[col] = Math.max(40, startW + delta);
+        return next;
+      });
+    };
+    const onUp = () => { dragging.current = null; document.body.style.cursor = ''; document.body.style.userSelect = ''; };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  }, []);
+
+  const onResizeStart = (col: number, startX: number, startW: number) => {
+    dragging.current = { col, startX, startW };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  return { widths, onResizeStart };
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function ContactsPage() {
@@ -580,6 +613,8 @@ export default function ContactsPage() {
   const [bulkTagValue, setBulkTagValue] = useState('');
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [showImport, setShowImport] = useState(false);
+
+  const { widths, onResizeStart } = useColumnResize(DEFAULT_COL_WIDTHS);
 
   const loadContacts = useCallback(async () => {
     setLoading(true);
@@ -913,28 +948,75 @@ export default function ContactsPage() {
       {/* Desktop table */}
       <Card className="hidden lg:block">
         <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-sm text-left">
+          <table className="text-sm text-left" style={{ tableLayout: 'fixed', width: widths.reduce((a, b) => a + b, 0) }}>
+            <colgroup>
+              {widths.map((w, i) => <col key={i} style={{ width: w }} />)}
+            </colgroup>
             <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b">
               <tr>
-                <th className="px-4 py-3 w-10">
+                {/* 0: checkbox */}
+                <th className="px-4 py-3 relative" style={{ width: widths[0] }}>
                   <Checkbox checked={selectAll} onChange={handleSelectAll} />
+                  <span
+                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-300 select-none"
+                    onMouseDown={(e) => { e.preventDefault(); onResizeStart(0, e.clientX, widths[0]); }}
+                  />
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('full_name')}>
-                  <div className="flex items-center gap-1">Имя {sortBy === 'full_name' && <ArrowUpDown className="w-3 h-3" />}</div>
+                {/* 1: Имя */}
+                <th className="px-4 py-3 relative cursor-pointer hover:bg-slate-100" style={{ width: widths[1] }} onClick={() => handleSort('full_name')}>
+                  <div className="flex items-center gap-1 overflow-hidden">Имя {sortBy === 'full_name' && <ArrowUpDown className="w-3 h-3 shrink-0" />}</div>
+                  <span
+                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-300 select-none"
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(1, e.clientX, widths[1]); }}
+                  />
                 </th>
-                <th className="px-4 py-3">Контакты</th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('city')}>
-                  <div className="flex items-center gap-1">Город {sortBy === 'city' && <ArrowUpDown className="w-3 h-3" />}</div>
+                {/* 2: Контакты */}
+                <th className="px-4 py-3 relative" style={{ width: widths[2] }}>
+                  Контакты
+                  <span
+                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-300 select-none"
+                    onMouseDown={(e) => { e.preventDefault(); onResizeStart(2, e.clientX, widths[2]); }}
+                  />
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('speciality')}>
-                  <div className="flex items-center gap-1">Специальность {sortBy === 'speciality' && <ArrowUpDown className="w-3 h-3" />}</div>
+                {/* 3: Город */}
+                <th className="px-4 py-3 relative cursor-pointer hover:bg-slate-100" style={{ width: widths[3] }} onClick={() => handleSort('city')}>
+                  <div className="flex items-center gap-1 overflow-hidden">Город {sortBy === 'city' && <ArrowUpDown className="w-3 h-3 shrink-0" />}</div>
+                  <span
+                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-300 select-none"
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(3, e.clientX, widths[3]); }}
+                  />
                 </th>
-                <th className="px-4 py-3">Теги</th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('status')}>
-                  <div className="flex items-center gap-1">Статус {sortBy === 'status' && <ArrowUpDown className="w-3 h-3" />}</div>
+                {/* 4: Специальность */}
+                <th className="px-4 py-3 relative cursor-pointer hover:bg-slate-100" style={{ width: widths[4] }} onClick={() => handleSort('speciality')}>
+                  <div className="flex items-center gap-1 overflow-hidden">Специальность {sortBy === 'speciality' && <ArrowUpDown className="w-3 h-3 shrink-0" />}</div>
+                  <span
+                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-300 select-none"
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(4, e.clientX, widths[4]); }}
+                  />
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('created_at')}>
-                  <div className="flex items-center gap-1">Дата {sortBy === 'created_at' && <ArrowUpDown className="w-3 h-3" />}</div>
+                {/* 5: Теги */}
+                <th className="px-4 py-3 relative" style={{ width: widths[5] }}>
+                  Теги
+                  <span
+                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-300 select-none"
+                    onMouseDown={(e) => { e.preventDefault(); onResizeStart(5, e.clientX, widths[5]); }}
+                  />
+                </th>
+                {/* 6: Статус */}
+                <th className="px-4 py-3 relative cursor-pointer hover:bg-slate-100" style={{ width: widths[6] }} onClick={() => handleSort('status')}>
+                  <div className="flex items-center gap-1 overflow-hidden">Статус {sortBy === 'status' && <ArrowUpDown className="w-3 h-3 shrink-0" />}</div>
+                  <span
+                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-300 select-none"
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(6, e.clientX, widths[6]); }}
+                  />
+                </th>
+                {/* 7: Дата */}
+                <th className="px-4 py-3 relative cursor-pointer hover:bg-slate-100" style={{ width: widths[7] }} onClick={() => handleSort('created_at')}>
+                  <div className="flex items-center gap-1 overflow-hidden">Дата {sortBy === 'created_at' && <ArrowUpDown className="w-3 h-3 shrink-0" />}</div>
+                  <span
+                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-300 select-none"
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onResizeStart(7, e.clientX, widths[7]); }}
+                  />
                 </th>
               </tr>
             </thead>
@@ -953,18 +1035,20 @@ export default function ContactsPage() {
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <Checkbox checked={selectedIds.has(c.id)} onChange={() => handleSelectOne(c.id)} />
                     </td>
-                    <td className="px-4 py-3 font-medium text-slate-900 max-w-[200px]">
+                    <td className="px-4 py-3 font-medium text-slate-900" style={{ maxWidth: widths[1] }}>
                       <div className="truncate">{c.full_name}</div>
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-500 space-y-0.5">
-                      {c.email && <div className="flex items-center gap-1"><Mail className="w-3 h-3 shrink-0" /><span className="truncate max-w-[180px]">{c.email}</span></div>}
+                    <td className="px-4 py-3 text-xs text-slate-500 space-y-0.5" style={{ maxWidth: widths[2] }}>
+                      {c.email && <div className="flex items-center gap-1"><Mail className="w-3 h-3 shrink-0" /><span className="truncate">{c.email}</span></div>}
                       {c.phone && <div className="flex items-center gap-1"><Phone className="w-3 h-3 shrink-0" />{c.phone}</div>}
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{c.city || <span className="text-slate-300">—</span>}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600 max-w-[160px]">
-                      <span className="truncate block">{c.speciality || <span className="text-slate-300">—</span>}</span>
+                    <td className="px-4 py-3 text-sm text-slate-600" style={{ maxWidth: widths[3] }}>
+                      <div className="truncate">{c.city || <span className="text-slate-300">—</span>}</div>
                     </td>
-                    <td className="px-4 py-3 max-w-[200px]">
+                    <td className="px-4 py-3 text-sm text-slate-600" style={{ maxWidth: widths[4] }}>
+                      <div className="truncate">{c.speciality || <span className="text-slate-300">—</span>}</div>
+                    </td>
+                    <td className="px-4 py-3" style={{ maxWidth: widths[5] }}>
                       <div className="flex flex-wrap gap-1">
                         {c.tags.slice(0, 3).map(t => (
                           <span key={t} className="px-1.5 py-0.5 rounded text-xs bg-slate-100 text-slate-600">{t}</span>
