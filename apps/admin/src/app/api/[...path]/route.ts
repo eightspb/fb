@@ -9,7 +9,7 @@ async function proxy(req: NextRequest, params: { path: string[] }) {
   const headers = new Headers(req.headers);
   headers.delete('host');
 
-  let body: BodyInit | undefined;
+  let body: ArrayBuffer | undefined;
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     body = await req.arrayBuffer();
   }
@@ -17,7 +17,7 @@ async function proxy(req: NextRequest, params: { path: string[] }) {
   const upstream = await fetch(url.toString(), {
     method: req.method,
     headers,
-    body: body ? Buffer.from(body) : undefined,
+    body,
   });
 
   const responseBody = await upstream.arrayBuffer();
