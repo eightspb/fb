@@ -287,7 +287,7 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
               name="status" 
               value={formData.status} 
               onChange={handleChange}
-              className="w-full border rounded-md p-2 bg-white"
+              className="w-full border border-[var(--frox-neutral-border)] rounded-xl p-2 bg-white text-[var(--frox-gray-800)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--frox-brand)]/40"
             >
               <option value="draft">Черновик</option>
               <option value="published">Опубликовано</option>
@@ -328,7 +328,7 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
             />
 
             {/* Add image by URL option */}
-            <div className="mt-6 pt-6 border-t border-slate-200">
+            <div className="mt-6 pt-6 border-t border-[var(--frox-neutral-border)]">
               <Label className="mb-2 block text-sm">Или добавить изображение по URL</Label>
               <div className="flex gap-2">
                 <Input 
@@ -349,17 +349,17 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
             
             {/* Focal Point Selection - показываем если есть изображения */}
             {formData.images.length > 0 && (
-              <div className="mt-6 p-4 bg-slate-50 rounded-lg border">
+              <div className="mt-6 p-4 bg-[var(--frox-gray-100)] rounded-lg border">
                 <Label className="mb-3 block font-medium">Точка фокуса (для карточки новости)</Label>
-                <p className="text-xs text-slate-500 mb-3">
+                <p className="text-xs text-[var(--frox-gray-500)] mb-3">
                   Выберите, какая часть главного изображения будет видна в карточке новости
                 </p>
                 <div className="flex flex-col md:flex-row gap-4">
                   {/* Preview */}
-                  <div className="relative w-full md:w-48 aspect-[4/3] bg-slate-200 rounded-lg overflow-hidden border-2 border-slate-300">
+                  <div className="relative w-full md:w-48 aspect-[4/3] bg-[var(--frox-gray-300)] rounded-lg overflow-hidden border-2 border-[var(--frox-neutral-border)]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img 
-                      src={formData.images[0]} 
+                    <img
+                      src={formData.images[0].startsWith('/') && !formData.images[0].startsWith('/admin') ? `/admin${formData.images[0]}` : formData.images[0]}
                       alt="Preview"
                       className="w-full h-full object-cover transition-all duration-300"
                       style={{ objectPosition: formData.imageFocalPoint }}
@@ -379,15 +379,15 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
                         className={`p-2 rounded-lg border text-left transition-all ${
                           formData.imageFocalPoint === option.value
                             ? 'border-teal-500 bg-teal-50 ring-2 ring-teal-500/20'
-                            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                            : 'border-[var(--frox-neutral-border)] hover:border-[var(--frox-neutral-border)] hover:bg-[var(--frox-gray-100)]'
                         }`}
                       >
                         <span className={`block text-sm font-medium ${
-                          formData.imageFocalPoint === option.value ? 'text-teal-700' : 'text-slate-700'
+                          formData.imageFocalPoint === option.value ? 'text-teal-700' : 'text-[var(--frox-gray-800)]'
                         }`}>
                           {option.label}
                         </span>
-                        <span className="block text-[10px] text-slate-500">{option.description}</span>
+                        <span className="block text-[10px] text-[var(--frox-gray-500)]">{option.description}</span>
                       </button>
                     ))}
                   </div>
@@ -408,7 +408,7 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
             </div>
             <div className="space-y-2">
               {formData.videos.map((vid: string, i: number) => (
-                <div key={i} className="flex items-center gap-2 text-sm bg-slate-50 p-2 rounded">
+                <div key={i} className="flex items-center gap-2 text-sm bg-[var(--frox-gray-100)] p-2 rounded">
                   <span className="truncate flex-1">{vid}</span>
                   <Button type="button" variant="ghost" size="sm" onClick={() => handleArrayRemove('videos', i)}><X className="w-4 h-4" /></Button>
                 </div>
@@ -428,7 +428,7 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
             </div>
             <div className="space-y-2">
               {formData.documents.map((doc: string, i: number) => (
-                <div key={i} className="flex items-center gap-2 text-sm bg-slate-50 p-2 rounded">
+                <div key={i} className="flex items-center gap-2 text-sm bg-[var(--frox-gray-100)] p-2 rounded">
                   <span className="truncate flex-1">{doc}</span>
                   <Button type="button" variant="ghost" size="sm" onClick={() => handleArrayRemove('documents', i)}><X className="w-4 h-4" /></Button>
                 </div>
@@ -447,9 +447,9 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
             </div>
             <div className="flex flex-wrap gap-2">
               {formData.tags.map((tag: string, i: number) => (
-                <div key={i} className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded text-sm">
+                <div key={i} className="flex items-center gap-1 bg-[var(--frox-gray-200)] px-2 py-1 rounded text-sm">
                   <span>{tag}</span>
-                  <button type="button" onClick={() => handleArrayRemove('tags', i)} className="text-slate-500 hover:text-red-500"><X className="w-3 h-3" /></button>
+                  <button type="button" onClick={() => handleArrayRemove('tags', i)} className="text-[var(--frox-gray-500)] hover:text-red-500"><X className="w-3 h-3" /></button>
                 </div>
               ))}
             </div>

@@ -36,7 +36,7 @@ export default function EditConferencePage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-slate-900">Редактировать мероприятие</h1>
+      <h1 className="text-3xl font-bold text-[var(--frox-gray-1100)]">Редактировать мероприятие</h1>
       <ConferenceForm initialData={data} isEditing={true} />
     </div>
   );

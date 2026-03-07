@@ -138,7 +138,7 @@ export default function VisitStats() {
           <CardContent className="pt-6">
             <div className="animate-pulse grid grid-cols-2 md:grid-cols-4 gap-4">
               {[1, 2, 3, 4].map(i => (
-                <div key={i} className="h-20 bg-slate-100 rounded"></div>
+                <div key={i} className="h-20 bg-[var(--frox-gray-200)] rounded"></div>
               ))}
             </div>
           </CardContent>
@@ -184,7 +184,7 @@ export default function VisitStats() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+            <div className="flex items-center gap-2 text-[var(--frox-gray-500)] text-sm">
               <Eye className="h-4 w-4" />
               Просмотры
             </div>
@@ -196,7 +196,7 @@ export default function VisitStats() {
         
         <Card>
           <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+            <div className="flex items-center gap-2 text-[var(--frox-gray-500)] text-sm">
               <Users className="h-4 w-4" />
               Посетители
             </div>
@@ -208,7 +208,7 @@ export default function VisitStats() {
         
         <Card>
           <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+            <div className="flex items-center gap-2 text-[var(--frox-gray-500)] text-sm">
               <Globe className="h-4 w-4" />
               Уникальных IP
             </div>
@@ -220,7 +220,7 @@ export default function VisitStats() {
         
         <Card>
           <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+            <div className="flex items-center gap-2 text-[var(--frox-gray-500)] text-sm">
               <Clock className="h-4 w-4" />
               Ср. время
             </div>
@@ -243,7 +243,7 @@ export default function VisitStats() {
           </CardHeader>
           <CardContent>
             {data?.popularPages.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Нет данных</p>
+              <p className="text-sm text-[var(--frox-gray-500)]">Нет данных</p>
             ) : (
               <div className="space-y-2">
                 {data?.popularPages.slice(0, 5).map((page, idx) => (
@@ -271,7 +271,7 @@ export default function VisitStats() {
           </CardHeader>
           <CardContent>
             {data?.geography.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Нет данных</p>
+              <p className="text-sm text-[var(--frox-gray-500)]">Нет данных</p>
             ) : (
               <div className="space-y-2">
                 {data?.geography.slice(0, 5).map((geo, idx) => (
@@ -297,7 +297,7 @@ export default function VisitStats() {
           </CardHeader>
           <CardContent>
             {data?.referrers.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Нет данных</p>
+              <p className="text-sm text-[var(--frox-gray-500)]">Нет данных</p>
             ) : (
               <div className="space-y-2">
                 {data?.referrers.slice(0, 5).map((ref, idx) => (
@@ -321,7 +321,7 @@ export default function VisitStats() {
           </CardHeader>
           <CardContent>
             {data?.devices.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Нет данных</p>
+              <p className="text-sm text-[var(--frox-gray-500)]">Нет данных</p>
             ) : (
               <div className="space-y-2">
                 {data?.devices.map((device, idx) => (
@@ -332,7 +332,7 @@ export default function VisitStats() {
                     </span>
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary">{device.visits}</Badge>
-                      <span className="text-muted-foreground text-xs">
+                      <span className="text-[var(--frox-gray-500)] text-xs">
                         ({device.uniqueVisitors} уник.)
                       </span>
                     </div>
@@ -356,7 +356,7 @@ export default function VisitStats() {
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
               {data.cities.slice(0, 10).map((city, idx) => (
-                <div key={idx} className="flex items-center justify-between text-sm p-2 bg-slate-50 rounded">
+                <div key={idx} className="flex items-center justify-between text-sm p-2 bg-[var(--frox-gray-100)] rounded">
                   <span className="truncate">{city.city}</span>
                   <Badge variant="outline" className="ml-2">{city.visits}</Badge>
                 </div>

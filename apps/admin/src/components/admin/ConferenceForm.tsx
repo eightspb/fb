@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { toPublicUrl } from '@/lib/public-url';
 import { useRouter } from 'next/navigation';
 import { generateSlug, isValidSlug } from '@/lib/slug';
 import { getCsrfToken, refreshCsrfToken } from '@/lib/csrf-client';
@@ -99,7 +100,35 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
   );
 
   const [newProgramItem, setNewProgramItem] = useState('');
-  
+  const [collapsedSpeakers, setCollapsedSpeakers] = useState<Set<string>>(
+    () => new Set((initialData?.speakers || []).map((s: Speaker) => s.id))
+  );
+  const [collapsedProgramItems, setCollapsedProgramItems] = useState<Set<string>>(
+    () => new Set(
+      (Array.isArray(initialData?.program) && initialData.program[0] && typeof initialData.program[0] === 'object' && 'time_start' in initialData.program[0]
+        ? initialData.program
+        : []
+      ).map((item: ProgramItem) => item.id)
+    )
+  );
+
+  const toggleSpeakerCollapse = (id: string) => {
+    setCollapsedSpeakers(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleProgramItemCollapse = (id: string) => {
+    setCollapsedProgramItems(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+
   // Program Item management (structured)
   const addProgramItem = () => {
     const programArray = formData.program as ProgramItem[];
@@ -406,7 +435,7 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
               </Button>
             </div>
             {formData.slug && (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[var(--frox-gray-500)]">
                 URL: /conferences/<span className="font-medium text-teal-600">{formData.slug}</span>
               </p>
             )}
@@ -430,7 +459,7 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
               name="type" 
               value={formData.type} 
               onChange={handleChange}
-              className="w-full border rounded-md p-2 bg-white"
+              className="w-full border border-[var(--frox-neutral-border)] rounded-xl p-2 bg-white text-[var(--frox-gray-800)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--frox-brand)]/40"
             >
               <option value="Конференция">Конференция</option>
               <option value="Мастер-класс">Мастер-класс</option>
@@ -465,7 +494,7 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
                 name="status" 
                 value={formData.status} 
                 onChange={handleChange}
-                className="w-full border rounded-md p-2 bg-white"
+                className="w-full border border-[var(--frox-neutral-border)] rounded-xl p-2 bg-white text-[var(--frox-gray-800)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--frox-brand)]/40"
               >
                 <option value="draft">Черновик</option>
                 <option value="published">Опубликовано</option>
@@ -493,7 +522,7 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
             {formData.cover_image && (
               <div className="relative">
                 <Image
-                  src={formData.cover_image}
+                  src={toPublicUrl(formData.cover_image)}
                   alt="Обложка"
                   width={192}
                   height={128}
@@ -518,7 +547,7 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
                 mode="base64"
                 accept="image/*"
               />
-              <p className="text-sm text-slate-500 mt-2">Рекомендуемый размер: 1200x630 px</p>
+              <p className="text-sm text-[var(--frox-gray-500)] mt-2">Рекомендуемый размер: 1200x630 px</p>
             </div>
           </div>
         </CardContent>
@@ -539,137 +568,151 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
         </CardHeader>
         <CardContent className="space-y-4">
           {formData.speakers.length === 0 ? (
-            <p className="text-slate-500 text-center py-4">Нет добавленных спикеров</p>
+            <p className="text-[var(--frox-gray-500)] text-center py-4">Нет добавленных спикеров</p>
           ) : (
-            formData.speakers.map((speaker, index) => (
-              <Card key={speaker.id} className="bg-slate-50">
-                <CardContent className="pt-4">
-                  <div className="flex gap-4">
-                    {/* Photo */}
+            formData.speakers.map((speaker, index) => {
+              const isCollapsed = collapsedSpeakers.has(speaker.id);
+              return (
+                <Card key={speaker.id} className="overflow-hidden border border-[var(--frox-gray-200)] shadow-sm bg-white">
+                  {/* Collapsed header — always visible */}
+                  <div
+                    className={`flex items-center gap-3 px-4 py-1.5 cursor-pointer select-none border-l-4 border-l-[var(--frox-brand)] transition-colors ${isCollapsed ? 'bg-white hover:bg-[var(--frox-gray-100)]' : 'bg-[var(--frox-gray-100)]'}`}
+                    onClick={() => toggleSpeakerCollapse(speaker.id)}
+                  >
                     <div className="flex-shrink-0">
                       {speaker.photo ? (
-                        <div className="relative">
-                          <Image
-                            src={speaker.photo}
-                            alt={speaker.name || 'Спикер'}
-                            width={96}
-                            height={96}
-                            className="w-24 h-24 object-cover rounded-lg border"
-                            unoptimized
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute -top-2 -right-2 bg-white rounded-full shadow h-6 w-6 p-0"
-                            onClick={() => updateSpeaker(speaker.id, 'photo', '')}
-                          >
-                            <X className="w-3 h-3" />
-                          </Button>
-                        </div>
+                        <Image
+                          src={toPublicUrl(speaker.photo)}
+                          alt={speaker.name || 'Спикер'}
+                          width={28}
+                          height={28}
+                          className="w-7 h-7 object-cover rounded-full border-2 border-white shadow"
+                          unoptimized
+                        />
                       ) : (
-                        <div className="w-24 h-24 bg-slate-200 rounded-lg flex items-center justify-center">
-                          <FileUpload 
-                            onUpload={(data) => updateSpeaker(speaker.id, 'photo', data)} 
-                            folder="conferences/speakers" 
-                            mode="base64"
-                            accept="image/*"
-                          />
+                        <div className="w-7 h-7 bg-[var(--frox-brand)]/10 rounded-full flex items-center justify-center">
+                          <User className="w-4 h-4 text-[var(--frox-brand)]" />
                         </div>
                       )}
                     </div>
-
-                    {/* Info */}
-                    <div className="flex-1 space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-xs">ФИО *</Label>
-                          <Input 
-                            value={speaker.name} 
-                            onChange={(e) => updateSpeaker(speaker.id, 'name', e.target.value)}
-                            placeholder="Иванов Иван Иванович"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Организация, город</Label>
-                          <Input 
-                            value={speaker.institution} 
-                            onChange={(e) => updateSpeaker(speaker.id, 'institution', e.target.value)}
-                            placeholder="МНИОИ им. П.А. Герцена, Москва"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-xs">Регалии, должность</Label>
-                        <Textarea 
-                          value={speaker.credentials} 
-                          onChange={(e) => updateSpeaker(speaker.id, 'credentials', e.target.value)}
-                          placeholder="Д.м.н., профессор, заведующий кафедрой..."
-                          className="min-h-[60px]"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center space-x-2">
-                          <input 
-                            type="checkbox" 
-                            id={`speaker-${speaker.id}`}
-                            checked={speaker.is_speaker ?? true} 
-                            onChange={(e) => updateSpeaker(speaker.id, 'is_speaker', e.target.checked)}
-                            className="h-4 w-4 rounded border-gray-300"
-                          />
-                          <Label htmlFor={`speaker-${speaker.id}`} className="text-sm font-normal cursor-pointer">
-                            Докладчик (выступает с докладом)
-                          </Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <input 
-                            type="checkbox" 
-                            id={`presidium-${speaker.id}`}
-                            checked={speaker.is_presidium ?? false} 
-                            onChange={(e) => updateSpeaker(speaker.id, 'is_presidium', e.target.checked)}
-                            className="h-4 w-4 rounded border-gray-300"
-                          />
-                          <Label htmlFor={`presidium-${speaker.id}`} className="text-sm font-normal cursor-pointer">
-                            Член президиума конференции
-                          </Label>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex flex-col gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => moveSpeaker(index, 'up')}
-                        disabled={index === 0}
-                      >
-                        <ChevronUp className="w-4 h-4" />
+                    <span className="flex-1 text-base font-semibold text-[var(--frox-gray-800)] truncate">
+                      {speaker.name || <span className="text-[var(--frox-gray-400)] font-normal italic">Без имени</span>}
+                    </span>
+                    <span className="text-sm text-[var(--frox-gray-400)] hidden sm:block truncate max-w-[160px]">{speaker.institution || ''}</span>
+                    <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                      <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => moveSpeaker(index, 'up')} disabled={index === 0}>
+                        <ChevronUp className="w-3.5 h-3.5" />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => moveSpeaker(index, 'down')}
-                        disabled={index === formData.speakers.length - 1}
-                      >
-                        <ChevronDown className="w-4 h-4" />
+                      <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => moveSpeaker(index, 'down')} disabled={index === formData.speakers.length - 1}>
+                        <ChevronDown className="w-3.5 h-3.5" />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeSpeaker(speaker.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <X className="w-4 h-4" />
+                      <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-[var(--frox-danger)] hover:text-[var(--frox-danger)] hover:bg-red-50" onClick={() => removeSpeaker(speaker.id)}>
+                        <X className="w-3.5 h-3.5" />
                       </Button>
                     </div>
+                    <ChevronDown className={`w-4 h-4 text-[var(--frox-brand)] transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'}`} />
                   </div>
-                </CardContent>
-              </Card>
-            ))
+
+                  {/* Expanded content */}
+                  {!isCollapsed && (
+                    <CardContent className="pt-4 pb-4 border-t border-[var(--frox-gray-200)]">
+                      <div className="flex gap-4">
+                        {/* Photo */}
+                        <div className="flex-shrink-0">
+                          {speaker.photo ? (
+                            <div className="relative">
+                              <Image
+                                src={toPublicUrl(speaker.photo)}
+                                alt={speaker.name || 'Спикер'}
+                                width={96}
+                                height={96}
+                                className="w-24 h-24 object-cover rounded-lg border"
+                                unoptimized
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="absolute -top-2 -right-2 bg-white rounded-full shadow h-6 w-6 p-0"
+                                onClick={() => updateSpeaker(speaker.id, 'photo', '')}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="w-24 h-24 bg-[var(--frox-gray-300)] rounded-lg flex items-center justify-center">
+                              <FileUpload
+                                onUpload={(data) => updateSpeaker(speaker.id, 'photo', data)}
+                                folder="conferences/speakers"
+                                mode="base64"
+                                accept="image/*"
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-xs">ФИО *</Label>
+                              <Input
+                                value={speaker.name}
+                                onChange={(e) => updateSpeaker(speaker.id, 'name', e.target.value)}
+                                placeholder="Иванов Иван Иванович"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Организация, город</Label>
+                              <Input
+                                value={speaker.institution}
+                                onChange={(e) => updateSpeaker(speaker.id, 'institution', e.target.value)}
+                                placeholder="МНИОИ им. П.А. Герцена, Москва"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Регалии, должность</Label>
+                            <Textarea
+                              value={speaker.credentials}
+                              onChange={(e) => updateSpeaker(speaker.id, 'credentials', e.target.value)}
+                              placeholder="Д.м.н., профессор, заведующий кафедрой..."
+                              className="min-h-[60px]"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`speaker-${speaker.id}`}
+                                checked={speaker.is_speaker ?? true}
+                                onChange={(e) => updateSpeaker(speaker.id, 'is_speaker', e.target.checked)}
+                                className="h-4 w-4 rounded border-gray-300"
+                              />
+                              <Label htmlFor={`speaker-${speaker.id}`} className="text-sm font-normal cursor-pointer">
+                                Докладчик (выступает с докладом)
+                              </Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`presidium-${speaker.id}`}
+                                checked={speaker.is_presidium ?? false}
+                                onChange={(e) => updateSpeaker(speaker.id, 'is_presidium', e.target.checked)}
+                                className="h-4 w-4 rounded border-gray-300"
+                              />
+                              <Label htmlFor={`presidium-${speaker.id}`} className="text-sm font-normal cursor-pointer">
+                                Член президиума конференции
+                              </Label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              );
+            })
           )}
         </CardContent>
       </Card>
@@ -708,117 +751,123 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
             // Structured program
             <>
               {(formData.program as ProgramItem[]).length === 0 ? (
-                <p className="text-slate-500 text-center py-4">Нет добавленных пунктов расписания</p>
+                <p className="text-[var(--frox-gray-500)] text-center py-4">Нет добавленных пунктов расписания</p>
               ) : (
-                (formData.program as ProgramItem[]).map((item, index) => (
-                  <Card key={item.id} className="bg-slate-50">
-                    <CardContent className="pt-4">
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-3 gap-3">
-                          <div>
-                            <Label className="text-xs">Время начала</Label>
-                            <Input 
-                              type="time"
-                              value={item.time_start}
-                              onChange={(e) => updateProgramItem(item.id, 'time_start', e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs">Время окончания</Label>
-                            <Input 
-                              type="time"
-                              value={item.time_end}
-                              onChange={(e) => updateProgramItem(item.id, 'time_end', e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs">Тип</Label>
-                            <select 
-                              value={item.type}
-                              onChange={(e) => updateProgramItem(item.id, 'type', e.target.value)}
-                              className="w-full border rounded-md p-2 bg-white text-sm"
-                            >
-                              <option value="talk">Доклад</option>
-                              <option value="break">Перерыв</option>
-                              <option value="other">Другое</option>
-                            </select>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <Label className="text-xs">Спикер</Label>
-                            <select 
-                              value={item.speaker_id || ''}
-                              onChange={(e) => updateProgramItem(item.id, 'speaker_id', e.target.value)}
-                              className="w-full border rounded-md p-2 bg-white text-sm"
-                            >
-                              <option value="">Не выбран</option>
-                              {formData.speakers.map(speaker => (
-                                <option key={speaker.id} value={speaker.id}>
-                                  {speaker.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <Label className="text-xs">Или имя спикера (если нет в списке)</Label>
-                            <Input 
-                              value={item.speaker_name || ''}
-                              onChange={(e) => updateProgramItem(item.id, 'speaker_name', e.target.value)}
-                              placeholder="Имя спикера"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label className="text-xs">Название доклада/события</Label>
-                          <Input 
-                            value={item.title}
-                            onChange={(e) => updateProgramItem(item.id, 'title', e.target.value)}
-                            placeholder="Тема доклада или название события"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Описание (опционально)</Label>
-                          <Textarea 
-                            value={item.description || ''}
-                            onChange={(e) => updateProgramItem(item.id, 'description', e.target.value)}
-                            placeholder="Дополнительная информация"
-                            className="min-h-[60px]"
-                          />
-                        </div>
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => moveProgramItem(index, 'up')}
-                            disabled={index === 0}
-                          >
-                            <ChevronUp className="w-4 h-4" />
+                (formData.program as ProgramItem[]).map((item, index) => {
+                  const isCollapsed = collapsedProgramItems.has(item.id);
+                  const typeLabels = { talk: 'Доклад', break: 'Перерыв', other: 'Другое' };
+                  return (
+                    <Card key={item.id} className="overflow-hidden border border-[var(--frox-gray-200)] shadow-sm bg-white">
+                      {/* Collapsed header — always visible */}
+                      <div
+                        className={`flex items-center gap-3 px-4 py-1.5 cursor-pointer select-none border-l-4 transition-colors ${item.type === 'break' ? 'border-l-[var(--frox-green)]' : item.type === 'other' ? 'border-l-[var(--frox-orange)]' : 'border-l-[var(--frox-brand)]'} ${isCollapsed ? 'bg-white hover:bg-[var(--frox-gray-100)]' : 'bg-[var(--frox-gray-100)]'}`}
+                        onClick={() => toggleProgramItemCollapse(item.id)}
+                      >
+                        <span className="flex-shrink-0 text-sm font-mono font-semibold text-[var(--frox-brand)] bg-[var(--frox-brand)]/8 px-2 py-0.5 rounded-md w-28 text-center">
+                          {item.time_start}{item.time_end ? `–${item.time_end}` : ''}
+                        </span>
+                        <span className="flex-1 text-base font-semibold text-[var(--frox-gray-800)] truncate">
+                          {item.title || <span className="text-[var(--frox-gray-400)] font-normal italic">Без названия</span>}
+                        </span>
+                        <span className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${item.type === 'break' ? 'bg-[var(--frox-green)]/10 text-[var(--frox-green)]' : item.type === 'other' ? 'bg-[var(--frox-orange)]/10 text-[var(--frox-orange)]' : 'bg-[var(--frox-brand)]/10 text-[var(--frox-brand)]'}`}>
+                          {typeLabels[item.type]}
+                        </span>
+                        <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                          <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => moveProgramItem(index, 'up')} disabled={index === 0}>
+                            <ChevronUp className="w-3.5 h-3.5" />
                           </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => moveProgramItem(index, 'down')}
-                            disabled={index === (formData.program as ProgramItem[]).length - 1}
-                          >
-                            <ChevronDown className="w-4 h-4" />
+                          <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => moveProgramItem(index, 'down')} disabled={index === (formData.program as ProgramItem[]).length - 1}>
+                            <ChevronDown className="w-3.5 h-3.5" />
                           </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeProgramItem(item.id)}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <X className="w-4 h-4" />
+                          <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-[var(--frox-danger)] hover:text-[var(--frox-danger)] hover:bg-red-50" onClick={() => removeProgramItem(item.id)}>
+                            <X className="w-3.5 h-3.5" />
                           </Button>
                         </div>
+                        <ChevronDown className={`w-4 h-4 text-[var(--frox-brand)] transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'}`} />
                       </div>
-                    </CardContent>
-                  </Card>
-                ))
+
+                      {/* Expanded content */}
+                      {!isCollapsed && (
+                        <CardContent className="pt-4 pb-4 border-t border-[var(--frox-gray-200)]">
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-3 gap-3">
+                              <div>
+                                <Label className="text-xs">Время начала</Label>
+                                <Input
+                                  type="time"
+                                  value={item.time_start}
+                                  onChange={(e) => updateProgramItem(item.id, 'time_start', e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Время окончания</Label>
+                                <Input
+                                  type="time"
+                                  value={item.time_end}
+                                  onChange={(e) => updateProgramItem(item.id, 'time_end', e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Тип</Label>
+                                <select
+                                  value={item.type}
+                                  onChange={(e) => updateProgramItem(item.id, 'type', e.target.value)}
+                                  className="w-full border border-[var(--frox-neutral-border)] rounded-xl p-2 bg-white text-[var(--frox-gray-800)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--frox-brand)]/40"
+                                >
+                                  <option value="talk">Доклад</option>
+                                  <option value="break">Перерыв</option>
+                                  <option value="other">Другое</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label className="text-xs">Спикер</Label>
+                                <select
+                                  value={item.speaker_id || ''}
+                                  onChange={(e) => updateProgramItem(item.id, 'speaker_id', e.target.value)}
+                                  className="w-full border border-[var(--frox-neutral-border)] rounded-xl p-2 bg-white text-[var(--frox-gray-800)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--frox-brand)]/40"
+                                >
+                                  <option value="">Не выбран</option>
+                                  {formData.speakers.map(speaker => (
+                                    <option key={speaker.id} value={speaker.id}>
+                                      {speaker.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <Label className="text-xs">Или имя спикера (если нет в списке)</Label>
+                                <Input
+                                  value={item.speaker_name || ''}
+                                  onChange={(e) => updateProgramItem(item.id, 'speaker_name', e.target.value)}
+                                  placeholder="Имя спикера"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <Label className="text-xs">Название доклада/события</Label>
+                              <Input
+                                value={item.title}
+                                onChange={(e) => updateProgramItem(item.id, 'title', e.target.value)}
+                                placeholder="Тема доклада или название события"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Описание (опционально)</Label>
+                              <Textarea
+                                value={item.description || ''}
+                                onChange={(e) => updateProgramItem(item.id, 'description', e.target.value)}
+                                placeholder="Дополнительная информация"
+                                className="min-h-[60px]"
+                              />
+                            </div>
+                          </div>
+                        </CardContent>
+                      )}
+                    </Card>
+                  );
+                })
               )}
             </>
           ) : (
@@ -834,8 +883,8 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
               </div>
               <div className="space-y-2 max-h-[300px] overflow-y-auto">
                 {(formData.program as string[]).map((item: string, i: number) => (
-                  <div key={i} className="flex items-center gap-2 text-sm bg-slate-50 p-2 rounded">
-                    <span className="text-slate-400 w-6">{i + 1}.</span>
+                  <div key={i} className="flex items-center gap-2 text-sm bg-[var(--frox-gray-100)] p-2 rounded">
+                    <span className="text-[var(--frox-gray-400)] w-6">{i + 1}.</span>
                     <span className="truncate flex-1">{item}</span>
                     <Button type="button" variant="ghost" size="sm" onClick={() => handleProgramRemove(i)}>
                       <X className="w-4 h-4" />
@@ -902,10 +951,10 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
         </CardHeader>
         <CardContent className="space-y-4">
           {formData.videos.length === 0 ? (
-            <p className="text-slate-500 text-center py-4">Нет добавленных видео</p>
+            <p className="text-[var(--frox-gray-500)] text-center py-4">Нет добавленных видео</p>
           ) : (
             formData.videos.map((video, index) => (
-              <Card key={video.id} className="bg-slate-50">
+              <Card key={video.id} className="bg-[var(--frox-gray-100)]">
                 <CardContent className="pt-4">
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
@@ -933,7 +982,7 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
                         onChange={(e) => updateVideo(video.id, 'video_url', e.target.value)}
                         placeholder="/videos/conferences/sms3_video1.mp4"
                       />
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-[var(--frox-gray-500)] mt-1">
                         Укажите путь к видео файлу на сервере (например: /videos/conferences/sms3_video1.mp4)
                       </p>
                     </div>

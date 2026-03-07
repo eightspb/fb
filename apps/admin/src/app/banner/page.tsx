@@ -117,14 +117,14 @@ export default function BannerPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--frox-gray-500)]" />
       </div>
     );
   }
 
   if (!banner) {
     return (
-      <div className="text-center py-8 text-slate-500">
+      <div className="text-center py-8 text-[var(--frox-gray-500)]">
         <Bell className="w-12 h-12 mx-auto mb-4 opacity-50" />
         <p>Баннер не найден. Примените миграцию базы данных.</p>
       </div>
@@ -134,8 +134,8 @@ export default function BannerPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Информационный баннер</h1>
-        <p className="text-slate-600 mt-2">Управление баннером в верхней части сайта</p>
+        <h1 className="text-3xl font-bold text-[var(--frox-gray-1100)]">Информационный баннер</h1>
+        <p className="text-[var(--frox-gray-600)] mt-2">Управление баннером в верхней части сайта</p>
       </div>
 
       {/* Preview */}
@@ -218,7 +218,7 @@ export default function BannerPage() {
               id="style"
               value={banner.style}
               onChange={(e) => updateBanner('style', e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+              className="w-full px-3 py-2 border border-[var(--frox-gray-300)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--frox-brand)]/40"
             >
               <option value="static">Статичный текст</option>
               <option value="marquee">Бегущая строка</option>
@@ -235,13 +235,13 @@ export default function BannerPage() {
                   id="bg_color"
                   value={banner.bg_color}
                   onChange={(e) => updateBanner('bg_color', e.target.value)}
-                  className="h-10 w-20 rounded border border-slate-300 cursor-pointer"
+                  className="h-10 w-20 rounded border border-[var(--frox-gray-300)] cursor-pointer"
                 />
                 <input
                   type="text"
                   value={banner.bg_color}
                   onChange={(e) => updateBanner('bg_color', e.target.value)}
-                  className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                  className="flex-1 px-3 py-2 border border-[var(--frox-gray-300)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--frox-brand)]/40"
                   placeholder="#3b82f6"
                 />
               </div>
@@ -255,13 +255,13 @@ export default function BannerPage() {
                   id="text_color"
                   value={banner.text_color}
                   onChange={(e) => updateBanner('text_color', e.target.value)}
-                  className="h-10 w-20 rounded border border-slate-300 cursor-pointer"
+                  className="h-10 w-20 rounded border border-[var(--frox-gray-300)] cursor-pointer"
                 />
                 <input
                   type="text"
                   value={banner.text_color}
                   onChange={(e) => updateBanner('text_color', e.target.value)}
-                  className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                  className="flex-1 px-3 py-2 border border-[var(--frox-gray-300)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--frox-brand)]/40"
                   placeholder="#ffffff"
                 />
               </div>
@@ -276,7 +276,7 @@ export default function BannerPage() {
                 id="font_size"
                 value={banner.font_size}
                 onChange={(e) => updateBanner('font_size', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                className="w-full px-3 py-2 border border-[var(--frox-gray-300)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--frox-brand)]/40"
               >
                 <option value="12px">12px (Маленький)</option>
                 <option value="14px">14px (Обычный)</option>
@@ -292,7 +292,7 @@ export default function BannerPage() {
                 id="font_weight"
                 value={banner.font_weight}
                 onChange={(e) => updateBanner('font_weight', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                className="w-full px-3 py-2 border border-[var(--frox-gray-300)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--frox-brand)]/40"
               >
                 <option value="normal">Normal (400)</option>
                 <option value="medium">Medium (500)</option>

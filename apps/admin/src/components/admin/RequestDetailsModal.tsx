@@ -52,7 +52,7 @@ const statusConfig: Record<string, { label: string; pill: string; dot: string; i
   new: { label: 'Новая', pill: 'bg-blue-50 text-blue-700 border-blue-100', dot: 'bg-blue-500', icon: Inbox },
   in_progress: { label: 'В работе', pill: 'bg-amber-50 text-amber-700 border-amber-100', dot: 'bg-amber-500', icon: Clock },
   processed: { label: 'Обработана', pill: 'bg-emerald-50 text-emerald-700 border-emerald-100', dot: 'bg-emerald-500', icon: CheckCircle2 },
-  archived: { label: 'В архиве', pill: 'bg-slate-100 text-slate-500 border-slate-200', dot: 'bg-slate-400', icon: Archive },
+  archived: { label: 'В архиве', pill: 'bg-[var(--frox-gray-200)] text-[var(--frox-gray-500)] border-[var(--frox-neutral-border)]', dot: 'bg-[var(--frox-gray-400)]', icon: Archive },
 };
 
 function formatDate(dateStr: string): string {
@@ -84,19 +84,19 @@ export function RequestDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[92dvh] overflow-hidden p-0 gap-0 rounded-2xl border-slate-200 shadow-xl">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[92dvh] overflow-hidden p-0 gap-0 rounded-2xl border-[var(--frox-neutral-border)] shadow-xl flex flex-col">
         {/* ── Шапка модалки ── */}
-        <DialogHeader className="px-5 pt-5 pb-4 border-b border-slate-100 shrink-0">
+        <DialogHeader className="px-5 pt-5 pb-4 border-b border-[var(--frox-neutral-border)] shrink-0">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <DialogTitle className="text-base font-semibold text-slate-900 flex items-center gap-2 min-w-0">
-                <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                  <User className="w-3.5 h-3.5 text-slate-500" />
+              <DialogTitle className="text-base font-semibold text-[var(--frox-gray-1100)] flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-[var(--frox-gray-200)] flex items-center justify-center shrink-0">
+                  <User className="w-3.5 h-3.5 text-[var(--frox-gray-500)]" />
                 </div>
                 <span className="truncate">{request.name}</span>
               </DialogTitle>
               <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${formTypeBadgeStyle[request.form_type] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${formTypeBadgeStyle[request.form_type] || 'bg-[var(--frox-gray-100)] text-[var(--frox-gray-600)] border-[var(--frox-neutral-border)]'}`}>
                   {formTypeLabels[request.form_type] || request.form_type}
                 </span>
                 <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${sc.pill}`}>
@@ -113,7 +113,7 @@ export function RequestDetailsModal({
                     Высокий приоритет
                   </span>
                 )}
-                <span className="text-xs text-slate-400">{formatDate(request.created_at)}</span>
+                <span className="text-xs text-[var(--frox-gray-400)]">{formatDate(request.created_at)}</span>
                 {request.contact_id && (
                   <button
                     onClick={() => { onClose(); router.push(`/contacts?contact=${request.contact_id}`); }}
@@ -124,17 +124,6 @@ export function RequestDetailsModal({
                   </button>
                 )}
               </div>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleOpenFull}
-                className="h-8 gap-1.5 text-xs border-slate-200"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Открыть</span>
-              </Button>
             </div>
           </div>
         </DialogHeader>
@@ -147,6 +136,18 @@ export function RequestDetailsModal({
             onDelete={(id) => { onDelete(id); onClose(); }}
             compact
           />
+        </div>
+
+        {/* ── Футер ── */}
+        <div className="shrink-0 px-5 py-3 border-t border-[var(--frox-neutral-border)] bg-[var(--frox-gray-50)]">
+          <Button
+            variant="outline"
+            onClick={handleOpenFull}
+            className="w-full gap-2 text-sm border-[var(--frox-neutral-border)]"
+          >
+            <ExternalLink className="w-4 h-4" />
+            Открыть полную карточку
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

@@ -135,7 +135,7 @@ ${body.split('\n').map(line => `<p style="margin: 0 0 8px 0;">${line || '&nbsp;'
 
       {/* Кому */}
       <div>
-        <label className="block text-xs text-slate-500 mb-1">Кому</label>
+        <label className="block text-xs text-[var(--frox-gray-500)] mb-1">Кому</label>
         <Input
           value={to}
           onChange={(e) => setTo(e.target.value)}
@@ -146,7 +146,7 @@ ${body.split('\n').map(line => `<p style="margin: 0 0 8px 0;">${line || '&nbsp;'
 
       {/* Тема */}
       <div>
-        <label className="block text-xs text-slate-500 mb-1">Тема</label>
+        <label className="block text-xs text-[var(--frox-gray-500)] mb-1">Тема</label>
         <Input
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
@@ -157,7 +157,7 @@ ${body.split('\n').map(line => `<p style="margin: 0 0 8px 0;">${line || '&nbsp;'
 
       {/* Тело */}
       <div>
-        <label className="block text-xs text-slate-500 mb-1">Сообщение</label>
+        <label className="block text-xs text-[var(--frox-gray-500)] mb-1">Сообщение</label>
         <Textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -170,13 +170,13 @@ ${body.split('\n').map(line => `<p style="margin: 0 0 8px 0;">${line || '&nbsp;'
       {/* Вложения */}
       {files.length > 0 && (
         <div className="space-y-1">
-          <label className="block text-xs text-slate-500">Вложения</label>
+          <label className="block text-xs text-[var(--frox-gray-500)]">Вложения</label>
           {files.map((file, index) => (
-            <div key={index} className="flex items-center gap-2 text-xs bg-slate-50 rounded px-2 py-1">
-              <Paperclip className="w-3 h-3 text-slate-400" />
+            <div key={index} className="flex items-center gap-2 text-xs bg-[var(--frox-gray-100)] rounded px-2 py-1">
+              <Paperclip className="w-3 h-3 text-[var(--frox-gray-400)]" />
               <span className="flex-1 truncate">{file.name}</span>
-              <span className="text-slate-400">{(file.size / 1024).toFixed(0)} KB</span>
-              <button onClick={() => handleRemoveFile(index)} className="text-slate-400 hover:text-red-500">
+              <span className="text-[var(--frox-gray-400)]">{(file.size / 1024).toFixed(0)} KB</span>
+              <button onClick={() => handleRemoveFile(index)} className="text-[var(--frox-gray-400)] hover:text-red-500">
                 <X className="w-3 h-3" />
               </button>
             </div>

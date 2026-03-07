@@ -40,12 +40,12 @@ const statusConfig = [
   { value: 'new', label: 'Новая', pill: 'bg-blue-50 text-blue-700 border border-blue-200', dot: 'bg-blue-500', icon: Inbox },
   { value: 'in_progress', label: 'В работе', pill: 'bg-amber-50 text-amber-700 border border-amber-200', dot: 'bg-amber-500', icon: Clock },
   { value: 'processed', label: 'Обработана', pill: 'bg-emerald-50 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-500', icon: CheckCircle2 },
-  { value: 'archived', label: 'В архиве', pill: 'bg-slate-100 text-slate-500 border border-slate-200', dot: 'bg-slate-400', icon: Archive },
+  { value: 'archived', label: 'В архиве', pill: 'bg-[var(--frox-gray-200)] text-[var(--frox-gray-500)] border border-[var(--frox-neutral-border)]', dot: 'bg-[var(--frox-gray-400)]', icon: Archive },
 ];
 
 const priorityConfig = [
-  { value: 'low', label: 'Низкий', pill: 'bg-slate-50 text-slate-500 border border-slate-200' },
-  { value: 'normal', label: 'Обычный', pill: 'bg-slate-50 text-slate-600 border border-slate-200' },
+  { value: 'low', label: 'Низкий', pill: 'bg-[var(--frox-gray-100)] text-[var(--frox-gray-500)] border border-[var(--frox-neutral-border)]' },
+  { value: 'normal', label: 'Обычный', pill: 'bg-[var(--frox-gray-100)] text-[var(--frox-gray-600)] border border-[var(--frox-neutral-border)]' },
   { value: 'high', label: 'Высокий', pill: 'bg-orange-50 text-orange-700 border border-orange-200' },
   { value: 'urgent', label: 'Срочный', pill: 'bg-red-50 text-red-700 border border-red-200' },
 ];
@@ -78,10 +78,10 @@ function EditableField({
 
   return (
     <div className="group relative">
-      <div className="flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors">
-        <div className="text-slate-400 mt-0.5 shrink-0">{icon}</div>
+      <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-[var(--frox-gray-100)] transition-colors">
+        <div className="text-[var(--frox-gray-400)] shrink-0">{icon}</div>
         <div className="flex-1 min-w-0">
-          <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-0.5">{label}</div>
+          <div className="text-[11px] font-medium text-[var(--frox-gray-400)] uppercase tracking-wider leading-none mb-0.5">{label}</div>
           {editing ? (
             <div className="flex items-center gap-1.5">
               <Input
@@ -104,19 +104,19 @@ function EditableField({
               </button>
               <button
                 onClick={() => { setDraft(value); setEditing(false); }}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors shrink-0"
+                className="p-1 rounded-lg hover:bg-[var(--frox-gray-200)] text-[var(--frox-gray-400)] transition-colors shrink-0"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
           ) : (
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-medium text-slate-800 truncate">
-                {value || <span className="text-slate-300 font-normal italic text-xs">не указано</span>}
+              <span className="text-sm font-medium text-[var(--frox-gray-900)] truncate">
+                {value || <span className="text-[var(--frox-gray-300)] font-normal italic text-xs">не указано</span>}
               </span>
               <button
                 onClick={() => { setDraft(value); setEditing(true); }}
-                className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-all shrink-0"
+                className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-[var(--frox-gray-300)] text-[var(--frox-gray-400)] hover:text-[var(--frox-gray-600)] transition-all shrink-0"
               >
                 <Pencil className="w-3 h-3" />
               </button>
@@ -176,10 +176,10 @@ function EditableSelectField({
 
   return (
     <div className="group relative" ref={containerRef}>
-      <div className="flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors">
-        <div className="text-slate-400 mt-0.5 shrink-0">{icon}</div>
+      <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-[var(--frox-gray-100)] transition-colors">
+        <div className="text-[var(--frox-gray-400)] shrink-0">{icon}</div>
         <div className="flex-1 min-w-0">
-          <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-0.5">{label}</div>
+          <div className="text-[11px] font-medium text-[var(--frox-gray-400)] uppercase tracking-wider leading-none mb-0.5">{label}</div>
           {editing ? (
             <div className="relative">
               <div className="flex items-center gap-1.5">
@@ -203,17 +203,17 @@ function EditableSelectField({
                 </button>
                 <button
                   onClick={() => { setDraft(value); setEditing(false); setShowDropdown(false); }}
-                  className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors shrink-0"
+                  className="p-1 rounded-lg hover:bg-[var(--frox-gray-200)] text-[var(--frox-gray-400)] transition-colors shrink-0"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
               {showDropdown && filtered.length > 0 && (
-                <div className="absolute z-50 top-full left-0 mt-1 w-full max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg py-1">
+                <div className="absolute z-50 top-full left-0 mt-1 w-full max-h-48 overflow-y-auto bg-white border border-[var(--frox-neutral-border)] rounded-xl shadow-lg py-1">
                   {filtered.slice(0, 50).map(opt => (
                     <div
                       key={opt}
-                      className="px-3 py-1.5 text-sm cursor-pointer hover:bg-slate-50 truncate"
+                      className="px-3 py-1.5 text-sm cursor-pointer hover:bg-[var(--frox-gray-100)] truncate"
                       onMouseDown={e => { e.preventDefault(); handleSave(opt); }}
                     >
                       {opt}
@@ -224,12 +224,12 @@ function EditableSelectField({
             </div>
           ) : (
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-medium text-slate-800 truncate">
-                {value || <span className="text-slate-300 font-normal italic text-xs">не указано</span>}
+              <span className="text-sm font-medium text-[var(--frox-gray-900)] truncate">
+                {value || <span className="text-[var(--frox-gray-300)] font-normal italic text-xs">не указано</span>}
               </span>
               <button
                 onClick={() => { setDraft(value); setEditing(true); setShowDropdown(true); }}
-                className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-all shrink-0"
+                className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-[var(--frox-gray-300)] text-[var(--frox-gray-400)] hover:text-[var(--frox-gray-600)] transition-all shrink-0"
               >
                 <Pencil className="w-3 h-3" />
               </button>
@@ -266,12 +266,12 @@ function StatusDropdown({ value, options, onChange, className }: {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-full">
+          <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-[var(--frox-neutral-border)] rounded-xl shadow-lg py-1 min-w-full">
             {options.map(opt => (
               <button
                 key={opt.value}
                 onClick={() => { onChange(opt.value); setOpen(false); }}
-                className={`flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-slate-50 transition-colors ${value === opt.value ? 'font-semibold' : ''}`}
+                className={`flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-[var(--frox-gray-100)] transition-colors ${value === opt.value ? 'font-semibold' : ''}`}
               >
                 {'dot' in opt && <span className={`w-2 h-2 rounded-full ${opt.dot}`} />}
                 {opt.label}
@@ -362,7 +362,7 @@ export function LeadInfoPanel({ request, onUpdate, onDelete, compact }: LeadInfo
       {/* ── Статус и приоритет ── */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1.5">Статус</div>
+          <div className="text-[11px] font-medium text-[var(--frox-gray-400)] uppercase tracking-wider mb-1.5">Статус</div>
           <StatusDropdown
             value={status}
             options={statusConfig}
@@ -370,7 +370,7 @@ export function LeadInfoPanel({ request, onUpdate, onDelete, compact }: LeadInfo
           />
         </div>
         <div>
-          <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1.5">Приоритет</div>
+          <div className="text-[11px] font-medium text-[var(--frox-gray-400)] uppercase tracking-wider mb-1.5">Приоритет</div>
           <StatusDropdown
             value={priority}
             options={priorityConfig}
@@ -379,57 +379,63 @@ export function LeadInfoPanel({ request, onUpdate, onDelete, compact }: LeadInfo
         </div>
       </div>
 
-      <div className="h-px bg-slate-100" />
+      <div className="h-px bg-[var(--frox-gray-200)]" />
 
       {/* ── Контактная информация ── */}
       <div>
-        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Контактные данные</h3>
-        <div className="divide-y divide-slate-50 border border-slate-100 rounded-xl overflow-hidden">
-          <EditableField
-            label="Имя"
-            value={request.name}
-            icon={<User className="w-4 h-4" />}
-            onSave={v => handleFieldUpdate('name', v)}
-          />
-          <EditableField
-            label="Email"
-            value={request.email || ''}
-            icon={<Mail className="w-4 h-4" />}
-            type="email"
-            onSave={v => handleFieldUpdate('email', v)}
-          />
-          <EditableField
-            label="Телефон"
-            value={request.phone || ''}
-            icon={<Phone className="w-4 h-4" />}
-            type="tel"
-            onSave={v => handleFieldUpdate('phone', v)}
-          />
-          <EditableSelectField
-            label="Город"
-            value={request.city || ''}
-            options={cities}
-            icon={<MapPin className="w-4 h-4" />}
-            onSave={v => handleFieldUpdate('city', v)}
-          />
-          <EditableSelectField
-            label="Учреждение"
-            value={request.institution || ''}
-            options={institutions}
-            icon={<Building2 className="w-4 h-4" />}
-            onSave={v => handleFieldUpdate('institution', v)}
-          />
+        <h3 className="text-[10px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-1">Контактные данные</h3>
+        <div className="border border-[var(--frox-neutral-border)] rounded-xl overflow-hidden">
+          <div className="grid grid-cols-2 divide-x divide-[var(--frox-gray-100)]">
+            <EditableField
+              label="Имя"
+              value={request.name}
+              icon={<User className="w-3.5 h-3.5" />}
+              onSave={v => handleFieldUpdate('name', v)}
+            />
+            <EditableField
+              label="Телефон"
+              value={request.phone || ''}
+              icon={<Phone className="w-3.5 h-3.5" />}
+              type="tel"
+              onSave={v => handleFieldUpdate('phone', v)}
+            />
+          </div>
+          <div className="border-t border-[var(--frox-gray-100)] grid grid-cols-2 divide-x divide-[var(--frox-gray-100)]">
+            <EditableField
+              label="Email"
+              value={request.email || ''}
+              icon={<Mail className="w-3.5 h-3.5" />}
+              type="email"
+              onSave={v => handleFieldUpdate('email', v)}
+            />
+            <EditableSelectField
+              label="Город"
+              value={request.city || ''}
+              options={cities}
+              icon={<MapPin className="w-3.5 h-3.5" />}
+              onSave={v => handleFieldUpdate('city', v)}
+            />
+          </div>
+          <div className="border-t border-[var(--frox-gray-100)]">
+            <EditableSelectField
+              label="Учреждение"
+              value={request.institution || ''}
+              options={institutions}
+              icon={<Building2 className="w-3.5 h-3.5" />}
+              onSave={v => handleFieldUpdate('institution', v)}
+            />
+          </div>
         </div>
       </div>
 
       {/* ── Сообщение ── */}
       {request.message && (
-        <div className="rounded-xl border border-slate-100 overflow-hidden">
-          <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border-b border-slate-100">
-            <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Сообщение</span>
+        <div className="rounded-xl border border-[var(--frox-neutral-border)] overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 bg-[var(--frox-gray-100)] border-b border-[var(--frox-neutral-border)]">
+            <MessageSquare className="w-3.5 h-3.5 text-[var(--frox-gray-400)]" />
+            <span className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider">Сообщение</span>
           </div>
-          <p className="text-sm text-slate-700 whitespace-pre-wrap px-4 py-3 leading-relaxed">{request.message}</p>
+          <p className="text-sm text-[var(--frox-gray-800)] whitespace-pre-wrap px-4 py-3 leading-relaxed">{request.message}</p>
         </div>
       )}
 
@@ -452,15 +458,15 @@ export function LeadInfoPanel({ request, onUpdate, onDelete, compact }: LeadInfo
       )}
 
       {/* ── Мета-информация ── */}
-      <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-slate-400">
+      <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-[var(--frox-gray-400)]">
         <div className="flex items-center gap-1.5">
           <Calendar className="w-3.5 h-3.5" />
-          <span>Создана: <span className="text-slate-600">{formatDate(request.created_at)}</span></span>
+          <span>Создана: <span className="text-[var(--frox-gray-600)]">{formatDate(request.created_at)}</span></span>
         </div>
         {request.updated_at && request.updated_at !== request.created_at && (
           <div className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5" />
-            <span>Обновлена: <span className="text-slate-600">{formatDate(request.updated_at)}</span></span>
+            <span>Обновлена: <span className="text-[var(--frox-gray-600)]">{formatDate(request.updated_at)}</span></span>
           </div>
         )}
         {request.page_url && (
@@ -478,19 +484,19 @@ export function LeadInfoPanel({ request, onUpdate, onDelete, compact }: LeadInfo
         )}
       </div>
 
-      <div className="h-px bg-slate-100" />
+      <div className="h-px bg-[var(--frox-gray-200)]" />
 
       {/* ── Заметки ── */}
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <FileText className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Заметки менеджера</span>
+          <FileText className="w-3.5 h-3.5 text-[var(--frox-gray-400)]" />
+          <span className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider">Заметки менеджера</span>
         </div>
         <Textarea
           value={notes}
           onChange={e => setNotes(e.target.value)}
           placeholder="Добавьте заметки по этой заявке..."
-          className="min-h-[100px] resize-none text-sm bg-slate-50 border-slate-200 focus:bg-white rounded-xl"
+          className="min-h-[100px] resize-none text-sm bg-[var(--frox-gray-100)] border-[var(--frox-neutral-border)] focus:bg-white rounded-xl"
         />
         <div className="flex items-center justify-between mt-2">
           <Button
@@ -514,7 +520,7 @@ export function LeadInfoPanel({ request, onUpdate, onDelete, compact }: LeadInfo
           {!showDeleteConfirm ? (
             <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-500 transition-colors"
+              className="flex items-center gap-1.5 text-xs text-[var(--frox-gray-400)] hover:text-red-500 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
               Удалить заявку

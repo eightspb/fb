@@ -483,7 +483,7 @@ export default function DirectAdminPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-[300px] items-center justify-center">
-        <Loader2 className="h-7 w-7 animate-spin text-slate-500" />
+        <Loader2 className="h-7 w-7 animate-spin text-[var(--frox-gray-500)]" />
       </div>
     );
   }
@@ -492,8 +492,8 @@ export default function DirectAdminPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Автоброкер Яндекс.Директ</h1>
-          <p className="mt-1 text-slate-600">Управление кампаниями и контроль изменений ставок по ключам</p>
+          <h1 className="text-3xl font-bold text-[var(--frox-gray-1100)]">Автоброкер Яндекс.Директ</h1>
+          <p className="mt-1 text-[var(--frox-gray-600)]">Управление кампаниями и контроль изменений ставок по ключам</p>
         </div>
 
         <div className="flex gap-2">
@@ -605,7 +605,7 @@ export default function DirectAdminPage() {
               <Label htmlFor="template_id">Шаблон</Label>
               <select
                 id="template_id"
-                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                className="flex h-10 w-full rounded-md border border-[var(--frox-neutral-border)] bg-white px-3 py-2 text-sm"
                 value={selectedTemplateId}
                 onChange={(event) => setSelectedTemplateId(event.target.value)}
               >
@@ -806,13 +806,13 @@ export default function DirectAdminPage() {
         </CardHeader>
         <CardContent>
           {campaigns.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-slate-500">
+            <div className="rounded-lg border border-dashed border-[var(--frox-gray-300)] p-6 text-center text-[var(--frox-gray-500)]">
               Кампании еще не добавлены
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
-                <thead className="border-b border-slate-200 text-left text-slate-600">
+                <thead className="border-b border-[var(--frox-neutral-border)] text-left text-[var(--frox-gray-600)]">
                   <tr>
                     <th className="px-3 py-2 font-medium">Название</th>
                     <th className="px-3 py-2 font-medium">Campaign ID</th>
@@ -824,12 +824,12 @@ export default function DirectAdminPage() {
                 </thead>
                 <tbody>
                   {campaigns.map((campaign) => (
-                    <tr key={campaign.id} className="border-b border-slate-100">
-                      <td className="px-3 py-3 text-slate-900">{campaign.name}</td>
-                      <td className="px-3 py-3 font-mono text-xs text-slate-700">{campaign.campaign_id}</td>
-                      <td className="px-3 py-3 text-slate-900">{campaign.max_bid.toFixed(2)} руб.</td>
+                    <tr key={campaign.id} className="border-b border-[var(--frox-gray-200)]">
+                      <td className="px-3 py-3 text-[var(--frox-gray-1100)]">{campaign.name}</td>
+                      <td className="px-3 py-3 font-mono text-xs text-[var(--frox-gray-800)]">{campaign.campaign_id}</td>
+                      <td className="px-3 py-3 text-[var(--frox-gray-1100)]">{campaign.max_bid.toFixed(2)} руб.</td>
                       <td className="px-3 py-3">
-                        <Badge className={campaign.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}>
+                        <Badge className={campaign.is_active ? 'bg-green-100 text-green-700' : 'bg-[var(--frox-gray-200)] text-[var(--frox-gray-800)]'}>
                           {campaign.is_active ? 'Активна' : 'Выключена'}
                         </Badge>
                       </td>
@@ -881,13 +881,13 @@ export default function DirectAdminPage() {
         </CardHeader>
         <CardContent>
           {logs.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-slate-500">
+            <div className="rounded-lg border border-dashed border-[var(--frox-gray-300)] p-6 text-center text-[var(--frox-gray-500)]">
               Логи пока отсутствуют
             </div>
           ) : (
             <div className="max-h-[420px] overflow-auto">
               <table className="min-w-full text-sm">
-                <thead className="sticky top-0 border-b border-slate-200 bg-white text-left text-slate-600">
+                <thead className="sticky top-0 border-b border-[var(--frox-neutral-border)] bg-white text-left text-[var(--frox-gray-600)]">
                   <tr>
                     <th className="px-3 py-2 font-medium">Время</th>
                     <th className="px-3 py-2 font-medium">Ключ</th>
@@ -898,10 +898,10 @@ export default function DirectAdminPage() {
                 </thead>
                 <tbody>
                   {logs.map((log) => (
-                    <tr key={log.id} className="border-b border-slate-100 align-top">
-                      <td className="whitespace-nowrap px-3 py-2 text-slate-700">{formatDate(log.created_at)}</td>
-                      <td className="px-3 py-2 font-mono text-xs text-slate-700">{log.keyword_id ?? '-'}</td>
-                      <td className="px-3 py-2 text-slate-800">
+                    <tr key={log.id} className="border-b border-[var(--frox-gray-200)] align-top">
+                      <td className="whitespace-nowrap px-3 py-2 text-[var(--frox-gray-800)]">{formatDate(log.created_at)}</td>
+                      <td className="px-3 py-2 font-mono text-xs text-[var(--frox-gray-800)]">{log.keyword_id ?? '-'}</td>
+                      <td className="px-3 py-2 text-[var(--frox-gray-900)]">
                         {formatBid(log.old_bid)} {'->'} {formatBid(log.new_bid)}
                       </td>
                       <td className="px-3 py-2">
@@ -909,7 +909,7 @@ export default function DirectAdminPage() {
                           {log.status}
                         </Badge>
                       </td>
-                      <td className="px-3 py-2 text-slate-700">{log.message ?? '-'}</td>
+                      <td className="px-3 py-2 text-[var(--frox-gray-800)]">{log.message ?? '-'}</td>
                     </tr>
                   ))}
                 </tbody>
