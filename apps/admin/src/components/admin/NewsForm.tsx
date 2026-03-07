@@ -56,6 +56,7 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
   const [newImage, setNewImage] = useState('');
   const [newVideo, setNewVideo] = useState('');
   const [newDoc, setNewDoc] = useState('');
+  const [confirmRemove, setConfirmRemove] = useState<{ field: string; index: number } | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
 
   useEffect(() => {
@@ -92,6 +93,7 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
       ...prev,
       [field]: prev[field].filter((_: any, i: number) => i !== index)
     }));
+    setConfirmRemove(null);
   };
 
   const handleImproveDescription = async () => {
@@ -410,7 +412,15 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
               {formData.videos.map((vid: string, i: number) => (
                 <div key={i} className="flex items-center gap-2 text-sm bg-[var(--frox-gray-100)] p-2 rounded">
                   <span className="truncate flex-1">{vid}</span>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => handleArrayRemove('videos', i)}><X className="w-4 h-4" /></Button>
+                  {confirmRemove?.field === 'videos' && confirmRemove?.index === i ? (
+                    <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1 shrink-0">
+                      <span className="text-xs text-red-700 whitespace-nowrap">Удалить?</span>
+                      <button type="button" onClick={() => handleArrayRemove('videos', i)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-1.5 py-0.5 rounded">Да</button>
+                      <button type="button" onClick={() => setConfirmRemove(null)} className="text-xs text-[var(--frox-gray-500)] hover:text-[var(--frox-gray-800)]">Нет</button>
+                    </div>
+                  ) : (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmRemove({ field: 'videos', index: i })}><X className="w-4 h-4" /></Button>
+                  )}
                 </div>
               ))}
             </div>
@@ -430,7 +440,15 @@ export function NewsForm({ initialData, isEditing = false }: NewsFormProps) {
               {formData.documents.map((doc: string, i: number) => (
                 <div key={i} className="flex items-center gap-2 text-sm bg-[var(--frox-gray-100)] p-2 rounded">
                   <span className="truncate flex-1">{doc}</span>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => handleArrayRemove('documents', i)}><X className="w-4 h-4" /></Button>
+                  {confirmRemove?.field === 'documents' && confirmRemove?.index === i ? (
+                    <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1 shrink-0">
+                      <span className="text-xs text-red-700 whitespace-nowrap">Удалить?</span>
+                      <button type="button" onClick={() => handleArrayRemove('documents', i)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-1.5 py-0.5 rounded">Да</button>
+                      <button type="button" onClick={() => setConfirmRemove(null)} className="text-xs text-[var(--frox-gray-500)] hover:text-[var(--frox-gray-800)]">Нет</button>
+                    </div>
+                  ) : (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmRemove({ field: 'documents', index: i })}><X className="w-4 h-4" /></Button>
+                  )}
                 </div>
               ))}
             </div>

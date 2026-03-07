@@ -27,7 +27,7 @@ import {
   MapPin,
   MessageSquare,
   Filter,
-  ChevronDown,
+
   ArrowUp,
   ArrowDown,
 } from 'lucide-react';
@@ -58,17 +58,17 @@ const formTypeLabels: Record<string, string> = {
 };
 
 const formTypeBadgeStyle: Record<string, string> = {
-  'contact': 'bg-violet-50 text-violet-700 border-violet-200',
-  'cp': 'bg-blue-50 text-blue-700 border-blue-200',
-  'training': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'conference_registration': 'bg-amber-50 text-amber-700 border-amber-200',
+  'contact': 'bg-[var(--frox-brand-soft)] text-[var(--frox-brand-strong)] border-[rgba(115,100,219,0.18)]',
+  'cp': 'bg-[var(--frox-plum-soft)] text-[#7a5fe4] border-[rgba(143,121,239,0.16)]',
+  'training': 'bg-[var(--frox-mint-soft)] text-[#4b8d7f] border-[rgba(122,197,181,0.2)]',
+  'conference_registration': 'bg-[var(--frox-slate-soft)] text-[var(--frox-gray-600)] border-[var(--frox-neutral-border)]',
 };
 
 const statusConfig = [
-  { value: 'new', label: 'Новая', pill: 'bg-blue-50 text-blue-700 border border-blue-200', dot: 'bg-blue-500', icon: Inbox },
-  { value: 'in_progress', label: 'В работе', pill: 'bg-amber-50 text-amber-700 border border-amber-200', dot: 'bg-amber-500', icon: Clock },
-  { value: 'processed', label: 'Обработана', pill: 'bg-emerald-50 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-500', icon: CheckCircle2 },
-  { value: 'archived', label: 'В архиве', pill: 'bg-[var(--frox-gray-200)] text-[var(--frox-gray-500)] border border-[var(--frox-neutral-border)]', dot: 'bg-[var(--frox-gray-400)]', icon: Archive },
+  { value: 'new', label: 'Новая', pill: 'bg-[var(--frox-brand-soft)] text-[var(--frox-brand-strong)] border border-[rgba(115,100,219,0.18)]', dot: 'bg-[var(--frox-brand)]', icon: Inbox },
+  { value: 'in_progress', label: 'В работе', pill: 'bg-[var(--frox-plum-soft)] text-[#7a5fe4] border border-[rgba(143,121,239,0.16)]', dot: 'bg-[var(--frox-plum)]', icon: Clock },
+  { value: 'processed', label: 'Обработана', pill: 'bg-[var(--frox-mint-soft)] text-[#4b8d7f] border border-[rgba(122,197,181,0.2)]', dot: 'bg-[var(--frox-mint)]', icon: CheckCircle2 },
+  { value: 'archived', label: 'В архиве', pill: 'bg-[var(--frox-slate-soft)] text-[var(--frox-gray-500)] border border-[var(--frox-neutral-border)]', dot: 'bg-[var(--frox-gray-400)]', icon: Archive },
 ];
 
 const priorityConfig = [
@@ -87,12 +87,12 @@ function getPriorityConfig(priority?: string) {
 }
 
 function getRowAccent(req: RequestItem) {
-  if (req.priority === 'urgent') return 'border-l-red-500 bg-red-50/30';
-  if (req.priority === 'high') return 'border-l-orange-400 bg-orange-50/20';
-  if (req.status === 'new') return 'border-l-blue-400';
+  if (req.priority === 'urgent') return 'border-l-red-500';
+  if (req.priority === 'high') return 'border-l-orange-400';
+  if (req.status === 'new') return 'border-l-[var(--frox-brand)]';
   if (req.status === 'in_progress') return 'border-l-amber-400';
   if (req.status === 'processed') return 'border-l-emerald-400';
-  return 'border-l-transparent';
+  return 'border-l-[var(--frox-gray-200)]';
 }
 
 // Inline status selector that matches pill style
@@ -104,16 +104,15 @@ function StatusPill({ value, onChange }: { value: string; onChange: (v: string) 
     <div className="relative" onClick={e => e.stopPropagation()}>
       <button
         onClick={() => setOpen(!open)}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-all hover:opacity-80 ${cfg.pill}`}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-all ${cfg.pill}`}
       >
         <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
         {cfg.label}
-        <ChevronDown className="w-3 h-3 opacity-60" />
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-[var(--frox-neutral-border)] rounded-lg shadow-lg py-1 min-w-[140px]">
+          <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-[var(--frox-neutral-border)] rounded-xl shadow-lg py-1 min-w-[140px]">
             {statusConfig.map(opt => (
               <button
                 key={opt.value}
@@ -302,8 +301,7 @@ export default function AdminRequestsPage() {
       {/* ── Заголовок ── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="frox-page-kicker">Inbox</div>
-          <h1 data-frox-heading="true" className="mt-2 text-3xl font-black tracking-tight text-[var(--frox-gray-1100)]">Заявки</h1>
+          <h1 data-frox-heading="true" className="text-3xl font-black tracking-tight text-[var(--frox-gray-1100)]">Заявки</h1>
           {stats && (
             <p className="text-sm text-[var(--frox-gray-500)] mt-1">
               Всего {stats.total_count} · {stats.new_count} новых
@@ -556,6 +554,7 @@ export default function AdminRequestsPage() {
 
       {/* ── Таблица (десктоп) ── */}
       <div className="frox-table-shell hidden overflow-hidden rounded-[28px] lg:block">
+        <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
           <thead>
             <tr className="border-b border-[var(--frox-gray-200)]">
@@ -608,10 +607,10 @@ export default function AdminRequestsPage() {
                 return (
                   <tr
                     key={req.id}
-                    className={`border-l-4 cursor-pointer transition-colors hover:bg-[var(--frox-gray-100)]/80 group ${getRowAccent(req)}`}
+                    className="cursor-pointer transition-colors hover:bg-[var(--frox-gray-100)]/80 group"
                     onClick={() => { setSelectedRequest(req); setIsModalOpen(true); }}
                   >
-                    <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
+                    <td className={`pl-3 pr-2 py-3.5 border-l-4 ${getRowAccent(req)}`} onClick={e => e.stopPropagation()}>
                       <Checkbox checked={selectedIds.has(req.id)} onChange={() => handleSelectOne(req.id)} />
                     </td>
                     <td className="px-4 py-3.5 whitespace-nowrap">
@@ -697,6 +696,7 @@ export default function AdminRequestsPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* ── Пагинация ── */}

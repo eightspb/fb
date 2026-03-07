@@ -100,6 +100,10 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
   );
 
   const [newProgramItem, setNewProgramItem] = useState('');
+  const [speakerDeleteId, setSpeakerDeleteId] = useState<string | null>(null);
+  const [programItemDeleteId, setProgramItemDeleteId] = useState<string | null>(null);
+  const [programTextDeleteIndex, setProgramTextDeleteIndex] = useState<number | null>(null);
+  const [videoDeleteId, setVideoDeleteId] = useState<string | null>(null);
   const [collapsedSpeakers, setCollapsedSpeakers] = useState<Set<string>>(
     () => new Set((initialData?.speakers || []).map((s: Speaker) => s.id))
   );
@@ -165,6 +169,7 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
       ...prev,
       program: programArray.filter(item => item.id !== id)
     }));
+    setProgramItemDeleteId(null);
   };
 
   const moveProgramItem = (index: number, direction: 'up' | 'down') => {
@@ -210,6 +215,7 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
       ...prev,
       videos: prev.videos.filter(v => v.id !== id)
     }));
+    setVideoDeleteId(null);
   };
 
   const moveVideo = (index: number, direction: 'up' | 'down') => {
@@ -273,6 +279,7 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
       ...prev,
       program: programArray.filter((_: any, i: number) => i !== index)
     }));
+    setProgramTextDeleteIndex(null);
   };
 
   const toggleMaterial = (material: string) => {
@@ -316,6 +323,7 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
       ...prev,
       speakers: prev.speakers.filter(s => s.id !== id)
     }));
+    setSpeakerDeleteId(null);
   };
 
   const moveSpeaker = (index: number, direction: 'up' | 'down') => {
@@ -600,22 +608,31 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
                     </span>
                     <span className="text-sm text-[var(--frox-gray-400)] hidden sm:block truncate max-w-[160px]">{speaker.institution || ''}</span>
                     <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
-                      <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => moveSpeaker(index, 'up')} disabled={index === 0}>
-                        <ChevronUp className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => moveSpeaker(index, 'down')} disabled={index === formData.speakers.length - 1}>
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-[var(--frox-danger)] hover:text-[var(--frox-danger)] hover:bg-red-50" onClick={() => removeSpeaker(speaker.id)}>
-                        <X className="w-3.5 h-3.5" />
-                      </Button>
+                      {speakerDeleteId === speaker.id ? (
+                        <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1">
+                          <span className="text-xs text-red-700 whitespace-nowrap">Удалить?</span>
+                          <button type="button" onClick={() => removeSpeaker(speaker.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-1.5 py-0.5 rounded">Да</button>
+                          <button type="button" onClick={() => setSpeakerDeleteId(null)} className="text-xs text-[var(--frox-gray-500)] hover:text-[var(--frox-gray-800)]">Нет</button>
+                        </div>
+                      ) : (
+                        <>
+                          <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => moveSpeaker(index, 'up')} disabled={index === 0}>
+                            <ChevronUp className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => moveSpeaker(index, 'down')} disabled={index === formData.speakers.length - 1}>
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-[var(--frox-danger)] hover:text-[var(--frox-danger)] hover:bg-red-50" onClick={() => setSpeakerDeleteId(speaker.id)}>
+                            <X className="w-3.5 h-3.5" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                     <ChevronDown className={`w-4 h-4 text-[var(--frox-brand)] transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'}`} />
                   </div>
 
                   {/* Expanded content */}
-                  {!isCollapsed && (
-                    <CardContent className="pt-4 pb-4 border-t border-[var(--frox-gray-200)]">
+                  <CardContent className={`pt-4 pb-4 border-t border-[var(--frox-gray-200)]${isCollapsed ? ' hidden' : ''}`}>
                       <div className="flex gap-4">
                         {/* Photo */}
                         <div className="flex-shrink-0">
@@ -709,7 +726,6 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
                         </div>
                       </div>
                     </CardContent>
-                  )}
                 </Card>
               );
             })
@@ -773,15 +789,25 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
                           {typeLabels[item.type]}
                         </span>
                         <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
-                          <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => moveProgramItem(index, 'up')} disabled={index === 0}>
-                            <ChevronUp className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => moveProgramItem(index, 'down')} disabled={index === (formData.program as ProgramItem[]).length - 1}>
-                            <ChevronDown className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-[var(--frox-danger)] hover:text-[var(--frox-danger)] hover:bg-red-50" onClick={() => removeProgramItem(item.id)}>
-                            <X className="w-3.5 h-3.5" />
-                          </Button>
+                          {programItemDeleteId === item.id ? (
+                            <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1">
+                              <span className="text-xs text-red-700 whitespace-nowrap">Удалить?</span>
+                              <button type="button" onClick={() => removeProgramItem(item.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-1.5 py-0.5 rounded">Да</button>
+                              <button type="button" onClick={() => setProgramItemDeleteId(null)} className="text-xs text-[var(--frox-gray-500)] hover:text-[var(--frox-gray-800)]">Нет</button>
+                            </div>
+                          ) : (
+                            <>
+                              <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => moveProgramItem(index, 'up')} disabled={index === 0}>
+                                <ChevronUp className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => moveProgramItem(index, 'down')} disabled={index === (formData.program as ProgramItem[]).length - 1}>
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-[var(--frox-danger)] hover:text-[var(--frox-danger)] hover:bg-red-50" onClick={() => setProgramItemDeleteId(item.id)}>
+                                <X className="w-3.5 h-3.5" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                         <ChevronDown className={`w-4 h-4 text-[var(--frox-brand)] transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'}`} />
                       </div>
@@ -886,9 +912,17 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
                   <div key={i} className="flex items-center gap-2 text-sm bg-[var(--frox-gray-100)] p-2 rounded">
                     <span className="text-[var(--frox-gray-400)] w-6">{i + 1}.</span>
                     <span className="truncate flex-1">{item}</span>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => handleProgramRemove(i)}>
-                      <X className="w-4 h-4" />
-                    </Button>
+                    {programTextDeleteIndex === i ? (
+                      <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1 shrink-0">
+                        <span className="text-xs text-red-700 whitespace-nowrap">Удалить?</span>
+                        <button type="button" onClick={() => handleProgramRemove(i)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-1.5 py-0.5 rounded">Да</button>
+                        <button type="button" onClick={() => setProgramTextDeleteIndex(null)} className="text-xs text-[var(--frox-gray-500)] hover:text-[var(--frox-gray-800)]">Нет</button>
+                      </div>
+                    ) : (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setProgramTextDeleteIndex(i)}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1005,15 +1039,23 @@ export function ConferenceForm({ initialData, isEditing = false }: ConferenceFor
                       >
                         <ChevronDown className="w-4 h-4" />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeVideo(video.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
+                      {videoDeleteId === video.id ? (
+                        <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1">
+                          <span className="text-xs text-red-700 whitespace-nowrap">Удалить?</span>
+                          <button type="button" onClick={() => removeVideo(video.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-1.5 py-0.5 rounded">Да</button>
+                          <button type="button" onClick={() => setVideoDeleteId(null)} className="text-xs text-[var(--frox-gray-500)] hover:text-[var(--frox-gray-800)]">Нет</button>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setVideoDeleteId(video.id)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>

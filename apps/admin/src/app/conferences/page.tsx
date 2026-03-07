@@ -32,6 +32,7 @@ interface Conference {
 export default function AdminConferencesList() {
   const [conferences, setConferences] = useState<Conference[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     loadConferences();
@@ -53,8 +54,6 @@ export default function AdminConferencesList() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Вы уверены, что хотите удалить это мероприятие?')) return;
-
     try {
       const csrfToken = await getCsrfToken();
       const response = await fetch(`/api/conferences/${id}`, {
@@ -64,6 +63,7 @@ export default function AdminConferencesList() {
       });
 
       if (response.ok) {
+        setDeleteConfirmId(null);
         loadConferences();
       } else {
         alert('Ошибка удаления');
@@ -233,9 +233,17 @@ export default function AdminConferencesList() {
                       <Pencil className="w-4 h-4" />
                     </Link>
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)} className="h-7 w-7 p-0">
-                    <Trash2 className="w-4 h-4 text-red-500" />
-                  </Button>
+                  {deleteConfirmId === item.id ? (
+                    <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1">
+                      <span className="text-xs text-red-700 whitespace-nowrap">Удалить?</span>
+                      <button onClick={() => handleDelete(item.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-1.5 py-0.5 rounded">Да</button>
+                      <button onClick={() => setDeleteConfirmId(null)} className="text-xs text-[var(--frox-gray-500)] hover:text-[var(--frox-gray-800)]">Нет</button>
+                    </div>
+                  ) : (
+                    <Button variant="ghost" size="sm" onClick={() => setDeleteConfirmId(item.id)} className="h-7 w-7 p-0">
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </Button>
+                  )}
                 </div>
               </div>
             );

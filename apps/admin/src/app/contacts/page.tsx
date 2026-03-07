@@ -1028,8 +1028,7 @@ export default function ContactsPage() {
       {/* ── Заголовок ── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="frox-page-kicker">CRM workspace</div>
-          <h1 data-frox-heading="true" className="mt-2 text-3xl font-black tracking-tight text-[var(--frox-gray-1100)]">Контакты</h1>
+          <h1 data-frox-heading="true" className="text-3xl font-black tracking-tight text-[var(--frox-gray-1100)]">Контакты</h1>
           {stats && <p className="mt-1 text-sm text-[var(--frox-gray-500)]">Всего {stats.total_count} контактов</p>}
         </div>
         <div className="flex items-center gap-2">

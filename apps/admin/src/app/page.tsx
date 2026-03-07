@@ -50,26 +50,10 @@ const QUICK_LINKS = [
 export default function AdminDashboard() {
   return (
     <div className="space-y-8">
-      <section className="frox-shell-surface overflow-hidden rounded-[32px] px-6 py-7 md:px-8">
-        <div className="relative">
-          <div className="absolute right-[-56px] top-[-72px] h-44 w-44 rounded-full bg-[radial-gradient(circle,rgba(115,100,219,0.16),rgba(115,100,219,0))]" />
-          <div className="relative max-w-2xl">
-            <div className="frox-page-kicker">fibroadenoma.net Control</div>
-            <h1 data-frox-heading="true" className="mt-3 text-3xl font-black text-[var(--frox-gray-1100)] md:text-[2.35rem]">
-              Админ-панель в общем стиле Frox
-            </h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--frox-gray-500)]">
-              Основные разделы собраны в мягкую фиолетовую систему: без случайных ярких плашек, с едиными surface-блоками, типографикой и состояниями.
-            </p>
-          </div>
-        </div>
-      </section>
-
       <section>
         <div className="mb-4 flex items-end justify-between gap-3">
           <div>
-            <div className="frox-page-kicker">Workspace</div>
-            <h2 data-frox-heading="true" className="mt-2 text-2xl font-black text-[var(--frox-gray-1100)]">
+            <h2 data-frox-heading="true" className="text-2xl font-black text-[var(--frox-gray-1100)]">
               Быстрые переходы
             </h2>
           </div>

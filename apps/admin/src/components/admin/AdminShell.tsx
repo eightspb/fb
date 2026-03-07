@@ -157,7 +157,10 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           </button>
 
           <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-0">
-            <Link href="/" className="mb-8 flex shrink-0 items-center gap-3">
+            <Link
+              href="/"
+              className={`mb-8 flex shrink-0 items-center gap-3 ${minimized && !mobileOpen ? 'w-full justify-center' : ''}`}
+            >
               <img src="/admin/icons/icon-favicon.svg" alt="Admin" className="h-8 w-8 shrink-0" />
               <span
                 className="sidebar-logo-full text-xl font-black tracking-tight text-[var(--frox-gray-1100)]"
@@ -244,7 +247,6 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             </button>
 
             <div className="hidden sm:block">
-              <div className="frox-page-kicker">Frox Admin</div>
               <span data-frox-heading="true" className="text-lg font-black text-[var(--frox-gray-1100)]">
                 {currentLabel}
               </span>

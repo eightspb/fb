@@ -59,6 +59,7 @@ export default function AdminNewsList() {
   const [error, setError] = useState<string | null>(null);
   const [selectedNewsIds, setSelectedNewsIds] = useState<Set<string>>(new Set());
   const [isMerging, setIsMerging] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Filters state
   const [searchQuery, setSearchQuery] = useState('');
@@ -124,8 +125,6 @@ export default function AdminNewsList() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Вы уверены, что хотите удалить эту новость?')) return;
-
     try {
       const csrfToken = await getCsrfToken();
       const response = await fetch(`/api/news/${id}`, {
@@ -135,6 +134,7 @@ export default function AdminNewsList() {
       });
 
       if (response.ok) {
+        setDeleteConfirmId(null);
         loadNews();
       } else {
         alert('Ошибка удаления');
@@ -428,9 +428,17 @@ export default function AdminNewsList() {
                     <Pencil className="w-4 h-4" />
                   </Link>
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)} className="h-7 w-7 p-0">
-                  <Trash2 className="w-4 h-4 text-red-500" />
-                </Button>
+                {deleteConfirmId === item.id ? (
+                  <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1">
+                    <span className="text-xs text-red-700 whitespace-nowrap">Удалить?</span>
+                    <button onClick={() => handleDelete(item.id)} className="text-xs bg-red-500 hover:bg-red-600 text-white px-1.5 py-0.5 rounded">Да</button>
+                    <button onClick={() => setDeleteConfirmId(null)} className="text-xs text-[var(--frox-gray-500)] hover:text-[var(--frox-gray-800)]">Нет</button>
+                  </div>
+                ) : (
+                  <Button variant="ghost" size="sm" onClick={() => setDeleteConfirmId(item.id)} className="h-7 w-7 p-0">
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </Button>
+                )}
               </div>
             </div>
           ))}
