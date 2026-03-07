@@ -7,7 +7,7 @@ export function ClinicsMap() {
   return (
     <div className="w-full relative">
       <div className="w-full h-[600px] rounded-3xl overflow-hidden shadow-lg border border-slate-200 bg-slate-100">
-        <YMaps query={{ lang: 'ru_RU' }}>
+        <YMaps query={{ lang: 'ru_RU', apikey: 'a1d1f207-eb23-4491-af71-eb59d4107c52' }}>
           <Map 
             defaultState={{ center: [55.75, 60], zoom: 3 }} 
             width="100%" 
