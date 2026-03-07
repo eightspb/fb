@@ -569,6 +569,9 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
               setSearchStatus(`${data.folder}: загружено ${data.syncedSoFar} писем`);
             } else if (eventType === 'done') {
               searchDoneRef.current = true;
+              if (data.lastSyncAt) {
+                setLastSyncAt(data.lastSyncAt);
+              }
               if (data.synced > 0) {
                 await fetchEmails();
               }
