@@ -38,16 +38,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let emails;
+    const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') ?? '50', 10) || 50));
+    const offset = Math.max(0, parseInt(searchParams.get('offset') ?? '0', 10) || 0);
+
+    let page;
     if (submissionId) {
-      emails = await getEmailsForSubmission(submissionId);
+      page = await getEmailsForSubmission(submissionId, limit, offset);
     } else {
-      emails = await getEmailsForContact(contactEmail!);
+      page = await getEmailsForContact(contactEmail!, limit, offset);
     }
 
     const lastSyncAt = await getLastSyncTime();
 
-    return NextResponse.json({ emails, lastSyncAt });
+    return NextResponse.json({ emails: page.emails, total: page.total, lastSyncAt });
   } catch (error: any) {
     console.error('[CRM Emails] Error fetching emails:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

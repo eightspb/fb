@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   RefreshCw,
@@ -17,11 +17,12 @@ import {
   Loader2,
   Inbox,
   MessageSquare,
+  Square,
 } from 'lucide-react';
-import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 import { EmailCompose } from './EmailCompose';
 
 const PAGE_SIZE = 10; // тредов на страницу
+const FETCH_LIMIT = 50; // писем за один запрос к API
 
 interface EmailAttachment {
   id: string;
@@ -157,7 +158,7 @@ function EmailItem({
     <div className={`border-l-2 ${isInbound ? 'border-l-blue-300' : 'border-l-green-300'} ml-2`}>
       {/* Заголовок письма */}
       <div
-        className="flex items-start gap-2 px-3 py-2 cursor-pointer hover:bg-slate-50 transition-colors rounded-r"
+        className="flex items-start gap-2 px-3 py-2 cursor-pointer hover:bg-[var(--frox-gray-100)] transition-colors rounded-r"
         onClick={() => setExpanded(!expanded)}
       >
         <div className={`mt-0.5 p-1 rounded-full shrink-0 ${isInbound ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
@@ -168,23 +169,23 @@ function EmailItem({
             <span className="text-sm font-medium truncate">
               {email.from_name || email.from_address}
             </span>
-            <span className="text-xs text-slate-400 shrink-0">{formatDate(email.sent_at)}</span>
-            {email.has_attachments && <Paperclip className="w-3 h-3 text-slate-400 shrink-0" />}
+            <span className="text-xs text-[var(--frox-gray-400)] shrink-0">{formatDate(email.sent_at)}</span>
+            {email.has_attachments && <Paperclip className="w-3 h-3 text-[var(--frox-gray-400)] shrink-0" />}
           </div>
           {!expanded && email.body_text && (
-            <div className="text-xs text-slate-400 truncate mt-0.5">
+            <div className="text-xs text-[var(--frox-gray-400)] truncate mt-0.5">
               {email.body_text.slice(0, 100)}
             </div>
           )}
         </div>
-        {expanded ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" /> : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />}
+        {expanded ? <ChevronUp className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0 mt-0.5" /> : <ChevronDown className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0 mt-0.5" />}
       </div>
 
       {/* Развёрнутое тело */}
       {expanded && (
         <div className="mx-3 mb-2 border rounded-lg overflow-hidden">
           {/* Адреса */}
-          <div className="px-3 py-1.5 bg-slate-50 text-xs text-slate-500 space-y-0.5 border-b">
+          <div className="px-3 py-1.5 bg-[var(--frox-gray-100)] text-xs text-[var(--frox-gray-500)] space-y-0.5 border-b">
             <div><span className="font-medium">От:</span> {email.from_name ? `${email.from_name} <${email.from_address}>` : email.from_address}</div>
             <div><span className="font-medium">Кому:</span> {email.to_addresses.join(', ')}</div>
             {email.cc_addresses && email.cc_addresses.length > 0 && (
@@ -200,7 +201,7 @@ function EmailItem({
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(email.body_html) }}
               />
             ) : (
-              <pre className="text-sm whitespace-pre-wrap font-sans text-slate-700">
+              <pre className="text-sm whitespace-pre-wrap font-sans text-[var(--frox-gray-800)]">
                 {email.body_text || '(пустое письмо)'}
               </pre>
             )}
@@ -209,7 +210,7 @@ function EmailItem({
           {/* Вложения */}
           {email.attachments && email.attachments.length > 0 && (
             <div className="px-3 pb-2 border-t pt-2">
-              <div className="text-xs font-medium text-slate-500 mb-1.5 flex items-center gap-1">
+              <div className="text-xs font-medium text-[var(--frox-gray-500)] mb-1.5 flex items-center gap-1">
                 <Paperclip className="w-3 h-3" />
                 Вложения ({email.attachments.length})
               </div>
@@ -218,14 +219,14 @@ function EmailItem({
                   <a
                     key={att.id}
                     href={`/api/admin/emails/${email.id}/attachments/${att.id}`}
-                    className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs transition-colors"
+                    className="flex items-center gap-1.5 px-2 py-1 bg-[var(--frox-gray-200)] hover:bg-[var(--frox-gray-300)] rounded text-xs transition-colors"
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={e => e.stopPropagation()}
                   >
                     <Download className="w-3 h-3" />
                     <span className="truncate max-w-[160px]">{att.filename}</span>
-                    {att.size_bytes && <span className="text-slate-400">{formatFileSize(att.size_bytes)}</span>}
+                    {att.size_bytes && <span className="text-[var(--frox-gray-400)]">{formatFileSize(att.size_bytes)}</span>}
                   </a>
                 ))}
               </div>
@@ -295,7 +296,7 @@ function ThreadCard({
     : hasInbound ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600';
 
   return (
-    <div className={`border border-slate-200 border-l-4 ${accentClass} rounded-lg overflow-hidden shadow-sm`}>
+    <div className={`border border-[var(--frox-neutral-border)] border-l-4 ${accentClass} rounded-lg overflow-hidden shadow-sm`}>
       {/* Шапка треда */}
       <div
         className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:brightness-95 transition-all ${headerBg}`}
@@ -306,28 +307,28 @@ function ThreadCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-0.5">
-            <span className="text-sm font-semibold text-slate-800 truncate">{thread.subject}</span>
-            <span className="text-xs font-medium shrink-0 bg-white/70 border border-slate-200 px-1.5 py-0.5 rounded-full text-slate-600">
+            <span className="text-sm font-semibold text-[var(--frox-gray-900)] truncate">{thread.subject}</span>
+            <span className="text-xs font-medium shrink-0 bg-white/70 border border-[var(--frox-neutral-border)] px-1.5 py-0.5 rounded-full text-[var(--frox-gray-600)]">
               {count}
             </span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-500">
+          <div className="flex items-center gap-2 text-xs text-[var(--frox-gray-500)]">
             <span className="font-medium">{formatDate(thread.latestAt)}</span>
-            <span className="text-slate-300">·</span>
+            <span className="text-[var(--frox-gray-300)]">·</span>
             <span className="truncate">
               {thread.emails.map(e => e.direction === 'inbound' ? (e.from_name || e.from_address) : 'Вы').filter((v, i, a) => a.indexOf(v) === i).join(', ')}
             </span>
-            {thread.emails.some(e => e.has_attachments) && <Paperclip className="w-3 h-3 shrink-0 text-slate-400" />}
+            {thread.emails.some(e => e.has_attachments) && <Paperclip className="w-3 h-3 shrink-0 text-[var(--frox-gray-400)]" />}
           </div>
         </div>
         {expanded
-          ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />
-          : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />}
+          ? <ChevronUp className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
+          : <ChevronDown className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />}
       </div>
 
       {/* Письма треда */}
       {expanded && (
-        <div className="border-t border-slate-100 py-2 space-y-1 bg-white">
+        <div className="border-t border-[var(--frox-neutral-border)] py-2 space-y-1 bg-white">
           {thread.emails.map((email, idx) => (
             <EmailItem
               key={email.id}
@@ -348,58 +349,238 @@ function ThreadCard({
   );
 }
 
+interface SyncProgress {
+  folder: string;
+  batch: string;
+  batchIndex: number;
+  totalBatches: number;
+  syncedSoFar: number;
+  newInBatch: number;
+  backfillCompleted: boolean;
+}
+
 export function EmailThread({ contactEmail, contactName, submissionId }: EmailThreadProps) {
   const [emails, setEmails] = useState<CrmEmail[]>([]);
+  const [totalEmails, setTotalEmails] = useState<number | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [replyToId, setReplyToId] = useState<string | null>(null);
   const [showNewCompose, setShowNewCompose] = useState(false);
   const [page, setPage] = useState(1);
+  const syncAbortRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const bgLoadRef = useRef<AbortController | null>(null);
 
+  const baseParams = useMemo(
+    () => submissionId
+      ? `submission_id=${submissionId}`
+      : `contact_email=${encodeURIComponent(contactEmail)}`,
+    [contactEmail, submissionId]
+  );
+
+  // Загружает первую порцию и сразу показывает, затем догружает остальные в фоне
   const fetchEmails = useCallback(async () => {
     try {
-      const params = submissionId
-        ? `submission_id=${submissionId}`
-        : `contact_email=${encodeURIComponent(contactEmail)}`;
-      const response = await fetch(`/api/admin/emails?${params}`, { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setEmails(data.emails || []);
-        setLastSyncAt(data.lastSyncAt);
+      // Первые FETCH_LIMIT писем — сразу показываем
+      const response = await fetch(
+        `/api/admin/emails?${baseParams}&limit=${FETCH_LIMIT}&offset=0`,
+        { credentials: 'include' }
+      );
+      if (!response.ok) return;
+      const data = await response.json();
+      if (!mountedRef.current) return;
+
+      const firstBatch: CrmEmail[] = data.emails || [];
+      const total: number = data.total ?? firstBatch.length;
+      setEmails(firstBatch);
+      setTotalEmails(total);
+      setLastSyncAt(data.lastSyncAt);
+      setLoading(false);
+
+      // Если писем больше чем FETCH_LIMIT — догружаем в фоне порциями
+      if (total > FETCH_LIMIT) {
+        bgLoadRef.current?.abort();
+        const abortCtrl = new AbortController();
+        bgLoadRef.current = abortCtrl;
+        setLoadingMore(true);
+
+        let offset = FETCH_LIMIT;
+        let accumulated = [...firstBatch];
+
+        while (offset < total) {
+          if (abortCtrl.signal.aborted || !mountedRef.current) break;
+          try {
+            const res = await fetch(
+              `/api/admin/emails?${baseParams}&limit=${FETCH_LIMIT}&offset=${offset}`,
+              { credentials: 'include', signal: abortCtrl.signal }
+            );
+            if (!res.ok) break;
+            const chunk = await res.json();
+            const batch: CrmEmail[] = chunk.emails || [];
+            if (batch.length === 0) break;
+            accumulated = [...accumulated, ...batch];
+            if (mountedRef.current) setEmails([...accumulated]);
+            offset += FETCH_LIMIT;
+          } catch {
+            break;
+          }
+        }
+
+        if (mountedRef.current) setLoadingMore(false);
       }
     } catch (error) {
       console.error('Error fetching emails:', error);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
-  }, [contactEmail, submissionId]);
+  }, [baseParams]);
 
-  useEffect(() => { fetchEmails(); }, [fetchEmails]);
+  useEffect(() => {
+    mountedRef.current = true;
+    fetchEmails();
+    return () => {
+      mountedRef.current = false;
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      bgLoadRef.current?.abort();
+    };
+  }, [fetchEmails]);
+
+  // Лёгкий refresh для polling во время sync — не перезапускает фоновую загрузку
+  const refreshEmails = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `/api/admin/emails?${baseParams}&limit=${FETCH_LIMIT}&offset=0`,
+        { credentials: 'include' }
+      );
+      if (!res.ok || !mountedRef.current) return;
+      const data = await res.json();
+      setEmails(prev => {
+        const newBatch: CrmEmail[] = data.emails || [];
+        // Мерджим: новые письма могут быть добавлены в начало
+        const existingIds = new Set(prev.map(e => e.id));
+        const added = newBatch.filter(e => !existingIds.has(e.id));
+        return added.length > 0 ? [...added, ...prev] : prev;
+      });
+      setLastSyncAt(data.lastSyncAt);
+    } catch {
+      // ignore
+    }
+  }, [baseParams]);
+
+  const startPolling = useCallback(() => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    pollingRef.current = setInterval(() => {
+      if (mountedRef.current) refreshEmails();
+    }, 4000);
+  }, [refreshEmails]);
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
+
+  const handleStopSync = () => {
+    syncAbortRef.current?.abort();
+  };
 
   const handleSync = async () => {
     setSyncing(true);
+    setSyncProgress(null);
+    startPolling();
+    const abortController = new AbortController();
+    syncAbortRef.current = abortController;
+
     try {
-      const response = await adminCsrfFetch('/api/admin/emails/sync', {
-        method: 'POST',
+      const response = await fetch('/api/admin/emails/sync', {
         credentials: 'include',
+        signal: abortController.signal,
       });
-      if (response.ok) {
+
+      if (!response.ok) {
+        console.error('Sync failed:', response.status);
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
         const data = await response.json();
         setLastSyncAt(data.lastSyncAt);
-        await fetchEmails();
+        await refreshEmails();
+        return;
       }
-    } catch (error) {
-      console.error('Error syncing emails:', error);
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let lastRefresh = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // SSE messages are separated by double newline
+        let sepIdx: number;
+        while ((sepIdx = buffer.indexOf('\n\n')) !== -1) {
+          const message = buffer.slice(0, sepIdx);
+          buffer = buffer.slice(sepIdx + 2);
+
+          // Parse SSE message
+          let eventType = '';
+          let dataStr = '';
+          for (const line of message.split('\n')) {
+            if (line.startsWith('event: ')) eventType = line.slice(7).trim();
+            else if (line.startsWith('data: ')) dataStr = line.slice(6);
+          }
+
+          if (!dataStr) continue;
+
+          try {
+            const data = JSON.parse(dataStr);
+
+            if (eventType === 'progress') {
+              setSyncProgress(data as SyncProgress);
+              const now = Date.now();
+              if (data.newInBatch > 0 && now - lastRefresh > 3000) {
+                lastRefresh = now;
+                refreshEmails();
+              }
+            } else if (eventType === 'done') {
+              setLastSyncAt(data.lastSyncAt);
+              await fetchEmails();
+            } else if (eventType === 'error') {
+              console.error('Sync error:', data.message);
+            }
+          } catch {
+            // ignore parse errors
+          }
+        }
+      }
+    } catch (error: any) {
+      if (error?.name !== 'AbortError') {
+        console.error('Error syncing emails:', error);
+      }
     } finally {
-      setSyncing(false);
+      syncAbortRef.current = null;
+      stopPolling();
+      if (mountedRef.current) {
+        setSyncing(false);
+        setSyncProgress(null);
+      }
+      fetchEmails();
     }
   };
 
   const handleEmailSent = () => {
     setReplyToId(null);
     setShowNewCompose(false);
-    fetchEmails();
+    refreshEmails();
   };
 
   const threads = groupEmailsIntoThreads(emails);
@@ -410,8 +591,8 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
-        <span className="ml-2 text-sm text-slate-500">Загрузка переписки...</span>
+        <Loader2 className="w-6 h-6 animate-spin text-[var(--frox-gray-400)]" />
+        <span className="ml-2 text-sm text-[var(--frox-gray-500)]">Загрузка переписки...</span>
       </div>
     );
   }
@@ -425,17 +606,44 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
             <RefreshCw className={`w-4 h-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Синхронизация...' : 'Синхронизировать'}
           </Button>
+          {syncing && (
+            <Button variant="outline" size="sm" onClick={handleStopSync} className="w-full sm:w-auto text-red-600 border-red-200 hover:bg-red-50">
+              <Square className="w-3 h-3 mr-1 fill-current" />
+              Остановить
+            </Button>
+          )}
           <Button variant="default" size="sm" className="w-full sm:w-auto" onClick={() => { setShowNewCompose(true); setReplyToId(null); }}>
             <Mail className="w-4 h-4 mr-1" />
             Написать письмо
           </Button>
         </div>
         {lastSyncAt && (
-          <span className="text-xs text-slate-400 sm:text-right">
+          <span className="text-xs text-[var(--frox-gray-400)] sm:text-right">
             Синхр.: {formatDate(lastSyncAt)}
           </span>
         )}
       </div>
+
+      {/* Прогресс синхронизации */}
+      {syncing && syncProgress && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 space-y-2">
+          <div className="flex items-center justify-between text-sm text-blue-700">
+            <span className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              {syncProgress.folder}: загружено {syncProgress.syncedSoFar} писем
+            </span>
+            <span className="text-xs text-blue-500">
+              батч {syncProgress.batchIndex}/{syncProgress.totalBatches}
+            </span>
+          </div>
+          <div className="w-full bg-blue-100 rounded-full h-1.5">
+            <div
+              className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
+              style={{ width: `${Math.min(100, (syncProgress.batchIndex / syncProgress.totalBatches) * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Форма нового письма */}
       {showNewCompose && (
@@ -450,7 +658,7 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
       )}
 
       {emails.length === 0 ? (
-        <div className="text-center py-12 text-slate-400">
+        <div className="text-center py-12 text-[var(--frox-gray-400)]">
           <Inbox className="w-12 h-12 mx-auto mb-3 stroke-1" />
           <p className="text-sm">Переписка с {contactEmail} не найдена</p>
           <p className="text-xs mt-1">Нажмите «Синхронизировать» для загрузки писем</p>
@@ -458,8 +666,14 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
       ) : (
         <>
           {/* Счётчик и пагинация сверху */}
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-slate-500">
-            <span>Тредов: {threads.length} · Писем: {emails.length}</span>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-[var(--frox-gray-500)]">
+            <span className="flex items-center gap-1.5">
+              Тредов: {threads.length} · Писем: {emails.length}
+              {totalEmails !== null && totalEmails > emails.length && (
+                <span className="text-[var(--frox-gray-400)]">из {totalEmails}</span>
+              )}
+              {loadingMore && <Loader2 className="w-3 h-3 animate-spin text-[var(--frox-gray-400)]" />}
+            </span>
             {totalPages > 1 && (
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" className="h-7 w-7"
@@ -498,7 +712,7 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
                 onClick={() => setPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
                 <ChevronLeft className="w-4 h-4 mr-1" />Назад
               </Button>
-              <span className="text-sm text-slate-500">{currentPage} / {totalPages}</span>
+              <span className="text-sm text-[var(--frox-gray-500)]">{currentPage} / {totalPages}</span>
               <Button variant="outline" size="sm" className="w-full sm:w-auto"
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
                 Далее<ChevronRight className="w-4 h-4 ml-1" />
