@@ -353,7 +353,7 @@ export default function AdminRequestsPage() {
       )}
 
       {/* ── Поиск и фильтры ── */}
-      <div className="bg-white border border-[var(--frox-neutral-border)] rounded-2xl shadow-sm overflow-hidden">
+      <div className="frox-toolbar overflow-hidden rounded-[28px]">
         <div className="p-4 flex flex-col lg:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--frox-gray-400)] pointer-events-none" />
@@ -361,12 +361,12 @@ export default function AdminRequestsPage() {
               placeholder="Поиск по имени, email, телефону..."
               value={search}
               onChange={e => { setSearch(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
-              className="pl-10 h-9 bg-[var(--frox-gray-100)] border-[var(--frox-neutral-border)] focus:bg-white"
+              className="h-10 border-[rgba(115,100,219,0.1)] bg-white/80 pl-10 focus:bg-white"
             />
           </div>
           <div className="flex flex-wrap gap-2">
             <select
-              className="h-9 px-3 rounded-lg border border-[var(--frox-neutral-border)] bg-[var(--frox-gray-100)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+              className="frox-select h-10 rounded-xl px-3 text-sm"
               value={filterType}
               onChange={e => { setFilterType(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
             >
@@ -378,7 +378,7 @@ export default function AdminRequestsPage() {
             </select>
 
             <select
-              className="h-9 px-3 rounded-lg border border-[var(--frox-neutral-border)] bg-[var(--frox-gray-100)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+              className="frox-select h-10 rounded-xl px-3 text-sm"
               value={filterStatus}
               onChange={e => { setFilterStatus(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
             >
@@ -390,17 +390,17 @@ export default function AdminRequestsPage() {
               variant={showFilters ? 'secondary' : 'outline'}
               size="sm"
               onClick={() => setShowFilters(!showFilters)}
-              className="gap-1.5 h-9"
+              className="h-10 gap-1.5"
             >
               <Filter className="w-3.5 h-3.5" />
               Фильтры
               {(filterPriority || dateFrom || dateTo) && (
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ml-0.5" />
+                <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-[var(--frox-brand)]" />
               )}
             </Button>
 
             {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-[var(--frox-gray-500)] h-9">
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-10 gap-1 text-[var(--frox-gray-500)]">
                 <X className="w-3.5 h-3.5" />
                 Сбросить
               </Button>
@@ -409,11 +409,11 @@ export default function AdminRequestsPage() {
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 px-4 pb-4 pt-0 border-t border-[var(--frox-gray-200)] mt-0 pt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-[rgba(115,100,219,0.1)] px-4 pb-4 pt-4">
             <div>
               <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-1.5">Приоритет</label>
               <select
-                className="h-9 w-full px-3 rounded-lg border border-[var(--frox-neutral-border)] bg-[var(--frox-gray-100)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="frox-select h-10 w-full rounded-xl px-3 text-sm"
                 value={filterPriority}
                 onChange={e => { setFilterPriority(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
               >
@@ -423,11 +423,11 @@ export default function AdminRequestsPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-1.5">Дата от</label>
-              <Input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPagination(p => ({ ...p, page: 1 })); }} className="h-9 bg-[var(--frox-gray-100)]" />
+              <Input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPagination(p => ({ ...p, page: 1 })); }} className="h-10 bg-white/80" />
             </div>
             <div>
               <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-1.5">Дата до</label>
-              <Input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPagination(p => ({ ...p, page: 1 })); }} className="h-9 bg-[var(--frox-gray-100)]" />
+              <Input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPagination(p => ({ ...p, page: 1 })); }} className="h-10 bg-white/80" />
             </div>
           </div>
         )}
@@ -435,7 +435,7 @@ export default function AdminRequestsPage() {
 
       {/* ── Массовые действия ── */}
       {selectedIds.size > 0 && (
-        <div className="bg-blue-600 text-white rounded-2xl px-4 py-3 flex flex-wrap items-center gap-3 shadow-md">
+        <div className="frox-bulk-bar flex flex-wrap items-center gap-3 rounded-[28px] px-4 py-3 text-white">
           <span className="text-sm font-semibold">Выбрано: {selectedIds.size}</span>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="secondary" onClick={() => handleBulkStatusChange('in_progress')} className="h-7 text-xs bg-white/20 hover:bg-white/30 text-white border-0">
@@ -479,7 +479,7 @@ export default function AdminRequestsPage() {
       {/* ── Мобильные карточки ── */}
       <div className="lg:hidden space-y-2">
         {!loading && requests.length > 0 && (
-          <div className="flex items-center justify-between rounded-xl border bg-white px-3 py-2.5">
+          <div className="frox-shell-surface flex items-center justify-between rounded-2xl px-3 py-2.5">
             <label className="flex items-center gap-2 text-sm text-[var(--frox-gray-600)] cursor-pointer">
               <Checkbox checked={selectAll} onChange={handleSelectAll} />
               Выбрать все
@@ -489,12 +489,12 @@ export default function AdminRequestsPage() {
         )}
 
         {loading ? (
-          <div className="bg-white rounded-2xl border p-12 text-center text-[var(--frox-gray-400)]">
+          <div className="frox-empty-state rounded-[28px] p-12 text-center text-[var(--frox-gray-400)]">
             <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
             Загрузка...
           </div>
         ) : requests.length === 0 ? (
-          <div className="bg-white rounded-2xl border p-12 text-center text-[var(--frox-gray-400)]">
+          <div className="frox-empty-state rounded-[28px] p-12 text-center text-[var(--frox-gray-400)]">
             <Inbox className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p className="text-sm">Заявок не найдено</p>
           </div>
@@ -504,7 +504,7 @@ export default function AdminRequestsPage() {
             return (
               <div
                 key={req.id}
-                className={`bg-white rounded-2xl border border-l-4 ${getRowAccent(req)} p-4 transition-all`}
+                className={`frox-shell-surface rounded-[28px] border-l-4 ${getRowAccent(req)} p-4 transition-all hover:border-[rgba(115,100,219,0.22)]`}
               >
                 <div className="flex items-start gap-3">
                   <div className="pt-0.5" onClick={e => e.stopPropagation()}>
@@ -555,7 +555,7 @@ export default function AdminRequestsPage() {
       </div>
 
       {/* ── Таблица (десктоп) ── */}
-      <div className="hidden lg:block bg-white border border-[var(--frox-neutral-border)] rounded-2xl shadow-sm overflow-hidden">
+      <div className="frox-table-shell hidden overflow-hidden rounded-[28px] lg:block">
         <table className="w-full text-sm text-left">
           <thead>
             <tr className="border-b border-[var(--frox-gray-200)]">
@@ -598,7 +598,7 @@ export default function AdminRequestsPage() {
                   <Inbox className="w-10 h-10 mx-auto mb-3 opacity-20" />
                   <p>Заявок не найдено</p>
                   {hasActiveFilters && (
-                    <button onClick={clearFilters} className="mt-2 text-blue-500 hover:underline text-sm">Сбросить фильтры</button>
+                    <button onClick={clearFilters} className="mt-2 text-sm text-[var(--frox-brand)] hover:underline">Сбросить фильтры</button>
                   )}
                 </td>
               </tr>
@@ -608,7 +608,7 @@ export default function AdminRequestsPage() {
                 return (
                   <tr
                     key={req.id}
-                    className={`border-l-4 cursor-pointer transition-colors hover:bg-[var(--frox-gray-100)] group ${getRowAccent(req)}`}
+                    className={`border-l-4 cursor-pointer transition-colors hover:bg-[var(--frox-gray-100)]/80 group ${getRowAccent(req)}`}
                     onClick={() => { setSelectedRequest(req); setIsModalOpen(true); }}
                   >
                     <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
