@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 import { RequestDetailsModal, RequestItem } from '@/components/admin/RequestDetailsModal';
+import { FroxStatCard } from '@/components/admin/FroxStatCard';
 
 interface PaginationInfo {
   page: number;
@@ -299,11 +300,12 @@ export default function AdminRequestsPage() {
   return (
     <div className="space-y-5">
       {/* ── Заголовок ── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--frox-gray-1100)] tracking-tight">Заявки</h1>
+          <div className="frox-page-kicker">Inbox</div>
+          <h1 data-frox-heading="true" className="mt-2 text-3xl font-black tracking-tight text-[var(--frox-gray-1100)]">Заявки</h1>
           {stats && (
-            <p className="text-sm text-[var(--frox-gray-500)] mt-0.5">
+            <p className="text-sm text-[var(--frox-gray-500)] mt-1">
               Всего {stats.total_count} · {stats.new_count} новых
             </p>
           )}
@@ -329,28 +331,23 @@ export default function AdminRequestsPage() {
       {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: 'Новые', value: stats.new_count, icon: Inbox, from: 'from-blue-500', to: 'to-blue-600', filterVal: 'new' },
-            { label: 'В работе', value: stats.in_progress_count, icon: Clock, from: 'from-amber-400', to: 'to-amber-500', filterVal: 'in_progress' },
-            { label: 'Обработано', value: stats.processed_count, icon: CheckCircle2, from: 'from-emerald-500', to: 'to-emerald-600', filterVal: 'processed' },
-            { label: 'В архиве', value: stats.archived_count, icon: Archive, from: 'from-[var(--frox-gray-600)]', to: 'to-[var(--frox-gray-700)]', filterVal: 'archived' },
+            { label: 'Новые', value: stats.new_count, icon: Inbox, tone: 'brand' as const, filterVal: 'new' },
+            { label: 'В работе', value: stats.in_progress_count, icon: Clock, tone: 'plum' as const, filterVal: 'in_progress' },
+            { label: 'Обработано', value: stats.processed_count, icon: CheckCircle2, tone: 'mint' as const, filterVal: 'processed' },
+            { label: 'В архиве', value: stats.archived_count, icon: Archive, tone: 'slate' as const, filterVal: 'archived' },
           ].map(card => (
-            <button
+            <FroxStatCard
               key={card.filterVal}
+              label={card.label}
+              value={card.value}
+              icon={card.icon}
+              tone={card.tone}
+              active={filterStatus === card.filterVal}
               onClick={() => {
                 setFilterStatus(filterStatus === card.filterVal ? '' : card.filterVal);
                 setPagination(p => ({ ...p, page: 1 }));
               }}
-              className={`relative overflow-hidden rounded-2xl p-5 text-left transition-all bg-gradient-to-br ${card.from} ${card.to} text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 ${filterStatus === card.filterVal ? 'ring-2 ring-white ring-offset-2 ring-offset-[var(--frox-gray-200)]' : ''}`}
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wider opacity-80">{card.label}</p>
-                  <p className="text-3xl font-bold mt-1 tabular-nums">{card.value}</p>
-                </div>
-                <card.icon className="w-5 h-5 opacity-50 mt-0.5" />
-              </div>
-              <div className="absolute -bottom-3 -right-3 w-16 h-16 rounded-full bg-white/10" />
-            </button>
+            />
           ))}
         </div>
       )}

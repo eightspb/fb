@@ -11,6 +11,17 @@
 :root {
   /* Brand */
   --frox-brand: #7364db;
+  --frox-brand-strong: #6150d2;
+  --frox-brand-soft: #f1edff;
+  --frox-brand-softer: #f8f6ff;
+  --frox-brand-rgb: 115 100 219;
+  --frox-plum: #8f79ef;
+  --frox-plum-soft: #f4efff;
+  --frox-mint: #7ac5b5;
+  --frox-mint-soft: #edf9f5;
+  --frox-slate-soft: #f4f3fb;
+  --frox-surface-shadow: 0 24px 60px rgba(52, 40, 121, 0.08);
+  --frox-surface-shadow-strong: 0 28px 70px rgba(52, 40, 121, 0.14);
 
   /* Accent palette */
   --frox-blue:    #2775ff;
@@ -217,6 +228,144 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+@layer components {
+  .frox-shell-surface {
+    border: 1px solid rgba(255, 255, 255, 0.78);
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(247, 244, 255, 0.9));
+    box-shadow: var(--frox-surface-shadow);
+    backdrop-filter: blur(18px);
+  }
+
+  .frox-toolbar {
+    border: 1px solid rgba(115, 100, 219, 0.1);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 244, 255, 0.88));
+    box-shadow: var(--frox-surface-shadow);
+    backdrop-filter: blur(14px);
+  }
+
+  .frox-select {
+    border: 1px solid rgba(115, 100, 219, 0.1);
+    background:
+      linear-gradient(180deg, rgba(248, 246, 255, 0.96), rgba(255, 255, 255, 0.92));
+    color: var(--frox-gray-800);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  }
+
+  .frox-select:focus {
+    border-color: rgba(var(--frox-brand-rgb), 0.45);
+    box-shadow:
+      0 0 0 4px rgba(var(--frox-brand-rgb), 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    outline: none;
+  }
+
+  .frox-bulk-bar {
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background:
+      linear-gradient(135deg, #5948c8 0%, #7364db 55%, #8f79ef 100%);
+    box-shadow: var(--frox-surface-shadow-strong);
+  }
+
+  .frox-empty-state {
+    border: 1px dashed rgba(115, 100, 219, 0.14);
+    background:
+      radial-gradient(circle at top, rgba(115, 100, 219, 0.08), transparent 58%),
+      rgba(255, 255, 255, 0.78);
+    box-shadow: var(--frox-surface-shadow);
+  }
+
+  .frox-page-kicker {
+    color: rgba(115, 100, 219, 0.9);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .frox-stat-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.5rem;
+    border: 1px solid rgba(115, 100, 219, 0.12);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 243, 255, 0.94));
+    box-shadow: var(--frox-surface-shadow);
+    transition:
+      transform 180ms ease,
+      box-shadow 180ms ease,
+      border-color 180ms ease;
+  }
+
+  .frox-stat-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto auto 0;
+    height: 4px;
+    width: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #7364db, #8f79ef);
+  }
+
+  .frox-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--frox-surface-shadow-strong);
+  }
+
+  .frox-stat-card--active {
+    border-color: rgba(115, 100, 219, 0.34);
+    box-shadow:
+      0 0 0 4px rgba(115, 100, 219, 0.08),
+      var(--frox-surface-shadow-strong);
+  }
+
+  .frox-stat-card--brand::before {
+    background: linear-gradient(90deg, #6150d2, #8f79ef);
+  }
+
+  .frox-stat-card--plum::before {
+    background: linear-gradient(90deg, #7a5fe4, #a88df6);
+  }
+
+  .frox-stat-card--mint::before {
+    background: linear-gradient(90deg, #7364db, #7ac5b5);
+  }
+
+  .frox-stat-card--slate::before {
+    background: linear-gradient(90deg, #535362, #7e7e8f);
+  }
+
+  .frox-stat-card__orb {
+    position: absolute;
+    right: -24px;
+    bottom: -34px;
+    width: 128px;
+    height: 128px;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(115, 100, 219, 0.16), rgba(115, 100, 219, 0));
+  }
+
+  .frox-stat-card__icon {
+    border: 1px solid rgba(115, 100, 219, 0.12);
+    background: rgba(255, 255, 255, 0.78);
+    color: var(--frox-brand-strong);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  }
+
+  .frox-table-shell {
+    border: 1px solid rgba(115, 100, 219, 0.1);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(249, 247, 255, 0.9));
+    box-shadow: var(--frox-surface-shadow);
+    backdrop-filter: blur(12px);
+  }
+
+  .frox-table-resize:hover {
+    background: rgba(var(--frox-brand-rgb), 0.2);
+  }
+}
+
 /* Dark theme variables */
 .dark {
   --background: oklch(0.145 0 0);
@@ -259,6 +408,10 @@
   }
   body {
     @apply bg-background text-foreground;
+    background:
+      radial-gradient(circle at top right, rgba(var(--frox-brand-rgb), 0.14), transparent 28%),
+      radial-gradient(circle at left 18%, rgba(143, 121, 239, 0.09), transparent 22%),
+      linear-gradient(180deg, #faf9ff 0%, #f5f4fc 38%, #f5f5fa 100%);
     font-family:
       "Noto Sans",
       var(--font-geist-sans),
@@ -270,6 +423,19 @@
       "Helvetica Neue",
       Arial,
       sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  [data-frox-heading="true"] {
+    font-family:
+      "Chivo",
+      "Noto Sans",
+      var(--font-geist-sans),
+      system-ui,
+      sans-serif;
+    letter-spacing: -0.03em;
   }
   
   /* Fallback для моноширинных шрифтов */

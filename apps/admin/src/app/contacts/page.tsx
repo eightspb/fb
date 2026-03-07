@@ -39,6 +39,7 @@ import {
   Merge,
 } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
+import { FroxStatCard } from '@/components/admin/FroxStatCard';
 
 interface Contact {
   id: string;
@@ -72,10 +73,10 @@ interface Stats {
 }
 
 const statusConfig = [
-  { value: 'new', label: 'Новый', pill: 'bg-blue-50 text-blue-700 border border-blue-200', dot: 'bg-blue-500' },
-  { value: 'in_progress', label: 'В работе', pill: 'bg-amber-50 text-amber-700 border border-amber-200', dot: 'bg-amber-500' },
-  { value: 'processed', label: 'Обработан', pill: 'bg-emerald-50 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-500' },
-  { value: 'archived', label: 'В архиве', pill: 'bg-[var(--frox-gray-200)] text-[var(--frox-gray-500)] border border-[var(--frox-neutral-border)]', dot: 'bg-[var(--frox-gray-400)]' },
+  { value: 'new', label: 'Новый', pill: 'bg-[var(--frox-brand-soft)] text-[var(--frox-brand-strong)] border border-[rgba(115,100,219,0.18)]', dot: 'bg-[var(--frox-brand)]' },
+  { value: 'in_progress', label: 'В работе', pill: 'bg-[var(--frox-plum-soft)] text-[#7a5fe4] border border-[rgba(143,121,239,0.16)]', dot: 'bg-[var(--frox-plum)]' },
+  { value: 'processed', label: 'Обработан', pill: 'bg-[var(--frox-mint-soft)] text-[#4b8d7f] border border-[rgba(122,197,181,0.2)]', dot: 'bg-[var(--frox-mint)]' },
+  { value: 'archived', label: 'В архиве', pill: 'bg-[var(--frox-slate-soft)] text-[var(--frox-gray-500)] border border-[var(--frox-neutral-border)]', dot: 'bg-[var(--frox-gray-400)]' },
 ];
 
 function getStatusConfig(status: string) {
@@ -89,7 +90,7 @@ function formatDate(s: string) {
 // Аватар с инициалами
 function Avatar({ name }: { name: string }) {
   const initials = name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
-  const colors = ['bg-violet-100 text-violet-700', 'bg-blue-100 text-blue-700', 'bg-emerald-100 text-emerald-700', 'bg-amber-100 text-amber-700', 'bg-rose-100 text-rose-700'];
+  const colors = ['bg-[#efeaff] text-[#6150d2]', 'bg-[#f4efff] text-[#7a5fe4]', 'bg-[#edf9f5] text-[#4b8d7f]', 'bg-[#f5f2ff] text-[#8d78df]', 'bg-[#f1eef8] text-[#675b8c]'];
   const color = colors[name.charCodeAt(0) % colors.length];
   return (
     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${color}`}>
@@ -123,7 +124,7 @@ function StatusPill({ value, onChange }: { value: string; onChange: (v: string) 
               >
                 <span className={`w-2 h-2 rounded-full ${opt.dot}`} />
                 {opt.label}
-                {value === opt.value && <Check className="w-3 h-3 ml-auto text-emerald-500" />}
+                {value === opt.value && <Check className="w-3 h-3 ml-auto text-[var(--frox-brand)]" />}
               </button>
             ))}
           </div>
@@ -172,7 +173,7 @@ function EditableField({ value, onSave, placeholder = '—' }: {
         autoFocus
         onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false); }}
       />
-      <button onClick={handleSave} disabled={saving} className="p-1 text-emerald-600 hover:text-emerald-700">
+      <button onClick={handleSave} disabled={saving} className="p-1 text-[var(--frox-brand)] hover:text-[var(--frox-brand-strong)]">
         <Check className="w-3.5 h-3.5" />
       </button>
       <button onClick={() => setEditing(false)} className="p-1 text-[var(--frox-gray-400)] hover:text-[var(--frox-gray-600)]">
@@ -220,11 +221,11 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
+      <div className="frox-shell-surface w-full max-w-lg overflow-hidden rounded-[28px] mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--frox-gray-200)]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-              <Upload className="w-4 h-4 text-blue-600" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--frox-brand-soft)]">
+              <Upload className="h-4 w-4 text-[var(--frox-brand-strong)]" />
             </div>
             <h2 className="font-semibold text-[var(--frox-gray-1100)]">Импорт контактов из CSV</h2>
           </div>
@@ -237,12 +238,12 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
           <div>
             <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-2 uppercase tracking-wider">Файл CSV</label>
             <div
-              className="border-2 border-dashed border-[var(--frox-neutral-border)] rounded-xl p-5 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/40 transition-all"
+              className="cursor-pointer rounded-xl border-2 border-dashed border-[rgba(115,100,219,0.18)] p-5 text-center transition-all hover:border-[var(--frox-brand)] hover:bg-[var(--frox-brand-softer)]"
               onClick={() => fileRef.current?.click()}
             >
               {file ? (
                 <div className="flex items-center justify-center gap-2 text-sm text-[var(--frox-gray-800)]">
-                  <FileText className="w-4 h-4 text-blue-500" />
+                  <FileText className="w-4 h-4 text-[var(--frox-brand)]" />
                   <span className="font-medium">{file.name}</span>
                   <span className="text-[var(--frox-gray-400)]">({(file.size / 1024).toFixed(1)} KB)</span>
                 </div>
@@ -267,7 +268,7 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
             <div>
               <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-1.5 uppercase tracking-wider">Статус по умолчанию</label>
               <select
-                className="w-full h-9 px-3 rounded-lg border border-[var(--frox-neutral-border)] bg-[var(--frox-gray-100)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="frox-select h-9 w-full rounded-lg px-3 text-sm"
                 value={status}
                 onChange={e => setStatus(e.target.value)}
               >
@@ -1002,8 +1003,8 @@ export default function ContactsPage() {
   function SortIcon({ field }: { field: string }) {
     if (sortBy !== field) return <ArrowUpDown className="w-3.5 h-3.5 text-[var(--frox-gray-300)]" />;
     return sortOrder === 'asc'
-      ? <ArrowUp className="w-3.5 h-3.5 text-blue-500" />
-      : <ArrowDown className="w-3.5 h-3.5 text-blue-500" />;
+      ? <ArrowUp className="w-3.5 h-3.5 text-[var(--frox-brand)]" />
+      : <ArrowDown className="w-3.5 h-3.5 text-[var(--frox-brand)]" />;
   }
 
   const handleStatusChange = async (c: Contact, newStatus: string) => {
@@ -1025,10 +1026,11 @@ export default function ContactsPage() {
   return (
     <div className="space-y-5">
       {/* ── Заголовок ── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--frox-gray-1100)] tracking-tight">Контакты</h1>
-          {stats && <p className="text-sm text-[var(--frox-gray-500)] mt-0.5">Всего {stats.total_count} контактов</p>}
+          <div className="frox-page-kicker">CRM workspace</div>
+          <h1 data-frox-heading="true" className="mt-2 text-3xl font-black tracking-tight text-[var(--frox-gray-1100)]">Контакты</h1>
+          {stats && <p className="mt-1 text-sm text-[var(--frox-gray-500)]">Всего {stats.total_count} контактов</p>}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowImport(true)} className="gap-2 h-9">
@@ -1043,33 +1045,31 @@ export default function ContactsPage() {
 
       {/* ── Статистика ── */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[
-            { label: 'Новые', value: stats.new_count, icon: Inbox, from: 'from-blue-500', to: 'to-blue-600', filterVal: 'new' },
-            { label: 'В работе', value: stats.in_progress_count, icon: Clock, from: 'from-amber-400', to: 'to-amber-500', filterVal: 'in_progress' },
-            { label: 'Обработано', value: stats.processed_count, icon: CheckCircle2, from: 'from-emerald-500', to: 'to-emerald-600', filterVal: 'processed' },
-            { label: 'Всего', value: stats.total_count, icon: Users, from: 'from-[var(--frox-gray-700)]', to: 'to-[var(--frox-gray-900)]', filterVal: '' },
-          ].map(card => (
-            <button
+            { label: 'Новые', value: stats.new_count, icon: Inbox, tone: 'brand' as const, filterVal: 'new' },
+            { label: 'В работе', value: stats.in_progress_count, icon: Clock, tone: 'plum' as const, filterVal: 'in_progress' },
+            { label: 'Обработано', value: stats.processed_count, icon: CheckCircle2, tone: 'mint' as const, filterVal: 'processed' },
+            { label: 'Всего', value: stats.total_count, icon: Users, tone: 'slate' as const, filterVal: '' },
+          ].map((card) => (
+            <FroxStatCard
               key={card.label}
-              onClick={() => { if (card.filterVal) { setFilterStatus(filterStatus === card.filterVal ? '' : card.filterVal); setPagination(p => ({ ...p, page: 1 })); } }}
-              className={`relative overflow-hidden rounded-2xl p-4 text-left transition-all bg-gradient-to-br ${card.from} ${card.to} text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 ${filterStatus === card.filterVal && card.filterVal ? 'ring-2 ring-white ring-offset-2 ring-offset-[var(--frox-gray-200)]' : ''}`}
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wider opacity-80">{card.label}</p>
-                  <p className="text-3xl font-bold mt-1 tabular-nums">{card.value}</p>
-                </div>
-                <card.icon className="w-5 h-5 opacity-50 mt-0.5" />
-              </div>
-              <div className="absolute -bottom-3 -right-3 w-16 h-16 rounded-full bg-white/10" />
-            </button>
+              label={card.label}
+              value={card.value}
+              icon={card.icon}
+              tone={card.tone}
+              active={Boolean(card.filterVal) && filterStatus === card.filterVal}
+              onClick={card.filterVal ? () => {
+                setFilterStatus(filterStatus === card.filterVal ? '' : card.filterVal);
+                setPagination((p) => ({ ...p, page: 1 }));
+              } : undefined}
+            />
           ))}
         </div>
       )}
 
       {/* ── Поиск и фильтры ── */}
-      <div className="bg-white border border-[var(--frox-neutral-border)] rounded-2xl shadow-sm overflow-hidden">
+      <div className="frox-toolbar overflow-hidden rounded-[28px]">
         <div className="p-4 flex flex-col lg:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--frox-gray-400)] pointer-events-none" />
@@ -1077,12 +1077,12 @@ export default function ContactsPage() {
               placeholder="Поиск по имени, email, телефону, городу, специальности..."
               value={search}
               onChange={e => { setSearch(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
-              className="pl-10 h-9 bg-[var(--frox-gray-100)] border-[var(--frox-neutral-border)] focus:bg-white"
+              className="h-10 border-[rgba(115,100,219,0.1)] bg-white/80 pl-10 focus:bg-white"
             />
           </div>
           <div className="flex flex-wrap gap-2">
             <select
-              className="h-9 px-3 rounded-lg border border-[var(--frox-neutral-border)] bg-[var(--frox-gray-100)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+              className="frox-select h-10 rounded-xl px-3 text-sm"
               value={filterStatus}
               onChange={e => { setFilterStatus(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
             >
@@ -1093,14 +1093,14 @@ export default function ContactsPage() {
               variant={showFilters ? 'secondary' : 'outline'}
               size="sm"
               onClick={() => setShowFilters(!showFilters)}
-              className="gap-1.5 h-9"
+              className="h-10 gap-1.5"
             >
               <Filter className="w-3.5 h-3.5" />
               Фильтры
-              {(filterTag || filterCity) && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ml-0.5" />}
+              {(filterTag || filterCity) && <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-[var(--frox-brand)]" />}
             </Button>
             {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-[var(--frox-gray-500)] h-9">
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-10 gap-1 text-[var(--frox-gray-500)]">
                 <X className="w-3.5 h-3.5" /> Сбросить
               </Button>
             )}
@@ -1108,7 +1108,7 @@ export default function ContactsPage() {
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-4 pb-4 border-t border-[var(--frox-gray-200)] pt-4">
+          <div className="grid grid-cols-1 gap-4 border-t border-[rgba(115,100,219,0.1)] px-4 pb-4 pt-4 sm:grid-cols-2">
             <div>
               <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-1.5">Тег</label>
               <div className="relative">
@@ -1117,7 +1117,7 @@ export default function ContactsPage() {
                   placeholder="Фильтр по тегу"
                   value={filterTag}
                   onChange={e => { setFilterTag(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
-                  className="pl-9 h-9 bg-[var(--frox-gray-100)]"
+                  className="h-10 bg-white/80 pl-9"
                 />
               </div>
             </div>
@@ -1129,7 +1129,7 @@ export default function ContactsPage() {
                   placeholder="Город"
                   value={filterCity}
                   onChange={e => { setFilterCity(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
-                  className="pl-9 h-9 bg-[var(--frox-gray-100)]"
+                  className="h-10 bg-white/80 pl-9"
                 />
               </div>
             </div>
@@ -1139,7 +1139,7 @@ export default function ContactsPage() {
 
       {/* ── Массовые действия ── */}
       {selectedIds.size > 0 && (
-        <div className="bg-blue-600 text-white rounded-2xl px-4 py-3 flex flex-wrap items-center gap-3 shadow-md">
+        <div className="frox-bulk-bar flex flex-wrap items-center gap-3 rounded-[28px] px-4 py-3 text-white">
           <span className="text-sm font-semibold">Выбрано: {selectedIds.size}</span>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="secondary" onClick={() => handleBulkStatus('in_progress')} className="h-7 text-xs bg-white/20 hover:bg-white/30 text-white border-0">
@@ -1170,7 +1170,7 @@ export default function ContactsPage() {
               </div>
             )}
             {selectedIds.size >= 2 && (
-              <Button size="sm" variant="secondary" onClick={() => setShowMerge(true)} className="h-7 text-xs bg-violet-500/30 hover:bg-violet-500/50 text-white border-0">
+              <Button size="sm" variant="secondary" onClick={() => setShowMerge(true)} className="h-7 border-0 bg-white/20 text-xs text-white hover:bg-white/30">
                 <Merge className="w-3.5 h-3.5 mr-1" /> Объединить
               </Button>
             )}
@@ -1202,7 +1202,7 @@ export default function ContactsPage() {
       {/* ── Мобильные карточки ── */}
       <div className="lg:hidden space-y-2">
         {!loading && contacts.length > 0 && (
-          <div className="flex items-center justify-between rounded-xl border bg-white px-3 py-2.5">
+          <div className="frox-shell-surface flex items-center justify-between rounded-2xl px-3 py-2.5">
             <label className="flex items-center gap-2 text-sm text-[var(--frox-gray-600)] cursor-pointer">
               <Checkbox checked={selectAll} onChange={handleSelectAll} />
               Выбрать все
@@ -1212,12 +1212,12 @@ export default function ContactsPage() {
         )}
 
         {loading ? (
-          <div className="bg-white rounded-2xl border p-12 text-center text-[var(--frox-gray-400)]">
+          <div className="frox-empty-state rounded-[28px] p-12 text-center text-[var(--frox-gray-400)]">
             <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
             Загрузка...
           </div>
         ) : contacts.length === 0 ? (
-          <div className="bg-white rounded-2xl border p-12 text-center text-[var(--frox-gray-400)]">
+          <div className="frox-empty-state rounded-[28px] p-12 text-center text-[var(--frox-gray-400)]">
             <Users className="w-10 h-10 mx-auto mb-3 opacity-20" />
             <p className="text-sm">Контактов не найдено</p>
           </div>
@@ -1227,7 +1227,7 @@ export default function ContactsPage() {
             return (
               <div
                 key={c.id}
-                className="bg-white rounded-2xl border border-[var(--frox-neutral-border)] p-4 cursor-pointer hover:border-[var(--frox-gray-300)] transition-all"
+                className="frox-shell-surface cursor-pointer rounded-[28px] p-4 transition-all hover:border-[rgba(115,100,219,0.22)]"
                 onClick={() => setSelectedContact(c)}
               >
                 <div className="flex items-start gap-3">
@@ -1269,7 +1269,7 @@ export default function ContactsPage() {
       </div>
 
       {/* ── Таблица (десктоп) ── */}
-      <div className="hidden lg:block bg-white border border-[var(--frox-neutral-border)] rounded-2xl shadow-sm overflow-hidden">
+      <div className="frox-table-shell hidden overflow-hidden rounded-[28px] lg:block">
         <div className="overflow-x-auto">
           <table ref={tableRef} className="text-sm text-left" style={{ tableLayout: 'fixed', width: defaultWidths.reduce((a, b) => a + b, 0) }}>
             <colgroup>
@@ -1280,7 +1280,7 @@ export default function ContactsPage() {
                 <th className="px-4 py-3 relative" style={{ width: defaultWidths[0] }}>
                   <Checkbox checked={selectAll} onChange={handleSelectAll} />
                   <span
-                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-300 select-none"
+                    className="frox-table-resize absolute right-0 top-0 h-full w-1 cursor-col-resize select-none"
                     onMouseDown={e => onResizeStart(0, e)}
                   />
                 </th>
@@ -1304,7 +1304,7 @@ export default function ContactsPage() {
                       {col.field && <SortIcon field={col.field} />}
                     </div>
                     <span
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-300 select-none"
+                      className="frox-table-resize absolute right-0 top-0 h-full w-1 cursor-col-resize select-none"
                       onMouseDown={e => onResizeStart(col.idx, e)}
                     />
                   </th>
@@ -1320,7 +1320,7 @@ export default function ContactsPage() {
                 <tr><td colSpan={8} className="text-center py-16 text-[var(--frox-gray-400)]">
                   <Users className="w-10 h-10 mx-auto mb-3 opacity-20" />
                   <p>Контактов не найдено</p>
-                  {hasActiveFilters && <button onClick={clearFilters} className="mt-2 text-blue-500 hover:underline text-sm">Сбросить фильтры</button>}
+                  {hasActiveFilters && <button onClick={clearFilters} className="mt-2 text-sm text-[var(--frox-brand)] hover:underline">Сбросить фильтры</button>}
                 </td></tr>
               ) : (
                 contacts.map(c => (

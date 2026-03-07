@@ -6,99 +6,105 @@ const QUICK_LINKS = [
   {
     href: '/requests',
     label: 'Заявки',
-    description: 'Просмотр заявок с сайта (Контакты, КП, Обучение)',
+    description: 'Просмотр лидов с сайта, быстрый разбор по статусам и экспорт.',
     icon: '/admin/icons/icon-inbox.svg',
-    accent: '#eeebfb',
-    iconColor: 'var(--frox-brand)',
+    accent: 'from-[#f3efff] to-[#ece8ff]',
   },
   {
     href: '/contacts',
     label: 'Контакты',
-    description: 'База контактов и история переписки',
+    description: 'CRM-база контактов, сегментация по тегам и работа с импортами.',
     icon: '/admin/icons/icon-people.svg',
-    accent: '#e6faf6',
-    iconColor: 'var(--frox-green)',
+    accent: 'from-[#f2efff] to-[#f6f3ff]',
   },
   {
     href: '/news',
     label: 'Новости',
-    description: 'Создание, редактирование и публикация новостей',
+    description: 'Управление публикациями, медиаматериалами и статусом публикации.',
     icon: '/admin/icons/icon-cms.svg',
-    accent: '#e8f3ff',
-    iconColor: 'var(--frox-blue)',
+    accent: 'from-[#f6f2ff] to-[#eeebfb]',
   },
   {
     href: '/conferences',
     label: 'Мероприятия',
-    description: 'Редактирование списка конференций и мастер-классов',
+    description: 'Расписание конференций, карточки мероприятий и регистрационные формы.',
     icon: '/admin/icons/icon-calendar-1.svg',
-    accent: '#fff4ee',
-    iconColor: 'var(--frox-orange)',
+    accent: 'from-[#f7f3ff] to-[#f0ecff]',
   },
   {
     href: '/banner',
     label: 'Баннер',
-    description: 'Управление баннером на главной странице сайта',
+    description: 'Настройка главного баннера и визуальных акцентов на сайте.',
     icon: '/admin/icons/icon-notification-bing.svg',
-    accent: '#fef0f0',
-    iconColor: 'var(--frox-red)',
+    accent: 'from-[#f5f1ff] to-[#efe9ff]',
   },
   {
     href: '/direct',
     label: 'Автоброкер',
-    description: 'Настройки Яндекс.Директ и рекламных кампаний',
+    description: 'Контроль кампаний Яндекс.Директ и связанных рекламных шаблонов.',
     icon: '/admin/icons/icon-analytics.svg',
-    accent: '#e6faf6',
-    iconColor: 'var(--frox-green)',
+    accent: 'from-[#f2efff] to-[#ece8ff]',
   },
 ];
 
 export default function AdminDashboard() {
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--frox-gray-1100)]">Обзор</h1>
-        <p className="text-sm text-[var(--frox-gray-500)] mt-1">Панель управления сайтом fibroadenoma.net</p>
-      </div>
+      <section className="frox-shell-surface overflow-hidden rounded-[32px] px-6 py-7 md:px-8">
+        <div className="relative">
+          <div className="absolute right-[-56px] top-[-72px] h-44 w-44 rounded-full bg-[radial-gradient(circle,rgba(115,100,219,0.16),rgba(115,100,219,0))]" />
+          <div className="relative max-w-2xl">
+            <div className="frox-page-kicker">FreshBurger Control</div>
+            <h1 data-frox-heading="true" className="mt-3 text-3xl font-black text-[var(--frox-gray-1100)] md:text-[2.35rem]">
+              Админ-панель в общем стиле Frox
+            </h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--frox-gray-500)]">
+              Основные разделы собраны в мягкую фиолетовую систему: без случайных ярких плашек, с едиными surface-блоками, типографикой и состояниями.
+            </p>
+          </div>
+        </div>
+      </section>
 
-      {/* Quick links */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {QUICK_LINKS.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="group block bg-white rounded-2xl border border-[var(--frox-neutral-border)] p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
-          >
-            <div className="flex items-start gap-4">
-              <div
-                className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: item.accent }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={item.icon}
-                  alt=""
-                  className="w-5 h-5"
-                  style={{ filter: `brightness(0) saturate(100%) invert(0)` }}
-                />
-              </div>
-              <div className="min-w-0">
-                <div className="font-semibold text-[var(--frox-gray-900)] group-hover:text-[var(--frox-brand)] transition-colors">
-                  {item.label}
+      <section>
+        <div className="mb-4 flex items-end justify-between gap-3">
+          <div>
+            <div className="frox-page-kicker">Workspace</div>
+            <h2 data-frox-heading="true" className="mt-2 text-2xl font-black text-[var(--frox-gray-1100)]">
+              Быстрые переходы
+            </h2>
+          </div>
+        </div>
+
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {QUICK_LINKS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="group frox-shell-surface block overflow-hidden rounded-[28px] p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_28px_70px_rgba(52,40,121,0.12)]"
+            >
+              <div className="flex items-start gap-4">
+                <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${item.accent} shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]`}>
+                  <img
+                    src={item.icon}
+                    alt=""
+                    className="h-5 w-5 opacity-80 transition-opacity group-hover:opacity-100"
+                  />
                 </div>
-                <p className="text-xs text-[var(--frox-gray-500)] mt-1 leading-relaxed">
-                  {item.description}
-                </p>
+                <div className="min-w-0">
+                  <div className="text-lg font-semibold text-[var(--frox-gray-900)] transition-colors group-hover:text-[var(--frox-brand-strong)]">
+                    {item.label}
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-[var(--frox-gray-500)]">
+                    {item.description}
+                  </p>
+                </div>
               </div>
-            </div>
-          </Link>
-        ))}
-      </div>
+            </Link>
+          ))}
+        </div>
+      </section>
 
-      {/* Active sessions */}
       <ActiveSessions />
-
-      {/* Visit stats */}
       <VisitStats />
     </div>
   );
