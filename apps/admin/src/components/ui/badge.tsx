@@ -12,7 +12,7 @@ const badgeVariants = cva(
         default:
           "bg-[#eeebfb] text-[var(--frox-brand)]",
         secondary:
-          "bg-[var(--frox-gray-200)] text-[var(--frox-gray-700)]",
+          "bg-[var(--frox-slate-soft)] text-[var(--frox-gray-700)]",
         destructive:
           "bg-red-50 text-[var(--frox-red)]",
         outline:

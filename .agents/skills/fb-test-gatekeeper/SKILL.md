@@ -1,6 +1,6 @@
 ---
 name: fb-test-gatekeeper
-description: "Привратник тестирования FreshBurger. Активируй при: 'запустить тесты', 'прогнать тесты', 'run tests', 'тесты перед деплоем', 'тесты перед мержем', 'merge request', 'pull request', 'CI упал', 'тесты падают', 'какие тесты запустить', 'unit tests', 'e2e tests', 'docker:test', 'тестирование', 'test suite', 'проверить перед выкаткой', 'pre-deploy tests', 'pre-merge tests'. Также активируй автоматически, если пользователь собирается merge/deploy и ещё нет подтверждённого тестового прогона."
+description: "Привратник тестирования fibroadenoma.net. Активируй при: 'запустить тесты', 'прогнать тесты', 'run tests', 'тесты перед деплоем', 'тесты перед мержем', 'merge request', 'pull request', 'CI упал', 'тесты падают', 'какие тесты запустить', 'unit tests', 'e2e tests', 'docker:test', 'тестирование', 'test suite', 'проверить перед выкаткой', 'pre-deploy tests', 'pre-merge tests'. Также активируй автоматически, если пользователь собирается merge/deploy и ещё нет подтверждённого тестового прогона."
 ---
 
 # fb-test-gatekeeper

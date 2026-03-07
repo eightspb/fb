@@ -24,7 +24,7 @@ async function loadModule(env: Record<string, string | undefined> = {}) {
   vi.resetModules();
   process.env.TELEGRAM_BOT_TOKEN = env.TELEGRAM_BOT_TOKEN ?? 'notify-token';
   process.env.TELEGRAM_ADMIN_CHAT_ID = env.TELEGRAM_ADMIN_CHAT_ID ?? '321';
-  process.env.NEXT_PUBLIC_SITE_URL = env.NEXT_PUBLIC_SITE_URL ?? 'https://freshburger.test';
+  process.env.NEXT_PUBLIC_SITE_URL = env.NEXT_PUBLIC_SITE_URL ?? 'https://fibroadenoma.test';
   process.env.DATABASE_URL = 'postgres://postgres:postgres@localhost:54322/postgres';
   return import('../../src/lib/telegram-notifications');
 }
@@ -122,7 +122,7 @@ describe('telegram-notifications', () => {
   it('keeps remote preview image urls unchanged', async () => {
     const notifications = await loadModule();
     queryMock.mockResolvedValueOnce({
-      rows: [{ image_url: 'https://cdn.freshburger.test/news-preview.jpg' }],
+      rows: [{ image_url: 'https://cdn.fibroadenoma.test/news-preview.jpg' }],
     });
 
     await notifications.notifyAdminAboutDraft('remote-image', {
@@ -133,7 +133,7 @@ describe('telegram-notifications', () => {
 
     expect(sendPhotoMock).toHaveBeenCalledWith(
       321,
-      'https://cdn.freshburger.test/news-preview.jpg',
+      'https://cdn.fibroadenoma.test/news-preview.jpg',
       expect.any(Object)
     );
   });
@@ -167,7 +167,7 @@ describe('telegram-notifications', () => {
 
     expect(sendMessageMock).toHaveBeenCalledWith(
       321,
-      expect.stringContaining('Просмотреть: https://freshburger.test/news/news-fallback')
+      expect.stringContaining('Просмотреть: https://fibroadenoma.test/news/news-fallback')
     );
   });
 
@@ -234,7 +234,7 @@ describe('telegram-notifications', () => {
       message: 'Интересует <b>участие</b>',
       city: 'Москва',
       institution: 'Клиника',
-      pageUrl: 'https://freshburger.test/forms',
+      pageUrl: 'https://fibroadenoma.test/forms',
       metadata: {
         conference: 'Весенний конгресс',
         certificate: true,
@@ -293,7 +293,7 @@ describe('telegram-notifications', () => {
       new Error('Broken <tag>'),
       {
         location: 'src/app/api/test',
-        requestUrl: 'https://freshburger.test/api/test',
+        requestUrl: 'https://fibroadenoma.test/api/test',
         requestMethod: 'POST',
         userId: 'user-42',
         additionalInfo: {

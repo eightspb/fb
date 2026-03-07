@@ -1,7 +1,7 @@
 # migrations/README (TODO)
 
 ## Назначение
-Конвенции по миграциям FreshBurger.
+Конвенции по миграциям fibroadenoma.net.
 
 ## Что заполнить
 - TODO: Формат именования миграций.

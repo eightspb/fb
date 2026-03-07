@@ -1,6 +1,6 @@
 ---
 name: fb-telegram-incident-runbook
-description: "Ранбук для устранения инцидентов с Telegram-ботом FreshBurger. Активируй при любом упоминании: 'бот не отвечает', 'бот не работает', 'телеграм бот сломался', 'telegram bot down', 'webhook не работает', 'webhook error', '502', '503', 'bad gateway от телеграма', 'pending updates', 'бот зависает', 'бот тормозит', 'getUpdates', 'setWebhook', 'deleteWebhook', 'бот перестал отвечать', 'telegram fix', 'telegram incident', 'webhook timeout', 'too many pending updates'. Если пользователь описывает любую проблему с Telegram-ботом, используй этот скил."
+description: "Ранбук для устранения инцидентов с Telegram-ботом fibroadenoma.net. Активируй при любом упоминании: 'бот не отвечает', 'бот не работает', 'телеграм бот сломался', 'telegram bot down', 'webhook не работает', 'webhook error', '502', '503', 'bad gateway от телеграма', 'pending updates', 'бот зависает', 'бот тормозит', 'getUpdates', 'setWebhook', 'deleteWebhook', 'бот перестал отвечать', 'telegram fix', 'telegram incident', 'webhook timeout', 'too many pending updates'. Если пользователь описывает любую проблему с Telegram-ботом, используй этот скил."
 ---
 
 # fb-telegram-incident-runbook
