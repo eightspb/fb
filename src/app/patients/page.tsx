@@ -14,22 +14,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { faqItems } from "@/lib/faq-data";
 
 export default function Patients() {
-  const faqItems = [
-    { q: "Чем ВАБ отличается от обычной операции?", a: "ВАБ — это «хирургия без скальпеля». Образование удаляется полностью через микропрокол 2-3 мм, без разрезов, швов и шрамов. Процедура проходит под местной анестезией за 20-30 минут, и вы можете сразу идти домой. При традиционной операции требуется разрез, общий наркоз, госпитализация и длительное восстановление." },
-    { q: "ВАБ — это только диагностика или полноценное лечение?", a: "ВАБ — это и диагностика, и лечение одновременно. Весь удаленный материал отправляется на гистологический анализ для точного диагноза, при этом образование (фиброаденома) удаляется полностью. Дополнительная операция не требуется." },
-    { q: "Когда нужна операция, а когда достаточно ВАБ?", a: "ВАБ подходит для большинства доброкачественных образований размером до 3-4 см. К традиционной операции прибегают только в сложных случаях: при гигантских размерах образования, его глубоком расположении или при подозрении на злокачественность. Врач определит оптимальный метод после УЗИ." },
-    { q: "Как подготовиться к ВАБ?", a: "Необходимо прийти на консультацию за неделю до процедуры. Врач проведет осмотр и даст рекомендации по подготовке." },
-    { q: "Больно ли?", a: "Процедура проводится под местной анестезией, поэтому боли не будет. Возможны незначительные неудобства." },
-    { q: "Как будет выглядеть кожа после ВАБ?", a: "На месте прокола может остаться небольшой синяк, который пройдет за 1-2 недели. Видимых шрамов не остается — только едва заметная точка, которая заживает бесследно. Форма груди сохраняется идеально." },
-    { q: "Можно ли делать ВАБ, если планирую беременность?", a: "Да! Это одно из главных преимуществ метода. При ВАБ млечные протоки не повреждаются, в отличие от традиционной операции. Это исключает риск развития мастита при будущей лактации. Метод полностью безопасен для женщин, планирующих беременность." },
-    { q: "Когда я узнаю результат?", a: "Результаты гистологического анализа готовы через 7-10 дней. Врач проведет консультацию и подробно объяснит результаты. Вероятность ошибки практически исключена, так как для анализа берется гораздо больше материала, чем при обычной игольной биопсии." },
-    { q: "Есть ли ограничения для проведения процедуры?", a: "Процедура противопоказана при беременности, кровотечениях и некоторых других состояниях. Врач определит возможность проведения после осмотра и УЗИ." },
-    { q: "Что если обнаружат рак после ВАБ?", a: "При обнаружении онкологии врач предложит индивидуальный план лечения и направит к специалистам-онкологам для дальнейшей терапии. Ранняя диагностика значительно повышает шансы на успешное лечение." },
-    { q: "Может ли опухоль появиться снова?", a: "ВАБ удаляет образование полностью, но риск появления новых образований остается (как и после обычной операции). Поэтому регулярное обследование молочных желез обязательно — минимум раз в год." }
-  ];
-
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
@@ -356,9 +343,9 @@ export default function Patients() {
                   <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
                     <AlertCircle className="w-5 h-5 text-red-600" />
                   </div>
-                  <h3 className="font-bold text-slate-900">Раньше</h3>
+                  <h3 className="font-bold text-slate-900 text-lg">Раньше</h3>
                 </div>
-                <ul className="space-y-2 text-sm text-slate-600">
+                <ul className="space-y-2 text-base text-slate-600">
                   <li className="flex items-start gap-2">
                     <span className="text-red-500 mt-0.5">•</span>
                     <span>Подготовка к операции несколько дней</span>
@@ -390,9 +377,9 @@ export default function Patients() {
                   <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center">
                     <Check className="w-5 h-5 text-teal-600" />
                   </div>
-                  <h3 className="font-bold text-slate-900">Сейчас</h3>
+                  <h3 className="font-bold text-slate-900 text-lg">Сейчас</h3>
                 </div>
-                <ul className="space-y-2 text-sm text-slate-600">
+                <ul className="space-y-2 text-base text-slate-600">
                   <li className="flex items-start gap-2">
                     <Check className="w-4 h-4 text-teal-500 mt-0.5 flex-shrink-0" />
                     <span>Без подготовки и госпитализации</span>
@@ -419,33 +406,33 @@ export default function Patients() {
           </div>
           
           {/* Technical advantages */}
-          <div className="flex flex-col gap-4 mb-8 md:mb-12">
-            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm w-full">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <Search className="w-5 h-5 text-blue-600" />
-                </div>
-                <h3 className="font-bold text-slate-900 text-lg">Роботизированная точность</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 md:mb-12">
+            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm w-full flex flex-row md:flex-col items-start md:items-center gap-3 md:gap-4">
+              <div className="w-10 h-10 rounded-xl bg-pink-100 flex items-center justify-center flex-shrink-0 md:mx-auto">
+                <Heart className="w-5 h-5 text-pink-600" />
               </div>
-              <p className="text-slate-600 leading-relaxed text-sm">
-                Специальная роботизированная игла входит в нужное место без какой-либо кровопотери и разрезов тканей.
-                Процедура проходит под постоянным контролем УЗИ, что обеспечивает максимальную точность и безопасность.
-              </p>
+              <div className="flex-1 min-w-0 md:text-center">
+                <h3 className="font-bold text-slate-900 text-lg mb-2">Важно для планирующих беременность</h3>
+                <p className="text-slate-600 leading-relaxed text-base">
+                  При использовании метода вакуумной аспирационной биопсии млечные протоки остаются совершенно неповрежденными.
+                  Это особенно важно для женщин, планирующих беременность, так как при стандартной процедуре
+                  протоки часто рассекаются, что может привести к развитию мастита при лактации.
+                  При ВАБ подобная вероятность <span className="font-semibold text-slate-900">полностью исключена</span>.
+                </p>
+              </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm w-full">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-pink-100 flex items-center justify-center flex-shrink-0">
-                  <Heart className="w-5 h-5 text-pink-600" />
-                </div>
-                <h3 className="font-bold text-slate-900 text-lg">Важно для планирующих беременность</h3>
+            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm w-full flex flex-row md:flex-col items-start md:items-center gap-3 md:gap-4">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0 md:mx-auto">
+                <Search className="w-5 h-5 text-blue-600" />
               </div>
-              <p className="text-slate-600 leading-relaxed text-sm">
-                При использовании метода вакуумной аспирационной биопсии млечные протоки остаются совершенно неповрежденными.
-                Это особенно важно для женщин, планирующих беременность, так как при стандартной процедуре
-                протоки часто рассекаются, что может привести к развитию мастита при лактации.
-                При ВАБ подобная вероятность <span className="font-semibold text-slate-900">полностью исключена</span>.
-              </p>
+              <div className="flex-1 min-w-0 md:text-center">
+                <h3 className="font-bold text-slate-900 text-lg mb-2">Роботизированная точность</h3>
+                <p className="text-slate-600 leading-relaxed text-base">
+                  Специальная роботизированная игла входит в нужное место без какой-либо кровопотери и разрезов тканей.
+                  Процедура проходит под постоянным контролем УЗИ, что обеспечивает максимальную точность и безопасность.
+                </p>
+              </div>
             </div>
           </div>
           
@@ -567,7 +554,7 @@ export default function Patients() {
         </section>
 
         {/* FAQ Section */}
-        <section className="mb-8 md:mb-20 max-w-3xl mx-auto">
+        <section id="faq" className="mb-8 md:mb-20 max-w-3xl mx-auto">
           <h2 className="text-3xl font-bold text-center text-slate-900 mb-6 md:mb-12">Часто задаваемые вопросы</h2>
           <Accordion type="single" collapsible className="w-full">
             {faqItems.map((item, index) => (

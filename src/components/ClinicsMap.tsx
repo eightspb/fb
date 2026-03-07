@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { YMaps, Map, Clusterer, Placemark, ZoomControl, FullscreenControl } from '@pbe/react-yandex-maps';
 import { clinics } from '@/lib/clinics-data';
 
@@ -41,8 +42,15 @@ export function ClinicsMap() {
         </YMaps>
       </div>
       
-      <div className="mt-6 text-center text-sm text-slate-500">
-        Всего {clinics.length} клиник в {new Set(clinics.map(c => c.city)).size} городах
+      <div className="mt-6 text-center text-sm text-slate-500 space-y-2">
+        <p>Всего {clinics.length} клиник в {new Set(clinics.map(c => c.city)).size} городах</p>
+        <p>
+          Представлен неполный перечень. Если у вас есть вопросы по проведению процедуры ВАБ в вашем городе, вы можете{' '}
+          <Link href="/contacts" className="text-teal-600 hover:text-teal-700 underline underline-offset-2 font-medium">
+            связаться с нами на странице контактов
+          </Link>
+          .
+        </p>
       </div>
     </div>
   );

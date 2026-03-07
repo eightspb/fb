@@ -33,7 +33,7 @@ export function LatestNewsSection() {
 
   if (loading) {
     return (
-      <section className="w-full py-24 bg-white">
+      <section className="w-full py-12 md:py-16 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center">Загрузка новостей...</div>
         </div>

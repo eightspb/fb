@@ -247,7 +247,7 @@ export default function Training() {
                             </div>
                             <h4 className="text-lg font-bold text-slate-900">{item.title}</h4>
                         </div>
-                        <p className="text-slate-600 leading-relaxed text-sm">
+                        <p className="text-slate-600 leading-relaxed text-base">
                             {item.desc}
                         </p>
                     </div>
@@ -256,7 +256,7 @@ export default function Training() {
         </section>
 
         {/* Program Details Section */}
-        <section id="program" className="mb-24 max-w-6xl mx-auto">
+        <section id="program" className="mb-16 max-w-6xl mx-auto">
             <div className="text-center mb-16">
                  <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-0 mb-4 px-4 py-1 text-base">Программа 36 академических часов</Badge>
                  <h2 className="text-3xl md:text-4xl font-bold text-slate-900">Детальная программа курса</h2>
@@ -1023,7 +1023,7 @@ export default function Training() {
         </section>
 
         {/* Past Events Section (FILTERED) */}
-        <section id="past-trainings" className="bg-slate-50 -mx-4 md:-mx-6 px-4 md:px-6 py-24">
+        <section id="past-trainings" className="bg-slate-50 -mx-4 md:-mx-6 px-4 md:px-6 pt-12 pb-24">
            <div className="container mx-auto">
                 <div className="flex items-center justify-between gap-4 mb-12">
                     <div className="flex items-center gap-4">

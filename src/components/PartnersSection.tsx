@@ -69,14 +69,14 @@ export function PartnersSection() {
   const visiblePartners = expanded ? PARTNERS : PARTNERS.slice(0, VISIBLE_COUNT);
 
   return (
-    <section className="w-full py-12 md:py-24 bg-white overflow-hidden">
+    <section className="w-full py-12 md:py-16 bg-white overflow-hidden">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           viewport={{ once: true }}
-          className="text-center mb-8 md:mb-16"
+          className="text-center mb-8"
         >
           <h2 className="text-3xl md:text-4xl font-bold mb-4 text-slate-900">
             Наши партнеры

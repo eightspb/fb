@@ -14,6 +14,7 @@ import { LatestNewsSection } from "@/components/LatestNewsSection";
 import { UpcomingConferencesSection } from "@/components/UpcomingConferencesSection";
 import { QuickLinksSection } from "@/components/QuickLinksSection";
 import { FAQPreviewSection } from "@/components/FAQPreviewSection";
+import { faqItems } from "@/lib/faq-data";
 import { ArrowRight, Microscope, Heart, Brain } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -64,24 +65,14 @@ export default function Home() {
       },
       {
         '@type': 'FAQPage',
-        'mainEntity': [
-          {
-            '@type': 'Question',
-            'name': 'Больно ли удалять фиброаденому методом ВАБ?',
-            'acceptedAnswer': {
-              '@type': 'Answer',
-              'text': 'Процедура проводится под местной анестезией. Пациент чувствует только укол обезболивающего. Во время самой биопсии боли нет.'
-            }
-          },
-          {
-            '@type': 'Question',
-            'name': 'Остается ли шрам после вакуумной биопсии?',
-            'acceptedAnswer': {
-              '@type': 'Answer',
-              'text': 'Нет, шрамов не остается. Прокол составляет всего 3-5 мм и заживает бесследно, в отличие от разреза при обычной операции.'
-            }
+        'mainEntity': faqItems.map(item => ({
+          '@type': 'Question',
+          'name': item.q,
+          'acceptedAnswer': {
+            '@type': 'Answer',
+            'text': item.a
           }
-        ]
+        }))
       }
     ]
   };
@@ -164,7 +155,7 @@ export default function Home() {
         <FeaturesSection />
 
         {/* Video Spotlight */}
-        <section className="w-full py-12 md:py-24 bg-slate-900 text-white overflow-hidden relative">
+        <section className="w-full py-12 md:py-16 bg-slate-900 text-white overflow-hidden relative">
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2"></div>
           <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-teal-500/20 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2"></div>
           
@@ -268,11 +259,11 @@ export default function Home() {
         <FAQPreviewSection />
 
         {/* Expert Reviews */}
-        <section className="w-full py-12 md:py-24 bg-white">
+        <section className="w-full py-12 md:py-16 bg-white">
           <div className="container mx-auto px-4">
-            <h2 className="text-3xl font-bold text-center text-slate-900 mb-8 md:mb-16">Отзывы врачей о системе Xishan DK-B-MS</h2>
+            <h2 className="text-3xl font-bold text-center text-slate-900 mb-8">Отзывы врачей о системе Xishan DK-B-MS</h2>
             
-            <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
                 {
                   icon: Microscope,
@@ -296,16 +287,16 @@ export default function Home() {
                   role: "Онколог-маммолог, хирург"
                 }
               ].map((review, i) => (
-                <div key={i} className="w-full flex items-start gap-4 p-5 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors">
-                  <div className="w-14 h-14 rounded-2xl bg-white shadow-sm flex items-center justify-center flex-shrink-0 text-teal-500">
+                <div key={i} className="w-full flex flex-row md:flex-col items-start md:items-center gap-4 p-5 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors">
+                  <div className="w-14 h-14 rounded-2xl bg-white shadow-sm flex items-center justify-center flex-shrink-0 text-teal-500 md:mx-auto">
                     <review.icon className="w-7 h-7" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-bold mb-1 text-slate-900">{review.title}</h3>
-                    <p className="text-slate-600 mb-3 italic text-sm leading-relaxed">&quot;{review.desc}&quot;</p>
+                  <div className="flex-1 min-w-0 md:text-center">
+                    <h3 className="text-xl font-bold mb-1 text-slate-900">{review.title}</h3>
+                    <p className="text-slate-600 mb-3 italic text-base leading-relaxed">&quot;{review.desc}&quot;</p>
                     <div>
-                      <p className="font-semibold text-slate-900 text-sm">{review.author}</p>
-                      <p className="text-xs text-slate-500">{review.role}</p>
+                      <p className="font-semibold text-slate-900 text-base">{review.author}</p>
+                      <p className="text-sm text-slate-500">{review.role}</p>
                     </div>
                   </div>
                 </div>

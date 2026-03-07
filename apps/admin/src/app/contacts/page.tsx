@@ -36,6 +36,7 @@ import {
   ArrowDown,
   Filter,
   ExternalLink,
+  Merge,
 } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 
@@ -316,6 +317,263 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
   );
 }
 
+// ── Merge modal ───────────────────────────────────────────────────────────────
+
+type MergeableField = 'full_name' | 'email' | 'phone' | 'city' | 'institution' | 'speciality' | 'notes' | 'status';
+
+const MERGE_FIELDS: { key: MergeableField; label: string }[] = [
+  { key: 'full_name', label: 'Имя' },
+  { key: 'email', label: 'Email' },
+  { key: 'phone', label: 'Телефон' },
+  { key: 'city', label: 'Город' },
+  { key: 'institution', label: 'Организация' },
+  { key: 'speciality', label: 'Специальность' },
+  { key: 'status', label: 'Статус' },
+  { key: 'notes', label: 'Заметки' },
+];
+
+function MergeModal({
+  contacts,
+  onClose,
+  onDone,
+}: {
+  contacts: Contact[];
+  onClose: () => void;
+  onDone: (survivorId: string) => void;
+}) {
+  // For each field: which contact index is selected (0..n-1). Default = index 0.
+  const [selections, setSelections] = useState<Record<MergeableField, number>>(
+    () => Object.fromEntries(MERGE_FIELDS.map(f => [f.key, 0])) as Record<MergeableField, number>
+  );
+  // survivorId = contact to keep (others deleted). Default = contacts[0].id
+  const [survivorIdx, setSurvivorIdx] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const getVal = (c: Contact, key: MergeableField): string | null => {
+    if (key === 'status') return getStatusConfig(c.status).label;
+    return (c[key] as string | null);
+  };
+
+  // Tags: union of all
+  const allTags = Array.from(new Set(contacts.flatMap(c => c.tags)));
+
+  // Build merged contact from selections
+  const buildMerged = (): Partial<Contact> => {
+    const merged: Partial<Contact> = {};
+    for (const { key } of MERGE_FIELDS) {
+      if (key === 'status') {
+        merged.status = contacts[selections[key]].status;
+      } else {
+        (merged as Record<string, unknown>)[key] = contacts[selections[key]][key];
+      }
+    }
+    merged.tags = allTags;
+    return merged;
+  };
+
+  const handleMerge = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const merged = buildMerged();
+      const survivorId = contacts[survivorIdx].id;
+      const deleteIds = contacts.filter(c => c.id !== survivorId).map(c => c.id);
+
+      // 1. Patch the survivor with merged fields
+      const patchRes = await adminCsrfFetch(`/api/admin/contacts/${survivorId}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(merged),
+      });
+      if (!patchRes.ok) throw new Error('Ошибка обновления контакта');
+
+      // 2. Delete the duplicates
+      const delRes = await adminCsrfFetch('/api/admin/contacts', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: deleteIds }),
+      });
+      if (!delRes.ok) throw new Error('Ошибка удаления дублей');
+
+      onDone(survivorId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Ошибка слияния');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const allSame = (key: MergeableField) =>
+    contacts.every(c => getVal(c, key) === getVal(contacts[0], key));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 max-h-[90vh] flex flex-col overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--frox-gray-200)] shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center">
+              <Merge className="w-4 h-4 text-violet-600" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-[var(--frox-gray-1100)]">Объединить контакты</h2>
+              <p className="text-xs text-[var(--frox-gray-400)]">Выберите значения для итогового контакта</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-[var(--frox-gray-400)] hover:text-[var(--frox-gray-600)] p-1 rounded-lg hover:bg-[var(--frox-gray-200)] transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {/* Survivor selector */}
+          <div className="bg-[var(--frox-gray-100)] rounded-xl p-4">
+            <div className="text-xs font-semibold text-[var(--frox-gray-500)] uppercase tracking-wider mb-3">Оставить запись</div>
+            <div className="flex flex-wrap gap-2">
+              {contacts.map((c, i) => (
+                <button
+                  key={c.id}
+                  onClick={() => setSurvivorIdx(i)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
+                    survivorIdx === i
+                      ? 'bg-violet-600 text-white border-violet-600'
+                      : 'bg-white text-[var(--frox-gray-700)] border-[var(--frox-neutral-border)] hover:border-violet-300'
+                  }`}
+                >
+                  <Avatar name={c.full_name} />
+                  {c.full_name}
+                  {survivorIdx === i && <Check className="w-3.5 h-3.5 ml-1" />}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-[var(--frox-gray-400)]">Остальные контакты будут удалены после слияния.</p>
+          </div>
+
+          {/* Field diff table */}
+          <div className="border border-[var(--frox-neutral-border)] rounded-xl overflow-hidden">
+            {/* Column headers */}
+            <div
+              className="grid border-b border-[var(--frox-gray-200)] bg-[var(--frox-gray-100)]"
+              style={{ gridTemplateColumns: `140px repeat(${contacts.length}, 1fr)` }}
+            >
+              <div className="px-4 py-2.5 text-xs font-semibold text-[var(--frox-gray-500)] uppercase tracking-wider">Поле</div>
+              {contacts.map((c, i) => (
+                <div key={c.id} className="px-4 py-2.5 text-xs font-semibold text-[var(--frox-gray-700)] truncate">
+                  {c.full_name}
+                </div>
+              ))}
+            </div>
+
+            {/* Rows */}
+            {MERGE_FIELDS.map(({ key, label }) => {
+              const same = allSame(key);
+              return (
+                <div
+                  key={key}
+                  className={`grid border-b border-[var(--frox-gray-100)] last:border-b-0 ${same ? '' : 'bg-amber-50/40'}`}
+                  style={{ gridTemplateColumns: `140px repeat(${contacts.length}, 1fr)` }}
+                >
+                  <div className="px-4 py-3 flex items-center gap-1.5">
+                    <span className="text-xs font-medium text-[var(--frox-gray-600)]">{label}</span>
+                    {!same && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Различаются" />}
+                  </div>
+                  {contacts.map((c, i) => {
+                    const val = getVal(c, key);
+                    const isSelected = selections[key] === i;
+                    const differs = !same;
+                    return (
+                      <div
+                        key={c.id}
+                        className={`px-4 py-3 cursor-pointer transition-all ${
+                          differs
+                            ? isSelected
+                              ? 'bg-violet-50 ring-1 ring-inset ring-violet-300'
+                              : 'hover:bg-[var(--frox-gray-100)]'
+                            : ''
+                        }`}
+                        onClick={() => {
+                          if (differs) setSelections(prev => ({ ...prev, [key]: i }));
+                        }}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          {differs && (
+                            <span className={`w-3.5 h-3.5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
+                              isSelected ? 'border-violet-600 bg-violet-600' : 'border-[var(--frox-gray-300)]'
+                            }`}>
+                              {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                            </span>
+                          )}
+                          <span className={`text-xs truncate ${val ? 'text-[var(--frox-gray-800)]' : 'text-[var(--frox-gray-300)] italic'}`}>
+                            {val || '—'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+
+            {/* Tags row (always union, no choice) */}
+            <div
+              className="grid bg-[var(--frox-gray-100)]/60"
+              style={{ gridTemplateColumns: `140px repeat(${contacts.length}, 1fr)` }}
+            >
+              <div className="px-4 py-3 flex items-center">
+                <span className="text-xs font-medium text-[var(--frox-gray-600)]">Теги</span>
+              </div>
+              {contacts.map(c => (
+                <div key={c.id} className="px-4 py-3">
+                  <div className="flex flex-wrap gap-1">
+                    {c.tags.length > 0
+                      ? c.tags.map(t => (
+                          <span key={t} className="px-1.5 py-0.5 rounded-full text-xs bg-[var(--frox-gray-200)] text-[var(--frox-gray-600)]">{t}</span>
+                        ))
+                      : <span className="text-xs text-[var(--frox-gray-300)] italic">нет</span>
+                    }
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Tags result */}
+          {allTags.length > 0 && (
+            <div className="text-xs text-[var(--frox-gray-500)]">
+              Итоговые теги (объединение):&nbsp;
+              {allTags.map(t => (
+                <span key={t} className="inline-block px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 mr-1">{t}</span>
+              ))}
+            </div>
+          )}
+
+          {error && (
+            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">
+              <AlertTriangle className="w-4 h-4 shrink-0" /> {error}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-[var(--frox-gray-200)] bg-[var(--frox-gray-100)]/60 flex justify-end gap-3 shrink-0">
+          <Button variant="ghost" onClick={onClose}>Отмена</Button>
+          <Button onClick={handleMerge} disabled={loading} className="gap-2 bg-violet-600 hover:bg-violet-700 text-white">
+            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Merge className="w-4 h-4" />}
+            Объединить
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Contact detail slide-over panel ──────────────────────────────────────────
 
 function ContactPanel({
@@ -530,31 +788,84 @@ function ContactPanel({
 // ── Column resize ─────────────────────────────────────────────────────────────
 
 const DEFAULT_COL_WIDTHS = [40, 200, 200, 120, 160, 180, 110, 80];
+const COL_WIDTHS_STORAGE_KEY = 'contacts-col-widths';
 
-function useColumnResize(defaultWidths: number[]) {
-  const [widths, setWidths] = useState<number[]>(defaultWidths);
+function useColumnResize() {
+  const widthsRef = useRef<number[]>([...DEFAULT_COL_WIDTHS]);
+  const tableRef = useRef<HTMLTableElement | null>(null);
+  const colElsRef = useRef<HTMLTableColElement[]>([]);
   const dragging = useRef<{ col: number; startX: number; startW: number } | null>(null);
+
+  // Применяем ширины к DOM (colgroup + table width)
+  const applyWidths = (widths: number[]) => {
+    widths.forEach((w, i) => {
+      const col = colElsRef.current[i];
+      if (col) col.style.width = `${w}px`;
+    });
+    if (tableRef.current) {
+      tableRef.current.style.width = `${widths.reduce((a, b) => a + b, 0)}px`;
+    }
+  };
+
+  // Загружаем сохранённые ширины из localStorage при монтировании
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(COL_WIDTHS_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length === DEFAULT_COL_WIDTHS.length) {
+          widthsRef.current = parsed;
+          applyWidths(parsed);
+        }
+      }
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!dragging.current) return;
       const { col, startX, startW } = dragging.current;
-      const delta = e.clientX - startX;
-      setWidths(prev => { const next = [...prev]; next[col] = Math.max(40, startW + delta); return next; });
+      const newW = Math.max(40, startW + (e.clientX - startX));
+      widthsRef.current[col] = newW;
+      // Обновляем только нужную колонку и общую ширину таблицы
+      const colEl = colElsRef.current[col];
+      if (colEl) colEl.style.width = `${newW}px`;
+      if (tableRef.current) {
+        tableRef.current.style.width = `${widthsRef.current.reduce((a, b) => a + b, 0)}px`;
+      }
     };
-    const onUp = () => { dragging.current = null; document.body.style.cursor = ''; document.body.style.userSelect = ''; };
+    const onUp = () => {
+      if (dragging.current) {
+        try { localStorage.setItem(COL_WIDTHS_STORAGE_KEY, JSON.stringify(widthsRef.current)); } catch { /* ignore */ }
+      }
+      dragging.current = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
   }, []);
 
-  const onResizeStart = (col: number, startX: number, startW: number) => {
-    dragging.current = { col, startX, startW };
+  const onResizeStart = (col: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const colEl = colElsRef.current[col];
+    const currentW = colEl ? colEl.offsetWidth : DEFAULT_COL_WIDTHS[col];
+    dragging.current = { col, startX: e.clientX, startW: currentW };
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
+    // Блокируем следующий click на th, чтобы не сработала сортировка
+    const blockClick = (ev: MouseEvent) => { ev.stopPropagation(); };
+    window.addEventListener('click', blockClick, { capture: true, once: true });
   };
 
-  return { widths, onResizeStart };
+  const setColRef = (i: number) => (el: HTMLTableColElement | null) => {
+    if (el) colElsRef.current[i] = el;
+  };
+
+  return { tableRef, setColRef, onResizeStart, defaultWidths: DEFAULT_COL_WIDTHS };
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -582,9 +893,10 @@ export default function ContactsPage() {
   const [bulkTagValue, setBulkTagValue] = useState('');
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showMerge, setShowMerge] = useState(false);
 
   const searchParams = useSearchParams();
-  const { widths, onResizeStart } = useColumnResize(DEFAULT_COL_WIDTHS);
+  const { tableRef, setColRef, onResizeStart, defaultWidths } = useColumnResize();
 
   useEffect(() => {
     const contactId = searchParams.get('contact');
@@ -857,6 +1169,11 @@ export default function ContactsPage() {
                 <button onClick={() => setShowBulkTagInput(false)} className="p-0.5 hover:text-[var(--frox-gray-300)]"><X className="w-3.5 h-3.5" /></button>
               </div>
             )}
+            {selectedIds.size >= 2 && (
+              <Button size="sm" variant="secondary" onClick={() => setShowMerge(true)} className="h-7 text-xs bg-violet-500/30 hover:bg-violet-500/50 text-white border-0">
+                <Merge className="w-3.5 h-3.5 mr-1" /> Объединить
+              </Button>
+            )}
             {!showBulkDeleteConfirm ? (
               <Button size="sm" variant="secondary" onClick={() => setShowBulkDeleteConfirm(true)} className="h-7 text-xs bg-red-500/30 hover:bg-red-500/50 text-white border-0">
                 <Trash2 className="w-3.5 h-3.5 mr-1" /> Удалить
@@ -954,15 +1271,18 @@ export default function ContactsPage() {
       {/* ── Таблица (десктоп) ── */}
       <div className="hidden lg:block bg-white border border-[var(--frox-neutral-border)] rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="text-sm text-left" style={{ tableLayout: 'fixed', width: widths.reduce((a, b) => a + b, 0) }}>
+          <table ref={tableRef} className="text-sm text-left" style={{ tableLayout: 'fixed', width: defaultWidths.reduce((a, b) => a + b, 0) }}>
             <colgroup>
-              {widths.map((w, i) => <col key={i} style={{ width: w }} />)}
+              {defaultWidths.map((w, i) => <col key={i} ref={setColRef(i)} style={{ width: w }} />)}
             </colgroup>
             <thead>
               <tr className="border-b border-[var(--frox-gray-200)]">
-                <th className="px-4 py-3 relative" style={{ width: widths[0] }}>
+                <th className="px-4 py-3 relative" style={{ width: defaultWidths[0] }}>
                   <Checkbox checked={selectAll} onChange={handleSelectAll} />
-                  <span className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-300 select-none" onMouseDown={e => { e.preventDefault(); onResizeStart(0, e.clientX, widths[0]); }} />
+                  <span
+                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-300 select-none"
+                    onMouseDown={e => onResizeStart(0, e)}
+                  />
                 </th>
                 {[
                   { label: 'Имя', field: 'full_name', idx: 1 },
@@ -976,7 +1296,7 @@ export default function ContactsPage() {
                   <th
                     key={col.idx}
                     className={`px-4 py-3 text-xs font-semibold text-[var(--frox-gray-500)] uppercase tracking-wider relative ${col.field ? 'cursor-pointer hover:text-[var(--frox-gray-800)] select-none' : ''}`}
-                    style={{ width: widths[col.idx] }}
+                    style={{ width: defaultWidths[col.idx] }}
                     onClick={col.field ? () => handleSort(col.field!) : undefined}
                   >
                     <div className="flex items-center gap-1.5 overflow-hidden">
@@ -985,7 +1305,7 @@ export default function ContactsPage() {
                     </div>
                     <span
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-300 select-none"
-                      onMouseDown={e => { e.preventDefault(); e.stopPropagation(); onResizeStart(col.idx, e.clientX, widths[col.idx]); }}
+                      onMouseDown={e => onResizeStart(col.idx, e)}
                     />
                   </th>
                 ))}
@@ -1012,23 +1332,23 @@ export default function ContactsPage() {
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <Checkbox checked={selectedIds.has(c.id)} onChange={() => handleSelectOne(c.id)} />
                     </td>
-                    <td className="px-4 py-3" style={{ maxWidth: widths[1] }}>
+                    <td className="px-4 py-3 truncate">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <Avatar name={c.full_name} />
                         <span className="font-semibold text-[var(--frox-gray-1100)] truncate">{c.full_name}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-xs text-[var(--frox-gray-500)] space-y-0.5" style={{ maxWidth: widths[2] }}>
+                    <td className="px-4 py-3 text-xs text-[var(--frox-gray-500)] space-y-0.5 truncate">
                       {c.email && <div className="flex items-center gap-1.5"><Mail className="w-3 h-3 shrink-0 text-[var(--frox-gray-400)]" /><span className="truncate">{c.email}</span></div>}
                       {c.phone && <div className="flex items-center gap-1.5"><Phone className="w-3 h-3 shrink-0 text-[var(--frox-gray-400)]" />{c.phone}</div>}
                     </td>
-                    <td className="px-4 py-3 text-sm text-[var(--frox-gray-600)]" style={{ maxWidth: widths[3] }}>
+                    <td className="px-4 py-3 text-sm text-[var(--frox-gray-600)] truncate">
                       <div className="truncate">{c.city || <span className="text-[var(--frox-gray-300)]">—</span>}</div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-[var(--frox-gray-600)]" style={{ maxWidth: widths[4] }}>
+                    <td className="px-4 py-3 text-sm text-[var(--frox-gray-600)] truncate">
                       <div className="truncate">{c.speciality || <span className="text-[var(--frox-gray-300)]">—</span>}</div>
                     </td>
-                    <td className="px-4 py-3" style={{ maxWidth: widths[5] }}>
+                    <td className="px-4 py-3 truncate">
                       <div className="flex flex-wrap gap-1">
                         {c.tags.slice(0, 3).map(t => (
                           <span key={t} className="px-1.5 py-0.5 rounded-full text-xs bg-[var(--frox-gray-200)] text-[var(--frox-gray-500)]">{t}</span>
@@ -1082,6 +1402,20 @@ export default function ContactsPage() {
         <ImportModal
           onClose={() => setShowImport(false)}
           onDone={() => { loadContacts(); }}
+        />
+      )}
+
+      {/* ── Слияние контактов ── */}
+      {showMerge && selectedIds.size >= 2 && (
+        <MergeModal
+          contacts={contacts.filter(c => selectedIds.has(c.id))}
+          onClose={() => setShowMerge(false)}
+          onDone={(survivorId) => {
+            setShowMerge(false);
+            setSelectedIds(new Set());
+            setSelectAll(false);
+            loadContacts();
+          }}
         />
       )}
     </div>

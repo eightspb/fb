@@ -83,9 +83,9 @@ const quickLinks = [
 
 export function QuickLinksSection() {
   return (
-    <section className="w-full py-24 bg-gradient-to-b from-slate-50 to-white">
+    <section className="w-full py-12 md:py-16 bg-gradient-to-b from-slate-50 to-white">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
             Полезные разделы
           </h2>

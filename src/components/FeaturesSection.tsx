@@ -88,14 +88,14 @@ export function FeaturesSection() {
   ];
 
   return (
-    <div className="w-full py-24 bg-gradient-to-b from-white to-teal-50/30">
+    <div className="w-full py-12 md:py-16 bg-gradient-to-b from-white to-teal-50/30">
       <div className="w-full max-w-[2000px] mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           viewport={{ once: true }}
-          className="text-center mb-16"
+          className="text-center mb-10"
         >
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-blue-600">

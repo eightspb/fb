@@ -189,7 +189,7 @@ export default function Equipment() {
             </p>
           </div>
           
-          <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             {[
               { icon: Settings, title: "Плавная регулировка", desc: "Шаг настройки апертуры 1 мм", color: "text-blue-600", bg: "bg-blue-50" },
               { icon: VolumeX, title: "Тихая работа", desc: "Комфорт для врача и пациента", color: "text-teal-600", bg: "bg-teal-50" },
@@ -203,12 +203,12 @@ export default function Equipment() {
               <motion.div
                 key={i}
                 whileHover={{ x: 4 }}
-                className="flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 w-full"
+                className="flex flex-row md:flex-col items-start md:items-center gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 w-full"
               >
-                <div className={`w-11 h-11 rounded-xl ${item.bg} flex items-center justify-center flex-shrink-0`}>
+                <div className={`w-11 h-11 rounded-xl ${item.bg} flex items-center justify-center flex-shrink-0 md:mx-auto`}>
                   <item.icon className={`w-5 h-5 ${item.color}`} />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 md:text-center">
                   <h3 className="font-bold text-slate-900 text-base leading-tight">{item.title}</h3>
                   <p className="text-sm text-slate-600 mt-0.5">{item.desc}</p>
                 </div>
@@ -240,7 +240,7 @@ export default function Equipment() {
                     </p>
                     <div className="flex gap-4 text-base font-mono text-slate-800 bg-slate-100 p-2 rounded-lg inline-block">
                       <span>60 × 50 × 140 см</span>
-                      <span className="text-slate-400">|</span>
+                      <span className="text-slate-400"> | </span>
                       <span>40 кг</span>
                     </div>
                   </div>
@@ -290,7 +290,7 @@ export default function Equipment() {
       <section className="py-10 md:py-20 bg-white">
         <div className="container mx-auto px-4 md:px-6">
           <h2 className="text-3xl font-bold text-slate-900 text-center mb-6 md:mb-12">Этапы вакуумной аспирационной биопсии</h2>
-          <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             {[
               { step: "01", title: "Наведение", desc: "Позиционирование иглы под контролем УЗИ" },
               { step: "02", title: "Аспирация", desc: "Вакуумная фиксация образования" },
@@ -308,14 +308,19 @@ export default function Equipment() {
               </div>
             ))}
           </div>
+          <div className="flex justify-center mt-8">
+            <Button asChild size="lg" className="rounded-full bg-[#10B981] hover:bg-[#059669] text-white px-8 h-12 shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all duration-300">
+              <Link href="/patients">Узнать подробнее</Link>
+            </Button>
+          </div>
         </div>
       </section>
 
       {/* Clinical Value Cards */}
       <section className="py-10 md:py-20 bg-slate-50">
         <div className="container mx-auto px-4 md:px-6">
-          <h2 className="text-3xl font-bold text-slate-900 text-center mb-5 md:mb-8">Преимущества для клиники</h2>
-          <div className="flex flex-col gap-4">
+          <h2 className="text-3xl font-bold text-slate-900 text-center mb-5 md:mb-8">Преимущества для врачей</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card className="border border-slate-100 shadow-sm hover:shadow-md transition-shadow w-full">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3 mb-3">

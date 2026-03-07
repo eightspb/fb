@@ -9,29 +9,11 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { ArrowRight, HelpCircle } from 'lucide-react';
-
-const faqItems = [
-  {
-    q: "Больно ли удалять фиброаденому методом ВАБ?",
-    a: "Процедура проводится под местной анестезией. Пациент чувствует только укол обезболивающего. Во время самой биопсии боли нет."
-  },
-  {
-    q: "Остается ли шрам после вакуумной биопсии?",
-    a: "Нет, шрамов не остается. Прокол составляет всего 3-5 мм и заживает бесследно, в отличие от разреза при обычной операции."
-  },
-  {
-    q: "Чем ВАБ отличается от обычной операции?",
-    a: "ВАБ — это «хирургия без скальпеля». Образование удаляется полностью через микропрокол 2-3 мм, без разрезов, швов и шрамов. Процедура проходит под местной анестезией за 20-30 минут, и вы можете сразу идти домой."
-  },
-  {
-    q: "Можно ли делать ВАБ, если планирую беременность?",
-    a: "Да! Это одно из главных преимуществ метода. При ВАБ млечные протоки не повреждаются, в отличие от традиционной операции. Это исключает риск развития мастита при будущей лактации."
-  }
-];
+import { faqPreviewItems } from '@/lib/faq-data';
 
 export function FAQPreviewSection() {
   return (
-    <section className="w-full py-24 bg-white">
+    <section className="w-full py-12 md:py-16 bg-white">
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto">
           <div className="flex items-center justify-center gap-3 mb-8">
@@ -48,7 +30,7 @@ export function FAQPreviewSection() {
           </p>
 
           <Accordion type="single" collapsible className="w-full mb-8">
-            {faqItems.map((item, index) => (
+            {faqPreviewItems.map((item, index) => (
               <AccordionItem 
                 key={index} 
                 value={`item-${index}`} 

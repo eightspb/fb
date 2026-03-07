@@ -5,9 +5,99 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { NewsItem } from '@/lib/news-data';
-import { ImageIcon, Video, FileText, X, Filter, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { ImageIcon, Video, FileText, X, Filter, ChevronLeft, ChevronRight, ChevronDown, CheckCircle2, Loader2 } from 'lucide-react';
 import { NewsPlaceholder } from '@/components/NewsPlaceholder';
+
+function SubscribeCard() {
+  const [showForm, setShowForm] = useState(false);
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const handleSubscribe = async () => {
+    if (!showForm) {
+      setShowForm(true);
+      return;
+    }
+
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setError('Введите email');
+      return;
+    }
+    if (!emailRegex.test(trimmed)) {
+      setError('Неверный формат email');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Ошибка. Попробуйте позже.');
+      } else {
+        setSuccess(true);
+      }
+    } catch {
+      setError('Ошибка. Попробуйте позже.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card className="bg-gradient-to-br from-teal-50 to-blue-50 border-slate-200">
+      <CardContent className="p-5">
+        <h4 className="font-bold text-slate-900 mb-2">Подписка</h4>
+        <p className="text-sm text-slate-600 mb-4">
+          Получайте свежие новости о мероприятиях и оборудовании.
+        </p>
+        {success ? (
+          <div className="flex items-center gap-2 text-teal-700 text-sm font-medium">
+            <CheckCircle2 className="w-5 h-5 shrink-0" />
+            Вы успешно подписались!
+          </div>
+        ) : (
+          <>
+            {showForm && (
+              <div className="mb-3">
+                <Input
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={e => { setEmail(e.target.value); setError(''); }}
+                  onKeyDown={e => { if (e.key === 'Enter') handleSubscribe(); }}
+                  className={`bg-white ${error ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
+                  autoFocus
+                  disabled={loading}
+                />
+                {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+              </div>
+            )}
+            <Button
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white"
+              onClick={handleSubscribe}
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Подписаться'}
+            </Button>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 interface NewsListProps {
   initialYear?: string;
@@ -19,6 +109,7 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory || null);
   const [currentPage, setCurrentPage] = useState(1);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [newsData, setNewsData] = useState<NewsItem[]>([]);
   const [years, setYears] = useState<string[]>([]);
   const [tagsWithCounts, setTagsWithCounts] = useState<Array<{ filter: string; count: number }>>([]);
@@ -276,27 +367,30 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
 
       {/* Desktop: sidebar */}
       <div className="hidden lg:block lg:col-span-1 space-y-6">
-        <Card className="border-slate-200 shadow-sm sticky top-24">
-          <CardContent className="p-5">
-            <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <Filter className="w-4 h-4" />
-              Архив новостей
-            </h3>
-            {filterContent}
+        <Card className="border-slate-200 shadow-sm sticky top-24 py-0">
+          <CardContent className="p-0">
+            <button
+              onClick={() => setSidebarExpanded(v => !v)}
+              className="w-full h-full px-5 py-4 flex items-center justify-between gap-2 text-left hover:bg-slate-50/50 transition-colors rounded-t-xl"
+            >
+              <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                <Filter className="w-4 h-4" />
+                Архив новостей
+                {hasActiveFilters && (
+                  <span className="w-2 h-2 rounded-full bg-teal-500 inline-block" />
+                )}
+              </h3>
+              <ChevronDown className={`w-4 h-4 text-slate-500 shrink-0 transition-transform ${sidebarExpanded ? 'rotate-180' : ''}`} />
+            </button>
+            {sidebarExpanded && (
+              <div className="px-5 pb-5 pt-2">
+                {filterContent}
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-teal-50 to-blue-50 border-slate-200">
-          <CardContent className="p-5">
-            <h4 className="font-bold text-slate-900 mb-2">Подписка</h4>
-            <p className="text-sm text-slate-600 mb-4">
-              Получайте свежие новости о мероприятиях и оборудовании.
-            </p>
-            <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white" asChild>
-              <Link href="/contacts">Подписаться</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <SubscribeCard />
       </div>
 
       {/* Main Content — full width on mobile, 3 cols on desktop */}
@@ -477,17 +571,7 @@ export function NewsList({ initialYear, initialCategory }: NewsListProps) {
         )}
         {/* Mobile: subscription block at the bottom */}
         <div className="lg:hidden mt-6">
-          <Card className="bg-gradient-to-br from-teal-50 to-blue-50 border-slate-200">
-            <CardContent className="p-4">
-              <h4 className="font-bold text-slate-900 mb-1">Подписка</h4>
-              <p className="text-sm text-slate-600 mb-3">
-                Получайте свежие новости о мероприятиях и оборудовании.
-              </p>
-              <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white" asChild>
-                <Link href="/contacts">Подписаться</Link>
-              </Button>
-            </CardContent>
-          </Card>
+          <SubscribeCard />
         </div>
       </div>
     </div>
