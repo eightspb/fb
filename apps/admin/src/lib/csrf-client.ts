@@ -1,3 +1,19 @@
+// Next.js с basePath не добавляет prefix к fetch автоматически.
+// Читаем basePath из мета-тега который Next.js добавляет на страницу.
+export function getBasePath(): string {
+  if (typeof document === 'undefined') return '';
+  const el = document.querySelector('meta[name="next-base-path"]');
+  if (el) return el.getAttribute('content') ?? '';
+  // Fallback: определяем по _next assets путям
+  const link = document.querySelector('link[href*="/_next/"]');
+  if (link) {
+    const href = link.getAttribute('href') ?? '';
+    const match = href.match(/^(.*)\/_next\//);
+    return match ? match[1] : '';
+  }
+  return '';
+}
+
 export async function getCsrfToken(): Promise<string> {
   // Сначала проверяем, есть ли уже токен в cookie
   const existingToken = document.cookie
@@ -10,7 +26,7 @@ export async function getCsrfToken(): Promise<string> {
   }
 
   // Если нет, запрашиваем новый токен
-  const response = await fetch('/api/csrf', { method: 'GET', credentials: 'include' });
+  const response = await fetch(`${getBasePath()}/api/csrf`, { method: 'GET', credentials: 'include' });
   if (!response.ok) {
     throw new Error('Failed to fetch CSRF token');
   }
@@ -42,7 +58,7 @@ export async function refreshCsrfToken(): Promise<string> {
   document.cookie = 'csrf-token=; path=/; max-age=0';
   
   // Запрашиваем новый токен
-  const response = await fetch('/api/csrf', { method: 'GET', credentials: 'include' });
+  const response = await fetch(`${getBasePath()}/api/csrf`, { method: 'GET', credentials: 'include' });
   if (!response.ok) {
     throw new Error('Failed to fetch CSRF token');
   }
@@ -50,8 +66,8 @@ export async function refreshCsrfToken(): Promise<string> {
   if (!data?.csrfToken) {
     throw new Error('Invalid CSRF token response');
   }
-  
+
   await new Promise(resolve => setTimeout(resolve, 100));
-  
+
   return data.csrfToken as string;
 }

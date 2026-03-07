@@ -4,18 +4,6 @@ const nextConfig: NextConfig = {
   basePath: '/admin',
   output: 'standalone',
   turbopack: {},
-  async rewrites() {
-    if (!process.env.ADMIN_API_ORIGIN) {
-      return [];
-    }
-
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${process.env.ADMIN_API_ORIGIN}/api/:path*`,
-      },
-    ];
-  },
   images: {
     remotePatterns: [],
     formats: ['image/avif', 'image/webp'],
