@@ -290,7 +290,7 @@ function Backup-Database {
     if ($LASTEXITCODE -eq 0) {
         # Проверяем размер бэкапа на сервере
         $sizeBytes = Invoke-Ssh $Server "stat -c %s $backupFile 2>/dev/null || stat -f %z $backupFile 2>/dev/null || echo 0"
-        $sizeKB = [math]::Round([int]$sizeBytes / 1KB, 2)
+        $sizeKB = [math]::Round([long]$sizeBytes / 1KB, 2)
         
         if ($sizeKB -gt 0.1) {
             Write-Success "Бэкап создан на сервере: $backupFile ($sizeKB KB)"
