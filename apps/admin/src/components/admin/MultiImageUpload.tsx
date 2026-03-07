@@ -136,7 +136,7 @@ export function MultiImageUpload({
             </>
           )}
         </Button>
-        <span className="text-sm text-slate-500">
+        <span className="text-sm text-[var(--frox-gray-500)]">
           {images.length} / {maxFiles} изображений
         </span>
       </div>
@@ -144,24 +144,24 @@ export function MultiImageUpload({
       {/* Images Grid */}
       {images.length > 0 && (
         <div className="space-y-3">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-[var(--frox-gray-600)]">
             Нажмите на звёздочку, чтобы выбрать главное изображение для карточки новости
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {images.map((img, index) => (
               <Card 
                 key={index} 
-                className={`group relative aspect-video bg-slate-100 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
+                className={`group relative aspect-video bg-[var(--frox-gray-200)] rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
                   index === selectedImageIndex 
                     ? 'border-teal-500 ring-2 ring-teal-500/20' 
-                    : 'border-slate-200 hover:border-slate-300'
+                    : 'border-[var(--frox-neutral-border)] hover:border-[var(--frox-neutral-border)]'
                 }`}
                 onClick={() => handleSelectImage(index)}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img 
-                  src={img} 
-                  alt={`Image ${index + 1}`} 
+                <img
+                  src={img.startsWith('/') && !img.startsWith('/admin') ? `/admin${img}` : img}
+                  alt={`Image ${index + 1}`}
                   className="w-full h-full object-cover"
                 />
                 

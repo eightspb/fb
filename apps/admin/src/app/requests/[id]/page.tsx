@@ -28,7 +28,7 @@ const statusConfig: Record<string, { label: string; pill: string; dot: string; i
   new: { label: 'Новая', pill: 'bg-blue-50 text-blue-700 border-blue-200', dot: 'bg-blue-500', icon: Inbox },
   in_progress: { label: 'В работе', pill: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500', icon: Clock },
   processed: { label: 'Обработана', pill: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500', icon: CheckCircle2 },
-  archived: { label: 'В архиве', pill: 'bg-slate-100 text-slate-500 border-slate-200', dot: 'bg-slate-400', icon: Archive },
+  archived: { label: 'В архиве', pill: 'bg-[var(--frox-gray-200)] text-[var(--frox-gray-500)] border-[var(--frox-neutral-border)]', dot: 'bg-[var(--frox-gray-400)]', icon: Archive },
 };
 
 export default function RequestDetailPage() {
@@ -63,7 +63,7 @@ export default function RequestDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <Loader2 className="w-8 h-8 animate-spin text-slate-300" />
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--frox-gray-300)]" />
       </div>
     );
   }
@@ -74,7 +74,7 @@ export default function RequestDetailPage() {
         <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
           <AlertCircle className="w-7 h-7 text-red-400" />
         </div>
-        <p className="text-slate-600 mb-6">{error || 'Заявка не найдена'}</p>
+        <p className="text-[var(--frox-gray-600)] mb-6">{error || 'Заявка не найдена'}</p>
         <Button variant="outline" onClick={() => router.push('/requests')}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Назад к заявкам
@@ -94,17 +94,17 @@ export default function RequestDetailPage() {
           <Button
             variant="ghost"
             size="sm"
-            className="shrink-0 h-8 gap-1.5 text-slate-500 hover:text-slate-800 -ml-2"
+            className="shrink-0 h-8 gap-1.5 text-[var(--frox-gray-500)] hover:text-[var(--frox-gray-900)] -ml-2"
             onClick={() => router.push('/requests')}
           >
             <ArrowLeft className="w-4 h-4" />
             Заявки
           </Button>
-          <span className="text-slate-300">/</span>
-          <span className="font-semibold text-slate-900 truncate text-lg">{request.name}</span>
+          <span className="text-[var(--frox-gray-300)]">/</span>
+          <span className="font-semibold text-[var(--frox-gray-1100)] truncate text-lg">{request.name}</span>
         </div>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${formTypeBadgeStyle[request.form_type] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+          <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${formTypeBadgeStyle[request.form_type] || 'bg-[var(--frox-gray-100)] text-[var(--frox-gray-600)] border-[var(--frox-neutral-border)]'}`}>
             {formTypeLabels[request.form_type] || request.form_type}
           </span>
           <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${sc.pill}`}>
@@ -116,16 +116,16 @@ export default function RequestDetailPage() {
 
       {/* ── Контент с табами ── */}
       <Tabs defaultValue="info" className="w-full">
-        <TabsList className="bg-white border border-slate-200 rounded-xl p-1 h-auto w-full sm:w-auto">
+        <TabsList className="bg-white border border-[var(--frox-neutral-border)] rounded-xl p-1 h-auto w-full sm:w-auto">
           <TabsTrigger
             value="info"
-            className="flex-1 sm:flex-none rounded-lg data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none text-slate-500 h-8 px-4 text-sm"
+            className="flex-1 sm:flex-none rounded-lg data-[state=active]:bg-[var(--frox-gray-1100)] data-[state=active]:text-white data-[state=active]:shadow-none text-[var(--frox-gray-500)] h-8 px-4 text-sm"
           >
             Информация
           </TabsTrigger>
           <TabsTrigger
             value="emails"
-            className="flex-1 sm:flex-none rounded-lg data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none text-slate-500 h-8 px-4 text-sm"
+            className="flex-1 sm:flex-none rounded-lg data-[state=active]:bg-[var(--frox-gray-1100)] data-[state=active]:text-white data-[state=active]:shadow-none text-[var(--frox-gray-500)] h-8 px-4 text-sm"
           >
             <Mail className="w-3.5 h-3.5 mr-1.5" />
             Переписка
@@ -133,7 +133,7 @@ export default function RequestDetailPage() {
         </TabsList>
 
         <TabsContent value="info" className="mt-4">
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm">
+          <div className="bg-white border border-[var(--frox-neutral-border)] rounded-2xl p-5 sm:p-6 shadow-sm">
             <LeadInfoPanel
               request={request}
               onUpdate={setRequest}
@@ -143,7 +143,7 @@ export default function RequestDetailPage() {
         </TabsContent>
 
         <TabsContent value="emails" className="mt-4">
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm">
+          <div className="bg-white border border-[var(--frox-neutral-border)] rounded-2xl p-4 sm:p-6 shadow-sm">
             <EmailThread
               contactEmail={request.email}
               contactName={request.name}

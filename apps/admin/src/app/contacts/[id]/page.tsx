@@ -44,7 +44,7 @@ const statusConfig = [
   { value: 'new', label: 'Новый', pill: 'bg-blue-50 text-blue-700 border border-blue-200', dot: 'bg-blue-500' },
   { value: 'in_progress', label: 'В работе', pill: 'bg-amber-50 text-amber-700 border border-amber-200', dot: 'bg-amber-500' },
   { value: 'processed', label: 'Обработан', pill: 'bg-emerald-50 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-500' },
-  { value: 'archived', label: 'В архиве', pill: 'bg-slate-100 text-slate-500 border border-slate-200', dot: 'bg-slate-400' },
+  { value: 'archived', label: 'В архиве', pill: 'bg-[var(--frox-gray-200)] text-[var(--frox-gray-500)] border border-[var(--frox-neutral-border)]', dot: 'bg-[var(--frox-gray-400)]' },
 ];
 
 function getStatusConfig(status: string) {
@@ -96,7 +96,7 @@ function EditableField({ value, onSave, placeholder = '—' }: {
         <button onClick={handleSave} disabled={saving} className="p-1 text-emerald-500 hover:text-emerald-600 shrink-0">
           <Check className="w-3.5 h-3.5" />
         </button>
-        <button onClick={() => setEditing(false)} className="p-1 text-slate-400 hover:text-slate-600 shrink-0">
+        <button onClick={() => setEditing(false)} className="p-1 text-[var(--frox-gray-400)] hover:text-[var(--frox-gray-600)] shrink-0">
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -106,10 +106,10 @@ function EditableField({ value, onSave, placeholder = '—' }: {
   return (
     <button
       onClick={() => setEditing(true)}
-      className="flex-1 text-left text-sm text-slate-700 hover:text-slate-900 group flex items-center gap-1.5"
+      className="flex-1 text-left text-sm text-[var(--frox-gray-800)] hover:text-[var(--frox-gray-1100)] group flex items-center gap-1.5"
     >
-      <span className={value ? '' : 'text-slate-300 italic'}>{value || placeholder}</span>
-      <Pencil className="w-3 h-3 text-slate-300 group-hover:text-slate-500 transition-colors shrink-0" />
+      <span className={value ? '' : 'text-[var(--frox-gray-300)] italic'}>{value || placeholder}</span>
+      <Pencil className="w-3 h-3 text-[var(--frox-gray-300)] group-hover:text-[var(--frox-gray-500)] transition-colors shrink-0" />
     </button>
   );
 }
@@ -137,7 +137,7 @@ function EditableTextarea({ value, onSave, placeholder = '—' }: {
         <textarea
           value={draft}
           onChange={e => setDraft(e.target.value)}
-          className="w-full h-24 text-sm px-3 py-2 border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full h-24 text-sm px-3 py-2 border border-[var(--frox-neutral-border)] rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
           autoFocus
         />
         <div className="flex gap-2">
@@ -151,10 +151,10 @@ function EditableTextarea({ value, onSave, placeholder = '—' }: {
   return (
     <button
       onClick={() => setEditing(true)}
-      className="w-full text-left text-sm text-slate-700 hover:text-slate-900 group flex items-start gap-1.5"
+      className="w-full text-left text-sm text-[var(--frox-gray-800)] hover:text-[var(--frox-gray-1100)] group flex items-start gap-1.5"
     >
-      <span className={`flex-1 ${value ? '' : 'text-slate-300 italic'}`}>{value || placeholder}</span>
-      <Pencil className="w-3 h-3 text-slate-300 group-hover:text-slate-500 transition-colors shrink-0 mt-0.5" />
+      <span className={`flex-1 ${value ? '' : 'text-[var(--frox-gray-300)] italic'}`}>{value || placeholder}</span>
+      <Pencil className="w-3 h-3 text-[var(--frox-gray-300)] group-hover:text-[var(--frox-gray-500)] transition-colors shrink-0 mt-0.5" />
     </button>
   );
 }
@@ -220,7 +220,7 @@ export default function ContactDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <Loader2 className="w-8 h-8 animate-spin text-slate-300" />
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--frox-gray-300)]" />
       </div>
     );
   }
@@ -231,7 +231,7 @@ export default function ContactDetailPage() {
         <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
           <AlertCircle className="w-7 h-7 text-red-400" />
         </div>
-        <p className="text-slate-600 mb-6">{error || 'Контакт не найден'}</p>
+        <p className="text-[var(--frox-gray-600)] mb-6">{error || 'Контакт не найден'}</p>
         <Button variant="outline" onClick={() => router.push('/contacts')}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Назад к контактам
@@ -250,16 +250,16 @@ export default function ContactDetailPage() {
           <Button
             variant="ghost"
             size="sm"
-            className="shrink-0 h-8 gap-1.5 text-slate-500 hover:text-slate-800 -ml-2"
+            className="shrink-0 h-8 gap-1.5 text-[var(--frox-gray-500)] hover:text-[var(--frox-gray-900)] -ml-2"
             onClick={() => router.push('/contacts')}
           >
             <ArrowLeft className="w-4 h-4" />
             Контакты
           </Button>
-          <span className="text-slate-300">/</span>
+          <span className="text-[var(--frox-gray-300)]">/</span>
           <div className="flex items-center gap-2.5 min-w-0">
             <Avatar name={contact.full_name} />
-            <span className="font-semibold text-slate-900 truncate text-lg">{contact.full_name}</span>
+            <span className="font-semibold text-[var(--frox-gray-1100)] truncate text-lg">{contact.full_name}</span>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -272,16 +272,16 @@ export default function ContactDetailPage() {
 
       {/* ── Контент с табами ── */}
       <Tabs defaultValue="info" className="w-full">
-        <TabsList className="bg-white border border-slate-200 rounded-xl p-1 h-auto w-full sm:w-auto">
+        <TabsList className="bg-white border border-[var(--frox-neutral-border)] rounded-xl p-1 h-auto w-full sm:w-auto">
           <TabsTrigger
             value="info"
-            className="flex-1 sm:flex-none rounded-lg data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none text-slate-500 h-8 px-4 text-sm"
+            className="flex-1 sm:flex-none rounded-lg data-[state=active]:bg-[var(--frox-gray-1100)] data-[state=active]:text-white data-[state=active]:shadow-none text-[var(--frox-gray-500)] h-8 px-4 text-sm"
           >
             Информация
           </TabsTrigger>
           <TabsTrigger
             value="emails"
-            className="flex-1 sm:flex-none rounded-lg data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none text-slate-500 h-8 px-4 text-sm"
+            className="flex-1 sm:flex-none rounded-lg data-[state=active]:bg-[var(--frox-gray-1100)] data-[state=active]:text-white data-[state=active]:shadow-none text-[var(--frox-gray-500)] h-8 px-4 text-sm"
           >
             <Mail className="w-3.5 h-3.5 mr-1.5" />
             Переписка
@@ -290,11 +290,11 @@ export default function ContactDetailPage() {
 
         {/* ── Информация ── */}
         <TabsContent value="info" className="mt-4">
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm space-y-6">
+          <div className="bg-white border border-[var(--frox-neutral-border)] rounded-2xl p-5 sm:p-6 shadow-sm space-y-6">
 
             {/* Статус */}
             <div>
-              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Статус</div>
+              <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Статус</div>
               <div className="flex flex-wrap gap-2">
                 {statusConfig.map(opt => (
                   <button
@@ -303,7 +303,7 @@ export default function ContactDetailPage() {
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                       contact.status === opt.value
                         ? opt.pill + ' shadow-sm'
-                        : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
+                        : 'bg-white text-[var(--frox-gray-400)] border-[var(--frox-neutral-border)] hover:border-[var(--frox-gray-300)]'
                     }`}
                   >
                     <span className={`w-2 h-2 rounded-full ${opt.dot}`} />
@@ -313,22 +313,22 @@ export default function ContactDetailPage() {
               </div>
             </div>
 
-            <div className="h-px bg-slate-100" />
+            <div className="h-px bg-[var(--frox-gray-200)]" />
 
             {/* Контактные данные */}
             <div>
-              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">Контактные данные</div>
+              <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-3">Контактные данные</div>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                  <Mail className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
                   <EditableField value={contact.email} onSave={v => patchField({ email: v || null } as Partial<Contact>)} placeholder="email не указан" />
                 </div>
                 <div className="flex items-center gap-3">
-                  <Phone className="w-4 h-4 text-slate-400 shrink-0" />
+                  <Phone className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
                   <EditableField value={contact.phone} onSave={v => patchField({ phone: v || null } as Partial<Contact>)} placeholder="телефон не указан" />
                 </div>
                 <div className="flex items-center gap-3">
-                  <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+                  <MapPin className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
                   <EditableField value={contact.city} onSave={v => patchField({ city: v || null } as Partial<Contact>)} placeholder="город не указан" />
                 </div>
               </div>
@@ -336,14 +336,14 @@ export default function ContactDetailPage() {
 
             {/* Место работы */}
             <div>
-              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">Место работы</div>
+              <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-3">Место работы</div>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+                  <Building2 className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
                   <EditableField value={contact.institution} onSave={v => patchField({ institution: v || null } as Partial<Contact>)} placeholder="организация не указана" />
                 </div>
                 <div className="flex items-center gap-3">
-                  <Stethoscope className="w-4 h-4 text-slate-400 shrink-0" />
+                  <Stethoscope className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
                   <EditableField value={contact.speciality} onSave={v => patchField({ speciality: v || null } as Partial<Contact>)} placeholder="специальность не указана" />
                 </div>
               </div>
@@ -351,27 +351,27 @@ export default function ContactDetailPage() {
 
             {/* Теги */}
             <div>
-              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Теги</div>
+              <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Теги</div>
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {contact.tags.map(tag => (
                   <span
                     key={tag}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-medium"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--frox-gray-200)] text-[var(--frox-gray-600)] text-xs font-medium"
                   >
                     {tag}
-                    <button onClick={() => removeTag(tag)} className="text-slate-400 hover:text-red-500 transition-colors ml-0.5">
+                    <button onClick={() => removeTag(tag)} className="text-[var(--frox-gray-400)] hover:text-red-500 transition-colors ml-0.5">
                       <X className="w-3 h-3" />
                     </button>
                   </span>
                 ))}
-                {contact.tags.length === 0 && <span className="text-xs text-slate-300 italic">нет тегов</span>}
+                {contact.tags.length === 0 && <span className="text-xs text-[var(--frox-gray-300)] italic">нет тегов</span>}
               </div>
               <div className="flex gap-2 max-w-sm">
                 <Input
                   value={tagInput}
                   onChange={e => setTagInput(e.target.value)}
                   placeholder="Добавить тег..."
-                  className="h-8 text-sm bg-slate-50"
+                  className="h-8 text-sm bg-[var(--frox-gray-100)]"
                   onKeyDown={e => { if (e.key === 'Enter') addTag(); }}
                 />
                 <Button size="sm" variant="outline" onClick={addTag} className="h-8 w-8 p-0 shrink-0">
@@ -382,25 +382,25 @@ export default function ContactDetailPage() {
 
             {/* Заметки */}
             <div>
-              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Заметки</div>
+              <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Заметки</div>
               <EditableTextarea value={contact.notes} onSave={v => patchField({ notes: v || null } as Partial<Contact>)} placeholder="добавить заметку..." />
             </div>
 
             {/* Мета */}
-            <div className="text-xs text-slate-400 pt-3 border-t border-slate-100 space-y-1">
-              <div>Источник: <span className="text-slate-600 font-medium">{contact.import_source}</span></div>
-              <div>Добавлен: <span className="text-slate-600">{formatDate(contact.created_at)}</span></div>
+            <div className="text-xs text-[var(--frox-gray-400)] pt-3 border-t border-[var(--frox-gray-200)] space-y-1">
+              <div>Источник: <span className="text-[var(--frox-gray-600)] font-medium">{contact.import_source}</span></div>
+              <div>Добавлен: <span className="text-[var(--frox-gray-600)]">{formatDate(contact.created_at)}</span></div>
               {contact.updated_at !== contact.created_at && (
-                <div>Обновлён: <span className="text-slate-600">{formatDate(contact.updated_at)}</span></div>
+                <div>Обновлён: <span className="text-[var(--frox-gray-600)]">{formatDate(contact.updated_at)}</span></div>
               )}
             </div>
 
             {/* Удалить */}
-            <div className="pt-2 border-t border-slate-100">
+            <div className="pt-2 border-t border-[var(--frox-gray-200)]">
               {!showDeleteConfirm ? (
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-500 transition-colors"
+                  className="flex items-center gap-1.5 text-xs text-[var(--frox-gray-400)] hover:text-red-500 transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   Удалить контакт
@@ -419,14 +419,14 @@ export default function ContactDetailPage() {
 
         {/* ── Переписка ── */}
         <TabsContent value="emails" className="mt-4">
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm">
+          <div className="bg-white border border-[var(--frox-neutral-border)] rounded-2xl p-4 sm:p-6 shadow-sm">
             {contact.email ? (
               <EmailThread
                 contactEmail={contact.email}
                 contactName={contact.full_name}
               />
             ) : (
-              <div className="text-center py-12 text-slate-400">
+              <div className="text-center py-12 text-[var(--frox-gray-400)]">
                 <Mail className="w-12 h-12 mx-auto mb-3 stroke-1" />
                 <p className="text-sm">У контакта не указан email</p>
                 <p className="text-xs mt-1">Добавьте email на вкладке «Информация»</p>

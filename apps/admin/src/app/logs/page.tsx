@@ -33,8 +33,8 @@ interface LogEntry {
 // Мемоизированная строка таблицы - не перерисовывается если пропсы не изменились
 const LogRow = memo(function LogRow({ log }: { log: LogEntry }) {
   return (
-    <tr className="border-b border-slate-100 hover:bg-slate-50">
-      <td className="px-2 py-1 text-slate-600 whitespace-nowrap">
+    <tr className="border-b border-[var(--frox-gray-200)] hover:bg-[var(--frox-gray-100)]">
+      <td className="px-2 py-1 text-[var(--frox-gray-600)] whitespace-nowrap">
         {formatDate(log.timestamp)}
       </td>
       <td className="px-2 py-1">
@@ -47,15 +47,15 @@ const LogRow = memo(function LogRow({ log }: { log: LogEntry }) {
           {log.level}
         </span>
       </td>
-      <td className="px-2 py-1 text-slate-600">
+      <td className="px-2 py-1 text-[var(--frox-gray-600)]">
         {log.context || '-'}
       </td>
-      <td className="px-2 py-1 text-slate-800">
+      <td className="px-2 py-1 text-[var(--frox-gray-900)]">
         <div className="truncate max-w-[600px]" title={log.message}>
           {log.message}
         </div>
       </td>
-      <td className="px-2 py-1 text-slate-500 truncate">
+      <td className="px-2 py-1 text-[var(--frox-gray-500)] truncate">
         {log.ip || '-'}
       </td>
     </tr>
@@ -133,16 +133,8 @@ export default function AdminLogsPage() {
       }
     };
 
-    eventSource.onerror = (err) => {
-      console.error('SSE ошибка:', err);
-      eventSource.close();
-      // Переподключаемся через 3 секунды
-      setTimeout(() => {
-        if (autoRefresh) {
-          // Пересоздаем соединение
-          eventSourceRef.current = null;
-        }
-      }, 3000);
+    eventSource.onerror = () => {
+      // EventSource reconnects automatically — no action needed
     };
 
     return () => {
@@ -198,7 +190,7 @@ export default function AdminLogsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-slate-900">Логи системы</h1>
+        <h1 className="text-3xl font-bold text-[var(--frox-gray-1100)]">Логи системы</h1>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -238,11 +230,11 @@ export default function AdminLogsPage() {
         <CardContent>
           <div className="flex gap-4">
             <div className="flex-1">
-              <label className="text-sm font-medium text-slate-700 mb-2 block">Уровень</label>
+              <label className="text-sm font-medium text-[var(--frox-gray-800)] mb-2 block">Уровень</label>
               <select
                 value={levelFilter}
                 onChange={(e) => setLevelFilter(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2"
+                className="flex h-10 w-full rounded-md border border-[var(--frox-neutral-border)] bg-white px-3 py-2 text-sm ring-offset-white focus:outline-none focus:ring-2 focus:ring-[var(--frox-brand)] focus:ring-offset-2"
               >
                 <option value="all">Все уровни</option>
                 <option value="error">Ошибки</option>
@@ -252,11 +244,11 @@ export default function AdminLogsPage() {
               </select>
             </div>
             <div className="flex-1">
-              <label className="text-sm font-medium text-slate-700 mb-2 block">Контекст</label>
+              <label className="text-sm font-medium text-[var(--frox-gray-800)] mb-2 block">Контекст</label>
               <select
                 value={contextFilter}
                 onChange={(e) => setContextFilter(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2"
+                className="flex h-10 w-full rounded-md border border-[var(--frox-neutral-border)] bg-white px-3 py-2 text-sm ring-offset-white focus:outline-none focus:ring-2 focus:ring-[var(--frox-brand)] focus:ring-offset-2"
               >
                 <option value="all">Все контексты</option>
                 {contexts.map(context => (
@@ -267,7 +259,7 @@ export default function AdminLogsPage() {
               </select>
             </div>
           </div>
-          <div className="mt-4 text-sm text-slate-600">
+          <div className="mt-4 text-sm text-[var(--frox-gray-600)]">
             Всего логов: <strong>{total}</strong> | Показано: <strong>{logs.length}</strong>
           </div>
         </CardContent>
@@ -280,19 +272,19 @@ export default function AdminLogsPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="text-center py-8 text-slate-500">Загрузка логов...</div>
+            <div className="text-center py-8 text-[var(--frox-gray-500)]">Загрузка логов...</div>
           ) : logs.length === 0 ? (
-            <div className="text-center py-8 text-slate-500">Логи не найдены</div>
+            <div className="text-center py-8 text-[var(--frox-gray-500)]">Логи не найдены</div>
           ) : (
             <div className="max-h-[700px] overflow-y-auto font-mono text-xs">
               <table className="w-full border-collapse">
-                <thead className="sticky top-0 bg-white border-b-2 border-slate-300 z-10">
+                <thead className="sticky top-0 bg-white border-b-2 border-[var(--frox-gray-300)] z-10">
                   <tr className="text-left">
-                    <th className="px-2 py-1 font-semibold text-slate-700 w-[95px]">Время</th>
-                    <th className="px-2 py-1 font-semibold text-slate-700 w-[55px]">Уровень</th>
-                    <th className="px-2 py-1 font-semibold text-slate-700 w-[90px]">Контекст</th>
-                    <th className="px-2 py-1 font-semibold text-slate-700">Сообщение</th>
-                    <th className="px-2 py-1 font-semibold text-slate-700 w-[110px]">IP</th>
+                    <th className="px-2 py-1 font-semibold text-[var(--frox-gray-800)] w-[95px]">Время</th>
+                    <th className="px-2 py-1 font-semibold text-[var(--frox-gray-800)] w-[55px]">Уровень</th>
+                    <th className="px-2 py-1 font-semibold text-[var(--frox-gray-800)] w-[90px]">Контекст</th>
+                    <th className="px-2 py-1 font-semibold text-[var(--frox-gray-800)]">Сообщение</th>
+                    <th className="px-2 py-1 font-semibold text-[var(--frox-gray-800)] w-[110px]">IP</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -11,12 +11,22 @@ const pool = new Pool({
 const ATTACHMENTS_DIR = process.env.CRM_ATTACHMENTS_DIR || '/data/crm-attachments';
 const EXISTING_MESSAGE_IDS_CHUNK_SIZE = 1000;
 const ENVELOPE_BATCH_SIZE = 100;
-const BACKFILL_BATCHES_PER_SYNC = 1;
+const BACKFILL_BATCHES_PER_SYNC = 50; // загружаем до 50 батчей (5000 писем) за один sync
 
 interface SyncResult {
   synced: number;
   folders: string[];
   errors: string[];
+}
+
+export interface SyncProgress {
+  folder: string;
+  batch: string;
+  batchIndex: number;
+  totalBatches: number;
+  syncedSoFar: number;
+  newInBatch: number;
+  backfillCompleted: boolean;
 }
 
 interface CrmEmail {
@@ -335,7 +345,8 @@ export async function downloadAttachment(attachmentId: string): Promise<{ filePa
 async function syncFolder(
   imapClient: ImapFlow,
   folderName: string,
-  direction: 'inbound' | 'outbound'
+  direction: 'inbound' | 'outbound',
+  onProgress?: (progress: SyncProgress) => void
 ): Promise<number> {
   const pgClient = await pool.connect();
   let synced = 0;
@@ -405,6 +416,7 @@ async function syncFolder(
 
         console.log(`[IMAP] ${folderName}: batch ${batch.label} ${batch.range} envelopes=${envelopes.length} new=${newEnvelopes.length}`);
 
+        let batchSynced = 0;
         for (const env of newEnvelopes) {
           try {
             let source: Buffer | undefined;
@@ -472,6 +484,7 @@ async function syncFolder(
 
             if (insertResult.rows.length > 0) {
               synced++;
+              batchSynced++;
               if (hasAttachments && parsed.attachments) {
                 await saveAttachmentMetadata(insertResult.rows[0].id, parsed.attachments as Attachment[], env.uid, folderName, pgClient);
               }
@@ -479,6 +492,19 @@ async function syncFolder(
           } catch (fetchError: any) {
             console.error(`[IMAP] Error fetching/parsing UID ${env.uid}:`, fetchError.message);
           }
+        }
+
+        if (onProgress) {
+          const batchIdx = batchPlan.batches.indexOf(batch);
+          onProgress({
+            folder: folderName,
+            batch: batch.label,
+            batchIndex: batchIdx + 1,
+            totalBatches: batchPlan.batches.length,
+            syncedSoFar: synced,
+            newInBatch: batchSynced,
+            backfillCompleted: batchPlan.backfillDoneAfterRun,
+          });
         }
       }
 
@@ -521,7 +547,7 @@ async function syncFolder(
 /**
  * Синхронизирует INBOX и папку "Отправленные"
  */
-export async function syncAll(): Promise<SyncResult> {
+export async function syncAll(onProgress?: (progress: SyncProgress) => void): Promise<SyncResult> {
   const result: SyncResult = { synced: 0, folders: [], errors: [] };
 
   // Синхронизируем INBOX
@@ -529,7 +555,7 @@ export async function syncAll(): Promise<SyncResult> {
     const inboxClient = createImapClient();
     await inboxClient.connect();
     try {
-      const inboxCount = await syncFolder(inboxClient, 'INBOX', 'inbound');
+      const inboxCount = await syncFolder(inboxClient, 'INBOX', 'inbound', onProgress);
       result.synced += inboxCount;
       result.folders.push('INBOX');
       console.log(`[IMAP] Synced ${inboxCount} emails from INBOX`);
@@ -548,7 +574,7 @@ export async function syncAll(): Promise<SyncResult> {
     try {
       const sentFolder = await findSentFolder(sentClient);
       if (sentFolder) {
-        const sentCount = await syncFolder(sentClient, sentFolder, 'outbound');
+        const sentCount = await syncFolder(sentClient, sentFolder, 'outbound', onProgress);
         result.synced += sentCount;
         result.folders.push(sentFolder);
         console.log(`[IMAP] Synced ${sentCount} emails from ${sentFolder}`);
@@ -578,32 +604,49 @@ export async function syncAll(): Promise<SyncResult> {
   return result;
 }
 
+const EMAIL_QUERY = `SELECT e.*,
+  COALESCE(
+    (SELECT json_agg(json_build_object(
+      'id', a.id,
+      'email_id', a.email_id,
+      'filename', a.filename,
+      'content_type', a.content_type,
+      'size_bytes', a.size_bytes,
+      'storage_key', a.storage_key,
+      'created_at', a.created_at
+    )) FROM crm_email_attachments a WHERE a.email_id = e.id),
+    '[]'::json
+  ) as attachments
+ FROM crm_emails e
+ WHERE ${EMAIL_PARTICIPANT_WHERE}
+ ORDER BY e.sent_at DESC
+ LIMIT $2 OFFSET $3`;
+
+const EMAIL_COUNT_QUERY = `SELECT COUNT(*) as total FROM crm_emails e WHERE ${EMAIL_PARTICIPANT_WHERE}`;
+
+export interface EmailPage {
+  emails: CrmEmail[];
+  total: number;
+}
+
 /**
- * Получает все email для указанного контакта
+ * Получает email для указанного контакта с пагинацией
  */
-export async function getEmailsForContact(contactEmail: string): Promise<CrmEmail[]> {
+export async function getEmailsForContact(
+  contactEmail: string,
+  limit = 50,
+  offset = 0
+): Promise<EmailPage> {
   const pgClient = await pool.connect();
   try {
-    const result = await pgClient.query(
-      `SELECT e.*,
-        COALESCE(
-          (SELECT json_agg(json_build_object(
-            'id', a.id,
-            'email_id', a.email_id,
-            'filename', a.filename,
-            'content_type', a.content_type,
-            'size_bytes', a.size_bytes,
-            'storage_key', a.storage_key,
-            'created_at', a.created_at
-          )) FROM crm_email_attachments a WHERE a.email_id = e.id),
-          '[]'::json
-        ) as attachments
-       FROM crm_emails e
-       WHERE ${EMAIL_PARTICIPANT_WHERE}
-       ORDER BY e.sent_at DESC`,
-      [contactEmail]
-    );
-    return result.rows;
+    const [result, countResult] = await Promise.all([
+      pgClient.query(EMAIL_QUERY, [contactEmail, limit, offset]),
+      pgClient.query(EMAIL_COUNT_QUERY, [contactEmail]),
+    ]);
+    return {
+      emails: result.rows,
+      total: parseInt(countResult.rows[0].total, 10),
+    };
   } finally {
     pgClient.release();
   }
@@ -612,7 +655,11 @@ export async function getEmailsForContact(contactEmail: string): Promise<CrmEmai
 /**
  * Получает email по submission_id (сначала находит email клиента из заявки)
  */
-export async function getEmailsForSubmission(submissionId: string): Promise<CrmEmail[]> {
+export async function getEmailsForSubmission(
+  submissionId: string,
+  limit = 50,
+  offset = 0
+): Promise<EmailPage> {
   const pgClient = await pool.connect();
   try {
     const submission = await pgClient.query(
@@ -621,31 +668,18 @@ export async function getEmailsForSubmission(submissionId: string): Promise<CrmE
     );
 
     if (submission.rows.length === 0) {
-      return [];
+      return { emails: [], total: 0 };
     }
 
     const contactEmail = submission.rows[0].email;
-    // Используем тот же pgClient для следующего запроса
-    const result = await pgClient.query(
-      `SELECT e.*,
-        COALESCE(
-          (SELECT json_agg(json_build_object(
-            'id', a.id,
-            'email_id', a.email_id,
-            'filename', a.filename,
-            'content_type', a.content_type,
-            'size_bytes', a.size_bytes,
-            'storage_key', a.storage_key,
-            'created_at', a.created_at
-          )) FROM crm_email_attachments a WHERE a.email_id = e.id),
-          '[]'::json
-        ) as attachments
-       FROM crm_emails e
-       WHERE ${EMAIL_PARTICIPANT_WHERE}
-       ORDER BY e.sent_at DESC`,
-      [contactEmail]
-    );
-    return result.rows;
+    const [result, countResult] = await Promise.all([
+      pgClient.query(EMAIL_QUERY, [contactEmail, limit, offset]),
+      pgClient.query(EMAIL_COUNT_QUERY, [contactEmail]),
+    ]);
+    return {
+      emails: result.rows,
+      total: parseInt(countResult.rows[0].total, 10),
+    };
   } finally {
     pgClient.release();
   }

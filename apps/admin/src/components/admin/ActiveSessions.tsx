@@ -121,8 +121,8 @@ export default function ActiveSessions() {
         </CardHeader>
         <CardContent>
           <div className="animate-pulse space-y-3">
-            <div className="h-4 bg-slate-200 rounded w-1/2"></div>
-            <div className="h-20 bg-slate-100 rounded"></div>
+            <div className="h-4 bg-[var(--frox-gray-300)] rounded w-1/2"></div>
+            <div className="h-20 bg-[var(--frox-gray-200)] rounded"></div>
           </div>
         </CardContent>
       </Card>
@@ -162,7 +162,7 @@ export default function ActiveSessions() {
               {data?.activeCount || 0}
             </Badge>
           </CardTitle>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 text-xs text-[var(--frox-gray-500)]">
             <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
             {lastUpdate && (
               <span>
@@ -172,14 +172,14 @@ export default function ActiveSessions() {
           </div>
         </div>
         {data && data.activeCount5min > data.activeCount && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-[var(--frox-gray-500)]">
             За 5 минут: {data.activeCount5min} посетителей
           </p>
         )}
       </CardHeader>
       <CardContent>
         {data?.sessions.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
+          <p className="text-sm text-[var(--frox-gray-500)] text-center py-4">
             Нет активных посетителей
           </p>
         ) : (
@@ -187,7 +187,7 @@ export default function ActiveSessions() {
             {data?.sessions.map((session) => (
               <div 
                 key={session.sessionId}
-                className="p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-slate-200 transition-colors"
+                className="p-3 bg-[var(--frox-gray-100)] rounded-lg border border-[var(--frox-neutral-border)] hover:border-[var(--frox-neutral-border)] transition-colors"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
@@ -202,7 +202,7 @@ export default function ActiveSessions() {
                         )}
                       </div>
                       {session.pageTitle && (
-                        <p className="text-xs text-muted-foreground truncate">
+                        <p className="text-xs text-[var(--frox-gray-500)] truncate">
                           {session.pageTitle}
                         </p>
                       )}
@@ -214,7 +214,7 @@ export default function ActiveSessions() {
                   </Badge>
                 </div>
                 
-                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--frox-gray-500)]">
                   <span className="flex items-center gap-1">
                     <Globe className="h-3 w-3" />
                     {session.ipAddress}

@@ -67,12 +67,12 @@ const statusConfig = [
   { value: 'new', label: 'Новая', pill: 'bg-blue-50 text-blue-700 border border-blue-200', dot: 'bg-blue-500', icon: Inbox },
   { value: 'in_progress', label: 'В работе', pill: 'bg-amber-50 text-amber-700 border border-amber-200', dot: 'bg-amber-500', icon: Clock },
   { value: 'processed', label: 'Обработана', pill: 'bg-emerald-50 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-500', icon: CheckCircle2 },
-  { value: 'archived', label: 'В архиве', pill: 'bg-slate-100 text-slate-500 border border-slate-200', dot: 'bg-slate-400', icon: Archive },
+  { value: 'archived', label: 'В архиве', pill: 'bg-[var(--frox-gray-200)] text-[var(--frox-gray-500)] border border-[var(--frox-neutral-border)]', dot: 'bg-[var(--frox-gray-400)]', icon: Archive },
 ];
 
 const priorityConfig = [
-  { value: 'low', label: 'Низкий', pill: 'bg-slate-50 text-slate-500 border border-slate-200' },
-  { value: 'normal', label: 'Обычный', pill: 'bg-slate-50 text-slate-600 border border-slate-200' },
+  { value: 'low', label: 'Низкий', pill: 'bg-[var(--frox-gray-100)] text-[var(--frox-gray-500)] border border-[var(--frox-neutral-border)]' },
+  { value: 'normal', label: 'Обычный', pill: 'bg-[var(--frox-gray-100)] text-[var(--frox-gray-600)] border border-[var(--frox-neutral-border)]' },
   { value: 'high', label: 'Высокий', pill: 'bg-orange-50 text-orange-700 border border-orange-200' },
   { value: 'urgent', label: 'Срочный', pill: 'bg-red-50 text-red-700 border border-red-200' },
 ];
@@ -112,12 +112,12 @@ function StatusPill({ value, onChange }: { value: string; onChange: (v: string) 
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[140px]">
+          <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-[var(--frox-neutral-border)] rounded-lg shadow-lg py-1 min-w-[140px]">
             {statusConfig.map(opt => (
               <button
                 key={opt.value}
                 onClick={() => { onChange(opt.value); setOpen(false); }}
-                className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-slate-50 transition-colors ${value === opt.value ? 'font-semibold' : ''}`}
+                className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-[var(--frox-gray-100)] transition-colors ${value === opt.value ? 'font-semibold' : ''}`}
               >
                 <span className={`w-2 h-2 rounded-full ${opt.dot}`} />
                 {opt.label}
@@ -290,7 +290,7 @@ export default function AdminRequestsPage() {
   const formatTime = (s: string) => new Date(s).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
   function SortIcon({ field }: { field: string }) {
-    if (sortBy !== field) return <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />;
+    if (sortBy !== field) return <ArrowUpDown className="w-3.5 h-3.5 text-[var(--frox-gray-300)]" />;
     return sortOrder === 'asc'
       ? <ArrowUp className="w-3.5 h-3.5 text-blue-500" />
       : <ArrowDown className="w-3.5 h-3.5 text-blue-500" />;
@@ -301,9 +301,9 @@ export default function AdminRequestsPage() {
       {/* ── Заголовок ── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Заявки</h1>
+          <h1 className="text-2xl font-bold text-[var(--frox-gray-1100)] tracking-tight">Заявки</h1>
           {stats && (
-            <p className="text-sm text-slate-500 mt-0.5">
+            <p className="text-sm text-[var(--frox-gray-500)] mt-0.5">
               Всего {stats.total_count} · {stats.new_count} новых
             </p>
           )}
@@ -332,7 +332,7 @@ export default function AdminRequestsPage() {
             { label: 'Новые', value: stats.new_count, icon: Inbox, from: 'from-blue-500', to: 'to-blue-600', filterVal: 'new' },
             { label: 'В работе', value: stats.in_progress_count, icon: Clock, from: 'from-amber-400', to: 'to-amber-500', filterVal: 'in_progress' },
             { label: 'Обработано', value: stats.processed_count, icon: CheckCircle2, from: 'from-emerald-500', to: 'to-emerald-600', filterVal: 'processed' },
-            { label: 'В архиве', value: stats.archived_count, icon: Archive, from: 'from-slate-500', to: 'to-slate-600', filterVal: 'archived' },
+            { label: 'В архиве', value: stats.archived_count, icon: Archive, from: 'from-[var(--frox-gray-600)]', to: 'to-[var(--frox-gray-700)]', filterVal: 'archived' },
           ].map(card => (
             <button
               key={card.filterVal}
@@ -340,7 +340,7 @@ export default function AdminRequestsPage() {
                 setFilterStatus(filterStatus === card.filterVal ? '' : card.filterVal);
                 setPagination(p => ({ ...p, page: 1 }));
               }}
-              className={`relative overflow-hidden rounded-2xl p-4 text-left transition-all bg-gradient-to-br ${card.from} ${card.to} text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 ${filterStatus === card.filterVal ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-100' : ''}`}
+              className={`relative overflow-hidden rounded-2xl p-5 text-left transition-all bg-gradient-to-br ${card.from} ${card.to} text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 ${filterStatus === card.filterVal ? 'ring-2 ring-white ring-offset-2 ring-offset-[var(--frox-gray-200)]' : ''}`}
             >
               <div className="flex items-start justify-between">
                 <div>
@@ -356,20 +356,20 @@ export default function AdminRequestsPage() {
       )}
 
       {/* ── Поиск и фильтры ── */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-[var(--frox-neutral-border)] rounded-2xl shadow-sm overflow-hidden">
         <div className="p-4 flex flex-col lg:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--frox-gray-400)] pointer-events-none" />
             <Input
               placeholder="Поиск по имени, email, телефону..."
               value={search}
               onChange={e => { setSearch(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
-              className="pl-10 h-9 bg-slate-50 border-slate-200 focus:bg-white"
+              className="pl-10 h-9 bg-[var(--frox-gray-100)] border-[var(--frox-neutral-border)] focus:bg-white"
             />
           </div>
           <div className="flex flex-wrap gap-2">
             <select
-              className="h-9 px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+              className="h-9 px-3 rounded-lg border border-[var(--frox-neutral-border)] bg-[var(--frox-gray-100)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
               value={filterType}
               onChange={e => { setFilterType(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
             >
@@ -381,7 +381,7 @@ export default function AdminRequestsPage() {
             </select>
 
             <select
-              className="h-9 px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+              className="h-9 px-3 rounded-lg border border-[var(--frox-neutral-border)] bg-[var(--frox-gray-100)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
               value={filterStatus}
               onChange={e => { setFilterStatus(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
             >
@@ -403,7 +403,7 @@ export default function AdminRequestsPage() {
             </Button>
 
             {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-slate-500 h-9">
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-[var(--frox-gray-500)] h-9">
                 <X className="w-3.5 h-3.5" />
                 Сбросить
               </Button>
@@ -412,11 +412,11 @@ export default function AdminRequestsPage() {
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 px-4 pb-4 pt-0 border-t border-slate-100 mt-0 pt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 px-4 pb-4 pt-0 border-t border-[var(--frox-gray-200)] mt-0 pt-4">
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">Приоритет</label>
+              <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-1.5">Приоритет</label>
               <select
-                className="h-9 w-full px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="h-9 w-full px-3 rounded-lg border border-[var(--frox-neutral-border)] bg-[var(--frox-gray-100)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={filterPriority}
                 onChange={e => { setFilterPriority(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
               >
@@ -425,12 +425,12 @@ export default function AdminRequestsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">Дата от</label>
-              <Input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPagination(p => ({ ...p, page: 1 })); }} className="h-9 bg-slate-50" />
+              <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-1.5">Дата от</label>
+              <Input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPagination(p => ({ ...p, page: 1 })); }} className="h-9 bg-[var(--frox-gray-100)]" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">Дата до</label>
-              <Input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPagination(p => ({ ...p, page: 1 })); }} className="h-9 bg-slate-50" />
+              <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-1.5">Дата до</label>
+              <Input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPagination(p => ({ ...p, page: 1 })); }} className="h-9 bg-[var(--frox-gray-100)]" />
             </div>
           </div>
         )}
@@ -483,21 +483,21 @@ export default function AdminRequestsPage() {
       <div className="lg:hidden space-y-2">
         {!loading && requests.length > 0 && (
           <div className="flex items-center justify-between rounded-xl border bg-white px-3 py-2.5">
-            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-[var(--frox-gray-600)] cursor-pointer">
               <Checkbox checked={selectAll} onChange={handleSelectAll} />
               Выбрать все
             </label>
-            <span className="text-xs text-slate-400">{requests.length} на странице</span>
+            <span className="text-xs text-[var(--frox-gray-400)]">{requests.length} на странице</span>
           </div>
         )}
 
         {loading ? (
-          <div className="bg-white rounded-2xl border p-12 text-center text-slate-400">
+          <div className="bg-white rounded-2xl border p-12 text-center text-[var(--frox-gray-400)]">
             <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
             Загрузка...
           </div>
         ) : requests.length === 0 ? (
-          <div className="bg-white rounded-2xl border p-12 text-center text-slate-400">
+          <div className="bg-white rounded-2xl border p-12 text-center text-[var(--frox-gray-400)]">
             <Inbox className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p className="text-sm">Заявок не найдено</p>
           </div>
@@ -516,21 +516,21 @@ export default function AdminRequestsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <button className="min-w-0 text-left" onClick={() => router.push(`/requests/${req.id}`)}>
-                        <div className="font-semibold text-slate-900">{req.name}</div>
-                        <div className="text-xs text-slate-400 mt-0.5">{formatDate(req.created_at)} · {formatTime(req.created_at)}</div>
+                        <div className="font-semibold text-[var(--frox-gray-1100)]">{req.name}</div>
+                        <div className="text-xs text-[var(--frox-gray-400)] mt-0.5">{formatDate(req.created_at)} · {formatTime(req.created_at)}</div>
                       </button>
-                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium shrink-0 ${formTypeBadgeStyle[req.form_type] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium shrink-0 ${formTypeBadgeStyle[req.form_type] || 'bg-[var(--frox-gray-100)] text-[var(--frox-gray-600)] border-[var(--frox-neutral-border)]'}`}>
                         {formTypeLabels[req.form_type] || req.form_type}
                       </span>
                     </div>
 
-                    <div className="mt-2.5 space-y-1 text-xs text-slate-500">
+                    <div className="mt-2.5 space-y-1 text-xs text-[var(--frox-gray-500)]">
                       {req.email && <div className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 shrink-0" /><span className="truncate">{req.email}</span></div>}
                       {req.phone && <div className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 shrink-0" /><span>{req.phone}</span></div>}
                       {req.institution && <div className="flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5 shrink-0" /><span className="truncate">{req.institution}</span></div>}
                       {req.city && <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 shrink-0" /><span>{req.city}</span></div>}
                       {req.message && (
-                        <div className="flex items-start gap-1.5 text-slate-400 mt-1">
+                        <div className="flex items-start gap-1.5 text-[var(--frox-gray-400)] mt-1">
                           <MessageSquare className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                           <span className="line-clamp-2">{req.message}</span>
                         </div>
@@ -561,46 +561,46 @@ export default function AdminRequestsPage() {
       </div>
 
       {/* ── Таблица (десктоп) ── */}
-      <div className="hidden lg:block bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="hidden lg:block bg-white border border-[var(--frox-neutral-border)] rounded-2xl shadow-sm overflow-hidden">
         <table className="w-full text-sm text-left">
           <thead>
-            <tr className="border-b border-slate-100">
+            <tr className="border-b border-[var(--frox-gray-200)]">
               <th className="px-4 py-3 w-10">
                 <Checkbox checked={selectAll} onChange={handleSelectAll} />
               </th>
               <th
-                className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-slate-700 select-none whitespace-nowrap"
+                className="px-4 py-3 text-xs font-semibold text-[var(--frox-gray-500)] uppercase tracking-wider cursor-pointer hover:text-[var(--frox-gray-800)] select-none whitespace-nowrap"
                 onClick={() => handleSort('created_at')}
               >
                 <div className="flex items-center gap-1.5">
                   Дата <SortIcon field="created_at" />
                 </div>
               </th>
-              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Тип</th>
+              <th className="px-4 py-3 text-xs font-semibold text-[var(--frox-gray-500)] uppercase tracking-wider">Тип</th>
               <th
-                className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-slate-700 select-none"
+                className="px-4 py-3 text-xs font-semibold text-[var(--frox-gray-500)] uppercase tracking-wider cursor-pointer hover:text-[var(--frox-gray-800)] select-none"
                 onClick={() => handleSort('name')}
               >
                 <div className="flex items-center gap-1.5">
                   Контакт <SortIcon field="name" />
                 </div>
               </th>
-              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Детали</th>
-              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Статус</th>
+              <th className="px-4 py-3 text-xs font-semibold text-[var(--frox-gray-500)] uppercase tracking-wider">Детали</th>
+              <th className="px-4 py-3 text-xs font-semibold text-[var(--frox-gray-500)] uppercase tracking-wider">Статус</th>
               <th className="px-4 py-3 w-16"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50">
+          <tbody className="divide-y divide-[var(--frox-gray-100)]">
             {loading ? (
               <tr>
-                <td colSpan={7} className="text-center py-16 text-slate-400">
+                <td colSpan={7} className="text-center py-16 text-[var(--frox-gray-400)]">
                   <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
                   Загрузка...
                 </td>
               </tr>
             ) : requests.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-16 text-slate-400">
+                <td colSpan={7} className="text-center py-16 text-[var(--frox-gray-400)]">
                   <Inbox className="w-10 h-10 mx-auto mb-3 opacity-20" />
                   <p>Заявок не найдено</p>
                   {hasActiveFilters && (
@@ -614,32 +614,32 @@ export default function AdminRequestsPage() {
                 return (
                   <tr
                     key={req.id}
-                    className={`border-l-4 cursor-pointer transition-colors hover:bg-slate-50/80 group ${getRowAccent(req)}`}
+                    className={`border-l-4 cursor-pointer transition-colors hover:bg-[var(--frox-gray-100)] group ${getRowAccent(req)}`}
                     onClick={() => { setSelectedRequest(req); setIsModalOpen(true); }}
                   >
                     <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
                       <Checkbox checked={selectedIds.has(req.id)} onChange={() => handleSelectOne(req.id)} />
                     </td>
                     <td className="px-4 py-3.5 whitespace-nowrap">
-                      <div className="font-medium text-slate-800">{formatDate(req.created_at)}</div>
-                      <div className="text-xs text-slate-400">{formatTime(req.created_at)}</div>
+                      <div className="font-medium text-[var(--frox-gray-900)]">{formatDate(req.created_at)}</div>
+                      <div className="text-xs text-[var(--frox-gray-400)]">{formatTime(req.created_at)}</div>
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${formTypeBadgeStyle[req.form_type] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${formTypeBadgeStyle[req.form_type] || 'bg-[var(--frox-gray-100)] text-[var(--frox-gray-600)] border-[var(--frox-neutral-border)]'}`}>
                         {formTypeLabels[req.form_type] || req.form_type}
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
-                      <div className="font-semibold text-slate-900">{req.name}</div>
+                      <div className="font-semibold text-[var(--frox-gray-1100)]">{req.name}</div>
                       <div className="flex flex-col gap-0.5 mt-1">
                         {req.email && (
-                          <div className="flex items-center gap-1 text-xs text-slate-400">
+                          <div className="flex items-center gap-1 text-xs text-[var(--frox-gray-400)]">
                             <Mail className="w-3 h-3 shrink-0" />
                             <span className="truncate max-w-[160px]">{req.email}</span>
                           </div>
                         )}
                         {req.phone && (
-                          <div className="flex items-center gap-1 text-xs text-slate-400">
+                          <div className="flex items-center gap-1 text-xs text-[var(--frox-gray-400)]">
                             <Phone className="w-3 h-3 shrink-0" />
                             {req.phone}
                           </div>
@@ -648,16 +648,16 @@ export default function AdminRequestsPage() {
                     </td>
                     <td className="px-4 py-3.5 max-w-[220px]">
                       {req.message && (
-                        <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{req.message}</p>
+                        <p className="text-xs text-[var(--frox-gray-500)] line-clamp-2 leading-relaxed">{req.message}</p>
                       )}
                       {req.institution && (
-                        <div className="flex items-center gap-1 text-xs text-slate-400 mt-1">
+                        <div className="flex items-center gap-1 text-xs text-[var(--frox-gray-400)] mt-1">
                           <Building2 className="w-3 h-3 shrink-0" />
                           <span className="truncate">{req.institution}</span>
                         </div>
                       )}
                       {req.city && (
-                        <div className="flex items-center gap-1 text-xs text-slate-400">
+                        <div className="flex items-center gap-1 text-xs text-[var(--frox-gray-400)]">
                           <MapPin className="w-3 h-3 shrink-0" />
                           {req.city}
                         </div>
@@ -684,14 +684,14 @@ export default function AdminRequestsPage() {
                         <button
                           title="Быстрый просмотр"
                           onClick={() => { setSelectedRequest(req); setIsModalOpen(true); }}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
+                          className="p-1.5 rounded-lg hover:bg-[var(--frox-gray-200)] text-[var(--frox-gray-500)] hover:text-[var(--frox-gray-800)] transition-colors"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
                           title="Открыть полностью"
                           onClick={() => router.push(`/requests/${req.id}`)}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
+                          className="p-1.5 rounded-lg hover:bg-[var(--frox-gray-200)] text-[var(--frox-gray-500)] hover:text-[var(--frox-gray-800)] transition-colors"
                         >
                           <ExternalLink className="w-4 h-4" />
                         </button>
@@ -708,7 +708,7 @@ export default function AdminRequestsPage() {
       {/* ── Пагинация ── */}
       {pagination.totalPages > 1 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-sm text-slate-500">
+          <div className="text-sm text-[var(--frox-gray-500)]">
             {((pagination.page - 1) * pagination.limit) + 1}–{Math.min(pagination.page * pagination.limit, pagination.totalCount)} из {pagination.totalCount}
           </div>
           <div className="flex items-center gap-1.5">

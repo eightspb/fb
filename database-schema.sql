@@ -625,6 +625,9 @@ CREATE INDEX IF NOT EXISTS idx_crm_emails_submission_id ON crm_emails(submission
 CREATE INDEX IF NOT EXISTS idx_crm_emails_message_id ON crm_emails(message_id);
 CREATE INDEX IF NOT EXISTS idx_crm_emails_sent_at ON crm_emails(sent_at DESC);
 CREATE INDEX IF NOT EXISTS idx_crm_emails_direction ON crm_emails(direction);
+CREATE INDEX IF NOT EXISTS idx_crm_emails_contact_email_lower ON crm_emails (LOWER(contact_email));
+CREATE INDEX IF NOT EXISTS idx_crm_emails_from_address_lower ON crm_emails (LOWER(from_address));
+CREATE INDEX IF NOT EXISTS idx_crm_emails_contact_email_lower_sent_at ON crm_emails (LOWER(contact_email), sent_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_emails_imap_folder_uid
   ON crm_emails (imap_folder, imap_uid)
   WHERE imap_folder IS NOT NULL AND imap_uid IS NOT NULL;

@@ -14,11 +14,34 @@ async function proxy(req: NextRequest, params: { path: string[] }) {
     body = await req.arrayBuffer();
   }
 
+  // For SSE (streaming) requests don't forward the request signal —
+  // req.signal aborts when the proxy handler returns, which would kill the stream.
+  // Instead we rely on the browser closing the EventSource to abort the upstream.
+  const isSSE = req.headers.get('accept')?.includes('text/event-stream');
+
   const upstream = await fetch(url.toString(), {
     method: req.method,
     headers,
     body,
+    signal: isSSE ? undefined : req.signal,
+    // @ts-expect-error — Node.js fetch supports this for streaming
+    duplex: 'half',
   });
+
+  const contentType = upstream.headers.get('content-type') || '';
+
+  // SSE streaming — pipe body as-is without buffering
+  if (contentType.includes('text/event-stream') && upstream.body) {
+    const resHeaders = new Headers();
+    resHeaders.set('content-type', 'text/event-stream');
+    resHeaders.set('cache-control', 'no-cache');
+    resHeaders.set('connection', 'keep-alive');
+    resHeaders.set('x-accel-buffering', 'no');
+    return new Response(upstream.body, {
+      status: upstream.status,
+      headers: resHeaders,
+    });
+  }
 
   const responseBody = await upstream.arrayBuffer();
   const resHeaders = new Headers();

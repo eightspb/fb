@@ -27,6 +27,13 @@ interface NewsItem {
 
 import { NewsPlaceholder } from '@/components/NewsPlaceholder';
 
+function toAdminSrc(src: string): string {
+  if (src.startsWith('/') && !src.startsWith('/admin')) {
+    return `/admin${src}`;
+  }
+  return src;
+}
+
 function AdminNewsImage({ src, alt, focalPoint }: { src: string, alt: string, focalPoint?: string }) {
   const [error, setError] = useState(false);
 
@@ -36,8 +43,8 @@ function AdminNewsImage({ src, alt, focalPoint }: { src: string, alt: string, fo
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img 
-      src={src} 
+    <img
+      src={toAdminSrc(src)}
       alt={alt}
       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
       style={{ objectPosition: focalPoint || 'center 30%' }}
@@ -228,7 +235,7 @@ export default function AdminNewsList() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-slate-900">Новости</h1>
+        <h1 className="text-2xl font-bold text-[var(--frox-gray-1100)]">Новости</h1>
         <div className="flex gap-2">
           {selectedNewsIds.size >= 2 && (
             <Button 
@@ -250,21 +257,20 @@ export default function AdminNewsList() {
       </div>
 
       {/* Filters */}
-      <Card className="bg-white shadow-sm border-slate-200">
-        <CardContent className="p-4 space-y-4 md:space-y-0 md:flex md:items-center md:gap-4">
+      <div className="bg-white rounded-2xl border border-[var(--frox-neutral-border)] p-4 flex flex-col md:flex-row md:items-center gap-3">
             <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input 
-                    placeholder="Поиск по заголовку, описанию, тегам..." 
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--frox-gray-400)] pointer-events-none" />
+                <Input
+                    placeholder="Поиск по заголовку, описанию, тегам..."
                     className="pl-9"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
             </div>
-            
+
             <div className="flex items-center gap-2 flex-wrap">
-                <select 
-                    className="h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2"
+                <select
+                    className="h-10 rounded-xl border border-[var(--frox-neutral-border)] bg-[var(--frox-gray-100)] px-3 py-2 text-sm text-[var(--frox-gray-800)] focus:outline-none focus:ring-2 focus:ring-[var(--frox-brand)]/40"
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
                 >
@@ -274,8 +280,8 @@ export default function AdminNewsList() {
                     ))}
                 </select>
 
-                <select 
-                    className="h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2"
+                <select
+                    className="h-10 rounded-xl border border-[var(--frox-neutral-border)] bg-[var(--frox-gray-100)] px-3 py-2 text-sm text-[var(--frox-gray-800)] focus:outline-none focus:ring-2 focus:ring-[var(--frox-brand)]/40"
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(e.target.value)}
                 >
@@ -285,8 +291,8 @@ export default function AdminNewsList() {
                     ))}
                 </select>
 
-                <select 
-                    className="h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2"
+                <select
+                    className="h-10 rounded-xl border border-[var(--frox-neutral-border)] bg-[var(--frox-gray-100)] px-3 py-2 text-sm text-[var(--frox-gray-800)] focus:outline-none focus:ring-2 focus:ring-[var(--frox-brand)]/40"
                     value={selectedStatus}
                     onChange={(e) => setSelectedStatus(e.target.value)}
                 >
@@ -299,8 +305,7 @@ export default function AdminNewsList() {
                     <RefreshCw className="w-4 h-4" />
                 </Button>
             </div>
-        </CardContent>
-      </Card>
+      </div>
 
       {error && (
         <Card className="border-red-200 bg-red-50">
@@ -323,117 +328,111 @@ export default function AdminNewsList() {
       {!error && filteredNews.length === 0 ? (
         <Card>
           <CardContent className="py-8">
-             <div className="text-center text-slate-500">
+             <div className="text-center text-[var(--frox-gray-500)]">
                 {news.length > 0 ? 'Ничего не найдено по выбранным фильтрам' : 'Нет новостей'}
              </div>
           </CardContent>
         </Card>
       ) : !error ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="flex flex-col gap-1.5">
           {filteredNews.map((item) => (
-            <Card key={item.id} className={`group hover:shadow-lg transition-all border-slate-200 bg-white flex flex-col overflow-hidden h-full ${selectedNewsIds.has(item.id) ? 'ring-2 ring-blue-500' : ''}`}>
-              {/* Image Section - как на сайте */}
-              <div className="relative w-full aspect-[4/3] overflow-hidden bg-slate-100">
-                <div className="absolute top-4 left-4 z-10">
-                  <Checkbox
-                    checked={selectedNewsIds.has(item.id)}
-                    onChange={() => handleToggleSelect(item.id)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="bg-white/90 backdrop-blur-sm"
-                  />
-                </div>
+            <div
+              key={item.id}
+              className={`group flex items-center gap-3 bg-white border border-[var(--frox-neutral-border)] rounded-xl px-3 py-2 hover:shadow-sm transition-all ${selectedNewsIds.has(item.id) ? 'ring-2 ring-blue-500' : ''}`}
+            >
+              {/* Checkbox */}
+              <Checkbox
+                checked={selectedNewsIds.has(item.id)}
+                onChange={() => handleToggleSelect(item.id)}
+                onClick={(e) => e.stopPropagation()}
+              />
+
+              {/* Thumbnail */}
+              <div className="relative w-32 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-[var(--frox-gray-100)]">
                 {item.images && item.images.length > 0 ? (
-                  <AdminNewsImage 
-                    src={item.images[0]} 
+                  <AdminNewsImage
+                    src={item.images[0]}
                     alt={item.title}
                     focalPoint={item.imageFocalPoint}
                   />
                 ) : (
                   <NewsPlaceholder />
                 )}
-                
-                {/* Date Badge - как на сайте */}
-                <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold text-slate-900 shadow-sm">
-                  {item.date}
-                </div>
               </div>
 
-              <CardContent className="p-6 flex flex-col flex-grow">
-                {/* Category & Status */}
-                <div className="mb-4 flex items-center gap-2">
-                  {item.category ? (
-                    <Badge className="bg-teal-50 text-teal-700 hover:bg-teal-100 border-0">
+              {/* Main content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className="text-xs text-[var(--frox-gray-400)]">{item.date}</span>
+                  {item.category && (
+                    <Badge className="bg-teal-50 text-teal-700 hover:bg-teal-100 border-0 text-xs py-0 px-1.5 h-4">
                       {item.category}
                     </Badge>
-                  ) : (
-                    <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200">
-                      Новости
-                    </Badge>
                   )}
-                  <Badge variant={item.status === 'published' ? 'default' : 'secondary'}>
+                  <Badge
+                    variant={item.status === 'published' ? 'default' : 'secondary'}
+                    className="text-xs py-0 px-1.5 h-4"
+                  >
                     {item.status === 'published' ? 'Опубл.' : 'Черновик'}
                   </Badge>
                 </div>
-                
-                <Link href={`/news/${item.id}`} className="block group-hover:text-teal-600 transition-colors mb-3">
-                  <h3 className="text-xl font-bold text-slate-900 line-clamp-3">
+                <Link href={`/news/${item.id}`} className="block">
+                  <h3 className="text-sm font-semibold text-[var(--frox-gray-1100)] line-clamp-1 group-hover:text-teal-600 transition-colors">
                     {item.title}
                   </h3>
                 </Link>
-                
-                <p className="text-slate-600 text-sm line-clamp-3 mb-6 flex-grow">
+                <p className="text-xs text-[var(--frox-gray-500)] line-clamp-1 mt-0.5">
                   {item.shortDescription || item.fullDescription}
                 </p>
+              </div>
 
-                <div className="flex items-center justify-between pt-4 mt-auto border-t border-slate-100">
-                  <div className="flex gap-3 text-slate-400">
-                    {item.images && item.images.length > 0 && (
-                      <div className="flex items-center gap-1" title={`${item.images.length} фото`}>
-                        <ImageIcon className="w-4 h-4" />
-                        <span className="text-xs font-medium">{item.images.length}</span>
-                      </div>
-                    )}
-                    {item.videos && item.videos.length > 0 && (
-                      <div className="flex items-center gap-1" title={`${item.videos.length} видео`}>
-                        <Video className="w-4 h-4" />
-                        <span className="text-xs font-medium">{item.videos.length}</span>
-                      </div>
-                    )}
-                    {item.documents && item.documents.length > 0 && (
-                      <div className="flex items-center gap-1" title={`${item.documents.length} документов`}>
-                        <FileText className="w-4 h-4" />
-                        <span className="text-xs font-medium">{item.documents.length}</span>
-                      </div>
-                    )}
+              {/* Media counts */}
+              <div className="flex gap-2 text-[var(--frox-gray-400)] flex-shrink-0">
+                {item.images && item.images.length > 0 && (
+                  <div className="flex items-center gap-0.5" title={`${item.images.length} фото`}>
+                    <ImageIcon className="w-3.5 h-3.5" />
+                    <span className="text-xs">{item.images.length}</span>
                   </div>
-                  
-                  {/* Action Buttons */}
-                  <div className="flex gap-1">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => togglePublish(item)}
-                      title={item.status === 'published' ? 'Снять с публикации' : 'Опубликовать'}
-                      className="h-8 w-8 p-0"
-                    >
-                      {item.status === 'published' ? (
-                        <XCircle className="w-4 h-4 text-orange-500" />
-                      ) : (
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                      )}
-                    </Button>
-                    <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
-                      <Link href={`/news/${item.id}`}>
-                        <Pencil className="w-4 h-4" />
-                      </Link>
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)} className="h-8 w-8 p-0">
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </Button>
+                )}
+                {item.videos && item.videos.length > 0 && (
+                  <div className="flex items-center gap-0.5" title={`${item.videos.length} видео`}>
+                    <Video className="w-3.5 h-3.5" />
+                    <span className="text-xs">{item.videos.length}</span>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                )}
+                {item.documents && item.documents.length > 0 && (
+                  <div className="flex items-center gap-0.5" title={`${item.documents.length} документов`}>
+                    <FileText className="w-3.5 h-3.5" />
+                    <span className="text-xs">{item.documents.length}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-0.5 flex-shrink-0">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => togglePublish(item)}
+                  title={item.status === 'published' ? 'Снять с публикации' : 'Опубликовать'}
+                  className="h-7 w-7 p-0"
+                >
+                  {item.status === 'published' ? (
+                    <XCircle className="w-4 h-4 text-orange-500" />
+                  ) : (
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                  )}
+                </Button>
+                <Button variant="ghost" size="sm" asChild className="h-7 w-7 p-0">
+                  <Link href={`/news/${item.id}`}>
+                    <Pencil className="w-4 h-4" />
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)} className="h-7 w-7 p-0">
+                  <Trash2 className="w-4 h-4 text-red-500" />
+                </Button>
+              </div>
+            </div>
           ))}
         </div>
       ) : null}

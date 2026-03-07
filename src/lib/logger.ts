@@ -4,6 +4,7 @@
  */
 
 import { Pool } from 'pg';
+import logEventBus, { LOG_EVENT } from './log-event-bus';
 
 // Ленивая инициализация для избежания проблем с Edge Runtime
 let pool: Pool | null = null;
@@ -50,6 +51,7 @@ let isInitialized = false;
  * Сохраняет лог в БД
  */
 async function saveLog(log: LogEntry): Promise<void> {
+  if (process.env.NODE_ENV === 'development') return;
   try {
     const client = await getPool().connect();
     try {
@@ -79,6 +81,7 @@ async function saveLog(log: LogEntry): Promise<void> {
  * Очищает очередь логов (батчинг)
  */
 async function flushLogs(): Promise<void> {
+  if (process.env.NODE_ENV === 'development') return;
   if (logQueue.length === 0) return;
 
   const logsToFlush = [...logQueue];
@@ -147,6 +150,9 @@ function queueLog(log: LogEntry): void {
   }
   
   logQueue.push(log);
+
+  // Мгновенно уведомляем SSE-подписчиков (без ожидания батча)
+  logEventBus.emit(LOG_EVENT, log);
 
   // Если очередь переполнена, сразу сохраняем
   if (logQueue.length >= MAX_QUEUE_SIZE) {

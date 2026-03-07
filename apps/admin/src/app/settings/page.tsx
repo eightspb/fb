@@ -190,7 +190,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--frox-gray-500)]" />
       </div>
     );
   }
@@ -198,8 +198,8 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Настройки</h1>
-        <p className="text-slate-600 mt-2">Управление шаблонами писем для форм</p>
+        <h1 className="text-3xl font-bold text-[var(--frox-gray-1100)]">Настройки</h1>
+        <p className="text-[var(--frox-gray-600)] mt-2">Управление шаблонами писем для форм</p>
       </div>
 
       <Card>
@@ -280,7 +280,7 @@ function TemplateEditor({
 }: TemplateEditorProps) {
   if (!template) {
     return (
-      <div className="text-center py-8 text-slate-500">
+      <div className="text-center py-8 text-[var(--frox-gray-500)]">
         <Mail className="w-12 h-12 mx-auto mb-4 opacity-50" />
         <p>Шаблон не найден. Создайте его, заполнив поля ниже.</p>
       </div>
@@ -289,13 +289,13 @@ function TemplateEditor({
 
   return (
     <div className="space-y-4">
-      <div className="bg-slate-50 p-4 rounded-lg">
+      <div className="bg-[var(--frox-gray-100)] p-4 rounded-lg">
         <p className="text-sm font-medium mb-2">Доступные переменные:</p>
         <div className="flex flex-wrap gap-2">
           {availableVars.map((varName) => (
             <code
               key={varName}
-              className="px-2 py-1 bg-white border rounded text-sm cursor-pointer hover:bg-slate-100"
+              className="px-2 py-1 bg-white border rounded text-sm cursor-pointer hover:bg-[var(--frox-gray-200)]"
               onClick={() => {
                 const textarea = document.getElementById('html-body') as HTMLTextAreaElement;
                 if (textarea) {
@@ -317,7 +317,7 @@ function TemplateEditor({
             </code>
           ))}
         </div>
-        <p className="text-xs text-slate-500 mt-2">
+        <p className="text-xs text-[var(--frox-gray-500)] mt-2">
           Нажмите на переменную, чтобы вставить её в шаблон
         </p>
       </div>
@@ -341,7 +341,7 @@ function TemplateEditor({
           placeholder="HTML код письма..."
           className="font-mono text-sm min-h-[300px]"
         />
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-[var(--frox-gray-500)]">
           Используйте HTML разметку. Переменные вставляются в формате {'{{variable}}'}
         </p>
       </div>

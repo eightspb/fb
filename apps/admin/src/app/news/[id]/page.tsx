@@ -37,7 +37,7 @@ export default function EditNewsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-slate-900">Редактировать новость</h1>
+      <h1 className="text-3xl font-bold text-[var(--frox-gray-1100)]">Редактировать новость</h1>
       <NewsForm initialData={data} isEditing={true} />
     </div>
   );
