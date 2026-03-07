@@ -1,4 +1,4 @@
-import { getCsrfToken, refreshCsrfToken, getBasePath } from '@/lib/csrf-client';
+import { getCsrfToken, refreshCsrfToken, getBasePath } from './csrf-client';
 
 function mergeHeaders(initHeaders: HeadersInit | undefined, csrfToken: string): Headers {
   const headers = new Headers(initHeaders);

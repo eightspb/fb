@@ -143,7 +143,7 @@ export default function RequestDetailPage() {
         </TabsContent>
 
         <TabsContent value="emails" className="mt-4">
-          <div className="bg-white border border-[var(--frox-neutral-border)] rounded-2xl p-4 sm:p-6 shadow-sm">
+          <div className="bg-white border border-[var(--frox-neutral-border)] rounded-2xl pt-4 sm:pt-6 px-4 sm:px-6 pb-2 shadow-sm overflow-hidden">
             <EmailThread
               contactEmail={request.email}
               contactName={request.name}

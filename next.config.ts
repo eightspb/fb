@@ -32,9 +32,13 @@ const nextConfig: NextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   async rewrites() {
-    // In development, proxy /uploads to the production server
+    // In development, proxy the separate admin app and external uploads.
     if (process.env.NODE_ENV === 'development') {
       return [
+        {
+          source: '/admin/:path*',
+          destination: 'http://localhost:3001/admin/:path*',
+        },
         {
           source: '/uploads/:path*',
           destination: 'https://fibroadenoma.net/uploads/:path*',

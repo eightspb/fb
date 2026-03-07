@@ -141,6 +141,18 @@ describe('OpenRouter expandTextWithAI', () => {
     expect(mockedAxios.post).not.toHaveBeenCalled();
   });
 
+  it('should use fallback when API key is blank', async () => {
+    process.env.OPENROUTER_API_KEY = '   ';
+    vi.resetModules();
+    const { expandTextWithAI } = await import('@/lib/openrouter');
+
+    const result = await expandTextWithAI('Blank key text');
+
+    expect(result.title).toBe('Blank key text'.substring(0, 50));
+    expect(result.fullDescription).toBe('Blank key text');
+    expect(mockedAxios.post).not.toHaveBeenCalled();
+  });
+
   it('should use fallback on API error', async () => {
     const { expandTextWithAI } = await import('@/lib/openrouter');
 
@@ -151,6 +163,41 @@ describe('OpenRouter expandTextWithAI', () => {
 
     expect(result.title).toBe('Test text with error'.substring(0, 50));
     expect(result.fullDescription).toBe('Test text with error');
+  });
+
+  it('should fill missing parsed fields from the original text', async () => {
+    const { expandTextWithAI } = await import('@/lib/openrouter');
+
+    mockedAxios.post.mockResolvedValueOnce({
+      data: {
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              title: '   ',
+              shortDescription: '',
+              fullDescription: '   ',
+            }),
+          },
+        }],
+      },
+    });
+
+    const result = await expandTextWithAI('Original fallback text');
+
+    expect(result.title).toBe('Original fallback text'.substring(0, 50));
+    expect(result.shortDescription).toBe('Original fallback text'.substring(0, 200));
+    expect(result.fullDescription).toBe('Original fallback text');
+  });
+
+  it('should fall back after a 401 response from OpenRouter', async () => {
+    const { expandTextWithAI } = await import('@/lib/openrouter');
+
+    mockedAxios.post.mockRejectedValueOnce(new Error('Request failed with status code 401'));
+    mockedAxios.isAxiosError.mockReturnValue(true);
+
+    const result = await expandTextWithAI('Unauthorized text');
+
+    expect(result.fullDescription).toBe('Unauthorized text');
   });
 
   it('should include voice context in prompt', async () => {
@@ -185,6 +232,34 @@ describe('OpenRouter expandTextWithAI', () => {
     expect(userMessage).toContain('Текст из голоса');
     expect(userMessage).toContain('Дата события: 05.03.2026');
     expect(userMessage).toContain('Количество фотографий: 3');
+  });
+  it('should send non-ogg audio formats through to the API payload', async () => {
+    const { transcribeAudioWithAI } = await import('@/lib/openrouter');
+
+    mockedAxios.post.mockResolvedValueOnce({
+      data: {
+        choices: [{
+          message: {
+            content: 'MP3 transcript',
+          },
+        }],
+      },
+    });
+
+    await expect(transcribeAudioWithAI(Buffer.from('fake-audio'), 'mp3')).resolves.toBe('MP3 transcript');
+    expect((mockedAxios.post.mock.calls[0][1] as any).messages[0].content[1].input_audio.format).toBe('mp3');
+  });
+
+  it('should rethrow axios transcription errors', async () => {
+    const { transcribeAudioWithAI } = await import('@/lib/openrouter');
+    const axiosError = {
+      response: { status: 502, data: { error: 'bad gateway' } },
+    };
+
+    mockedAxios.post.mockRejectedValueOnce(axiosError);
+    mockedAxios.isAxiosError.mockReturnValue(true);
+
+    await expect(transcribeAudioWithAI(Buffer.from('fake-audio'), 'ogg')).rejects.toBe(axiosError);
   });
 });
 

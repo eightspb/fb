@@ -83,6 +83,35 @@
   grid-row: span 2;
 }
 
+/* Mobile: sidebar is a fixed overlay, not part of grid flow */
+@media (max-width: 767px) {
+  #frox-layout,
+  #frox-layout.minimized {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* When mobile menu is open, always show full labels regardless of minimized state */
+  #frox-layout.minimized aside[data-mobile-open] .sidebar-label,
+  #frox-layout.minimized aside[data-mobile-open] .sidebar-logo-full,
+  #frox-layout.minimized aside[data-mobile-open] .sidebar-section-title,
+  #frox-layout.minimized aside[data-mobile-open] .sidebar-badge {
+    opacity: 1 !important;
+    width: auto !important;
+    overflow: visible !important;
+  }
+
+  #frox-layout.minimized aside[data-mobile-open] .sidebar-logo-icon {
+    display: none !important;
+  }
+
+  #frox-layout.minimized aside[data-mobile-open] .nav-link {
+    justify-content: flex-start !important;
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+}
+
 /* Minimize state: hide text labels, show only icons */
 #frox-layout.minimized .sidebar-label,
 #frox-layout.minimized .sidebar-logo-full,

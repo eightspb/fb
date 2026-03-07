@@ -118,10 +118,14 @@ test('should login with correct password', async () => {
 ```
 tests/
 ├── e2e/
-│   ├── auth.spec.ts              # Тесты авторизации
-│   ├── forms.spec.ts             # Тесты форм
-│   ├── database.spec.ts          # Тесты с БД
-│   └── testcontainers-setup.ts   # Настройка Testcontainers
+│   ├── fixtures.ts               # Общие Playwright fixtures, loginViaApi() без captcha
+│   ├── admin/
+│   │   ├── auth.spec.ts          # Логин, редиректы, сессия, логаут
+│   │   ├── dashboard.spec.ts     # Дашборд, быстрые ссылки, навигация
+│   │   ├── requests.spec.ts      # Заявки: shell, фильтры, сортировка, fallback states
+│   │   └── contacts.spec.ts      # Контакты: shell, поиск, фильтры, fallback states
+│   ├── auth.spec.ts              # Старый общий auth flow
+│   └── database.spec.ts          # Тесты с БД / Testcontainers
 ```
 
 ### Команды
@@ -137,16 +141,25 @@ bun run test:e2e:ui
 bun run test:e2e:debug
 ```
 
+Playwright автоматически поднимает:
+- site: `http://localhost:3000`
+- admin: `http://localhost:3001`
+
+Для локальной стабильности E2E запускаются в щадящем режиме: без `fullyParallel`, с `2` воркерами.
+
 ### Требования
 
-Перед запуском E2E тестов необходимо:
+Перед запуском E2E вручную достаточно:
 
-1. Запустить приложение:
-   ```bash
-   bun run dev
-   ```
+1. Убедиться, что свободны порты `3000` и `3001`
+2. Запустить `bun run test:e2e`
 
-2. Убедиться, что БД доступна (или использовать Testcontainers)
+Отдельно поднимать `bun run dev` не нужно: Playwright стартует оба dev-сервера сам.
+
+Для `database.spec.ts`:
+
+1. Нужен рабочий Docker engine / Docker Desktop
+2. Если Docker недоступен, этот файл пропускается автоматически
 
 ### Пример теста
 
@@ -223,6 +236,10 @@ bun run docker:test
 bun run docker:test:down
 ```
 
+Важно:
+- `bun run docker:test` требует запущенный Docker engine
+- при ошибке вида `open //./pipe/dockerDesktopLinuxEngine` проблема в окружении, а не в тестах репозитория
+
 ### Преимущества
 
 - ✅ Изолированное окружение
@@ -266,6 +283,10 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 - **Functions**: 80%+
 - **Branches**: 80%+
 - **Statements**: 80%+
+
+Текущее состояние:
+- `bun run test:unit:coverage` проходит
+- глобальный branch coverage доведен до порога `80%+`
 
 ### Просмотр coverage
 

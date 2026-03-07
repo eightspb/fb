@@ -9,9 +9,6 @@ const pool = new Pool({
 });
 
 const ATTACHMENTS_DIR = process.env.CRM_ATTACHMENTS_DIR || '/data/crm-attachments';
-const EXISTING_MESSAGE_IDS_CHUNK_SIZE = 1000;
-const ENVELOPE_BATCH_SIZE = 100;
-const BACKFILL_BATCHES_PER_SYNC = 50; // загружаем до 50 батчей (5000 писем) за один sync
 
 interface SyncResult {
   synced: number;
@@ -21,12 +18,9 @@ interface SyncResult {
 
 export interface SyncProgress {
   folder: string;
-  batch: string;
-  batchIndex: number;
-  totalBatches: number;
+  phase: 'incremental' | 'search';
   syncedSoFar: number;
   newInBatch: number;
-  backfillCompleted: boolean;
 }
 
 interface CrmEmail {
@@ -77,12 +71,6 @@ const EMAIL_PARTICIPANT_WHERE = `(
   )
 )`;
 
-interface SyncBatch {
-  range: string;
-  useUid: boolean;
-  label: string;
-}
-
 function createImapClient(): ImapFlow {
   const host = process.env.IMAP_HOST || 'imap.mail.ru';
   const port = parseInt(process.env.IMAP_PORT || '993');
@@ -96,11 +84,9 @@ function createImapClient(): ImapFlow {
       pass: process.env.SMTP_PASSWORD!,
     },
     logger: false,
-    // Таймаут на соединение и команды (мс)
     socketTimeout: 120000,
   });
 
-  // Предотвращаем uncaughtException от socket timeout
   client.on('error', (err: Error) => {
     console.error('[IMAP] Client error (handled):', err.message);
   });
@@ -113,9 +99,7 @@ function getOurEmail(): string {
 }
 
 /**
- * Определяет contact_email для письма:
- * - Входящее: email отправителя
- * - Исходящее: email первого получателя (кроме нашего)
+ * Определяет contact_email для письма
  */
 function determineContactEmail(
   direction: 'inbound' | 'outbound',
@@ -128,7 +112,6 @@ function determineContactEmail(
     return fromAddress.toLowerCase();
   }
 
-  // Для исходящих — первый получатель, не являющийся нашим адресом
   const contactTo = toAddresses.find(addr => addr.toLowerCase() !== ourEmail);
   return (contactTo || toAddresses[0] || '').toLowerCase();
 }
@@ -143,7 +126,6 @@ async function findSentFolder(client: ImapFlow): Promise<string | null> {
       return folder.path;
     }
   }
-  // Fallback для mail.ru
   for (const folder of folders) {
     const name = folder.name.toLowerCase();
     if (name === 'sent' || name === 'отправленные') {
@@ -153,105 +135,8 @@ async function findSentFolder(client: ImapFlow): Promise<string | null> {
   return null;
 }
 
-function buildSyncBatches(
-  totalMessages: number,
-  lastSyncedUid: number,
-  backfillSeqCursor: number | null,
-  backfillCompleted: boolean
-): { batches: SyncBatch[]; nextBackfillCursor: number | null; backfillDoneAfterRun: boolean } {
-  const batches: SyncBatch[] = [];
-
-  if (lastSyncedUid > 0) {
-    batches.push({
-      range: `${lastSyncedUid + 1}:*`,
-      useUid: true,
-      label: 'incremental',
-    });
-  } else if (totalMessages > 0) {
-    const recentStart = Math.max(1, totalMessages - ENVELOPE_BATCH_SIZE + 1);
-    batches.push({
-      range: `${recentStart}:*`,
-      useUid: false,
-      label: 'recent',
-    });
-  }
-
-  if (totalMessages === 0 || backfillCompleted) {
-    return {
-      batches,
-      nextBackfillCursor: backfillCompleted ? 0 : backfillSeqCursor,
-      backfillDoneAfterRun: backfillCompleted || totalMessages === 0,
-    };
-  }
-
-  let cursor = backfillSeqCursor;
-  if (cursor === null) {
-    cursor = lastSyncedUid > 0
-      ? totalMessages
-      : Math.max(0, totalMessages - ENVELOPE_BATCH_SIZE);
-  }
-
-  for (let i = 0; i < BACKFILL_BATCHES_PER_SYNC && cursor > 0; i++) {
-    const end = cursor;
-    const start = Math.max(1, end - ENVELOPE_BATCH_SIZE + 1);
-    batches.push({
-      range: `${start}:${end}`,
-      useUid: false,
-      label: `backfill-${i + 1}`,
-    });
-    cursor = start - 1;
-  }
-
-  return {
-    batches,
-    nextBackfillCursor: cursor,
-    backfillDoneAfterRun: cursor <= 0,
-  };
-}
-
-async function getExistingEnvelopeRefs(
-  pgClient: any,
-  folderName: string,
-  envelopes: Array<{ uid: number; messageId: string | undefined }>
-): Promise<{ existingIds: Set<string>; existingUids: Set<number> }> {
-  const existingIds = new Set<string>();
-  const existingUids = new Set<number>();
-
-  const messageIds = envelopes.map((e) => e.messageId).filter(Boolean) as string[];
-  for (let i = 0; i < messageIds.length; i += EXISTING_MESSAGE_IDS_CHUNK_SIZE) {
-    const chunk = messageIds.slice(i, i + EXISTING_MESSAGE_IDS_CHUNK_SIZE);
-    if (chunk.length === 0) continue;
-
-    const existing = await pgClient.query(
-      `SELECT message_id FROM crm_emails WHERE message_id = ANY($1)`,
-      [chunk]
-    );
-
-    for (const row of existing.rows) {
-      if (row.message_id) existingIds.add(row.message_id);
-    }
-  }
-
-  const uids = envelopes.map((e) => e.uid);
-  if (uids.length > 0) {
-    const existingByUid = await pgClient.query(
-      `SELECT imap_uid FROM crm_emails WHERE imap_folder = $1 AND imap_uid = ANY($2::bigint[])`,
-      [folderName, uids]
-    );
-
-    for (const row of existingByUid.rows) {
-      if (row.imap_uid !== null && row.imap_uid !== undefined) {
-        existingUids.add(Number(row.imap_uid));
-      }
-    }
-  }
-
-  return { existingIds, existingUids };
-}
-
 /**
  * Сохраняет метаданные вложений без скачивания файлов.
- * Файл скачивается позже по запросу через API.
  */
 async function saveAttachmentMetadata(
   emailId: string,
@@ -276,7 +161,6 @@ async function saveAttachmentMetadata(
 
 /**
  * Скачивает файл вложения из IMAP по требованию и сохраняет на диск.
- * Возвращает путь к файлу.
  */
 export async function downloadAttachment(attachmentId: string): Promise<{ filePath: string; filename: string; contentType: string | null } | null> {
   const pgClient = await pool.connect();
@@ -288,12 +172,10 @@ export async function downloadAttachment(attachmentId: string): Promise<{ filePa
     const att = result.rows[0];
     if (!att) return null;
 
-    // Уже скачан
     if (att.storage_key) {
       return { filePath: join(ATTACHMENTS_DIR, att.storage_key), filename: att.filename, contentType: att.content_type };
     }
 
-    // Нет данных для скачивания из IMAP
     if (!att.imap_uid || !att.imap_folder) return null;
 
     const client = createImapClient();
@@ -302,7 +184,6 @@ export async function downloadAttachment(attachmentId: string): Promise<{ filePa
     try {
       const lock = await client.getMailboxLock(att.imap_folder);
       try {
-        // Скачиваем только нужное вложение по имени файла
         let fileContent: Buffer | null = null;
 
         for await (const msg of client.fetch({ uid: att.imap_uid }, { source: true }, { uid: true })) {
@@ -340,9 +221,91 @@ export async function downloadAttachment(attachmentId: string): Promise<{ filePa
 }
 
 /**
- * Синхронизирует одну IMAP-папку
+ * Парсит и сохраняет одно письмо из IMAP в БД.
+ * Возвращает true если письмо было новое и вставлено.
  */
-async function syncFolder(
+async function parseAndSaveEmail(
+  imapClient: ImapFlow,
+  uid: number,
+  folderName: string,
+  direction: 'inbound' | 'outbound',
+  pgClient: any
+): Promise<boolean> {
+  let source: Buffer | undefined;
+  for await (const msg of imapClient.fetch({ uid }, { uid: true, source: true }, { uid: true })) {
+    source = msg.source;
+  }
+  if (!source) return false;
+
+  const parsed: ParsedMail = await simpleParser(source) as ParsedMail;
+
+  const messageId = parsed.messageId || null;
+  const fromAddress = parsed.from?.value?.[0]?.address || '';
+  const fromName = parsed.from?.value?.[0]?.name || null;
+
+  const toField = parsed.to;
+  const toAddresses: string[] = toField
+    ? (Array.isArray(toField)
+      ? toField.flatMap((t: any) => t.value)
+      : toField.value
+    ).map((a: any) => a.address || '').filter(Boolean)
+    : [];
+
+  const ccField = parsed.cc;
+  const ccAddresses: string[] = ccField
+    ? (Array.isArray(ccField)
+      ? ccField.flatMap((t: any) => t.value)
+      : ccField.value
+    ).map((a: any) => a.address || '').filter(Boolean)
+    : [];
+
+  const contactEmail = determineContactEmail(direction, fromAddress, toAddresses);
+  const inReplyTo = typeof parsed.inReplyTo === 'string' ? parsed.inReplyTo : null;
+  const refs = parsed.references;
+  const referencesHeader = refs
+    ? (Array.isArray(refs) ? refs.join(' ') : String(refs))
+    : null;
+
+  const hasAttachments = (parsed.attachments?.length || 0) > 0;
+  const sentAt = parsed.date || new Date();
+
+  const insertResult = await pgClient.query(
+    `INSERT INTO crm_emails
+     (message_id, in_reply_to, references_header, direction, channel,
+      from_address, from_name, to_addresses, cc_addresses,
+      subject, body_html, body_text, has_attachments,
+      contact_email, sent_at, imap_uid, imap_folder)
+     VALUES ($1, $2, $3, $4, 'email', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+     ON CONFLICT DO NOTHING
+     RETURNING id`,
+    [
+      messageId, inReplyTo, referencesHeader, direction,
+      fromAddress, fromName,
+      toAddresses.length > 0 ? toAddresses : [''],
+      ccAddresses.length > 0 ? ccAddresses : null,
+      parsed.subject || null,
+      parsed.html || null,
+      parsed.text || null,
+      hasAttachments,
+      contactEmail,
+      sentAt,
+      uid,
+      folderName,
+    ]
+  );
+
+  if (insertResult.rows.length > 0 && hasAttachments && parsed.attachments) {
+    await saveAttachmentMetadata(insertResult.rows[0].id, parsed.attachments as Attachment[], uid, folderName, pgClient);
+  }
+
+  return insertResult.rows.length > 0;
+}
+
+/**
+ * Incremental sync — загружает только новые письма (по UID) из одной папки.
+ * Быстрый, без backfill.
+ */
+async function syncFolderIncremental(
   imapClient: ImapFlow,
   folderName: string,
   direction: 'inbound' | 'outbound',
@@ -352,18 +315,14 @@ async function syncFolder(
   let synced = 0;
 
   try {
-    // Получаем состояние синхронизации
     const stateResult = await pgClient.query(
       'SELECT * FROM crm_imap_sync_state WHERE folder_name = $1',
       [folderName]
     );
 
-    let lastUidValidity = stateResult.rows[0]?.last_uid_validity;
+    const lastUidValidity = stateResult.rows[0]?.last_uid_validity;
     let lastSyncedUid = stateResult.rows[0]?.last_synced_uid || 0;
-    let backfillSeqCursor = stateResult.rows[0]?.backfill_seq_cursor ?? null;
-    let backfillCompleted = stateResult.rows[0]?.backfill_completed ?? false;
 
-    // Открываем папку
     const lock = await imapClient.getMailboxLock(folderName);
 
     try {
@@ -375,164 +334,108 @@ async function syncFolder(
 
       const currentUidValidity = mailbox.uidValidity;
 
-      // Если UIDVALIDITY сменился — полный ресинк
+      // Если UIDVALIDITY сменился — сброс
       if (lastUidValidity && currentUidValidity !== lastUidValidity) {
         console.log(`[IMAP] UIDVALIDITY changed for ${folderName}, resetting sync state`);
         lastSyncedUid = 0;
-        backfillSeqCursor = null;
-        backfillCompleted = false;
       }
 
       const totalMessages = mailbox.exists || 0;
-      const batchPlan = buildSyncBatches(totalMessages, lastSyncedUid, backfillSeqCursor, backfillCompleted);
-      console.log(`[IMAP] ${folderName}: total=${totalMessages}, lastSyncedUid=${lastSyncedUid}, backfillSeqCursor=${backfillSeqCursor}, backfillCompleted=${backfillCompleted}`);
-      let maxUid = lastSyncedUid;
+      console.log(`[IMAP] ${folderName}: total=${totalMessages}, lastSyncedUid=${lastSyncedUid}`);
 
-      for (const batch of batchPlan.batches) {
-        const envelopes: Array<{ uid: number; messageId: string | undefined }> = [];
-        for await (const msg of imapClient.fetch(batch.range, {
-          uid: true,
-          envelope: true,
-        }, { uid: batch.useUid })) {
-          envelopes.push({ uid: msg.uid, messageId: msg.envelope?.messageId });
-          if (msg.uid > maxUid) maxUid = msg.uid;
-        }
-
-        if (envelopes.length === 0) {
-          console.log(`[IMAP] ${folderName}: batch ${batch.label} ${batch.range} empty`);
-          continue;
-        }
-
-        const { existingIds, existingUids } = await getExistingEnvelopeRefs(pgClient, folderName, envelopes);
-        const newEnvelopes = envelopes.filter((envelope) => {
-          if (existingUids.has(envelope.uid)) {
-            return false;
-          }
-          if (envelope.messageId && existingIds.has(envelope.messageId)) {
-            return false;
-          }
-          return true;
-        });
-
-        console.log(`[IMAP] ${folderName}: batch ${batch.label} ${batch.range} envelopes=${envelopes.length} new=${newEnvelopes.length}`);
-
-        let batchSynced = 0;
-        for (const env of newEnvelopes) {
-          try {
-            let source: Buffer | undefined;
-            for await (const msg of imapClient.fetch({ uid: env.uid }, { uid: true, source: true }, { uid: true })) {
-              source = msg.source;
-            }
-            if (!source) continue;
-
-            const parsed: ParsedMail = await simpleParser(source) as ParsedMail;
-
-            const messageId = parsed.messageId || null;
-            const fromAddress = parsed.from?.value?.[0]?.address || '';
-            const fromName = parsed.from?.value?.[0]?.name || null;
-
-            const toField = parsed.to;
-            const toAddresses: string[] = toField
-              ? (Array.isArray(toField)
-                ? toField.flatMap((t: any) => t.value)
-                : toField.value
-              ).map((a: any) => a.address || '').filter(Boolean)
-              : [];
-
-            const ccField = parsed.cc;
-            const ccAddresses: string[] = ccField
-              ? (Array.isArray(ccField)
-                ? ccField.flatMap((t: any) => t.value)
-                : ccField.value
-              ).map((a: any) => a.address || '').filter(Boolean)
-              : [];
-
-            const contactEmail = determineContactEmail(direction, fromAddress, toAddresses);
-            const inReplyTo = typeof parsed.inReplyTo === 'string' ? parsed.inReplyTo : null;
-            const refs = parsed.references;
-            const referencesHeader = refs
-              ? (Array.isArray(refs) ? refs.join(' ') : String(refs))
-              : null;
-
-            const hasAttachments = (parsed.attachments?.length || 0) > 0;
-            const sentAt = parsed.date || new Date();
-
-            const insertResult = await pgClient.query(
-              `INSERT INTO crm_emails
-               (message_id, in_reply_to, references_header, direction, channel,
-                from_address, from_name, to_addresses, cc_addresses,
-                subject, body_html, body_text, has_attachments,
-                contact_email, sent_at, imap_uid, imap_folder)
-               VALUES ($1, $2, $3, $4, 'email', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-               ON CONFLICT DO NOTHING
-               RETURNING id`,
-              [
-                messageId, inReplyTo, referencesHeader, direction,
-                fromAddress, fromName,
-                toAddresses.length > 0 ? toAddresses : [''],
-                ccAddresses.length > 0 ? ccAddresses : null,
-                parsed.subject || null,
-                parsed.html || null,
-                parsed.text || null,
-                hasAttachments,
-                contactEmail,
-                sentAt,
-                env.uid,
-                folderName,
-              ]
-            );
-
-            if (insertResult.rows.length > 0) {
-              synced++;
-              batchSynced++;
-              if (hasAttachments && parsed.attachments) {
-                await saveAttachmentMetadata(insertResult.rows[0].id, parsed.attachments as Attachment[], env.uid, folderName, pgClient);
-              }
-            }
-          } catch (fetchError: any) {
-            console.error(`[IMAP] Error fetching/parsing UID ${env.uid}:`, fetchError.message);
-          }
-        }
-
-        if (onProgress) {
-          const batchIdx = batchPlan.batches.indexOf(batch);
-          onProgress({
-            folder: folderName,
-            batch: batch.label,
-            batchIndex: batchIdx + 1,
-            totalBatches: batchPlan.batches.length,
-            syncedSoFar: synced,
-            newInBatch: batchSynced,
-            backfillCompleted: batchPlan.backfillDoneAfterRun,
-          });
-        }
-      }
-
-      const shouldPersistState =
-        maxUid > lastSyncedUid ||
-        !lastUidValidity ||
-        batchPlan.nextBackfillCursor !== backfillSeqCursor ||
-        batchPlan.backfillDoneAfterRun !== backfillCompleted;
-
-      if (shouldPersistState) {
+      if (totalMessages === 0) {
+        // Сохраняем state даже если пусто
         await pgClient.query(
-          `INSERT INTO crm_imap_sync_state (folder_name, last_uid_validity, last_synced_uid, backfill_seq_cursor, backfill_completed, last_sync_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+          `INSERT INTO crm_imap_sync_state (folder_name, last_uid_validity, last_synced_uid, last_sync_at, updated_at)
+           VALUES ($1, $2, $3, NOW(), NOW())
            ON CONFLICT (folder_name) DO UPDATE SET
              last_uid_validity = $2,
              last_synced_uid = $3,
-             backfill_seq_cursor = $4,
-             backfill_completed = $5,
              last_sync_at = NOW(),
              updated_at = NOW()`,
-          [
-            folderName,
-            currentUidValidity,
-            maxUid > 0 ? maxUid : lastSyncedUid,
-            batchPlan.nextBackfillCursor,
-            batchPlan.backfillDoneAfterRun,
-          ]
+          [folderName, currentUidValidity, lastSyncedUid]
         );
+        return 0;
+      }
+
+      // Fetch только новых писем по UID
+      const range = lastSyncedUid > 0 ? `${lastSyncedUid + 1}:*` : '1:*';
+      const envelopes: Array<{ uid: number; messageId: string | undefined }> = [];
+
+      for await (const msg of imapClient.fetch(range, { uid: true, envelope: true }, { uid: true })) {
+        envelopes.push({ uid: msg.uid, messageId: msg.envelope?.messageId });
+      }
+
+      if (envelopes.length === 0) {
+        console.log(`[IMAP] ${folderName}: no new messages`);
+      } else {
+        // Проверяем какие уже есть в БД
+        const messageIds = envelopes.map(e => e.messageId).filter(Boolean) as string[];
+        const existingIds = new Set<string>();
+        const existingUids = new Set<number>();
+
+        if (messageIds.length > 0) {
+          const existing = await pgClient.query(
+            `SELECT message_id FROM crm_emails WHERE message_id = ANY($1)`,
+            [messageIds]
+          );
+          for (const row of existing.rows) {
+            if (row.message_id) existingIds.add(row.message_id);
+          }
+        }
+
+        const uids = envelopes.map(e => e.uid);
+        if (uids.length > 0) {
+          const existingByUid = await pgClient.query(
+            `SELECT imap_uid FROM crm_emails WHERE imap_folder = $1 AND imap_uid = ANY($2::bigint[])`,
+            [folderName, uids]
+          );
+          for (const row of existingByUid.rows) {
+            if (row.imap_uid != null) existingUids.add(Number(row.imap_uid));
+          }
+        }
+
+        const newEnvelopes = envelopes.filter(env => {
+          if (existingUids.has(env.uid)) return false;
+          if (env.messageId && existingIds.has(env.messageId)) return false;
+          return true;
+        });
+
+        console.log(`[IMAP] ${folderName}: incremental found=${envelopes.length} new=${newEnvelopes.length}`);
+
+        for (const env of newEnvelopes) {
+          try {
+            const saved = await parseAndSaveEmail(imapClient, env.uid, folderName, direction, pgClient);
+            if (saved) synced++;
+          } catch (fetchError: any) {
+            console.error(`[IMAP] Error fetching UID ${env.uid}:`, fetchError.message);
+          }
+        }
+      }
+
+      // Обновляем state
+      const maxUid = envelopes.length > 0
+        ? Math.max(lastSyncedUid, ...envelopes.map(e => e.uid))
+        : lastSyncedUid;
+
+      await pgClient.query(
+        `INSERT INTO crm_imap_sync_state (folder_name, last_uid_validity, last_synced_uid, last_sync_at, updated_at)
+         VALUES ($1, $2, $3, NOW(), NOW())
+         ON CONFLICT (folder_name) DO UPDATE SET
+           last_uid_validity = $2,
+           last_synced_uid = $3,
+           last_sync_at = NOW(),
+           updated_at = NOW()`,
+        [folderName, currentUidValidity, maxUid > 0 ? maxUid : lastSyncedUid]
+      );
+
+      if (onProgress) {
+        onProgress({
+          folder: folderName,
+          phase: 'incremental',
+          syncedSoFar: synced,
+          newInBatch: synced,
+        });
       }
     } finally {
       lock.release();
@@ -545,20 +448,183 @@ async function syncFolder(
 }
 
 /**
- * Синхронизирует INBOX и папку "Отправленные"
+ * Возвращает MAX(imap_uid) из crm_emails для данного контакта и папки.
+ * Используется для incremental IMAP SEARCH — ищем только письма новее этого UID.
+ */
+async function getMaxUidForContact(
+  pgClient: any,
+  contactEmail: string,
+  folderName: string
+): Promise<number> {
+  const result = await pgClient.query(
+    `SELECT MAX(imap_uid) as max_uid FROM crm_emails
+     WHERE imap_folder = $1 AND (
+       LOWER(contact_email) = LOWER($2)
+       OR LOWER(from_address) = LOWER($2)
+       OR EXISTS (
+         SELECT 1 FROM unnest(COALESCE(to_addresses, ARRAY[]::text[])) AS addr
+         WHERE LOWER(addr) = LOWER($2)
+       )
+     )`,
+    [folderName, contactEmail]
+  );
+  return Number(result.rows[0]?.max_uid) || 0;
+}
+
+/**
+ * On-demand поиск писем для конкретного email-адреса через IMAP SEARCH.
+ * Ищет в INBOX и Sent, загружает только найденные письма которых нет в БД.
+ * Incremental: если письма уже есть в БД, ищет только с UID > MAX(imap_uid).
+ */
+export async function searchAndSyncByEmail(
+  contactEmail: string,
+  onProgress?: (progress: SyncProgress) => void
+): Promise<{ synced: number; errors: string[] }> {
+  let totalSynced = 0;
+  const errors: string[] = [];
+
+  async function searchFolder(
+    folderName: string,
+    direction: 'inbound' | 'outbound'
+  ): Promise<number> {
+    const client = createImapClient();
+    await client.connect();
+    let synced = 0;
+
+    try {
+      const lock = await client.getMailboxLock(folderName);
+
+      try {
+        // Получаем MAX(imap_uid) для этого контакта в этой папке
+        const pgClient = await pool.connect();
+        let maxUid = 0;
+        try {
+          maxUid = await getMaxUidForContact(pgClient, contactEmail, folderName);
+        } finally {
+          pgClient.release();
+        }
+
+        console.log(`[IMAP] ${folderName}: incremental search for ${contactEmail}, maxUid=${maxUid}`);
+
+        // IMAP SEARCH: ищем письма FROM или TO этого адреса
+        // Если maxUid > 0 — добавляем фильтр UID (только новые)
+        const uidFilter = maxUid > 0 ? { uid: `${maxUid + 1}:*` } : {};
+
+        const fromResult = await client.search(
+          { ...uidFilter, from: contactEmail },
+          { uid: true }
+        );
+        const toResult = await client.search(
+          { ...uidFilter, to: contactEmail },
+          { uid: true }
+        );
+
+        const fromUids = Array.isArray(fromResult) ? fromResult : [];
+        const toUids = Array.isArray(toResult) ? toResult : [];
+
+        // Объединяем, дедуплицируем и фильтруем UID <= maxUid
+        // (на случай если сервер игнорирует UID filter в SEARCH)
+        const allUids = [...new Set([...fromUids, ...toUids])].filter(uid => uid > maxUid);
+
+        if (allUids.length === 0) {
+          console.log(`[IMAP] ${folderName}: no new messages for ${contactEmail} (maxUid=${maxUid})`);
+          if (onProgress) {
+            onProgress({ folder: folderName, phase: 'search', syncedSoFar: totalSynced, newInBatch: 0 });
+          }
+          return 0;
+        }
+
+        console.log(`[IMAP] ${folderName}: SEARCH found ${allUids.length} new messages for ${contactEmail}`);
+
+        // Проверяем какие уже есть в БД по imap_uid (дополнительная защита от дублей)
+        const pgClient2 = await pool.connect();
+        try {
+          const existingByUid = await pgClient2.query(
+            `SELECT imap_uid FROM crm_emails WHERE imap_folder = $1 AND imap_uid = ANY($2::bigint[])`,
+            [folderName, allUids]
+          );
+          const existingUids = new Set(existingByUid.rows.map((r: any) => Number(r.imap_uid)));
+          const newUids = allUids.filter(uid => !existingUids.has(uid));
+
+          console.log(`[IMAP] ${folderName}: ${newUids.length} new messages to fetch for ${contactEmail}`);
+
+          for (const uid of newUids) {
+            try {
+              const saved = await parseAndSaveEmail(client, uid, folderName, direction, pgClient2);
+              if (saved) synced++;
+            } catch (fetchError: any) {
+              console.error(`[IMAP] Error fetching UID ${uid}:`, fetchError.message);
+            }
+          }
+        } finally {
+          pgClient2.release();
+        }
+
+        if (onProgress) {
+          onProgress({
+            folder: folderName,
+            phase: 'search',
+            syncedSoFar: totalSynced + synced,
+            newInBatch: synced,
+          });
+        }
+      } finally {
+        lock.release();
+      }
+    } finally {
+      await client.logout().catch(() => {});
+    }
+
+    return synced;
+  }
+
+  // Поиск в INBOX
+  try {
+    totalSynced += await searchFolder('INBOX', 'inbound');
+  } catch (error: any) {
+    console.error('[IMAP] Error searching INBOX:', error.message);
+    errors.push(`INBOX: ${error.message}`);
+  }
+
+  // Поиск в Sent
+  try {
+    const sentClient = createImapClient();
+    await sentClient.connect();
+    try {
+      const sentFolder = await findSentFolder(sentClient);
+      await sentClient.logout().catch(() => {});
+
+      if (sentFolder) {
+        totalSynced += await searchFolder(sentFolder, 'outbound');
+      }
+    } catch (error: any) {
+      await sentClient.logout().catch(() => {});
+      throw error;
+    }
+  } catch (error: any) {
+    console.error('[IMAP] Error searching Sent:', error.message);
+    errors.push(`Sent: ${error.message}`);
+  }
+
+  return { synced: totalSynced, errors };
+}
+
+/**
+ * Быстрый incremental sync — только новые письма с последнего UID.
+ * Никакого backfill.
  */
 export async function syncAll(onProgress?: (progress: SyncProgress) => void): Promise<SyncResult> {
   const result: SyncResult = { synced: 0, folders: [], errors: [] };
 
-  // Синхронизируем INBOX
+  // INBOX
   try {
     const inboxClient = createImapClient();
     await inboxClient.connect();
     try {
-      const inboxCount = await syncFolder(inboxClient, 'INBOX', 'inbound', onProgress);
+      const inboxCount = await syncFolderIncremental(inboxClient, 'INBOX', 'inbound', onProgress);
       result.synced += inboxCount;
       result.folders.push('INBOX');
-      console.log(`[IMAP] Synced ${inboxCount} emails from INBOX`);
+      console.log(`[IMAP] Synced ${inboxCount} new emails from INBOX`);
     } finally {
       await inboxClient.logout().catch(() => {});
     }
@@ -567,17 +633,17 @@ export async function syncAll(onProgress?: (progress: SyncProgress) => void): Pr
     result.errors.push(`INBOX: ${error.message}`);
   }
 
-  // Находим и синхронизируем папку "Отправленные"
+  // Sent
   try {
     const sentClient = createImapClient();
     await sentClient.connect();
     try {
       const sentFolder = await findSentFolder(sentClient);
       if (sentFolder) {
-        const sentCount = await syncFolder(sentClient, sentFolder, 'outbound', onProgress);
+        const sentCount = await syncFolderIncremental(sentClient, sentFolder, 'outbound', onProgress);
         result.synced += sentCount;
         result.folders.push(sentFolder);
-        console.log(`[IMAP] Synced ${sentCount} emails from ${sentFolder}`);
+        console.log(`[IMAP] Synced ${sentCount} new emails from ${sentFolder}`);
 
         if (sentFolder !== 'Sent') {
           const pgClient = await pool.connect();
@@ -604,7 +670,16 @@ export async function syncAll(onProgress?: (progress: SyncProgress) => void): Pr
   return result;
 }
 
-const EMAIL_QUERY = `SELECT e.*,
+// Список писем — без body_html/body_text (только первые 200 символов body_text для превью)
+const EMAIL_LIST_QUERY = `SELECT
+  e.id, e.message_id, e.in_reply_to, e.references_header,
+  e.direction, e.channel,
+  e.from_address, e.from_name,
+  e.to_addresses, e.cc_addresses,
+  e.subject,
+  LEFT(e.body_text, 200) as body_text_preview,
+  e.has_attachments, e.submission_id, e.contact_email,
+  e.sent_at, e.synced_at, e.created_at,
   COALESCE(
     (SELECT json_agg(json_build_object(
       'id', a.id,
@@ -630,7 +705,7 @@ export interface EmailPage {
 }
 
 /**
- * Получает email для указанного контакта с пагинацией
+ * Получает email для указанного контакта с пагинацией (без body — только превью)
  */
 export async function getEmailsForContact(
   contactEmail: string,
@@ -640,7 +715,7 @@ export async function getEmailsForContact(
   const pgClient = await pool.connect();
   try {
     const [result, countResult] = await Promise.all([
-      pgClient.query(EMAIL_QUERY, [contactEmail, limit, offset]),
+      pgClient.query(EMAIL_LIST_QUERY, [contactEmail, limit, offset]),
       pgClient.query(EMAIL_COUNT_QUERY, [contactEmail]),
     ]);
     return {
@@ -653,7 +728,7 @@ export async function getEmailsForContact(
 }
 
 /**
- * Получает email по submission_id (сначала находит email клиента из заявки)
+ * Получает email по submission_id (без body — только превью)
  */
 export async function getEmailsForSubmission(
   submissionId: string,
@@ -673,13 +748,93 @@ export async function getEmailsForSubmission(
 
     const contactEmail = submission.rows[0].email;
     const [result, countResult] = await Promise.all([
-      pgClient.query(EMAIL_QUERY, [contactEmail, limit, offset]),
+      pgClient.query(EMAIL_LIST_QUERY, [contactEmail, limit, offset]),
       pgClient.query(EMAIL_COUNT_QUERY, [contactEmail]),
     ]);
     return {
       emails: result.rows,
       total: parseInt(countResult.rows[0].total, 10),
     };
+  } finally {
+    pgClient.release();
+  }
+}
+
+/**
+ * Серверный текстовый поиск по письмам контакта (ILIKE по subject, body_text, from_address)
+ */
+export async function searchEmailsForContact(
+  contactEmail: string,
+  query: string,
+  limit = 200
+): Promise<CrmEmail[]> {
+  const pgClient = await pool.connect();
+  try {
+    const q = `%${query}%`;
+    const result = await pgClient.query(
+      `SELECT
+        e.id, e.message_id, e.in_reply_to, e.references_header,
+        e.direction, e.channel,
+        e.from_address, e.from_name,
+        e.to_addresses, e.cc_addresses,
+        e.subject,
+        LEFT(e.body_text, 200) as body_text_preview,
+        e.has_attachments, e.submission_id, e.contact_email,
+        e.sent_at, e.synced_at, e.created_at,
+        COALESCE(
+          (SELECT json_agg(json_build_object(
+            'id', a.id, 'email_id', a.email_id, 'filename', a.filename,
+            'content_type', a.content_type, 'size_bytes', a.size_bytes,
+            'storage_key', a.storage_key, 'created_at', a.created_at
+          )) FROM crm_email_attachments a WHERE a.email_id = e.id),
+          '[]'::json
+        ) as attachments
+       FROM crm_emails e
+       WHERE ${EMAIL_PARTICIPANT_WHERE}
+         AND (
+           e.subject ILIKE $2
+           OR e.body_text ILIKE $2
+           OR e.from_address ILIKE $2
+           OR e.from_name ILIKE $2
+           OR EXISTS (
+             SELECT 1 FROM unnest(COALESCE(e.to_addresses, ARRAY[]::text[])) AS addr
+             WHERE addr ILIKE $2
+           )
+         )
+       ORDER BY e.sent_at DESC
+       LIMIT $3`,
+      [contactEmail, q, limit]
+    );
+    return result.rows;
+  } finally {
+    pgClient.release();
+  }
+}
+
+/**
+ * Получает полное письмо по ID (включая body_html и body_text)
+ */
+export async function getEmailById(emailId: string): Promise<CrmEmail | null> {
+  const pgClient = await pool.connect();
+  try {
+    const result = await pgClient.query(
+      `SELECT e.*,
+        COALESCE(
+          (SELECT json_agg(json_build_object(
+            'id', a.id,
+            'email_id', a.email_id,
+            'filename', a.filename,
+            'content_type', a.content_type,
+            'size_bytes', a.size_bytes,
+            'storage_key', a.storage_key,
+            'created_at', a.created_at
+          )) FROM crm_email_attachments a WHERE a.email_id = e.id),
+          '[]'::json
+        ) as attachments
+       FROM crm_emails e WHERE e.id = $1`,
+      [emailId]
+    );
+    return result.rows[0] || null;
   } finally {
     pgClient.release();
   }
@@ -736,7 +891,6 @@ export async function saveOutboundEmail(params: {
 
     const emailId = result.rows[0].id;
 
-    // Сохраняем вложения
     if (params.attachments && params.attachments.length > 0) {
       const emailDir = join(ATTACHMENTS_DIR, emailId);
       await mkdir(emailDir, { recursive: true });

@@ -21,7 +21,7 @@ export function NewsImage({ src, alt }: NewsImageProps) {
   }
 
   return (
-    <div className="relative aspect-square bg-[#e0e0e0] rounded-lg overflow-hidden neumorphic-inset cursor-pointer group">
+    <div className="relative aspect-square bg-slate-100 rounded-lg overflow-hidden shadow-inner cursor-pointer group">
       <Image
         src={src}
         alt={alt}

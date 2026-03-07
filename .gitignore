@@ -36,6 +36,9 @@ public/images/trainings/**
 /public/images/trainings.zip
 public/images/trainings.zip
 
+# assets (UI kit icons, not used in project)
+/assets/
+
 # misc
 .DS_Store
 *.pem

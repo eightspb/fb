@@ -58,7 +58,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [newRequestsCount, setNewRequestsCount] = useState(0);
-  const [minimized, setMinimized] = useState(false);
+  const [minimized, setMinimized] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const router = useRouter();
@@ -110,14 +110,9 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     return () => clearInterval(interval);
   }, [isAuthenticated, fetchRequestsCount]);
 
-  // Collapse sidebar on mobile
+  // On desktop: start expanded; on mobile: sidebar is an overlay, minimized state doesn't matter
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 768) setMinimized(true);
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    if (window.innerWidth >= 768) setMinimized(false);
   }, []);
 
   // Close mobile overlay when navigating
@@ -169,14 +164,15 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       >
         {/* ── SIDEBAR ── */}
         <aside
+          data-mobile-open={mobileOpen ? 'true' : undefined}
           className={`
             relative flex flex-col justify-between
             bg-white border-r border-[var(--frox-neutral-border)]
             transition-all duration-300 overflow-hidden
-            ${minimized ? 'p-[25px_10px]' : 'p-[25px]'}
+            ${minimized && !mobileOpen ? 'p-[25px_10px]' : 'p-[25px]'}
             /* mobile: fixed overlay */
             max-md:fixed max-md:top-0 max-md:left-0 max-md:h-full max-md:z-50
-            max-md:shadow-2xl
+            max-md:w-1/2 max-md:shadow-2xl
             ${mobileOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'}
           `}
           style={{ minHeight: '100vh' }}
@@ -203,20 +199,19 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
           <div className="flex flex-col gap-0 flex-1 min-h-0">
             {/* Logo */}
-            <a href="/admin" className="block mb-8 shrink-0">
+            <Link href="/" className="flex items-center gap-2 mb-8 shrink-0">
               <img
                 src="/admin/icons/icon-favicon.svg"
                 alt="Admin"
-                className="sidebar-logo-icon w-8 h-8"
-                style={{ display: minimized ? 'block' : 'none' }}
+                className="w-8 h-8 shrink-0"
               />
               <span
                 className="sidebar-logo-full font-bold text-xl text-[var(--frox-gray-1100)] tracking-tight"
-                style={{ display: minimized ? 'none' : 'block' }}
+                style={{ display: minimized && !mobileOpen ? 'none' : 'block' }}
               >
                 Админ
               </span>
-            </a>
+            </Link>
 
             {/* Divider */}
             <div className="w-full h-px bg-[var(--frox-neutral-border)] mb-5 shrink-0" />
@@ -233,28 +228,28 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                     className={`
                       nav-link group flex items-center gap-[10px] rounded-xl
                       py-[11px] transition-colors duration-150 shrink-0
-                      ${minimized ? 'px-0 justify-center' : 'px-[14px]'}
+                      ${minimized && !mobileOpen ? 'px-0 justify-center' : 'px-[14px]'}
                       ${active
                         ? 'bg-[var(--frox-brand)] text-white'
                         : 'text-[var(--frox-gray-500)] hover:bg-[var(--frox-gray-100)]'
                       }
                     `}
-                    title={minimized ? item.label : undefined}
+                    title={minimized && !mobileOpen ? item.label : undefined}
                   >
                     <img
                       src={item.icon}
                       alt=""
                       className={`w-5 h-5 shrink-0 ${active ? 'filter-white' : 'filter-black opacity-60'}`}
                     />
-                    <span className={`sidebar-label text-sm font-semibold whitespace-nowrap transition-all duration-200 ${minimized ? 'hidden' : 'block'}`}>
+                    <span className={`sidebar-label text-sm font-semibold whitespace-nowrap transition-all duration-200 ${minimized && !mobileOpen ? 'hidden' : 'block'}`}>
                       {item.label}
                     </span>
-                    {badge > 0 && !minimized && (
+                    {badge > 0 && (!minimized || mobileOpen) && (
                       <span className={`sidebar-badge ml-auto text-xs font-semibold px-2 py-0.5 rounded-full ${active ? 'bg-white/20 text-white' : 'bg-[var(--frox-brand)] text-white'}`}>
                         {badge}
                       </span>
                     )}
-                    {badge > 0 && minimized && (
+                    {badge > 0 && minimized && !mobileOpen && (
                       <span className="absolute top-1 right-1 w-2 h-2 bg-[var(--frox-brand)] rounded-full" />
                     )}
                   </Link>
@@ -297,7 +292,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
               onClick={() => setMobileOpen(true)}
               aria-label="Открыть меню"
             >
-              <img src="/admin/icons/icon-menu.svg" alt="" className="w-5 h-5" />
+              <img src="/admin/icons/icon-menu.svg" alt="" className="w-5 h-5 filter-black" />
             </button>
 
             {/* Current section name */}

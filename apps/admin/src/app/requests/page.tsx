@@ -537,17 +537,14 @@ export default function AdminRequestsPage() {
                       )}
                     </div>
 
-                    <div className="mt-3 flex items-center gap-2">
+                    <div className="mt-3 flex items-center gap-2 flex-wrap">
                       <StatusPill value={req.status} onChange={v => handleStatusChange(req, v)} />
                       {req.priority && req.priority !== 'normal' && (
                         <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${pc.pill}`}>
                           {pc.label}
                         </span>
                       )}
-                    </div>
-
-                    <div className="mt-3 flex gap-2">
-                      <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" onClick={() => router.push(`/requests/${req.id}`)}>
+                      <Button variant="outline" size="sm" className="ml-auto h-7 text-xs" onClick={() => router.push(`/requests/${req.id}`)}>
                         <ExternalLink className="w-3.5 h-3.5 mr-1" />
                         Открыть
                       </Button>

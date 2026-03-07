@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
-import { syncAll, getLastSyncTime, type SyncProgress } from '@/lib/imap-client';
+import { searchAndSyncByEmail, type SyncProgress } from '@/lib/imap-client';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -22,11 +22,19 @@ async function verifyAdminSession(): Promise<boolean> {
   }
 }
 
-// GET — SSE streaming sync с прогрессом
+// GET /api/admin/emails/search?email=user@example.com
+// SSE streaming: ищет письма в IMAP для конкретного email-адреса
 export async function GET(request: NextRequest) {
   try {
     if (!(await verifyAdminSession())) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const email = searchParams.get('email');
+
+    if (!email) {
+      return NextResponse.json({ error: 'email parameter is required' }, { status: 400 });
     }
 
     const encoder = new TextEncoder();
@@ -37,16 +45,13 @@ export async function GET(request: NextRequest) {
         }
 
         try {
-          const result = await syncAll((progress: SyncProgress) => {
+          const result = await searchAndSyncByEmail(email, (progress: SyncProgress) => {
             send('progress', progress);
           });
 
-          const lastSyncAt = await getLastSyncTime();
           send('done', {
             synced: result.synced,
-            folders: result.folders,
             errors: result.errors,
-            lastSyncAt,
           });
         } catch (error: any) {
           send('error', { message: error.message });
@@ -64,29 +69,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('[CRM Emails] SSE sync error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-// POST — обычный sync (для обратной совместимости)
-export async function POST() {
-  try {
-    if (!(await verifyAdminSession())) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const result = await syncAll();
-    const lastSyncAt = await getLastSyncTime();
-
-    return NextResponse.json({
-      synced: result.synced,
-      folders: result.folders,
-      errors: result.errors,
-      lastSyncAt,
-    });
-  } catch (error: any) {
-    console.error('[CRM Emails] Sync error:', error);
+    console.error('[CRM Emails] Search error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

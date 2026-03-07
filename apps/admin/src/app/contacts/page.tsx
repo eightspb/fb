@@ -330,8 +330,6 @@ function ContactPanel({
   const [tagInput, setTagInput] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  useEffect(() => { setShowDeleteConfirm(false); setTagInput(''); }, [contact.id]);
-
   const patchField = async (fields: Partial<Contact>) => {
     const res = await adminCsrfFetch(`/api/admin/contacts/${contact.id}`, {
       method: 'PATCH', credentials: 'include',
@@ -1071,6 +1069,7 @@ export default function ContactsPage() {
       {/* ── Панель контакта ── */}
       {selectedContact && (
         <ContactPanel
+          key={selectedContact.id}
           contact={selectedContact}
           onUpdate={handleContactUpdate}
           onClose={() => setSelectedContact(null)}

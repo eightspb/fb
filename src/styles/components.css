@@ -179,19 +179,6 @@
   font-weight: 500;
 }
 
-/* Card Styles */
-.card-hover {
-  transition: box-shadow 0.3s ease-in-out;
-}
-
-.card-hover:hover {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-}
-
-.card-content {
-  padding: 1.5rem;
-}
-
 /* News Styles */
 .news-grid {
   display: flex;
@@ -323,7 +310,6 @@
     width: 100%;
   }
 
-  /* More specific selectors to override duplicate .card-content definitions */
   .news-grid .card-content,
   .news-sidebar .card-content,
   .news-main .card-content,
@@ -334,7 +320,6 @@
     padding-right: 1rem !important;
   }
 
-  /* Ensure all cards have symmetrical margins */
   .news-sidebar .card-hover,
   .news-sidebar .sidebar-card,
   .news-main .card-hover {
@@ -343,28 +328,24 @@
     width: 100%;
   }
 
-  /* Ensure filter info card has symmetrical padding */
   .news-main > div:first-child {
     margin-left: 0;
     margin-right: 0;
     width: 100%;
   }
 
-  /* Ensure news cards container has no extra margins */
   .news-card {
     margin-left: 0;
     margin-right: 0;
     width: 100%;
   }
 
-  /* Ensure all news cards have consistent spacing */
   .news-card > .card-hover {
     margin-left: 0;
     margin-right: 0;
     width: 100%;
   }
 
-  /* Compact padding for filter info card */
   .filter-card-mobile {
     padding-top: 0.333rem !important;
     padding-bottom: 0.333rem !important;
@@ -538,14 +519,6 @@
   padding-left: 1rem;
   padding-right: 1rem;
   padding-bottom: 4rem;
-}
-
-/* Ensure symmetrical padding on mobile */
-@media (max-width: 767px) {
-  .page-container {
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
 }
 
 .page-max-width {
@@ -727,66 +700,6 @@
   border: none;
 }
 
-.gradient-card-rose {
-  background: linear-gradient(135deg, #cffafe 0%, #2dd4bf 100%);
-  color: #134e4a;
-  border: none;
-}
-
-/* Floating Animation */
-@keyframes float-slow {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-}
-
-.float-animation {
-  animation: float-slow 6s ease-in-out infinite;
-}
-
-/* Pulse Animation */
-@keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(20, 184, 166, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 30px rgba(20, 184, 166, 0.5);
-  }
-}
-
-.pulse-pink {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
-/* Shine Effect */
-.shine-effect {
-  position: relative;
-  overflow: hidden;
-}
-
-.shine-effect::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-  animation: shine 3s infinite;
-}
-
-@keyframes shine {
-  0% { left: -100%; }
-  100% { left: 100%; }
-}
-
-/* Glassmorphism Effect */
-.glass-card {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-}
-
 /* Gradient Text */
 .gradient-text-pink {
   background: linear-gradient(135deg, #14b8a6, #2dd4bf, #5eead4);
@@ -816,13 +729,6 @@
   box-shadow: 0 10px 20px rgba(20, 184, 166, 0.3);
 }
 
-.gradient-button-blue {
-  background: linear-gradient(135deg, #3b82f6, #60a5fa);
-  border: none;
-  color: white;
-  transition: all 0.3s ease;
-}
-
 .gradient-button-purple {
   background: linear-gradient(135deg, #8b5cf6, #a855f7);
   border: none;
@@ -834,81 +740,6 @@
   background: linear-gradient(135deg, #7c3aed, #8b5cf6);
   transform: translateY(-2px);
   box-shadow: 0 10px 20px rgba(139, 92, 246, 0.3);
-}
-
-.gradient-text-rose {
-  background: linear-gradient(135deg, #2dd4bf, #5eead4, #14b8a6);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Animated Background */
-.animated-bg {
-  background: linear-gradient(-45deg, #cffafe, #dbeafe, #a5f3fc, #bfdbfe);
-  background-size: 400% 400%;
-  animation: gradient-x 15s ease infinite;
-}
-
-@keyframes gradient-x {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-/* Morphing Shapes */
-.morphing-shape {
-  width: 100px;
-  height: 100px;
-  background: linear-gradient(45deg, #14b8a6, #3b82f6);
-  border-radius: 50%;
-  animation: morph 8s ease-in-out infinite;
-  position: absolute;
-  opacity: 0.1;
-}
-
-@keyframes morph {
-  0%, 100% { border-radius: 50%; transform: scale(1); }
-  25% { border-radius: 0%; transform: scale(1.2); }
-  50% { border-radius: 25%; transform: scale(0.8); }
-  75% { border-radius: 50% 0 50% 50%; transform: scale(1.1); }
-}
-
-/* Particle Effect */
-.particles {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.particle {
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  background: linear-gradient(45deg, #14b8a6, #3b82f6);
-  border-radius: 50%;
-  animation: particle-float 10s linear infinite;
-}
-
-@keyframes particle-float {
-  0% {
-    transform: translateY(100vh) rotate(0deg);
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-  }
-  90% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-100px) rotate(360deg);
-    opacity: 0;
-  }
 }
 
 /* Responsive Design */
@@ -967,258 +798,4 @@
   .footer-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-}
-
-/* Neumorphism Styles */
-/* Base neumorphic background */
-.neumorphic-bg {
-  background-color: #e0e0e0;
-}
-
-/* Neumorphic card - raised effect */
-.neumorphic-card {
-  background: #e0e0e0;
-  border-radius: 20px;
-  box-shadow: 
-    20px 20px 60px #bebebe,
-    -20px -20px 60px #ffffff;
-  border: none;
-}
-
-.neumorphic-card:hover {
-  box-shadow: 
-    20px 20px 60px #bebebe,
-    -20px -20px 60px #ffffff,
-    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
-}
-
-/* Neumorphic card - pressed/inset effect */
-.neumorphic-inset {
-  background: #e0e0e0;
-  border-radius: 20px;
-  box-shadow: 
-    inset 8px 8px 16px #bebebe,
-    inset -8px -8px 16px #ffffff;
-  border: none;
-}
-
-/* Neumorphic button - raised */
-.neumorphic-button {
-  background: #e0e0e0;
-  border-radius: 15px;
-  box-shadow: 
-    6px 6px 12px #bebebe,
-    -6px -6px 12px #ffffff;
-  border: none;
-  transition: all 0.2s ease;
-  color: #333;
-}
-
-.neumorphic-button:hover {
-  box-shadow: 
-    4px 4px 8px #bebebe,
-    -4px -4px 8px #ffffff;
-  transform: translateY(1px);
-}
-
-.neumorphic-button:active {
-  box-shadow: 
-    inset 4px 4px 8px #bebebe,
-    inset -4px -4px 8px #ffffff;
-  transform: translateY(2px);
-}
-
-/* Neumorphic input field */
-.neumorphic-input {
-  background: #e0e0e0;
-  border-radius: 15px;
-  box-shadow: 
-    inset 6px 6px 12px #bebebe,
-    inset -6px -6px 12px #ffffff;
-  border: none;
-  padding: 12px 16px;
-  color: #333;
-  outline: none;
-}
-
-.neumorphic-input:focus {
-  box-shadow: 
-    inset 4px 4px 8px #bebebe,
-    inset -4px -4px 8px #ffffff,
-    0 0 0 2px rgba(59, 130, 246, 0.3);
-}
-
-/* Neumorphic textarea */
-.neumorphic-textarea {
-  background: #e0e0e0;
-  border-radius: 15px;
-  box-shadow: 
-    inset 6px 6px 12px #bebebe,
-    inset -6px -6px 12px #ffffff;
-  border: none;
-  padding: 12px 16px;
-  color: #333;
-  outline: none;
-  resize: vertical;
-}
-
-.neumorphic-textarea:focus {
-  box-shadow: 
-    inset 4px 4px 8px #bebebe,
-    inset -4px -4px 8px #ffffff,
-    0 0 0 2px rgba(59, 130, 246, 0.3);
-}
-
-/* Neumorphic select */
-.neumorphic-select {
-  background: #e0e0e0;
-  border-radius: 15px;
-  box-shadow: 
-    inset 6px 6px 12px #bebebe,
-    inset -6px -6px 12px #ffffff;
-  border: none;
-  padding: 12px 16px;
-  color: #333;
-  outline: none;
-}
-
-.neumorphic-select:focus {
-  box-shadow: 
-    inset 4px 4px 8px #bebebe,
-    inset -4px -4px 8px #ffffff,
-    0 0 0 2px rgba(59, 130, 246, 0.3);
-}
-
-/* Neumorphic checkbox */
-.neumorphic-checkbox {
-  width: 20px;
-  height: 20px;
-  background: #e0e0e0;
-  border-radius: 8px;
-  box-shadow: 
-    inset 3px 3px 6px #bebebe,
-    inset -3px -3px 6px #ffffff;
-  border: none;
-  cursor: pointer;
-  appearance: none;
-  position: relative;
-}
-
-.neumorphic-checkbox:checked {
-  box-shadow: 
-    inset 3px 3px 6px #bebebe,
-    inset -3px -3px 6px #ffffff;
-}
-
-.neumorphic-checkbox:checked::after {
-  content: '✓';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: #333;
-  font-weight: bold;
-  font-size: 14px;
-}
-
-/* Neumorphic radio button */
-.neumorphic-radio {
-  width: 20px;
-  height: 20px;
-  background: #e0e0e0;
-  border-radius: 50%;
-  box-shadow: 
-    inset 3px 3px 6px #bebebe,
-    inset -3px -3px 6px #ffffff;
-  border: none;
-  cursor: pointer;
-  appearance: none;
-  position: relative;
-}
-
-.neumorphic-radio:checked::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #333;
-  box-shadow: 
-    inset 2px 2px 4px #bebebe;
-}
-
-/* Neumorphic divider */
-.neumorphic-divider {
-  height: 2px;
-  background: #e0e0e0;
-  border: none;
-  box-shadow: 
-    0 1px 2px rgba(190, 190, 190, 0.5),
-    0 -1px 2px rgba(255, 255, 255, 0.5);
-}
-
-/* Update existing card styles to use neumorphism */
-.card-hover {
-  background: #e0e0e0;
-  border-radius: 20px;
-  box-shadow: 
-    20px 20px 60px #bebebe,
-    -20px -20px 60px #ffffff;
-  border: none;
-  transition: all 0.3s ease;
-}
-
-.card-hover:hover {
-  box-shadow: 
-    25px 25px 70px #bebebe,
-    -25px -25px 70px #ffffff;
-  transform: translateY(-2px);
-}
-
-.card-content {
-  padding: 1.5rem;
-}
-
-/* Neumorphic header */
-.neumorphic-header {
-  background: #e0e0e0;
-  box-shadow: 
-    0 8px 16px #bebebe,
-    0 -8px 16px #ffffff;
-  border: none;
-}
-
-/* Neumorphic small card */
-.neumorphic-small {
-  background: #e0e0e0;
-  border-radius: 15px;
-  box-shadow: 
-    10px 10px 30px #bebebe,
-    -10px -10px 30px #ffffff;
-  border: none;
-}
-
-/* Neumorphic large card */
-.neumorphic-large {
-  background: #e0e0e0;
-  border-radius: 25px;
-  box-shadow: 
-    30px 30px 90px #bebebe,
-    -30px -30px 90px #ffffff;
-  border: none;
-}
-
-/* Neumorphic badge */
-.neumorphic-badge {
-  background: #e0e0e0;
-  border-radius: 10px;
-  box-shadow: 
-    4px 4px 8px #bebebe,
-    -4px -4px 8px #ffffff;
-  border: none;
-  padding: 4px 12px;
-  display: inline-block;
 }

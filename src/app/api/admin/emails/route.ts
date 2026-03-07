@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
-import { getEmailsForContact, getEmailsForSubmission, getLastSyncTime } from '@/lib/imap-client';
+import { getEmailsForContact, getEmailsForSubmission, getLastSyncTime, searchEmailsForContact } from '@/lib/imap-client';
 
 export const runtime = 'nodejs';
 
@@ -40,6 +40,14 @@ export async function GET(request: NextRequest) {
 
     const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') ?? '50', 10) || 50));
     const offset = Math.max(0, parseInt(searchParams.get('offset') ?? '0', 10) || 0);
+    const textQuery = searchParams.get('q')?.trim() || '';
+
+    // Если передан q — делаем серверный текстовый поиск
+    if (textQuery && contactEmail) {
+      const emails = await searchEmailsForContact(contactEmail, textQuery);
+      const lastSyncAt = await getLastSyncTime();
+      return NextResponse.json({ emails, total: emails.length, lastSyncAt });
+    }
 
     let page;
     if (submissionId) {

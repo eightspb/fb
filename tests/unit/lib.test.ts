@@ -5,6 +5,8 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+const mutableEnv = process.env as Record<string, string | undefined>;
+
 // ─── slug.ts ─────────────────────────────────────────────────────────────────
 import { transliterate, generateSlug, isUUID, isValidSlug } from '@/lib/slug';
 
@@ -243,8 +245,9 @@ vi.mock('next/headers', () => ({
 
 describe('auth.ts', () => {
   beforeEach(() => {
-    process.env.JWT_SECRET = 'test-secret-32-chars-long-enough!!!';
-    process.env.NODE_ENV = 'test';
+    mutableEnv.JWT_SECRET = 'test-secret-32-chars-long-enough!!!';
+    mutableEnv.NODE_ENV = 'test';
+    vi.clearAllMocks();
   });
 
   describe('createToken', () => {
@@ -253,6 +256,16 @@ describe('auth.ts', () => {
       const token = await createToken();
       expect(typeof token).toBe('string');
       expect(token.length).toBeGreaterThan(0);
+    });
+
+    it('throws in production when JWT_SECRET is missing', async () => {
+      delete mutableEnv.JWT_SECRET;
+      mutableEnv.NODE_ENV = 'production';
+      vi.resetModules();
+
+      const { createToken } = await import('@/lib/auth');
+
+      await expect(createToken()).rejects.toThrow('JWT_SECRET is required in production');
     });
   });
 
@@ -272,9 +285,59 @@ describe('auth.ts', () => {
     });
   });
 
+  describe('verifyAdminSession', () => {
+    it('returns true when the session cookie contains a valid token', async () => {
+      const { cookies } = await import('next/headers');
+      vi.mocked(cookies).mockReturnValueOnce({
+        get: vi.fn(() => ({ value: 'session-token' })),
+      } as never);
+
+      const { verifyAdminSession } = await import('@/lib/auth');
+
+      await expect(verifyAdminSession()).resolves.toBe(true);
+    });
+
+    it('returns false when jwt verification fails for the session cookie', async () => {
+      const { cookies } = await import('next/headers');
+      const { jwtVerify } = await import('jose');
+      vi.mocked(cookies).mockReturnValueOnce({
+        get: vi.fn(() => ({ value: 'bad-session-token' })),
+      } as never);
+      vi.mocked(jwtVerify).mockRejectedValueOnce(new Error('invalid session'));
+
+      const { verifyAdminSession } = await import('@/lib/auth');
+
+      await expect(verifyAdminSession()).resolves.toBe(false);
+    });
+  });
+
+  describe('getAdminToken', () => {
+    it('returns the admin token from cookies when available', async () => {
+      const { cookies } = await import('next/headers');
+      vi.mocked(cookies).mockReturnValueOnce({
+        get: vi.fn(() => ({ value: 'cookie-token' })),
+      } as never);
+
+      const { getAdminToken } = await import('@/lib/auth');
+
+      await expect(getAdminToken()).resolves.toBe('cookie-token');
+    });
+
+    it('returns null when reading cookies throws', async () => {
+      const { cookies } = await import('next/headers');
+      vi.mocked(cookies).mockImplementationOnce(() => {
+        throw new Error('headers unavailable');
+      });
+
+      const { getAdminToken } = await import('@/lib/auth');
+
+      await expect(getAdminToken()).resolves.toBeNull();
+    });
+  });
+
   describe('checkApiAuth', () => {
     it('bypasses auth in non-production with X-Admin-Bypass header', async () => {
-      process.env.NODE_ENV = 'development';
+      mutableEnv.NODE_ENV = 'development';
       const { checkApiAuth } = await import('@/lib/auth');
       const req = new Request('http://localhost/api/test', {
         headers: { 'X-Admin-Bypass': 'true' },
@@ -282,6 +345,19 @@ describe('auth.ts', () => {
       const result = await checkApiAuth(req);
       expect(result.isAuthenticated).toBe(true);
       expect(result.isBypass).toBe(true);
+    });
+
+    it('does not allow the bypass header in production', async () => {
+      mutableEnv.NODE_ENV = 'production';
+      vi.resetModules();
+
+      const { checkApiAuth } = await import('@/lib/auth');
+      const req = new Request('http://localhost/api/test', {
+        headers: { 'X-Admin-Bypass': 'true' },
+      });
+      const result = await checkApiAuth(req);
+
+      expect(result).toEqual({ isAuthenticated: false, isBypass: false });
     });
 
     it('authenticates via valid Authorization Bearer token', async () => {
@@ -306,6 +382,17 @@ describe('auth.ts', () => {
       });
       const result = await checkApiAuth(req);
       expect(result.isAuthenticated).toBe(false);
+    });
+
+    it('rejects Authorization header with token string "null"', async () => {
+      vi.resetModules();
+      const { checkApiAuth } = await import('@/lib/auth');
+      const req = new Request('http://localhost/api/test', {
+        headers: { Authorization: 'Bearer null' },
+      });
+      const result = await checkApiAuth(req);
+
+      expect(result).toEqual({ isAuthenticated: false, isBypass: false });
     });
 
     it('returns unauthenticated when no token provided', async () => {

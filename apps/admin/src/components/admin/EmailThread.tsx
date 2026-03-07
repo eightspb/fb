@@ -16,13 +16,16 @@ import {
   Reply,
   Loader2,
   Inbox,
-  MessageSquare,
+  Search,
   Square,
+  SlidersHorizontal,
+  X,
 } from 'lucide-react';
 import { EmailCompose } from './EmailCompose';
 
 const PAGE_SIZE = 10; // тредов на страницу
 const FETCH_LIMIT = 50; // писем за один запрос к API
+const SEARCH_DEBOUNCE_MS = 400; // задержка перед серверным поиском
 
 interface EmailAttachment {
   id: string;
@@ -42,6 +45,9 @@ interface CrmEmail {
   to_addresses: string[];
   cc_addresses: string[] | null;
   subject: string | null;
+  // В списке приходит только превью (200 символов), полный body грузится по клику
+  body_text_preview: string | null;
+  // Полные поля, заполняются после lazy load
   body_html: string | null;
   body_text: string | null;
   has_attachments: boolean;
@@ -112,9 +118,7 @@ function formatDate(dateStr: string): string {
 
 function sanitizeHtml(html: string): string {
   return html
-    // Prevent email HTML from overriding document base URL (breaks client routing/fetch).
     .replace(/<base\b[^>]*>/gi, '')
-    // Remove document-level wrappers often present in webmail exports.
     .replace(/<\/?(html|head|body)\b[^>]*>/gi, '')
     .replace(/<meta\b[^>]*http-equiv\s*=\s*["']?refresh["']?[^>]*>/gi, '')
     .replace(/<link\b[^>]*>/gi, '')
@@ -152,14 +156,45 @@ function EmailItem({
   defaultExpanded?: boolean;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded ?? false);
+  const [fullEmail, setFullEmail] = useState<CrmEmail | null>(null);
+  const [bodyLoading, setBodyLoading] = useState(false);
   const isInbound = email.direction === 'inbound';
+
+  // Загружаем полное тело письма при первом раскрытии
+  const handleToggle = async () => {
+    if (!expanded && !fullEmail) {
+      setBodyLoading(true);
+      try {
+        const res = await fetch(`/api/admin/emails/${email.id}`, { credentials: 'include' });
+        if (res.ok) setFullEmail(await res.json());
+      } catch {
+        // показываем превью если не загрузилось
+      } finally {
+        setBodyLoading(false);
+      }
+    }
+    setExpanded(e => !e);
+  };
+
+  // При defaultExpanded=true тоже грузим сразу
+  useEffect(() => {
+    if (defaultExpanded && !fullEmail) {
+      fetch(`/api/admin/emails/${email.id}`, { credentials: 'include' })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setFullEmail(data); })
+        .catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const displayEmail = fullEmail ?? email;
 
   return (
     <div className={`border-l-2 ${isInbound ? 'border-l-blue-300' : 'border-l-green-300'} ml-2`}>
       {/* Заголовок письма */}
       <div
         className="flex items-start gap-2 px-3 py-2 cursor-pointer hover:bg-[var(--frox-gray-100)] transition-colors rounded-r"
-        onClick={() => setExpanded(!expanded)}
+        onClick={handleToggle}
       >
         <div className={`mt-0.5 p-1 rounded-full shrink-0 ${isInbound ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
           {isInbound ? <ArrowDownLeft className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
@@ -172,9 +207,9 @@ function EmailItem({
             <span className="text-xs text-[var(--frox-gray-400)] shrink-0">{formatDate(email.sent_at)}</span>
             {email.has_attachments && <Paperclip className="w-3 h-3 text-[var(--frox-gray-400)] shrink-0" />}
           </div>
-          {!expanded && email.body_text && (
+          {!expanded && (email.body_text_preview || email.body_text) && (
             <div className="text-xs text-[var(--frox-gray-400)] truncate mt-0.5">
-              {email.body_text.slice(0, 100)}
+              {(email.body_text_preview || email.body_text)!.slice(0, 100)}
             </div>
           )}
         </div>
@@ -195,27 +230,32 @@ function EmailItem({
 
           {/* Тело */}
           <div className="p-3 overflow-x-auto">
-            {email.body_html ? (
+            {bodyLoading ? (
+              <div className="flex items-center gap-2 text-sm text-[var(--frox-gray-400)]">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Загрузка...
+              </div>
+            ) : displayEmail.body_html ? (
               <div
                 className="prose prose-sm max-w-none text-sm [&_img]:max-w-full [&_table]:text-xs [&_table]:block [&_table]:w-max [&_table]:min-w-full"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(email.body_html) }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(displayEmail.body_html) }}
               />
             ) : (
               <pre className="text-sm whitespace-pre-wrap font-sans text-[var(--frox-gray-800)]">
-                {email.body_text || '(пустое письмо)'}
+                {displayEmail.body_text || displayEmail.body_text_preview || '(пустое письмо)'}
               </pre>
             )}
           </div>
 
           {/* Вложения */}
-          {email.attachments && email.attachments.length > 0 && (
+          {displayEmail.attachments && displayEmail.attachments.length > 0 && (
             <div className="px-3 pb-2 border-t pt-2">
               <div className="text-xs font-medium text-[var(--frox-gray-500)] mb-1.5 flex items-center gap-1">
                 <Paperclip className="w-3 h-3" />
-                Вложения ({email.attachments.length})
+                Вложения ({displayEmail.attachments.length})
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {email.attachments.map(att => (
+                {displayEmail.attachments.map(att => (
                   <a
                     key={att.id}
                     href={`/api/admin/emails/${email.id}/attachments/${att.id}`}
@@ -235,7 +275,7 @@ function EmailItem({
 
           {/* Кнопка ответить */}
           <div className="px-3 pb-2 pt-1">
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={e => { e.stopPropagation(); onReply(email); }}>
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={e => { e.stopPropagation(); onReply(displayEmail); }}>
               <Reply className="w-3 h-3 mr-1" />
               Ответить
             </Button>
@@ -250,7 +290,7 @@ function EmailItem({
             contactEmail={contactEmail}
             contactName={contactName}
             submissionId={submissionId}
-            replyTo={email}
+            replyTo={displayEmail}
             onSent={onSent}
             onCancel={onCancelReply}
           />
@@ -284,46 +324,48 @@ function ThreadCard({
   const count = thread.emails.length;
   const hasInbound = thread.emails.some(e => e.direction === 'inbound');
   const hasOutbound = thread.emails.some(e => e.direction === 'outbound');
-  // Цвет полосы: смешанный = фиолетовый, только входящие = синий, только исходящие = зелёный
+  const lastEmail = thread.emails[thread.emails.length - 1];
+  const lastIsInbound = lastEmail.direction === 'inbound';
   const accentClass = hasInbound && hasOutbound
     ? 'border-l-violet-500'
     : hasInbound ? 'border-l-blue-500' : 'border-l-emerald-500';
-  const headerBg = hasInbound && hasOutbound
-    ? 'bg-violet-50'
-    : hasInbound ? 'bg-blue-50' : 'bg-emerald-50';
-  const iconColor = hasInbound && hasOutbound
-    ? 'bg-violet-100 text-violet-600'
-    : hasInbound ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600';
+
+  // Участники (кроме «Вы»)
+  const participants = thread.emails
+    .map(e => e.direction === 'inbound' ? (e.from_name || e.from_address) : null)
+    .filter((v, i, a): v is string => v !== null && a.indexOf(v) === i);
+  const participantLabel = participants.length > 0 ? participants.join(', ') : (lastEmail.to_addresses[0] || '');
+
+  // Превью текста последнего письма (используем body_text_preview из списка)
+  const preview = (lastEmail.body_text_preview || lastEmail.body_text)?.slice(0, 120) || '';
 
   return (
     <div className={`border border-[var(--frox-neutral-border)] border-l-4 ${accentClass} rounded-lg overflow-hidden shadow-sm`}>
       {/* Шапка треда */}
       <div
-        className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:brightness-95 transition-all ${headerBg}`}
+        className="flex flex-col gap-1 px-4 py-3 cursor-pointer hover:bg-[var(--frox-gray-100)] transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
-        <div className={`p-1.5 rounded-full shrink-0 ${iconColor}`}>
-          <MessageSquare className="w-4 h-4" />
+        {/* Строка 1: направление + отправитель + иконки + дата */}
+        <div className="flex items-center gap-2">
+          <div className={`p-0.5 rounded-full shrink-0 ${lastIsInbound ? 'text-blue-500' : 'text-emerald-500'}`}>
+            {lastIsInbound ? <ArrowDownLeft className="w-3.5 h-3.5" /> : <ArrowUpRight className="w-3.5 h-3.5" />}
+          </div>
+          <span className="text-sm font-semibold text-[var(--frox-gray-900)] truncate">{participantLabel}</span>
+          {thread.emails.some(e => e.has_attachments) && <Paperclip className="w-3 h-3 shrink-0 text-[var(--frox-gray-400)]" />}
+          <span className="ml-auto text-xs text-[var(--frox-gray-400)] shrink-0">{formatDate(thread.latestAt)}</span>
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-0.5">
-            <span className="text-sm font-semibold text-[var(--frox-gray-900)] truncate">{thread.subject}</span>
-            <span className="text-xs font-medium shrink-0 bg-white/70 border border-[var(--frox-neutral-border)] px-1.5 py-0.5 rounded-full text-[var(--frox-gray-600)]">
+        {/* Строка 2: тема */}
+        <div className="text-sm text-[var(--frox-gray-700)] truncate pl-6">{thread.subject}</div>
+        {/* Строка 3: превью + бейджик */}
+        <div className="flex items-center gap-2 pl-6">
+          <span className="text-xs text-[var(--frox-gray-400)] truncate flex-1">{preview}</span>
+          {count > 1 && (
+            <span className="text-xs font-medium shrink-0 bg-[var(--frox-gray-200)] px-1.5 py-0.5 rounded-full text-[var(--frox-gray-600)]">
               {count}
             </span>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-[var(--frox-gray-500)]">
-            <span className="font-medium">{formatDate(thread.latestAt)}</span>
-            <span className="text-[var(--frox-gray-300)]">·</span>
-            <span className="truncate">
-              {thread.emails.map(e => e.direction === 'inbound' ? (e.from_name || e.from_address) : 'Вы').filter((v, i, a) => a.indexOf(v) === i).join(', ')}
-            </span>
-            {thread.emails.some(e => e.has_attachments) && <Paperclip className="w-3 h-3 shrink-0 text-[var(--frox-gray-400)]" />}
-          </div>
+          )}
         </div>
-        {expanded
-          ? <ChevronUp className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
-          : <ChevronDown className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />}
       </div>
 
       {/* Письма треда */}
@@ -349,31 +391,31 @@ function ThreadCard({
   );
 }
 
-interface SyncProgress {
-  folder: string;
-  batch: string;
-  batchIndex: number;
-  totalBatches: number;
-  syncedSoFar: number;
-  newInBatch: number;
-  backfillCompleted: boolean;
-}
-
 export function EmailThread({ contactEmail, contactName, submissionId }: EmailThreadProps) {
   const [emails, setEmails] = useState<CrmEmail[]>([]);
   const [totalEmails, setTotalEmails] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchStatus, setSearchStatus] = useState<string | null>(null);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [replyToId, setReplyToId] = useState<string | null>(null);
   const [showNewCompose, setShowNewCompose] = useState(false);
   const [page, setPage] = useState(1);
-  const syncAbortRef = useRef<AbortController | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<CrmEmail[] | null>(null); // null = не активен поиск
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterDirection, setFilterDirection] = useState<'all' | 'inbound' | 'outbound'>('all');
+  const [filterHasAttachments, setFilterHasAttachments] = useState(false);
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const textSearchAbortRef = useRef<AbortController | null>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bgLoadRef = useRef<AbortController | null>(null);
+  const searchDoneRef = useRef(false);
 
   const baseParams = useMemo(
     () => submissionId
@@ -382,10 +424,46 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
     [contactEmail, submissionId]
   );
 
-  // Загружает первую порцию и сразу показывает, затем догружает остальные в фоне
+  // Серверный текстовый поиск с debounce
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+
+    if (!searchQuery.trim()) {
+      setSearchResults(null);
+      setSearchLoading(false);
+      textSearchAbortRef.current?.abort();
+      return;
+    }
+
+    setSearchLoading(true);
+    searchDebounceRef.current = setTimeout(async () => {
+      textSearchAbortRef.current?.abort();
+      const ctrl = new AbortController();
+      textSearchAbortRef.current = ctrl;
+
+      try {
+        const res = await fetch(
+          `/api/admin/emails?${baseParams}&q=${encodeURIComponent(searchQuery.trim())}`,
+          { credentials: 'include', signal: ctrl.signal }
+        );
+        if (!res.ok || !mountedRef.current) return;
+        const data = await res.json();
+        if (mountedRef.current) setSearchResults(data.emails || []);
+      } catch (e: any) {
+        if (e?.name !== 'AbortError') console.error('Text search error:', e);
+      } finally {
+        if (mountedRef.current) setSearchLoading(false);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [searchQuery, baseParams]);
+
+  // Загружает письма из БД
   const fetchEmails = useCallback(async () => {
     try {
-      // Первые FETCH_LIMIT писем — сразу показываем
       const response = await fetch(
         `/api/admin/emails?${baseParams}&limit=${FETCH_LIMIT}&offset=0`,
         { credentials: 'include' }
@@ -401,7 +479,7 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
       setLastSyncAt(data.lastSyncAt);
       setLoading(false);
 
-      // Если писем больше чем FETCH_LIMIT — догружаем в фоне порциями
+      // Догружаем остальные в фоне если нужно
       if (total > FETCH_LIMIT) {
         bgLoadRef.current?.abort();
         const abortCtrl = new AbortController();
@@ -439,85 +517,30 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
     }
   }, [baseParams]);
 
-  useEffect(() => {
-    mountedRef.current = true;
-    fetchEmails();
-    return () => {
-      mountedRef.current = false;
-      if (pollingRef.current) clearInterval(pollingRef.current);
-      bgLoadRef.current?.abort();
-    };
-  }, [fetchEmails]);
-
-  // Лёгкий refresh для polling во время sync — не перезапускает фоновую загрузку
-  const refreshEmails = useCallback(async () => {
-    try {
-      const res = await fetch(
-        `/api/admin/emails?${baseParams}&limit=${FETCH_LIMIT}&offset=0`,
-        { credentials: 'include' }
-      );
-      if (!res.ok || !mountedRef.current) return;
-      const data = await res.json();
-      setEmails(prev => {
-        const newBatch: CrmEmail[] = data.emails || [];
-        // Мерджим: новые письма могут быть добавлены в начало
-        const existingIds = new Set(prev.map(e => e.id));
-        const added = newBatch.filter(e => !existingIds.has(e.id));
-        return added.length > 0 ? [...added, ...prev] : prev;
-      });
-      setLastSyncAt(data.lastSyncAt);
-    } catch {
-      // ignore
-    }
-  }, [baseParams]);
-
-  const startPolling = useCallback(() => {
-    if (pollingRef.current) clearInterval(pollingRef.current);
-    pollingRef.current = setInterval(() => {
-      if (mountedRef.current) refreshEmails();
-    }, 4000);
-  }, [refreshEmails]);
-
-  const stopPolling = useCallback(() => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
-    }
-  }, []);
-
-  const handleStopSync = () => {
-    syncAbortRef.current?.abort();
-  };
-
-  const handleSync = async () => {
-    setSyncing(true);
-    setSyncProgress(null);
-    startPolling();
+  // IMAP SEARCH для конкретного контакта — ищет и загружает только его письма
+  const searchContactEmails = useCallback(async () => {
+    if (searching || searchDoneRef.current) return;
+    setSearching(true);
+    setSearchStatus('Поиск писем...');
     const abortController = new AbortController();
-    syncAbortRef.current = abortController;
+    searchAbortRef.current = abortController;
 
     try {
-      const response = await fetch('/api/admin/emails/sync', {
-        credentials: 'include',
-        signal: abortController.signal,
-      });
+      const response = await fetch(
+        `/api/admin/emails/search?email=${encodeURIComponent(contactEmail)}`,
+        { credentials: 'include', signal: abortController.signal }
+      );
 
       if (!response.ok) {
-        console.error('Sync failed:', response.status);
+        console.error('Search failed:', response.status);
         return;
       }
 
       const reader = response.body?.getReader();
-      if (!reader) {
-        const data = await response.json();
-        setLastSyncAt(data.lastSyncAt);
-        await refreshEmails();
-        return;
-      }
+      if (!reader) return;
 
       const decoder = new TextDecoder();
       let buffer = '';
-      let lastRefresh = 0;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -525,13 +548,11 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
 
         buffer += decoder.decode(value, { stream: true });
 
-        // SSE messages are separated by double newline
         let sepIdx: number;
         while ((sepIdx = buffer.indexOf('\n\n')) !== -1) {
           const message = buffer.slice(0, sepIdx);
           buffer = buffer.slice(sepIdx + 2);
 
-          // Parse SSE message
           let eventType = '';
           let dataStr = '';
           for (const line of message.split('\n')) {
@@ -545,17 +566,14 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
             const data = JSON.parse(dataStr);
 
             if (eventType === 'progress') {
-              setSyncProgress(data as SyncProgress);
-              const now = Date.now();
-              if (data.newInBatch > 0 && now - lastRefresh > 3000) {
-                lastRefresh = now;
-                refreshEmails();
-              }
+              setSearchStatus(`${data.folder}: загружено ${data.syncedSoFar} писем`);
             } else if (eventType === 'done') {
-              setLastSyncAt(data.lastSyncAt);
-              await fetchEmails();
+              searchDoneRef.current = true;
+              if (data.synced > 0) {
+                await fetchEmails();
+              }
             } else if (eventType === 'error') {
-              console.error('Sync error:', data.message);
+              console.error('Search error:', data.message);
             }
           } catch {
             // ignore parse errors
@@ -564,29 +582,103 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
       }
     } catch (error: any) {
       if (error?.name !== 'AbortError') {
-        console.error('Error syncing emails:', error);
+        console.error('Error searching emails:', error);
       }
     } finally {
-      syncAbortRef.current = null;
-      stopPolling();
+      searchAbortRef.current = null;
       if (mountedRef.current) {
-        setSyncing(false);
-        setSyncProgress(null);
+        setSearching(false);
+        setSearchStatus(null);
       }
-      fetchEmails();
     }
+  }, [contactEmail, searching, fetchEmails]);
+
+  // При монтировании: загрузить из БД, затем IMAP SEARCH
+  useEffect(() => {
+    mountedRef.current = true;
+    searchDoneRef.current = false;
+
+    fetchEmails().then(() => {
+      if (mountedRef.current) {
+        searchContactEmails();
+      }
+    });
+
+    return () => {
+      mountedRef.current = false;
+      bgLoadRef.current?.abort();
+      searchAbortRef.current?.abort();
+      textSearchAbortRef.current?.abort();
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchEmails]);
+
+  const handleStopSearch = () => {
+    searchAbortRef.current?.abort();
+  };
+
+  // Ручная кнопка: принудительный поиск + обновление
+  const handleRefresh = async () => {
+    searchDoneRef.current = false;
+    await searchContactEmails();
+    await fetchEmails();
   };
 
   const handleEmailSent = () => {
     setReplyToId(null);
     setShowNewCompose(false);
-    refreshEmails();
+    fetchEmails();
   };
 
-  const threads = groupEmailsIntoThreads(emails);
+  const hasActiveFilters = filterDirection !== 'all' || filterHasAttachments || filterDateFrom || filterDateTo;
+
+  // Фильтрация писем — текстовый поиск серверный (searchResults), остальные фильтры клиентские
+  const filteredEmails = useMemo(() => {
+    // Если активен текстовый поиск — используем серверные результаты
+    let result = searchResults !== null ? searchResults : emails;
+
+    // Направление
+    if (filterDirection !== 'all') {
+      result = result.filter(e => e.direction === filterDirection);
+    }
+
+    // Вложения
+    if (filterHasAttachments) {
+      result = result.filter(e => e.has_attachments);
+    }
+
+    // Дата от
+    if (filterDateFrom) {
+      const from = new Date(filterDateFrom);
+      result = result.filter(e => new Date(e.sent_at) >= from);
+    }
+
+    // Дата до
+    if (filterDateTo) {
+      const to = new Date(filterDateTo + 'T23:59:59');
+      result = result.filter(e => new Date(e.sent_at) <= to);
+    }
+
+    return result;
+  }, [emails, searchResults, filterDirection, filterHasAttachments, filterDateFrom, filterDateTo]);
+
+  const threads = groupEmailsIntoThreads(filteredEmails);
   const totalPages = Math.max(1, Math.ceil(threads.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pageThreads = threads.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Сброс страницы при изменении фильтров
+  useEffect(() => { setPage(1); }, [searchQuery, filterDirection, filterHasAttachments, filterDateFrom, filterDateTo]);
+
+  const clearFilters = () => {
+    setFilterDirection('all');
+    setFilterHasAttachments(false);
+    setFilterDateFrom('');
+    setFilterDateTo('');
+    setSearchQuery('');
+    setSearchResults(null);
+  };
 
   if (loading) {
     return (
@@ -598,129 +690,227 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
   }
 
   return (
-    <div className="space-y-4">
-      {/* Тулбар */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing} className="w-full sm:w-auto">
-            <RefreshCw className={`w-4 h-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Синхронизация...' : 'Синхронизировать'}
-          </Button>
-          {syncing && (
-            <Button variant="outline" size="sm" onClick={handleStopSync} className="w-full sm:w-auto text-red-600 border-red-200 hover:bg-red-50">
-              <Square className="w-3 h-3 mr-1 fill-current" />
-              Остановить
+    <div>
+      {/* ── Верхняя часть (внутри карточки) ── */}
+      <div className="space-y-3">
+        {/* Кнопки */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={searching} className="w-full sm:w-auto">
+              {searching ? (
+                <>
+                  <Search className="w-4 h-4 mr-1 animate-pulse" />
+                  Поиск...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-1" />
+                  Обновить
+                </>
+              )}
             </Button>
+            {searching && (
+              <Button variant="outline" size="sm" onClick={handleStopSearch} className="w-full sm:w-auto text-red-600 border-red-200 hover:bg-red-50">
+                <Square className="w-3 h-3 mr-1 fill-current" />
+                Остановить
+              </Button>
+            )}
+            <Button variant="default" size="sm" className="w-full sm:w-auto" onClick={() => { setShowNewCompose(true); setReplyToId(null); }}>
+              <Mail className="w-4 h-4 mr-1" />
+              Написать письмо
+            </Button>
+          </div>
+          {lastSyncAt && (
+            <span className="text-xs text-[var(--frox-gray-400)] sm:text-right">
+              Синхр.: {formatDate(lastSyncAt)}
+            </span>
           )}
-          <Button variant="default" size="sm" className="w-full sm:w-auto" onClick={() => { setShowNewCompose(true); setReplyToId(null); }}>
-            <Mail className="w-4 h-4 mr-1" />
-            Написать письмо
-          </Button>
         </div>
-        {lastSyncAt && (
-          <span className="text-xs text-[var(--frox-gray-400)] sm:text-right">
-            Синхр.: {formatDate(lastSyncAt)}
-          </span>
+
+        {/* Строка поиска + иконка фильтра */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--frox-gray-400)]" />
+            <input
+              type="text"
+              placeholder="Поиск по теме, тексту, адресу..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm border border-[var(--frox-neutral-border)] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[var(--frox-primary)]/20 focus:border-[var(--frox-primary)]"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--frox-gray-400)] hover:text-[var(--frox-gray-600)]"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`p-2 rounded-lg border transition-colors ${
+              showFilters || hasActiveFilters
+                ? 'border-[var(--frox-primary)] bg-[var(--frox-primary)]/5 text-[var(--frox-primary)]'
+                : 'border-[var(--frox-neutral-border)] text-[var(--frox-gray-400)] hover:text-[var(--frox-gray-600)] hover:border-[var(--frox-gray-300)]'
+            }`}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Панель фильтров */}
+        {showFilters && (
+          <div className="border border-[var(--frox-neutral-border)] rounded-lg p-3 bg-[var(--frox-gray-50)] space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Направление */}
+              <div className="flex-1">
+                <label className="text-xs font-medium text-[var(--frox-gray-500)] mb-1 block">Направление</label>
+                <select
+                  value={filterDirection}
+                  onChange={e => setFilterDirection(e.target.value as 'all' | 'inbound' | 'outbound')}
+                  className="w-full text-sm border border-[var(--frox-neutral-border)] rounded-md px-2 py-1.5 bg-white"
+                >
+                  <option value="all">Все</option>
+                  <option value="inbound">Входящие</option>
+                  <option value="outbound">Исходящие</option>
+                </select>
+              </div>
+
+              {/* Дата от */}
+              <div className="flex-1">
+                <label className="text-xs font-medium text-[var(--frox-gray-500)] mb-1 block">Дата от</label>
+                <input
+                  type="date"
+                  value={filterDateFrom}
+                  onChange={e => setFilterDateFrom(e.target.value)}
+                  className="w-full text-sm border border-[var(--frox-neutral-border)] rounded-md px-2 py-1.5 bg-white"
+                />
+              </div>
+
+              {/* Дата до */}
+              <div className="flex-1">
+                <label className="text-xs font-medium text-[var(--frox-gray-500)] mb-1 block">Дата до</label>
+                <input
+                  type="date"
+                  value={filterDateTo}
+                  onChange={e => setFilterDateTo(e.target.value)}
+                  className="w-full text-sm border border-[var(--frox-neutral-border)] rounded-md px-2 py-1.5 bg-white"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 text-sm text-[var(--frox-gray-600)] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filterHasAttachments}
+                  onChange={e => setFilterHasAttachments(e.target.checked)}
+                  className="rounded border-[var(--frox-neutral-border)]"
+                />
+                <Paperclip className="w-3.5 h-3.5" />
+                С вложениями
+              </label>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="text-xs text-[var(--frox-primary)] hover:underline"
+                >
+                  Сбросить фильтры
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Статус поиска IMAP */}
+        {searching && searchStatus && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5 flex items-center gap-2 text-sm text-blue-700">
+            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+            <span>{searchStatus}</span>
+          </div>
+        )}
+
+        {/* Форма нового письма */}
+        {showNewCompose && (
+          <EmailCompose
+            contactEmail={contactEmail}
+            contactName={contactName}
+            submissionId={submissionId}
+            replyTo={null}
+            onSent={handleEmailSent}
+            onCancel={() => setShowNewCompose(false)}
+          />
         )}
       </div>
 
-      {/* Прогресс синхронизации */}
-      {syncing && syncProgress && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 space-y-2">
-          <div className="flex items-center justify-between text-sm text-blue-700">
-            <span className="flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              {syncProgress.folder}: загружено {syncProgress.syncedSoFar} писем
-            </span>
-            <span className="text-xs text-blue-500">
-              батч {syncProgress.batchIndex}/{syncProgress.totalBatches}
-            </span>
+      {/* ── Список тредов (за пределами карточки, на всю ширину) ── */}
+      <div className="-mx-4 sm:-mx-6 mt-4">
+        {emails.length === 0 && !searching ? (
+          <div className="text-center py-12 text-[var(--frox-gray-400)]">
+            <Inbox className="w-12 h-12 mx-auto mb-3 stroke-1" />
+            <p className="text-sm">Переписка с {contactEmail} не найдена</p>
+            <p className="text-xs mt-1">Нажмите «Обновить» для поиска писем на сервере</p>
           </div>
-          <div className="w-full bg-blue-100 rounded-full h-1.5">
-            <div
-              className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
-              style={{ width: `${Math.min(100, (syncProgress.batchIndex / syncProgress.totalBatches) * 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Форма нового письма */}
-      {showNewCompose && (
-        <EmailCompose
-          contactEmail={contactEmail}
-          contactName={contactName}
-          submissionId={submissionId}
-          replyTo={null}
-          onSent={handleEmailSent}
-          onCancel={() => setShowNewCompose(false)}
-        />
-      )}
-
-      {emails.length === 0 ? (
-        <div className="text-center py-12 text-[var(--frox-gray-400)]">
-          <Inbox className="w-12 h-12 mx-auto mb-3 stroke-1" />
-          <p className="text-sm">Переписка с {contactEmail} не найдена</p>
-          <p className="text-xs mt-1">Нажмите «Синхронизировать» для загрузки писем</p>
-        </div>
-      ) : (
-        <>
-          {/* Счётчик и пагинация сверху */}
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-[var(--frox-gray-500)]">
-            <span className="flex items-center gap-1.5">
-              Тредов: {threads.length} · Писем: {emails.length}
-              {totalEmails !== null && totalEmails > emails.length && (
-                <span className="text-[var(--frox-gray-400)]">из {totalEmails}</span>
+        ) : (
+          <>
+            {/* Счётчик и пагинация */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-[var(--frox-gray-500)] px-4 sm:px-6 mb-3">
+              <span className="flex items-center gap-1.5">
+                Тредов: {threads.length} · Писем: {filteredEmails.length}
+                {searchResults === null && filteredEmails.length !== emails.length && (
+                  <span className="text-[var(--frox-gray-400)]">из {emails.length}</span>
+                )}
+                {(loadingMore || searchLoading) && <Loader2 className="w-3 h-3 animate-spin text-[var(--frox-gray-400)]" />}
+              </span>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="h-7 w-7"
+                    onClick={() => setPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span>{currentPage} / {totalPages}</span>
+                  <Button variant="ghost" size="icon" className="h-7 w-7"
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
               )}
-              {loadingMore && <Loader2 className="w-3 h-3 animate-spin text-[var(--frox-gray-400)]" />}
-            </span>
+            </div>
+
+            <div className="space-y-2 px-2 sm:px-3">
+              {pageThreads.map(thread => (
+                <ThreadCard
+                  key={thread.subject}
+                  thread={thread}
+                  replyToId={replyToId}
+                  onReply={email => { setShowNewCompose(false); setReplyToId(email.id); }}
+                  onCancelReply={() => setReplyToId(null)}
+                  onSent={handleEmailSent}
+                  contactEmail={contactEmail}
+                  contactName={contactName}
+                  submissionId={submissionId}
+                />
+              ))}
+            </div>
+
+            {/* Пагинация снизу */}
             {totalPages > 1 && (
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="h-7 w-7"
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 pt-4 px-4 sm:px-6 pb-2">
+                <Button variant="outline" size="sm" className="w-full sm:w-auto"
                   onClick={() => setPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
-                  <ChevronLeft className="w-4 h-4" />
+                  <ChevronLeft className="w-4 h-4 mr-1" />Назад
                 </Button>
-                <span>{currentPage} / {totalPages}</span>
-                <Button variant="ghost" size="icon" className="h-7 w-7"
+                <span className="text-sm text-[var(--frox-gray-500)]">{currentPage} / {totalPages}</span>
+                <Button variant="outline" size="sm" className="w-full sm:w-auto"
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
-                  <ChevronRight className="w-4 h-4" />
+                  Далее<ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </div>
             )}
-          </div>
-
-          <div className="space-y-3">
-            {pageThreads.map(thread => (
-              <ThreadCard
-                key={thread.subject}
-                thread={thread}
-                replyToId={replyToId}
-                onReply={email => { setShowNewCompose(false); setReplyToId(email.id); }}
-                onCancelReply={() => setReplyToId(null)}
-                onSent={handleEmailSent}
-                contactEmail={contactEmail}
-                contactName={contactName}
-                submissionId={submissionId}
-              />
-            ))}
-          </div>
-
-          {/* Пагинация снизу */}
-          {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 pt-2">
-              <Button variant="outline" size="sm" className="w-full sm:w-auto"
-                onClick={() => setPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
-                <ChevronLeft className="w-4 h-4 mr-1" />Назад
-              </Button>
-              <span className="text-sm text-[var(--frox-gray-500)]">{currentPage} / {totalPages}</span>
-              <Button variant="outline" size="sm" className="w-full sm:w-auto"
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
-                Далее<ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            </div>
-          )}
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

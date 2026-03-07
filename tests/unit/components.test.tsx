@@ -50,7 +50,7 @@ function mockFetch(data: unknown) {
 }
 
 describe("ConferencePopup Component", () => {
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
+  let fetchSpy: ReturnType<typeof mockFetch>;
 
   beforeEach(() => {
     localStorageMock.clear();
@@ -139,6 +139,49 @@ describe("ConferencePopup Component", () => {
     await act(async () => {});
     await act(async () => { await vi.advanceTimersByTimeAsync(2001); });
     expect(container.firstChild).toBeNull();
+  });
+
+  it("should not render when conferences endpoint returns a non-ok response", async () => {
+    fetchSpy.mockResolvedValue({
+      ok: false,
+      json: async () => [],
+    } as Response);
+
+    const { container } = await act(async () => render(<ConferencePopup />));
+    await act(async () => {});
+
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("should handle conference loading errors gracefully", async () => {
+    fetchSpy.mockRejectedValueOnce(new Error("network failed"));
+
+    const { container } = await act(async () => render(<ConferencePopup />));
+    await act(async () => {});
+
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("should render single-day conferences without optional metadata", async () => {
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => [{
+        ...futureConference,
+        slug: null,
+        type: "",
+        location: "",
+        date: "15.05.2027",
+        date_end: undefined,
+      }],
+    } as Response);
+
+    await act(async () => { render(<ConferencePopup />); });
+    await act(async () => {});
+    await act(async () => { await vi.advanceTimersByTimeAsync(2001); });
+
+    expect(screen.getByText(/15 .* 2027/i)).toBeInTheDocument();
+    expect(screen.queryByText("Конференция")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Москва, МКНЦ/)).not.toBeInTheDocument();
   });
 });
 

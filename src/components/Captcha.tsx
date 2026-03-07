@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { RefreshCw } from 'lucide-react';
 
 interface CaptchaProps {
   onVerify: (token: string) => void;
@@ -9,19 +9,37 @@ interface CaptchaProps {
   className?: string;
 }
 
+function createCaptchaVisuals() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let code = '';
+
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+
+  return {
+    code,
+    glyphStyles: code.split('').map(() => ({
+      transform: `rotate(${Math.random() * 20 - 10}deg)`,
+      color: `hsl(${Math.random() * 60 + 200}, 70%, 40%)`,
+    })),
+    noiseLines: Array.from({ length: 3 }, () => ({
+      width: `${Math.random() * 50 + 20}%`,
+      top: `${Math.random() * 100}%`,
+      left: `${Math.random() * 50}%`,
+      transform: `rotate(${Math.random() * 90 - 45}deg)`,
+    })),
+  };
+}
+
 export function Captcha({ onVerify, onError, className = '' }: CaptchaProps) {
-  const [isLoading, setIsLoading] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
-  const [captchaCode, setCaptchaCode] = useState('');
   const [userInput, setUserInput] = useState('');
+  const [captchaVisuals, setCaptchaVisuals] = useState(createCaptchaVisuals);
+  const { code: captchaCode, glyphStyles, noiseLines } = captchaVisuals;
 
   const generateCaptcha = useCallback(() => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setCaptchaCode(code);
+    setCaptchaVisuals(createCaptchaVisuals());
     setUserInput('');
     setIsVerified(false);
   }, []);
@@ -36,11 +54,6 @@ export function Captcha({ onVerify, onError, className = '' }: CaptchaProps) {
       setUserInput('');
     }
   }, [userInput, captchaCode, onVerify, onError]);
-
-  // Initialize captcha on mount
-  useEffect(() => {
-    generateCaptcha();
-  }, [generateCaptcha]);
 
   return (
     <div className={`space-y-3 ${className}`}>
@@ -64,8 +77,7 @@ export function Captcha({ onVerify, onError, className = '' }: CaptchaProps) {
                   key={index}
                   style={{
                     display: 'inline-block',
-                    transform: `rotate(${Math.random() * 20 - 10}deg)`,
-                    color: `hsl(${Math.random() * 60 + 200}, 70%, 40%)`,
+                    ...(glyphStyles[index] ?? {}),
                   }}
                 >
                   {char}
@@ -73,16 +85,11 @@ export function Captcha({ onVerify, onError, className = '' }: CaptchaProps) {
               ))}
             </span>
             <div className="absolute inset-0 pointer-events-none">
-              {[...Array(3)].map((_, i) => (
+              {noiseLines.map((style, i) => (
                 <div
                   key={i}
                   className="absolute h-px bg-slate-400 opacity-30"
-                  style={{
-                    width: `${Math.random() * 50 + 20}%`,
-                    top: `${Math.random() * 100}%`,
-                    left: `${Math.random() * 50}%`,
-                    transform: `rotate(${Math.random() * 90 - 45}deg)`,
-                  }}
+                  style={style}
                 />
               ))}
             </div>
@@ -115,7 +122,7 @@ export function Captcha({ onVerify, onError, className = '' }: CaptchaProps) {
           disabled={!userInput || userInput.length !== 6}
           className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Проверить'}
+          Проверить
         </button>
       </div>
 

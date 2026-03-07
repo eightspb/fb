@@ -157,129 +157,134 @@ export function ContactForm() {
     }
   };
 
+  const inputClass = (hasError: boolean) =>
+    `w-full px-4 py-3 border rounded-xl bg-white text-slate-900 placeholder-slate-400 outline-none transition-all ${
+      hasError
+        ? 'border-red-300 focus:border-red-400 focus:ring-1 focus:ring-red-200'
+        : 'border-slate-200 focus:border-teal-300 focus:ring-1 focus:ring-teal-100'
+    } disabled:opacity-60`;
+
   return (
-    <div className="neumorphic-card p-6 sm:p-8">
-      <form onSubmit={handleSubmit} className="space-y-6">
-          {submitStatus === 'success' && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-800">
-              {submitMessage}
-            </div>
-          )}
-
-          {submitStatus === 'error' && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-800">
-              {submitMessage}
-            </div>
-          )}
-
-          <div>
-            <label htmlFor="name" className="block text-sm font-semibold mb-2 gradient-text-pink">
-              Имя *
-            </label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className={`neumorphic-input w-full ${errors.name ? 'ring-2 ring-red-400' : ''}`}
-              disabled={isSubmitting}
-            />
-            {errors.name && (
-              <p className="mt-1 text-sm text-red-600">{errors.name}</p>
-            )}
+    <form onSubmit={handleSubmit} className="space-y-5">
+        {submitStatus === 'success' && (
+          <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-800">
+            {submitMessage}
           </div>
+        )}
 
-          <div>
-            <label htmlFor="email" className="block text-sm font-semibold mb-2 gradient-text-blue">
-              Email *
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className={`neumorphic-input w-full ${errors.email ? 'ring-2 ring-red-400' : ''}`}
-              disabled={isSubmitting}
-            />
-            {errors.email && (
-              <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-            )}
+        {submitStatus === 'error' && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-800">
+            {submitMessage}
           </div>
+        )}
 
-          <div>
-            <label htmlFor="phone" className="block text-sm font-semibold mb-2 gradient-text-pink">
-              Телефон *
-            </label>
-            <input
-              type="tel"
-              id="phone"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              className={`neumorphic-input w-full ${errors.phone ? 'ring-2 ring-red-400' : ''}`}
-              disabled={isSubmitting}
-            />
-            {errors.phone && (
-              <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="message" className="block text-sm font-semibold mb-2 gradient-text-blue">
-              Сообщение *
-            </label>
-            <textarea
-              id="message"
-              name="message"
-              value={formData.message}
-              onChange={handleChange}
-              rows={4}
-              className={`neumorphic-textarea w-full ${errors.message ? 'ring-2 ring-red-400' : ''}`}
-              disabled={isSubmitting}
-            />
-            {errors.message && (
-              <p className="mt-1 text-sm text-red-600">{errors.message}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="flex items-start">
-              <input
-                type="checkbox"
-                name="consent"
-                checked={formData.consent}
-                onChange={handleChange}
-                className="neumorphic-checkbox mt-1 mr-3"
-                disabled={isSubmitting}
-              />
-              <span className={`text-sm ${errors.consent ? 'text-red-600' : 'opacity-80'}`}>
-                Согласие на обработку персональных данных *
-              </span>
-            </label>
-            {errors.consent && (
-              <p className="mt-1 text-sm text-red-600 ml-7">{errors.consent}</p>
-            )}
-          </div>
-
-          <SimpleCaptcha
-            onVerify={() => setCaptchaVerified(true)}
-            onError={(error) => setSubmitMessage(error)}
-          />
-          {errors.captcha && (
-            <p className="mt-1 text-sm text-red-600">{errors.captcha}</p>
-          )}
-
-          <button
-            type="submit"
-            className="gradient-button-pink w-full py-3 text-lg font-medium rounded-[15px]"
+        <div>
+          <label htmlFor="name" className="block text-sm font-semibold mb-1.5 text-slate-700">
+            Имя *
+          </label>
+          <input
+            type="text"
+            id="name"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            className={inputClass(!!errors.name)}
             disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Отправка...' : 'Отправить сообщение'}
-          </button>
-        </form>
-    </div>
+          />
+          {errors.name && (
+            <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="email" className="block text-sm font-semibold mb-1.5 text-slate-700">
+            Email *
+          </label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            className={inputClass(!!errors.email)}
+            disabled={isSubmitting}
+          />
+          {errors.email && (
+            <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="phone" className="block text-sm font-semibold mb-1.5 text-slate-700">
+            Телефон *
+          </label>
+          <input
+            type="tel"
+            id="phone"
+            name="phone"
+            value={formData.phone}
+            onChange={handleChange}
+            className={inputClass(!!errors.phone)}
+            disabled={isSubmitting}
+          />
+          {errors.phone && (
+            <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="message" className="block text-sm font-semibold mb-1.5 text-slate-700">
+            Сообщение *
+          </label>
+          <textarea
+            id="message"
+            name="message"
+            value={formData.message}
+            onChange={handleChange}
+            rows={4}
+            className={inputClass(!!errors.message)}
+            disabled={isSubmitting}
+          />
+          {errors.message && (
+            <p className="mt-1 text-sm text-red-600">{errors.message}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              name="consent"
+              checked={formData.consent}
+              onChange={handleChange}
+              className="mt-0.5 w-4 h-4 accent-teal-600 cursor-pointer"
+              disabled={isSubmitting}
+            />
+            <span className={`text-sm ${errors.consent ? 'text-red-600' : 'text-slate-600'}`}>
+              Согласие на обработку персональных данных *
+            </span>
+          </label>
+          {errors.consent && (
+            <p className="mt-1 text-sm text-red-600 ml-7">{errors.consent}</p>
+          )}
+        </div>
+
+        <SimpleCaptcha
+          onVerify={() => setCaptchaVerified(true)}
+          onError={(error) => setSubmitMessage(error)}
+        />
+        {errors.captcha && (
+          <p className="mt-1 text-sm text-red-600">{errors.captcha}</p>
+        )}
+
+        <button
+          type="submit"
+          className="w-full py-3 text-base font-semibold rounded-xl bg-teal-600 hover:bg-teal-700 text-white transition-colors disabled:opacity-60"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'Отправка...' : 'Отправить сообщение'}
+        </button>
+      </form>
   );
 }
 
