@@ -1,7 +1,7 @@
 # DEPLOY_GUIDE (TODO)
 
 ## Назначение
-Подробные инструкции по деплою FreshBurger для всех режимов: `SiteOnly`, `AdminOnly`, `AppOnly`, полный деплой, rollback.
+Подробные инструкции по деплою fibroadenoma.net для всех режимов: `SiteOnly`, `AdminOnly`, `AppOnly`, полный деплой, rollback.
 
 ## Что заполнить
 - TODO: Подготовка окружения и переменных.

@@ -54,7 +54,7 @@ export default function AdminDashboard() {
         <div className="relative">
           <div className="absolute right-[-56px] top-[-72px] h-44 w-44 rounded-full bg-[radial-gradient(circle,rgba(115,100,219,0.16),rgba(115,100,219,0))]" />
           <div className="relative max-w-2xl">
-            <div className="frox-page-kicker">FreshBurger Control</div>
+            <div className="frox-page-kicker">fibroadenoma.net Control</div>
             <h1 data-frox-heading="true" className="mt-3 text-3xl font-black text-[var(--frox-gray-1100)] md:text-[2.35rem]">
               Админ-панель в общем стиле Frox
             </h1>

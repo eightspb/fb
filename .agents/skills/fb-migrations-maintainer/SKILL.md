@@ -1,6 +1,6 @@
 ---
 name: fb-migrations-maintainer
-description: "Управляет миграциями базы данных FreshBurger. Активируй при: 'новая таблица', 'новая колонка', 'изменить схему', 'миграция', 'migration', 'ALTER TABLE', 'CREATE TABLE', 'добавить поле', 'удалить поле', 'изменить тип колонки', 'database schema', 'schema change', 'apply migration', 'schema_migrations', 'database-schema.sql', 'нужна связь между таблицами', 'new entity in db'. Также активируй, если новая фича явно требует изменений БД."
+description: "Управляет миграциями базы данных fibroadenoma.net. Активируй при: 'новая таблица', 'новая колонка', 'изменить схему', 'миграция', 'migration', 'ALTER TABLE', 'CREATE TABLE', 'добавить поле', 'удалить поле', 'изменить тип колонки', 'database schema', 'schema change', 'apply migration', 'schema_migrations', 'database-schema.sql', 'нужна связь между таблицами', 'new entity in db'. Также активируй, если новая фича явно требует изменений БД."
 ---
 
 # fb-migrations-maintainer
@@ -74,7 +74,7 @@ rg -n "loyalty_points" database-schema.sql
 
 Локально:
 ```bash
-psql -d freshburger -f migrations/20260306120000_add_loyalty_points_to_users.sql
+psql -d postgres -f migrations/20260306120000_add_loyalty_points_to_users.sql
 # Ожидаемый результат: ALTER TABLE / CREATE INDEX / COMMIT
 ```
 
