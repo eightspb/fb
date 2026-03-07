@@ -606,6 +606,21 @@ export async function searchAndSyncByEmail(
     errors.push(`Sent: ${error.message}`);
   }
 
+  // Обновляем last_sync_at для папок — фиксируем что поиск был выполнен
+  try {
+    const pgClient = await pool.connect();
+    try {
+      await pgClient.query(
+        `UPDATE crm_imap_sync_state SET last_sync_at = NOW(), updated_at = NOW()
+         WHERE folder_name IN ('INBOX', 'Sent')`
+      );
+    } finally {
+      pgClient.release();
+    }
+  } catch {
+    // не критично, не прерываем
+  }
+
   return { synced: totalSynced, errors };
 }
 

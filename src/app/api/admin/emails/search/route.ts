@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
-import { searchAndSyncByEmail, type SyncProgress } from '@/lib/imap-client';
+import { searchAndSyncByEmail, getLastSyncTime, type SyncProgress } from '@/lib/imap-client';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -49,9 +49,11 @@ export async function GET(request: NextRequest) {
             send('progress', progress);
           });
 
+          const lastSyncAt = await getLastSyncTime();
           send('done', {
             synced: result.synced,
             errors: result.errors,
+            lastSyncAt,
           });
         } catch (error: any) {
           send('error', { message: error.message });
