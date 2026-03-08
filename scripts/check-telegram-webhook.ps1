@@ -1,4 +1,4 @@
-# Скрипт проверки и настройки Telegram webhook
+﻿# Скрипт проверки и настройки Telegram webhook
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 

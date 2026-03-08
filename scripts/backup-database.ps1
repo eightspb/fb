@@ -1,4 +1,4 @@
-# Скрипт для создания бэкапа базы данных PostgreSQL из Docker контейнера
+﻿# Скрипт для создания бэкапа базы данных PostgreSQL из Docker контейнера
 
 param(
     [string]$ContainerName = "fb-net-postgres",
