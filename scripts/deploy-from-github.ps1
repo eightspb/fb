@@ -1,4 +1,4 @@
-﻿# PowerShell скрипт для деплоя из GitHub на сервер
+# PowerShell скрипт для деплоя из GitHub на сервер
 # Запускается локально, разворачивает проект на сервере через git pull
 #
 # Архитектура:
@@ -52,6 +52,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# Кодировка UTF-8 для корректного отображения русского текста из SSH
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ОПРЕДЕЛЕНИЕ ПУТИ К SSH
@@ -148,10 +152,10 @@ function Invoke-Ssh {
             $stderrLines = @()
 
             if (Test-Path $stdoutFile) {
-                $stdoutLines = Get-Content -Path $stdoutFile -ErrorAction SilentlyContinue
+                $stdoutLines = Get-Content -Path $stdoutFile -Encoding UTF8 -ErrorAction SilentlyContinue
             }
             if (Test-Path $stderrFile) {
-                $stderrLines = Get-Content -Path $stderrFile -ErrorAction SilentlyContinue
+                $stderrLines = Get-Content -Path $stderrFile -Encoding UTF8 -ErrorAction SilentlyContinue
             }
 
             $lastOutput = @($stdoutLines + $stderrLines)

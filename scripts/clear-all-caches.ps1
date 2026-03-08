@@ -1,5 +1,7 @@
 # Скрипт для полной очистки всех кешей проекта
 # Использование: .\scripts\clear-all-caches.ps1
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 
 Write-Host "🧹 Начинаю очистку всех кешей..." -ForegroundColor Cyan
 Write-Host ""

@@ -10,6 +10,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 
 # Цвета для вывода
 function Write-Info {
@@ -56,7 +58,7 @@ if ($Production) {
     $envFile = Join-Path $PSScriptRoot "..\.env"
     if (Test-Path $envFile) {
         Write-Info "Чтение настроек из .env файла..."
-        Get-Content $envFile | ForEach-Object {
+        Get-Content $envFile -Encoding UTF8 | ForEach-Object {
             if ($_ -match '^POSTGRES_PASSWORD=(.+)$') {
                 $DbPassword = $matches[1]
             }
