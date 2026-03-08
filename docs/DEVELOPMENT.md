@@ -23,6 +23,7 @@
 - **Язык**: TypeScript
 - **Стилизация**: Tailwind CSS
 - **UI компоненты**: Radix UI (shadcn/ui)
+- **Data fetching (admin)**: SWR (все admin-страницы)
 - **Анимации**: Framer Motion
 - **Карты**: @pbe/react-yandex-maps
 
@@ -509,6 +510,26 @@ import { YourComponent } from "@/components/YourComponent";
 - Функциональные компоненты (не классовые)
 - Деструктуризация props
 - `"use client"` для клиентских компонентов
+
+### Data fetching в admin
+
+Все admin-страницы используют **SWR** вместо `useEffect`/`useState`:
+
+```tsx
+import useSWR from 'swr';
+
+const { data, isLoading, mutate } = useSWR<MyType>(
+  '/api/admin/something',
+  (url) => fetch(url, { credentials: 'include' }).then(r => r.json()),
+  { revalidateOnFocus: false, dedupingInterval: 5000, keepPreviousData: true }
+);
+
+// После мутации (без лишнего сетевого запроса):
+mutate(updatedData, false);
+
+// Или с перезапросом:
+mutate();
+```
 
 ### Именование
 - **Компоненты**: PascalCase (`NewsCard.tsx`)

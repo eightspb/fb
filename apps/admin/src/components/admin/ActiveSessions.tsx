@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import useSWR from 'swr';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Users, 
-  Monitor, 
-  Smartphone, 
-  Tablet, 
-  Globe, 
+import {
+  Users,
+  Monitor,
+  Smartphone,
+  Tablet,
+  Globe,
   Clock,
   MapPin,
   Eye,
@@ -78,37 +78,18 @@ function getCountryFlag(countryCode: string | null): string {
   return String.fromCodePoint(...codePoints);
 }
 
+async function sessionsFetcher(url: string): Promise<SessionsData> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Ошибка загрузки данных');
+  return res.json();
+}
+
 export default function ActiveSessions() {
-  const [data, setData] = useState<SessionsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-
-  const fetchSessions = useCallback(async () => {
-    try {
-      const response = await fetch('/api/admin/analytics/sessions');
-      if (!response.ok) {
-        throw new Error('Ошибка загрузки данных');
-      }
-      const result = await response.json();
-      setData(result);
-      setLastUpdate(new Date());
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchSessions();
-    
-    // Обновляем каждые 10 секунд
-    const interval = setInterval(fetchSessions, 10000);
-    
-    return () => clearInterval(interval);
-  }, [fetchSessions]);
+  const { data, error, isLoading: loading, isValidating } = useSWR<SessionsData>(
+    '/api/admin/analytics/sessions',
+    sessionsFetcher,
+    { refreshInterval: 10000, revalidateOnFocus: false, dedupingInterval: 5000, keepPreviousData: true }
+  );
 
   if (loading && !data) {
     return (
@@ -139,9 +120,9 @@ export default function ActiveSessions() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-red-500 text-sm">{error}</p>
-          <button 
-            onClick={fetchSessions}
+          <p className="text-red-500 text-sm">{error?.message}</p>
+          <button
+            onClick={() => window.location.reload()}
             className="mt-2 text-sm text-blue-600 hover:underline"
           >
             Попробовать снова
@@ -163,12 +144,7 @@ export default function ActiveSessions() {
             </Badge>
           </CardTitle>
           <div className="flex items-center gap-2 text-xs text-[var(--frox-gray-500)]">
-            <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
-            {lastUpdate && (
-              <span>
-                {lastUpdate.toLocaleTimeString('ru-RU')}
-              </span>
-            )}
+            <RefreshCw className={`h-3 w-3 ${isValidating ? 'animate-spin' : ''}`} />
           </div>
         </div>
         {data && data.activeCount5min > data.activeCount && (

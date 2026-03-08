@@ -1,35 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import useSWR from 'swr';
 import { ConferenceForm } from '@/components/admin/ConferenceForm';
+
+async function conferenceFetcher(url: string) {
+  const res = await fetch(url, { credentials: 'include' });
+  if (!res.ok) throw new Error('Ошибка загрузки');
+  return res.json();
+}
 
 export default function EditConferencePage() {
   const { id } = useParams();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const response = await fetch(`/api/conferences/${id}`, {
-          credentials: 'include'
-        });
-        if (response.ok) {
-          const confData = await response.json();
-          setData(confData);
-        }
-      } catch (error) {
-        console.error('Error loading conference:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    if (id) {
-      loadData();
-    }
-  }, [id]);
+  const { data, isLoading: loading } = useSWR(
+    id ? `/api/conferences/${id}` : null,
+    conferenceFetcher,
+    { revalidateOnFocus: false, keepPreviousData: true }
+  );
 
   if (loading) return <div>Загрузка...</div>;
   if (!data) return <div>Мероприятие не найдено</div>;

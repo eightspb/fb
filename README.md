@@ -2,20 +2,21 @@
 
 Сайт ООО «ЗЕНИТ» для оборудования Xishan (ВАБ), обучения и управления контентом через админ-панель.
 
-## Быстрый старт
+## Локальная разработка
 
-```bash
+```powershell
 bun install
-bun run docker:up
-bun run dev
+bun run dev:remote   # SSH-туннель к БД + site (3000) + admin (3001)
 ```
 
-Открыть: `http://localhost:3000`
+Открыть: `http://localhost:3001/admin` (пароль: `admin123`)
+
+Подробнее: [docs/REMOTE_DB_SETUP.md](docs/REMOTE_DB_SETUP.md)
 
 ### Минимальный `.env.local`
 
 ```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:54322/postgres
+DATABASE_URL=postgresql://postgres:password@localhost:54321/postgres
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=your-secure-password
 JWT_SECRET=your-super-secret-jwt-key-min-32-chars
@@ -24,14 +25,14 @@ JWT_SECRET=your-super-secret-jwt-key-min-32-chars
 ## Основные команды
 
 ```bash
-bun run dev           # сайт на :3000
-bun run dev:admin     # админка на :3001
+bun run dev:remote    # локальная разработка (рекомендуется)
+bun run dev:site      # только site на :3000
+bun run dev:admin     # только admin на :3001
 bun run build
 bun run build:admin
 bun run lint
 bun run test:ci
-bun run docker:up
-bun run docker:down
+bun run docker:up     # локальная БД (альтернатива remote)
 ```
 
 ## Архитектура: два приложения
@@ -45,45 +46,26 @@ bun run docker:down
 
 ## Деплой (запускается локально)
 
-### Только сайт (изменения в `src/`)
-
 ```powershell
-.\scripts\deploy-from-github.ps1 -SiteOnly
-```
-
-### Только админка (изменения в `apps/admin/`)
-
-```powershell
-.\scripts\deploy-from-github.ps1 -AdminOnly
-```
-
-### Оба приложения
-
-```powershell
-.\scripts\deploy-from-github.ps1 -AppOnly
-```
-
-### Полный деплой (с миграциями БД)
-
-```powershell
-.\scripts\deploy-from-github.ps1
+.\scripts\deploy-from-github.ps1 -AppOnly   # site + admin, 90% случаев
+.\scripts\deploy-from-github.ps1            # полный деплой с миграциями БД
+.\scripts\deploy-from-github.ps1 -SiteOnly  # только site
+.\scripts\deploy-from-github.ps1 -AdminOnly # только admin
 ```
 
 ## Документация
 
-- [Деплой](/docs/DEPLOY_GUIDE.md)
-- [Автоматизация](/docs/AUTOMATION_GUIDE.md)
-- [Быстрый старт](/docs/QUICK_START.md)
-- [Разработка](/docs/DEVELOPMENT.md)
-- [Troubleshooting](/docs/TROUBLESHOOTING.md)
-- [Тестирование (подробно)](/docs/TESTING.md)
-- [Тестирование (кратко)](/docs/tests.md)
-- [Удаленная БД для dev](/docs/REMOTE_DB_SETUP.md)
-- [SSL](/docs/SSL_QUICKSTART.md)
-- [SMTP](/docs/SMTP_SETUP.md)
-- [Аналитика](/docs/ANALYTICS_SETUP.md)
-- [Логирование](/docs/LOGGING.md)
-- [Скрипты](/scripts/README.md)
+- [Деплой](docs/DEPLOY_GUIDE.md)
+- [Разработка](docs/DEVELOPMENT.md)
+- [Удалённая БД для dev](docs/REMOTE_DB_SETUP.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Тестирование](docs/TESTING.md)
+- [SSL](docs/SSL_QUICKSTART.md)
+- [SMTP](docs/SMTP_SETUP.md)
+- [Аналитика](docs/ANALYTICS_SETUP.md)
+- [Логирование](docs/LOGGING.md)
+- [Telegram debug](docs/TELEGRAM_DEBUG.md)
+- [Скрипты](scripts/README.md)
 
 ## Контакты
 

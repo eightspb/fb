@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -37,6 +38,7 @@ import {
   Filter,
   ExternalLink,
   Merge,
+  Loader2,
 } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 import { FroxStatCard } from '@/components/admin/FroxStatCard';
@@ -577,6 +579,56 @@ function MergeModal({
 
 // ── Contact detail slide-over panel ──────────────────────────────────────────
 
+const PANEL_WIDTH_KEY = 'contacts-panel-width';
+const PANEL_MIN_W = 380;
+const PANEL_MAX_W_RATIO = 0.85;
+const PANEL_DEFAULT_W_RATIO = 0.5;
+
+function usePanelResize() {
+  const [width, setWidth] = useState(() => {
+    try {
+      const stored = localStorage.getItem(PANEL_WIDTH_KEY);
+      if (stored) {
+        const w = parseInt(stored, 10);
+        if (w >= PANEL_MIN_W && w <= window.innerWidth * PANEL_MAX_W_RATIO) return w;
+      }
+    } catch { /* ignore */ }
+    return Math.max(PANEL_MIN_W, Math.round(window.innerWidth * PANEL_DEFAULT_W_RATIO));
+  });
+  const dragging = useRef<{ startX: number; startW: number } | null>(null);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragging.current) return;
+      const maxW = window.innerWidth * PANEL_MAX_W_RATIO;
+      const newW = Math.min(maxW, Math.max(PANEL_MIN_W, dragging.current.startW + (dragging.current.startX - e.clientX)));
+      setWidth(newW);
+    };
+    const onUp = () => {
+      if (dragging.current) {
+        dragging.current = null;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        // Save after drag ends
+        setWidth(w => { try { localStorage.setItem(PANEL_WIDTH_KEY, String(Math.round(w))); } catch { /* ignore */ } return w; });
+      }
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  }, []);
+
+  const onResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragging.current = { startX: e.clientX, startW: width };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [width]);
+
+  return { width, onResizeStart };
+}
+
 function ContactPanel({
   contact, onUpdate, onClose, onDelete,
 }: {
@@ -588,6 +640,49 @@ function ContactPanel({
   const router = useRouter();
   const [tagInput, setTagInput] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [researching, setResearching] = useState(false);
+  const [researchError, setResearchError] = useState<string | null>(null);
+  const [notesEditing, setNotesEditing] = useState(false);
+  const [notesDraft, setNotesDraft] = useState(contact.notes || '');
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesHeight, setNotesHeight] = useState(96);
+  const notesViewRef = useRef<HTMLButtonElement>(null);
+  const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const { width: panelWidth, onResizeStart } = usePanelResize();
+
+  useEffect(() => { if (!notesEditing) setNotesDraft(contact.notes || ''); }, [contact.notes, notesEditing]);
+
+  const startNotesEditing = useCallback(() => {
+    const viewH = notesViewRef.current?.getBoundingClientRect().height ?? 96;
+    setNotesHeight(Math.max(96, viewH));
+    setNotesEditing(true);
+  }, []);
+
+  const handleNotesSave = async () => {
+    setNotesSaving(true);
+    try { await patchField({ notes: notesDraft || null } as Partial<Contact>); setNotesEditing(false); }
+    finally { setNotesSaving(false); }
+  };
+
+  const handleResearch = async () => {
+    setResearching(true);
+    setResearchError(null);
+    try {
+      const res = await adminCsrfFetch(`/api/admin/contacts/${contact.id}/research`, {
+        method: 'POST', credentials: 'include',
+      });
+      if (res.ok) {
+        onUpdate(await res.json());
+      } else {
+        const data = await res.json().catch(() => null);
+        setResearchError(data?.error || 'Ошибка при исследовании');
+      }
+    } catch {
+      setResearchError('Ошибка подключения к серверу');
+    } finally {
+      setResearching(false);
+    }
+  };
 
   const patchField = async (fields: Partial<Contact>) => {
     const res = await adminCsrfFetch(`/api/admin/contacts/${contact.id}`, {
@@ -623,16 +718,28 @@ function ContactPanel({
 
       {/* Panel */}
       <div
-        className="relative w-full max-w-md bg-white h-full overflow-y-auto shadow-2xl flex flex-col"
+        className="relative bg-white h-full overflow-y-auto shadow-2xl flex flex-col"
+        style={{ width: panelWidth }}
         onClick={e => e.stopPropagation()}
       >
+        {/* Resize handle */}
+        <div
+          onMouseDown={onResizeStart}
+          className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize z-20 group hover:bg-[var(--frox-brand)]/20 transition-colors"
+          title="Изменить ширину"
+        >
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-12 rounded-full bg-[var(--frox-gray-300)] group-hover:bg-[var(--frox-brand)] transition-colors" />
+        </div>
+
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white border-b border-[var(--frox-gray-200)] px-5 py-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <Avatar name={contact.full_name} />
               <div className="min-w-0">
-                <h2 className="font-semibold text-[var(--frox-gray-1100)] leading-tight truncate">{contact.full_name}</h2>
+                <div className="font-semibold text-[var(--frox-gray-1100)] leading-tight">
+                  <EditableField value={contact.full_name} onSave={v => patchField({ full_name: v } as Partial<Contact>)} placeholder="имя не указано" />
+                </div>
                 <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full mt-0.5 ${sc.pill}`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
                   {sc.label}
@@ -682,77 +789,133 @@ function ContactPanel({
 
           <div className="h-px bg-[var(--frox-gray-200)]" />
 
-          {/* Контакты */}
-          <div>
-            <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Контактные данные</div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 text-sm">
-                <Mail className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
-                <EditableField value={contact.email} onSave={v => patchField({ email: v || null } as Partial<Contact>)} placeholder="email не указан" />
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <Phone className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
-                <EditableField value={contact.phone} onSave={v => patchField({ phone: v || null } as Partial<Contact>)} placeholder="телефон не указан" />
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <MapPin className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
-                <EditableField value={contact.city} onSave={v => patchField({ city: v || null } as Partial<Contact>)} placeholder="город не указан" />
+          {/* Контактные данные + Место работы — двухколоночный layout */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* Левая колонка: контактные данные */}
+            <div>
+              <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Контактные данные</div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-3 text-sm">
+                  <Mail className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
+                  <EditableField value={contact.email} onSave={v => patchField({ email: v || null } as Partial<Contact>)} placeholder="email не указан" />
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <Phone className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
+                  <EditableField value={contact.phone} onSave={v => patchField({ phone: v || null } as Partial<Contact>)} placeholder="телефон не указан" />
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <MapPin className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
+                  <EditableField value={contact.city} onSave={v => patchField({ city: v || null } as Partial<Contact>)} placeholder="город не указан" />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Место работы */}
-          <div>
-            <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Место работы</div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 text-sm">
-                <Building2 className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
-                <EditableField value={contact.institution} onSave={v => patchField({ institution: v || null } as Partial<Contact>)} placeholder="организация не указана" />
+            {/* Правая колонка: место работы + теги */}
+            <div className="space-y-4">
+              <div>
+                <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Место работы</div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 text-sm">
+                    <Building2 className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
+                    <EditableField value={contact.institution} onSave={v => patchField({ institution: v || null } as Partial<Contact>)} placeholder="организация не указана" />
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <Stethoscope className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
+                    <EditableField value={contact.speciality} onSave={v => patchField({ speciality: v || null } as Partial<Contact>)} placeholder="специальность не указана" />
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-3 text-sm">
-                <Stethoscope className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
-                <EditableField value={contact.speciality} onSave={v => patchField({ speciality: v || null } as Partial<Contact>)} placeholder="специальность не указана" />
-              </div>
-            </div>
-          </div>
 
-          {/* Теги */}
-          <div>
-            <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Теги</div>
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {contact.tags.map(tag => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--frox-gray-200)] text-[var(--frox-gray-600)] text-xs font-medium"
-                >
-                  {tag}
-                  <button onClick={() => removeTag(tag)} className="text-[var(--frox-gray-400)] hover:text-red-500 transition-colors ml-0.5">
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
-              {contact.tags.length === 0 && <span className="text-xs text-[var(--frox-gray-300)] italic">нет тегов</span>}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                value={tagInput}
-                onChange={e => setTagInput(e.target.value)}
-                placeholder="Добавить тег..."
-                className="h-8 text-sm bg-[var(--frox-gray-100)]"
-                onKeyDown={e => { if (e.key === 'Enter') addTag(); }}
-              />
-              <Button size="sm" variant="outline" onClick={addTag} className="h-8 w-8 p-0 shrink-0">
-                <Plus className="w-3.5 h-3.5" />
-              </Button>
+              <div>
+                <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Теги</div>
+                <div className="flex flex-wrap gap-1.5 mb-2.5">
+                  {contact.tags.map(tag => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--frox-gray-200)] text-[var(--frox-gray-600)] text-xs font-medium"
+                    >
+                      {tag}
+                      <button onClick={() => removeTag(tag)} className="text-[var(--frox-gray-400)] hover:text-red-500 transition-colors ml-0.5">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                  {contact.tags.length === 0 && <span className="text-xs text-[var(--frox-gray-300)] italic">нет тегов</span>}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={tagInput}
+                    onChange={e => setTagInput(e.target.value)}
+                    placeholder="Добавить тег..."
+                    className="h-8 text-sm bg-[var(--frox-gray-100)]"
+                    onKeyDown={e => { if (e.key === 'Enter') addTag(); }}
+                  />
+                  <Button size="sm" variant="outline" onClick={addTag} className="h-8 w-8 p-0 shrink-0">
+                    <Plus className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Заметки */}
-          <div>
-            <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Заметки</div>
-            <div className="text-sm">
-              <EditableField value={contact.notes} onSave={v => patchField({ notes: v || null } as Partial<Contact>)} placeholder="добавить заметку..." />
+          <div className="rounded-xl border border-[var(--frox-gray-200)] bg-[var(--frox-gray-50)] p-3">
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--frox-gray-500)] uppercase tracking-wider">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="shrink-0"><path d="M2 4h12M2 8h8M2 12h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                Заметки
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleResearch}
+                disabled={researching}
+                className="h-7 text-xs gap-1.5"
+              >
+                {researching ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Исследую...
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-3 h-3" />
+                    AI Исследование
+                  </>
+                )}
+              </Button>
             </div>
+            {researchError && (
+              <div className="flex items-center gap-2 p-2.5 mb-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                {researchError}
+              </div>
+            )}
+            {notesEditing ? (
+              <div className="space-y-2">
+                <textarea
+                  ref={notesTextareaRef}
+                  value={notesDraft}
+                  onChange={e => setNotesDraft(e.target.value)}
+                  className="w-full text-sm px-3 py-2.5 border-2 border-blue-400 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white shadow-sm transition-colors"
+                  style={{ minHeight: 96, height: notesHeight }}
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleNotesSave} disabled={notesSaving} className="h-7 text-xs">Сохранить</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setNotesEditing(false)} className="h-7 text-xs">Отмена</Button>
+                </div>
+              </div>
+            ) : (
+              <button
+                ref={notesViewRef}
+                onClick={startNotesEditing}
+                className="w-full text-left text-sm text-[var(--frox-gray-800)] hover:text-[var(--frox-gray-1100)] group flex items-start gap-1.5 border border-[var(--frox-gray-200)] hover:border-[var(--frox-gray-300)] rounded-lg px-3 py-2.5 bg-[var(--frox-gray-50)] hover:bg-white transition-colors min-h-[96px]"
+              >
+                <span className={`flex-1 whitespace-pre-wrap ${contact.notes ? '' : 'text-[var(--frox-gray-300)] italic'}`}>{contact.notes || 'добавить заметку...'}</span>
+                <Pencil className="w-3 h-3 text-[var(--frox-gray-300)] group-hover:text-[var(--frox-gray-500)] transition-colors shrink-0 mt-0.5" />
+              </button>
+            )}
           </div>
 
           {/* Мета */}
@@ -869,14 +1032,28 @@ function useColumnResize() {
   return { tableRef, setColRef, onResizeStart, defaultWidths: DEFAULT_COL_WIDTHS };
 }
 
+// ── SWR fetcher ───────────────────────────────────────────────────────────────
+
+interface ContactsResponse {
+  contacts: Contact[];
+  pagination: PaginationInfo;
+  stats: Stats;
+}
+
+async function contactsFetcher(url: string): Promise<ContactsResponse> {
+  const res = await fetch(url, { credentials: 'include' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Ошибка загрузки');
+  }
+  return res.json();
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ContactsPage() {
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: 50, totalCount: 0, totalPages: 0 });
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(50);
 
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -899,6 +1076,36 @@ export default function ContactsPage() {
   const searchParams = useSearchParams();
   const { tableRef, setColRef, onResizeStart, defaultWidths } = useColumnResize();
 
+  // Build SWR key from current filters/sort/pagination
+  const swrKey = (() => {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (filterStatus) params.set('status', filterStatus);
+    if (filterTag) params.set('tag', filterTag);
+    if (filterCity) params.set('city', filterCity);
+    params.set('sort_by', sortBy);
+    params.set('sort_order', sortOrder);
+    params.set('page', page.toString());
+    params.set('limit', limit.toString());
+    return `/api/admin/contacts?${params}`;
+  })();
+
+  const { data, error, isLoading: loading, mutate } = useSWR<ContactsResponse>(
+    swrKey,
+    contactsFetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 5000,
+      keepPreviousData: true,
+    }
+  );
+
+  const contacts = data?.contacts ?? [];
+  const pagination: PaginationInfo = data?.pagination ?? { page, limit, totalCount: 0, totalPages: 0 };
+  const stats = data?.stats ?? null;
+
+  const loadContacts = useCallback(() => mutate(), [mutate]);
+
   useEffect(() => {
     const contactId = searchParams.get('contact');
     if (!contactId) return;
@@ -908,35 +1115,7 @@ export default function ContactsPage() {
       .catch(() => {});
   }, [searchParams]);
 
-  const loadContacts = useCallback(async () => {
-    setLoading(true); setError(null);
-    try {
-      const params = new URLSearchParams();
-      if (search) params.set('search', search);
-      if (filterStatus) params.set('status', filterStatus);
-      if (filterTag) params.set('tag', filterTag);
-      if (filterCity) params.set('city', filterCity);
-      params.set('sort_by', sortBy);
-      params.set('sort_order', sortOrder);
-      params.set('page', pagination.page.toString());
-      params.set('limit', pagination.limit.toString());
-
-      const res = await fetch(`/api/admin/contacts?${params}`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setContacts(data.contacts);
-        setPagination(data.pagination);
-        setStats(data.stats);
-      } else {
-        const err = await res.json().catch(() => ({}));
-        setError(err.error || 'Ошибка загрузки');
-      }
-    } catch { setError('Ошибка соединения'); }
-    finally { setLoading(false); }
-  }, [search, filterStatus, filterTag, filterCity, sortBy, sortOrder, pagination.page, pagination.limit]);
-
-  useEffect(() => { loadContacts(); }, [loadContacts]);
-  useEffect(() => { setSelectedIds(new Set()); setSelectAll(false); }, [pagination.page, filterStatus, filterTag, search]);
+  useEffect(() => { setSelectedIds(new Set()); setSelectAll(false); }, [page, filterStatus, filterTag, search]);
 
   const handleSelectAll = () => {
     if (selectAll) setSelectedIds(new Set()); else setSelectedIds(new Set(contacts.map(c => c.id)));
@@ -987,15 +1166,17 @@ export default function ContactsPage() {
   };
 
   const handleContactUpdate = (updated: Contact) => {
-    setContacts(prev => prev.map(c => c.id === updated.id ? updated : c));
+    mutate(prev => prev ? { ...prev, contacts: prev.contacts.map(c => c.id === updated.id ? updated : c) } : prev, false);
     setSelectedContact(updated);
   };
 
-  const handleContactDelete = (id: string) => setContacts(prev => prev.filter(c => c.id !== id));
+  const handleContactDelete = (id: string) => {
+    mutate(prev => prev ? { ...prev, contacts: prev.contacts.filter(c => c.id !== id) } : prev, false);
+  };
 
   const clearFilters = () => {
     setSearch(''); setFilterStatus(''); setFilterTag(''); setFilterCity('');
-    setPagination(prev => ({ ...prev, page: 1 }));
+    setPage(1);
   };
 
   const hasActiveFilters = search || filterStatus || filterTag || filterCity;
@@ -1008,7 +1189,7 @@ export default function ContactsPage() {
   }
 
   const handleStatusChange = async (c: Contact, newStatus: string) => {
-    setContacts(prev => prev.map(x => x.id === c.id ? { ...x, status: newStatus } : x));
+    mutate(prev => prev ? { ...prev, contacts: prev.contacts.map(x => x.id === c.id ? { ...x, status: newStatus } : x) } : prev, false);
     try {
       const res = await adminCsrfFetch(`/api/admin/contacts/${c.id}`, {
         method: 'PATCH', credentials: 'include',
@@ -1017,7 +1198,7 @@ export default function ContactsPage() {
       });
       if (res.ok) {
         const updated = await res.json();
-        setContacts(prev => prev.map(x => x.id === c.id ? updated : x));
+        mutate(prev => prev ? { ...prev, contacts: prev.contacts.map(x => x.id === c.id ? updated : x) } : prev, false);
         if (selectedContact?.id === c.id) setSelectedContact(updated);
       }
     } catch { /* silent */ }
@@ -1060,7 +1241,7 @@ export default function ContactsPage() {
               active={Boolean(card.filterVal) && filterStatus === card.filterVal}
               onClick={card.filterVal ? () => {
                 setFilterStatus(filterStatus === card.filterVal ? '' : card.filterVal);
-                setPagination((p) => ({ ...p, page: 1 }));
+                setPage(1);
               } : undefined}
             />
           ))}
@@ -1075,7 +1256,7 @@ export default function ContactsPage() {
             <Input
               placeholder="Поиск по имени, email, телефону, городу, специальности..."
               value={search}
-              onChange={e => { setSearch(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
               className="h-10 border-[rgba(115,100,219,0.1)] bg-white/80 pl-10 focus:bg-white"
             />
           </div>
@@ -1083,7 +1264,7 @@ export default function ContactsPage() {
             <select
               className="frox-select h-10 rounded-xl px-3 text-sm"
               value={filterStatus}
-              onChange={e => { setFilterStatus(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
+              onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
             >
               <option value="">Все статусы</option>
               {statusConfig.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -1115,7 +1296,7 @@ export default function ContactsPage() {
                 <Input
                   placeholder="Фильтр по тегу"
                   value={filterTag}
-                  onChange={e => { setFilterTag(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
+                  onChange={e => { setFilterTag(e.target.value); setPage(1); }}
                   className="h-10 bg-white/80 pl-9"
                 />
               </div>
@@ -1127,7 +1308,7 @@ export default function ContactsPage() {
                 <Input
                   placeholder="Город"
                   value={filterCity}
-                  onChange={e => { setFilterCity(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
+                  onChange={e => { setFilterCity(e.target.value); setPage(1); }}
                   className="h-10 bg-white/80 pl-9"
                 />
               </div>
@@ -1194,7 +1375,7 @@ export default function ContactsPage() {
       {/* ── Ошибка ── */}
       {error && (
         <div className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm">
-          <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+          <AlertCircle className="w-4 h-4 shrink-0" /> {error.message}
         </div>
       )}
 
@@ -1374,11 +1555,11 @@ export default function ContactsPage() {
             {((pagination.page - 1) * pagination.limit) + 1}–{Math.min(pagination.page * pagination.limit, pagination.totalCount)} из {pagination.totalCount}
           </div>
           <div className="flex items-center gap-1.5">
-            <Button variant="outline" size="sm" disabled={pagination.page <= 1} onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))} className="h-8 w-8 p-0">
+            <Button variant="outline" size="sm" disabled={pagination.page <= 1} onClick={() => setPage(p => p - 1)} className="h-8 w-8 p-0">
               <ChevronLeft className="w-4 h-4" />
             </Button>
             <span className="text-sm text-[var(--frox-gray-500)] px-2">{pagination.page} / {pagination.totalPages}</span>
-            <Button variant="outline" size="sm" disabled={pagination.page >= pagination.totalPages} onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))} className="h-8 w-8 p-0">
+            <Button variant="outline" size="sm" disabled={pagination.page >= pagination.totalPages} onClick={() => setPage(p => p + 1)} className="h-8 w-8 p-0">
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>

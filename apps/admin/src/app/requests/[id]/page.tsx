@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -31,34 +31,26 @@ const statusConfig: Record<string, { label: string; pill: string; dot: string; i
   archived: { label: 'В архиве', pill: 'bg-[var(--frox-gray-200)] text-[var(--frox-gray-500)] border-[var(--frox-neutral-border)]', dot: 'bg-[var(--frox-gray-400)]', icon: Archive },
 };
 
+async function requestFetcher(url: string): Promise<RequestItem> {
+  const res = await fetch(url, { credentials: 'include' });
+  if (!res.ok) {
+    if (res.status === 404) throw new Error('Заявка не найдена');
+    if (res.status === 401) throw new Error('Требуется авторизация');
+    throw new Error('Ошибка загрузки');
+  }
+  return res.json();
+}
+
 export default function RequestDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
 
-  const [request, setRequest] = useState<RequestItem | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function fetchRequest() {
-      try {
-        const response = await fetch(`/api/admin/requests/${id}`, { credentials: 'include' });
-        if (!response.ok) {
-          if (response.status === 404) setError('Заявка не найдена');
-          else if (response.status === 401) setError('Требуется авторизация');
-          else setError('Ошибка загрузки');
-          return;
-        }
-        setRequest(await response.json());
-      } catch {
-        setError('Ошибка подключения');
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchRequest();
-  }, [id]);
+  const { data: request, error, isLoading: loading, mutate } = useSWR<RequestItem>(
+    `/api/admin/requests/${id}`,
+    requestFetcher,
+    { revalidateOnFocus: false, keepPreviousData: true }
+  );
 
   if (loading) {
     return (
@@ -74,7 +66,7 @@ export default function RequestDetailPage() {
         <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
           <AlertCircle className="w-7 h-7 text-red-400" />
         </div>
-        <p className="text-[var(--frox-gray-600)] mb-6">{error || 'Заявка не найдена'}</p>
+        <p className="text-[var(--frox-gray-600)] mb-6">{error?.message || 'Заявка не найдена'}</p>
         <Button variant="outline" onClick={() => router.push('/requests')}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Назад к заявкам
@@ -136,7 +128,7 @@ export default function RequestDetailPage() {
           <div className="bg-white border border-[var(--frox-neutral-border)] rounded-2xl p-5 sm:p-6 shadow-sm">
             <LeadInfoPanel
               request={request}
-              onUpdate={setRequest}
+              onUpdate={(updated) => mutate(updated, false)}
               onDelete={() => router.push('/requests')}
             />
           </div>

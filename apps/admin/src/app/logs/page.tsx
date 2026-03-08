@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback, memo, useRef } from 'react';
+import { useEffect, useState, memo, useRef } from 'react';
+import useSWR from 'swr';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 // Используем простой HTML select вместо Radix UI для упрощения
@@ -62,43 +63,41 @@ const LogRow = memo(function LogRow({ log }: { log: LogEntry }) {
   );
 });
 
+interface LogsResponse {
+  logs: LogEntry[];
+  total: number;
+}
+
+async function logsFetcher(url: string): Promise<LogsResponse> {
+  const res = await fetch(url, { credentials: 'include' });
+  if (!res.ok) throw new Error('Ошибка загрузки логов');
+  return res.json();
+}
+
 export default function AdminLogsPage() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
   const [levelFilter, setLevelFilter] = useState<string>('all');
   const [contextFilter, setContextFilter] = useState<string>('all');
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  // Получение логов через API
-  const fetchLogs = useCallback(async () => {
-    try {
-      setError(null);
-      const params = new URLSearchParams();
-      if (levelFilter !== 'all') params.append('level', levelFilter);
-      if (contextFilter !== 'all') params.append('context', contextFilter);
-      params.append('limit', '500');
+  // Build SWR key
+  const swrKey = (() => {
+    const params = new URLSearchParams();
+    if (levelFilter !== 'all') params.append('level', levelFilter);
+    if (contextFilter !== 'all') params.append('context', contextFilter);
+    params.append('limit', '500');
+    return `/api/admin/logs?${params.toString()}`;
+  })();
 
-      const response = await fetch(`/api/admin/logs?${params.toString()}`, {
-        credentials: 'include',
-      });
+  const { data: logsData, error: swrError, isLoading: loading, mutate } = useSWR<LogsResponse>(
+    swrKey,
+    logsFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 5000, keepPreviousData: true }
+  );
 
-      if (!response.ok) {
-        throw new Error('Ошибка загрузки логов');
-      }
-
-      const data = await response.json();
-      setLogs(data.logs || []);
-      setTotal(data.total || 0);
-    } catch (err: any) {
-      setError(err.message || 'Ошибка загрузки логов');
-      console.error('Ошибка получения логов:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [contextFilter, levelFilter]);
+  const logs = logsData?.logs ?? [];
+  const total = logsData?.total ?? 0;
 
   // Подключение к SSE потоку
   useEffect(() => {
@@ -113,16 +112,17 @@ export default function AdminLogsPage() {
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        
+
         if (data.type === 'log') {
-          setLogs(prev => {
+          mutate((current) => {
+            if (!current) return current;
             // Проверяем, нет ли уже такого лога
-            if (prev.some(log => log.id === data.data.id)) {
-              return prev;
+            if (current.logs.some(log => log.id === data.data.id)) {
+              return current;
             }
             // Добавляем новый лог в НАЧАЛО (новые сверху), ограничиваем до 500
-            return [data.data, ...prev].slice(0, 500);
-          });
+            return { ...current, logs: [data.data, ...current.logs].slice(0, 500) };
+          }, false);
         } else if (data.type === 'connected') {
           console.log('[Logs] Подключено к потоку логов');
         } else if (data.type === 'error') {
@@ -143,11 +143,6 @@ export default function AdminLogsPage() {
     };
   }, [autoRefresh]);
 
-  // Загрузка логов при монтировании и изменении фильтров
-  useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
-
   // Убрана автопрокрутка - новые логи теперь отображаются сверху
 
   // Очистка старых логов
@@ -161,7 +156,7 @@ export default function AdminLogsPage() {
       });
 
       if (response.ok) {
-        await fetchLogs();
+        await mutate();
       } else {
         throw new Error('Ошибка очистки логов');
       }
@@ -212,10 +207,10 @@ export default function AdminLogsPage() {
         </div>
       </div>
 
-      {error && (
+      {(error || swrError) && (
         <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg flex items-center gap-2">
           <AlertCircle className="w-5 h-5" />
-          <span>{error}</span>
+          <span>{error || swrError?.message}</span>
         </div>
       )}
 
