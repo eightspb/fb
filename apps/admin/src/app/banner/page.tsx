@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import useSWR from 'swr';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,45 +11,38 @@ import { Save, Loader2, Eye, Bell } from 'lucide-react';
 import type { SiteBanner } from '@/lib/types/banner';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 
+const bannerFetcher = (url: string) =>
+  fetch(url, { credentials: 'include' }).then(async res => {
+    const data = await res.json();
+    if (!res.ok) {
+      const msg = data.error || 'Ошибка загрузки баннера';
+      if (msg.includes('не найдена') || msg.includes('миграцию')) {
+        alert(`⚠️ ${msg}\n\nПримените миграцию:\nmigrations/007_add_site_banner.sql`);
+        return null;
+      }
+      throw new Error(msg);
+    }
+    return (data.banner as SiteBanner) ?? null;
+  });
+
 export default function BannerPage() {
+  const { data: fetchedBanner, isLoading: loading } = useSWR<SiteBanner | null>(
+    '/api/admin/banner',
+    bannerFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 5000, keepPreviousData: true,
+      onError: (err) => alert('Ошибка загрузки баннера: ' + (err.message || 'Неизвестная ошибка')) }
+  );
+
   const [banner, setBanner] = useState<SiteBanner | null>(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
+  // Синхронизируем локальный state с данными от SWR (только при первой загрузке)
   useEffect(() => {
-    loadBanner();
-  }, []);
-
-  const loadBanner = async () => {
-    try {
-      const response = await fetch('/api/admin/banner', {
-        credentials: 'include',
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        const errorMessage = data.error || 'Ошибка загрузки баннера';
-        if (errorMessage.includes('не найдена') || errorMessage.includes('миграцию')) {
-          alert(`⚠️ ${errorMessage}\n\nПримените миграцию:\nmigrations/007_add_site_banner.sql`);
-        } else {
-          throw new Error(errorMessage);
-        }
-        setLoading(false);
-        return;
-      }
-
-      if (data.banner) {
-        setBanner(data.banner);
-      }
-    } catch (error: any) {
-      console.error('Ошибка загрузки баннера:', error);
-      alert('Ошибка загрузки баннера: ' + (error.message || 'Неизвестная ошибка'));
-    } finally {
-      setLoading(false);
+    if (fetchedBanner && !banner) {
+      setBanner(fetchedBanner);
     }
-  };
+  }, [fetchedBanner, banner]);
 
   const saveBanner = async () => {
     if (!banner) {

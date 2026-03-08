@@ -1,36 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import useSWR from 'swr';
 import { NewsForm } from '@/components/admin/NewsForm';
+
+async function newsFetcher(url: string) {
+  const res = await fetch(url, { credentials: 'include' });
+  if (!res.ok) throw new Error('Ошибка загрузки');
+  return res.json();
+}
 
 export default function EditNewsPage() {
   const { id } = useParams();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadData() {
-      try {
-        // includeAll=true - получить новость даже если она черновик (только для админов)
-        const response = await fetch(`/api/news/${id}?includeAll=true`, {
-          credentials: 'include'
-        });
-        if (response.ok) {
-          const newsData = await response.json();
-          setData(newsData);
-        }
-      } catch (error) {
-        console.error('Error loading news:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    if (id) {
-      loadData();
-    }
-  }, [id]);
+  const { data, isLoading: loading } = useSWR(
+    id ? `/api/news/${id}?includeAll=true` : null,
+    newsFetcher,
+    { revalidateOnFocus: false, keepPreviousData: true }
+  );
 
   if (loading) return <div>Загрузка...</div>;
   if (!data) return <div>Новость не найдена</div>;

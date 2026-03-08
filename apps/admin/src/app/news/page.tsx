@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
+import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -53,10 +54,23 @@ function AdminNewsImage({ src, alt, focalPoint }: { src: string, alt: string, fo
   );
 }
 
+async function newsFetcher(url: string): Promise<NewsItem[]> {
+  const res = await fetch(url, { credentials: 'include' });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+    const errorMessage = errorData.error || errorData.details || `HTTP ${res.status}: ${res.statusText}`;
+    const errorCode = errorData.code ? ` (код: ${errorData.code})` : '';
+    throw new Error(`${errorMessage}${errorCode}`);
+  }
+  return res.json();
+}
+
 export default function AdminNewsList() {
-  const [news, setNews] = useState<NewsItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: news = [], error, isLoading: loading, mutate } = useSWR<NewsItem[]>(
+    '/api/news?includeAll=true',
+    newsFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 5000, keepPreviousData: true }
+  );
   const [selectedNewsIds, setSelectedNewsIds] = useState<Set<string>>(new Set());
   const [isMerging, setIsMerging] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -66,10 +80,6 @@ export default function AdminNewsList() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
-
-  useEffect(() => {
-    loadNews();
-  }, []);
 
   const uniqueCategories = Array.from(new Set(news.map(item => item.category).filter(Boolean))) as string[];
   const uniqueYears = Array.from(new Set(news.map(item => {
@@ -95,35 +105,6 @@ export default function AdminNewsList() {
       return matchesSearch && matchesCategory && matchesYear && matchesStatus;
   });
 
-  const loadNews = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // includeAll=true - получить все новости, включая черновики (только для админов)
-      const response = await fetch('/api/news?includeAll=true', {
-        credentials: 'include'
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setNews(data);
-        console.log(`[Admin News] Loaded ${data.length} news items`);
-      } else {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        const errorMessage = errorData.error || errorData.details || `HTTP ${response.status}: ${response.statusText}`;
-        const errorCode = errorData.code ? ` (код: ${errorData.code})` : '';
-        console.error('[Admin News] API error:', errorMessage, errorData);
-        setError(`${errorMessage}${errorCode}`);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
-      console.error('[Admin News] Error loading news:', error);
-      setError(`Ошибка подключения: ${errorMessage}. Проверьте, что база данных запущена и настроена.`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleDelete = async (id: string) => {
     try {
       const csrfToken = await getCsrfToken();
@@ -135,7 +116,7 @@ export default function AdminNewsList() {
 
       if (response.ok) {
         setDeleteConfirmId(null);
-        loadNews();
+        mutate();
       } else {
         alert('Ошибка удаления');
       }
@@ -148,7 +129,7 @@ export default function AdminNewsList() {
     const newStatus = item.status === 'published' ? 'draft' : 'published';
     
     // Optimistic update
-    setNews(news.map(n => n.id === item.id ? { ...n, status: newStatus } : n));
+    mutate(news.map(n => n.id === item.id ? { ...n, status: newStatus } : n), false);
 
     try {
       // Need to fetch full item first because PUT replaces everything
@@ -169,13 +150,13 @@ export default function AdminNewsList() {
 
         if (!response.ok) {
            // Revert
-           loadNews();
+           mutate();
            alert('Ошибка обновления статуса');
         }
       }
     } catch (error) {
       console.error('Error updating status:', error);
-      loadNews();
+      mutate();
     }
   };
 
@@ -215,7 +196,7 @@ export default function AdminNewsList() {
         const result = await response.json();
         alert(`Новости успешно объединены! Объединенная новость: ${result.mergedNewsId}`);
         setSelectedNewsIds(new Set());
-        loadNews();
+        mutate();
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         alert(`Ошибка объединения: ${errorData.error || 'Неизвестная ошибка'}`);
@@ -301,7 +282,7 @@ export default function AdminNewsList() {
                     <option value="draft">Черновик</option>
                 </select>
 
-                <Button variant="outline" size="icon" onClick={loadNews} title="Обновить список">
+                <Button variant="outline" size="icon" onClick={() => mutate()} title="Обновить список">
                     <RefreshCw className="w-4 h-4" />
                 </Button>
             </div>
@@ -311,14 +292,14 @@ export default function AdminNewsList() {
         <Card className="border-red-200 bg-red-50">
           <CardContent className="py-4">
             <div className="text-red-800 font-medium mb-2">Ошибка</div>
-            <div className="text-red-600 text-sm mb-4">{error}</div>
+            <div className="text-red-600 text-sm mb-4">{error.message}</div>
             <div className="text-xs text-red-500 mb-2">Возможные причины:</div>
             <ul className="text-xs text-red-500 list-disc list-inside space-y-1 mb-4">
               <li>База данных не запущена (проверьте Docker контейнеры)</li>
               <li>Переменные окружения не настроены (создайте .env.local)</li>
               <li>Таблицы не созданы (выполните bun run setup)</li>
             </ul>
-            <Button onClick={loadNews} variant="outline" size="sm">
+            <Button onClick={() => mutate()} variant="outline" size="sm">
               Попробовать снова
             </Button>
           </CardContent>

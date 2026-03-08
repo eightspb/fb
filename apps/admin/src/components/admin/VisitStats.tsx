@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import useSWR from 'swr';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -104,32 +105,20 @@ function getDeviceName(type: string): string {
   }
 }
 
+async function statsFetcher(url: string): Promise<StatsData> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Ошибка загрузки статистики');
+  return res.json();
+}
+
 export default function VisitStats() {
-  const [data, setData] = useState<StatsData | null>(null);
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchStats = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/admin/analytics/stats?period=${period}`);
-      if (!response.ok) {
-        throw new Error('Ошибка загрузки статистики');
-      }
-      const result = await response.json();
-      setData(result);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
-    } finally {
-      setLoading(false);
-    }
-  }, [period]);
-
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+  const { data, error, isLoading: loading } = useSWR<StatsData>(
+    `/api/admin/analytics/stats?period=${period}`,
+    statsFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 5000, keepPreviousData: true }
+  );
 
   if (loading && !data) {
     return (
@@ -151,9 +140,9 @@ export default function VisitStats() {
     return (
       <Card>
         <CardContent className="pt-6">
-          <p className="text-red-500 text-sm">{error}</p>
-          <button 
-            onClick={fetchStats}
+          <p className="text-red-500 text-sm">{error?.message}</p>
+          <button
+            onClick={() => window.location.reload()}
             className="mt-2 text-sm text-blue-600 hover:underline"
           >
             Попробовать снова

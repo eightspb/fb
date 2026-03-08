@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -130,13 +131,23 @@ function StatusPill({ value, onChange }: { value: string; onChange: (v: string) 
   );
 }
 
+interface RequestsResponse {
+  requests: RequestItem[];
+  pagination: PaginationInfo;
+  stats: Stats;
+}
+
+async function requestsFetcher(url: string): Promise<RequestsResponse> {
+  const res = await fetch(url, { credentials: 'include' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Ошибка загрузки заявок');
+  }
+  return res.json();
+}
+
 export default function AdminRequestsPage() {
   const router = useRouter();
-  const [requests, setRequests] = useState<RequestItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: 25, totalCount: 0, totalPages: 0 });
-  const [stats, setStats] = useState<Stats | null>(null);
 
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
@@ -148,6 +159,8 @@ export default function AdminRequestsPage() {
 
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(1);
+  const [limit] = useState(25);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
@@ -156,45 +169,31 @@ export default function AdminRequestsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
-  const loadRequests = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      if (search) params.set('search', search);
-      if (filterType) params.set('form_type', filterType);
-      if (filterStatus) params.set('status', filterStatus);
-      if (filterPriority) params.set('priority', filterPriority);
-      if (dateFrom) params.set('date_from', dateFrom);
-      if (dateTo) params.set('date_to', dateTo);
-      params.set('sort_by', sortBy);
-      params.set('sort_order', sortOrder);
-      params.set('page', pagination.page.toString());
-      params.set('limit', pagination.limit.toString());
+  // Build SWR key from current filters/sort/pagination
+  const swrKey = (() => {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (filterType) params.set('form_type', filterType);
+    if (filterStatus) params.set('status', filterStatus);
+    if (filterPriority) params.set('priority', filterPriority);
+    if (dateFrom) params.set('date_from', dateFrom);
+    if (dateTo) params.set('date_to', dateTo);
+    params.set('sort_by', sortBy);
+    params.set('sort_order', sortOrder);
+    params.set('page', page.toString());
+    params.set('limit', limit.toString());
+    return `/api/admin/requests?${params}`;
+  })();
 
-      const response = await fetch(`/api/admin/requests?${params}`, { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setRequests(data.requests);
-        setPagination(data.pagination);
-        setStats(data.stats);
-      } else {
-        const err = await response.json().catch(() => ({}));
-        setError(err.error || 'Ошибка загрузки заявок');
-      }
-    } catch {
-      setError('Ошибка соединения');
-    } finally {
-      setLoading(false);
-    }
-  }, [search, filterType, filterStatus, filterPriority, dateFrom, dateTo, sortBy, sortOrder, pagination.page, pagination.limit]);
+  const { data, error, isLoading: loading, mutate } = useSWR<RequestsResponse>(
+    swrKey,
+    requestsFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 5000, keepPreviousData: true }
+  );
 
-  useEffect(() => { loadRequests(); }, [loadRequests]);
-
-  useEffect(() => {
-    setSelectedIds(new Set());
-    setSelectAll(false);
-  }, [pagination.page, filterType, filterStatus, search]);
+  const requests = data?.requests ?? [];
+  const pagination: PaginationInfo = data?.pagination ?? { page, limit, totalCount: 0, totalPages: 0 };
+  const stats = data?.stats ?? null;
 
   const handleSelectAll = () => {
     if (selectAll) { setSelectedIds(new Set()); } else { setSelectedIds(new Set(requests.map(r => r.id))); }
@@ -217,7 +216,7 @@ export default function AdminRequestsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: Array.from(selectedIds), status: newStatus }),
       });
-      if (res.ok) { loadRequests(); setSelectedIds(new Set()); setSelectAll(false); }
+      if (res.ok) { mutate(); setSelectedIds(new Set()); setSelectAll(false); }
     } catch { /* silent */ }
   };
 
@@ -230,7 +229,7 @@ export default function AdminRequestsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: Array.from(selectedIds) }),
       });
-      if (res.ok) { loadRequests(); setSelectedIds(new Set()); setSelectAll(false); setShowBulkDeleteConfirm(false); }
+      if (res.ok) { mutate(); setSelectedIds(new Set()); setSelectAll(false); setShowBulkDeleteConfirm(false); }
     } catch { /* silent */ }
   };
 
@@ -257,7 +256,7 @@ export default function AdminRequestsPage() {
   };
 
   const handleStatusChange = async (req: RequestItem, newStatus: string) => {
-    setRequests(requests.map(r => r.id === req.id ? { ...r, status: newStatus } : r));
+    mutate(data ? { ...data, requests: data.requests.map(r => r.id === req.id ? { ...r, status: newStatus } : r) } : undefined, false);
     try {
       await adminCsrfFetch(`/api/admin/requests/${req.id}`, {
         method: 'PATCH',
@@ -265,23 +264,26 @@ export default function AdminRequestsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
-    } catch { loadRequests(); }
+    } catch { mutate(); }
   };
 
   const handleRequestUpdate = (updated: RequestItem) => {
-    setRequests(requests.map(r => r.id === updated.id ? updated : r));
+    mutate(data ? { ...data, requests: data.requests.map(r => r.id === updated.id ? updated : r) } : undefined, false);
     setSelectedRequest(updated);
   };
 
   const handleRequestDelete = (id: string) => {
-    setRequests(requests.filter(r => r.id !== id));
-    if (stats) setStats({ ...stats, total_count: (parseInt(stats.total_count) - 1).toString() });
+    mutate(data ? {
+      ...data,
+      requests: data.requests.filter(r => r.id !== id),
+      stats: data.stats ? { ...data.stats, total_count: (parseInt(data.stats.total_count) - 1).toString() } : data.stats,
+    } : undefined, false);
   };
 
   const clearFilters = () => {
     setSearch(''); setFilterType(''); setFilterStatus('');
     setFilterPriority(''); setDateFrom(''); setDateTo('');
-    setPagination(prev => ({ ...prev, page: 1 }));
+    setPage(1);
   };
 
   const hasActiveFilters = search || filterType || filterStatus || filterPriority || dateFrom || dateTo;
@@ -312,7 +314,7 @@ export default function AdminRequestsPage() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => loadRequests()}
+            onClick={() => mutate()}
             title="Обновить"
             className="h-9 w-9 shrink-0"
           >
@@ -343,7 +345,7 @@ export default function AdminRequestsPage() {
               active={filterStatus === card.filterVal}
               onClick={() => {
                 setFilterStatus(filterStatus === card.filterVal ? '' : card.filterVal);
-                setPagination(p => ({ ...p, page: 1 }));
+                setPage(1);
               }}
             />
           ))}
@@ -358,7 +360,7 @@ export default function AdminRequestsPage() {
             <Input
               placeholder="Поиск по имени, email, телефону..."
               value={search}
-              onChange={e => { setSearch(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
               className="h-10 border-[rgba(115,100,219,0.1)] bg-white/80 pl-10 focus:bg-white"
             />
           </div>
@@ -366,7 +368,7 @@ export default function AdminRequestsPage() {
             <select
               className="frox-select h-10 rounded-xl px-3 text-sm"
               value={filterType}
-              onChange={e => { setFilterType(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
+              onChange={e => { setFilterType(e.target.value); setPage(1); }}
             >
               <option value="">Все типы</option>
               <option value="contact">Контактная форма</option>
@@ -378,7 +380,7 @@ export default function AdminRequestsPage() {
             <select
               className="frox-select h-10 rounded-xl px-3 text-sm"
               value={filterStatus}
-              onChange={e => { setFilterStatus(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
+              onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
             >
               <option value="">Все статусы</option>
               {statusConfig.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -413,7 +415,7 @@ export default function AdminRequestsPage() {
               <select
                 className="frox-select h-10 w-full rounded-xl px-3 text-sm"
                 value={filterPriority}
-                onChange={e => { setFilterPriority(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
+                onChange={e => { setFilterPriority(e.target.value); setPage(1); }}
               >
                 <option value="">Любой</option>
                 {priorityConfig.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
@@ -421,11 +423,11 @@ export default function AdminRequestsPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-1.5">Дата от</label>
-              <Input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPagination(p => ({ ...p, page: 1 })); }} className="h-10 bg-white/80" />
+              <Input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }} className="h-10 bg-white/80" />
             </div>
             <div>
               <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-1.5">Дата до</label>
-              <Input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPagination(p => ({ ...p, page: 1 })); }} className="h-10 bg-white/80" />
+              <Input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }} className="h-10 bg-white/80" />
             </div>
           </div>
         )}
@@ -470,7 +472,7 @@ export default function AdminRequestsPage() {
       {error && (
         <div className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm">
           <AlertCircle className="w-4 h-4 shrink-0" />
-          {error}
+          {error?.message}
         </div>
       )}
 
@@ -710,7 +712,7 @@ export default function AdminRequestsPage() {
               variant="outline"
               size="sm"
               disabled={pagination.page <= 1}
-              onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}
+              onClick={() => setPage(p => p - 1)}
               className="h-8 w-8 p-0"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -728,7 +730,7 @@ export default function AdminRequestsPage() {
                     variant={pagination.page === p ? 'default' : 'outline'}
                     size="sm"
                     className="h-8 w-8 p-0"
-                    onClick={() => setPagination(prev => ({ ...prev, page: p }))}
+                    onClick={() => setPage(p)}
                   >
                     {p}
                   </Button>
@@ -739,7 +741,7 @@ export default function AdminRequestsPage() {
               variant="outline"
               size="sm"
               disabled={pagination.page >= pagination.totalPages}
-              onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}
+              onClick={() => setPage(p => p + 1)}
               className="h-8 w-8 p-0"
             >
               <ChevronRight className="w-4 h-4" />

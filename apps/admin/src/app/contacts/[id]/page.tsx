@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -127,10 +128,17 @@ function EditableTextarea({ value, onSave, placeholder = '—' }: {
   const [saving, setSaving] = useState(false);
   const [height, setHeight] = useState(TEXTAREA_MIN_H);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const viewRef = useRef<HTMLButtonElement>(null);
   const startRef = useRef({ y: 0, h: 0 });
 
   useEffect(() => { if (!editing) setDraft(value || ''); }, [value, editing]);
-  useEffect(() => { if (editing) setHeight(TEXTAREA_MIN_H); }, [editing]);
+
+  const startEditing = useCallback(() => {
+    // Сохраняем текущую высоту блока просмотра, чтобы не было прыжка
+    const viewH = viewRef.current?.getBoundingClientRect().height ?? TEXTAREA_MIN_H;
+    setHeight(Math.max(TEXTAREA_MIN_H, viewH));
+    setEditing(true);
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
@@ -169,7 +177,7 @@ function EditableTextarea({ value, onSave, placeholder = '—' }: {
             ref={textareaRef}
             value={draft}
             onChange={e => setDraft(e.target.value)}
-            className="w-full text-sm px-3 py-2 pr-8 pb-6 border border-[var(--frox-neutral-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 block"
+            className="w-full text-sm px-3 py-2.5 pr-8 pb-6 border-2 border-blue-400 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 block bg-white shadow-sm transition-colors"
             style={{ minHeight: TEXTAREA_MIN_H, height }}
             autoFocus
           />
@@ -196,8 +204,9 @@ function EditableTextarea({ value, onSave, placeholder = '—' }: {
 
   return (
     <button
-      onClick={() => setEditing(true)}
-      className="w-full text-left text-sm text-[var(--frox-gray-800)] hover:text-[var(--frox-gray-1100)] group flex items-start gap-1.5"
+      ref={viewRef}
+      onClick={startEditing}
+      className="w-full text-left text-sm text-[var(--frox-gray-800)] hover:text-[var(--frox-gray-1100)] group flex items-start gap-1.5 border border-[var(--frox-gray-200)] hover:border-[var(--frox-gray-300)] rounded-lg px-3 py-2.5 bg-[var(--frox-gray-50)] hover:bg-white transition-colors min-h-[96px]"
     >
       <span className={`flex-1 whitespace-pre-wrap ${value ? '' : 'text-[var(--frox-gray-300)] italic'}`}>{value || placeholder}</span>
       <Pencil className="w-3 h-3 text-[var(--frox-gray-300)] group-hover:text-[var(--frox-gray-500)] transition-colors shrink-0 mt-0.5" />
@@ -205,38 +214,37 @@ function EditableTextarea({ value, onSave, placeholder = '—' }: {
   );
 }
 
+const contactFetcher = (url: string) =>
+  fetch(url, { credentials: 'include' }).then(async res => {
+    if (!res.ok) {
+      const err: any = new Error('Ошибка загрузки');
+      err.status = res.status;
+      throw err;
+    }
+    return res.json() as Promise<Contact>;
+  });
+
 export default function ContactDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
 
-  const [contact, setContact] = useState<Contact | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: contact, error: swrError, isLoading: loading, mutate } = useSWR<Contact>(
+    id ? `/api/admin/contacts/${id}` : null,
+    contactFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 5000, keepPreviousData: true }
+  );
+
+  const error = swrError
+    ? swrError.status === 404 ? 'Контакт не найден'
+      : swrError.status === 401 ? 'Требуется авторизация'
+      : 'Ошибка загрузки'
+    : null;
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [researching, setResearching] = useState(false);
   const [researchError, setResearchError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function fetchContact() {
-      try {
-        const response = await fetch(`/api/admin/contacts/${id}`, { credentials: 'include' });
-        if (!response.ok) {
-          if (response.status === 404) setError('Контакт не найден');
-          else if (response.status === 401) setError('Требуется авторизация');
-          else setError('Ошибка загрузки');
-          return;
-        }
-        setContact(await response.json());
-      } catch {
-        setError('Ошибка подключения');
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchContact();
-  }, [id]);
 
   const patchField = async (fields: Partial<Contact>) => {
     const res = await adminCsrfFetch(`/api/admin/contacts/${id}`, {
@@ -244,7 +252,7 @@ export default function ContactDetailPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(fields),
     });
-    if (res.ok) setContact(await res.json());
+    if (res.ok) mutate(await res.json(), false);
   };
 
   const addTag = async () => {
@@ -268,7 +276,7 @@ export default function ContactDetailPage() {
         method: 'POST', credentials: 'include',
       });
       if (res.ok) {
-        setContact(await res.json());
+        mutate(await res.json(), false);
       } else {
         const data = await res.json().catch(() => null);
         setResearchError(data?.error || 'Ошибка при исследовании');
@@ -383,75 +391,87 @@ export default function ContactDetailPage() {
 
             <div className="h-px bg-[var(--frox-gray-200)]" />
 
-            {/* Контактные данные */}
-            <div>
-              <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-3">Контактные данные</div>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Mail className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
-                  <EditableField value={contact.email} onSave={v => patchField({ email: v || null } as Partial<Contact>)} placeholder="email не указан" />
-                </div>
-                <div className="flex items-center gap-3">
-                  <Phone className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
-                  <EditableField value={contact.phone} onSave={v => patchField({ phone: v || null } as Partial<Contact>)} placeholder="телефон не указан" />
-                </div>
-                <div className="flex items-center gap-3">
-                  <MapPin className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
-                  <EditableField value={contact.city} onSave={v => patchField({ city: v || null } as Partial<Contact>)} placeholder="город не указан" />
-                </div>
-              </div>
-            </div>
+            {/* Контактные данные + Место работы + Теги — двухколоночный layout */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
-            {/* Место работы */}
-            <div>
-              <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-3">Место работы</div>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Building2 className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
-                  <EditableField value={contact.institution} onSave={v => patchField({ institution: v || null } as Partial<Contact>)} placeholder="организация не указана" />
-                </div>
-                <div className="flex items-center gap-3">
-                  <Stethoscope className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
-                  <EditableField value={contact.speciality} onSave={v => patchField({ speciality: v || null } as Partial<Contact>)} placeholder="специальность не указана" />
+              {/* Левая колонка: контактные данные */}
+              <div>
+                <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-3">Контактные данные</div>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Mail className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
+                    <EditableField value={contact.email} onSave={v => patchField({ email: v || null } as Partial<Contact>)} placeholder="email не указан" />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Phone className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
+                    <EditableField value={contact.phone} onSave={v => patchField({ phone: v || null } as Partial<Contact>)} placeholder="телефон не указан" />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <MapPin className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
+                    <EditableField value={contact.city} onSave={v => patchField({ city: v || null } as Partial<Contact>)} placeholder="город не указан" />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Теги */}
-            <div>
-              <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Теги</div>
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {contact.tags.map(tag => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--frox-gray-200)] text-[var(--frox-gray-600)] text-xs font-medium"
-                  >
-                    {tag}
-                    <button onClick={() => removeTag(tag)} className="text-[var(--frox-gray-400)] hover:text-red-500 transition-colors ml-0.5">
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-                {contact.tags.length === 0 && <span className="text-xs text-[var(--frox-gray-300)] italic">нет тегов</span>}
-              </div>
-              <div className="flex gap-2 max-w-sm">
-                <Input
-                  value={tagInput}
-                  onChange={e => setTagInput(e.target.value)}
-                  placeholder="Добавить тег..."
-                  className="h-8 text-sm bg-[var(--frox-gray-100)]"
-                  onKeyDown={e => { if (e.key === 'Enter') addTag(); }}
-                />
-                <Button size="sm" variant="outline" onClick={addTag} className="h-8 w-8 p-0 shrink-0">
-                  <Plus className="w-3.5 h-3.5" />
-                </Button>
+              {/* Правая колонка: место работы + теги */}
+              <div className="space-y-5">
+
+                {/* Место работы */}
+                <div>
+                  <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-3">Место работы</div>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Building2 className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
+                      <EditableField value={contact.institution} onSave={v => patchField({ institution: v || null } as Partial<Contact>)} placeholder="организация не указана" />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Stethoscope className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
+                      <EditableField value={contact.speciality} onSave={v => patchField({ speciality: v || null } as Partial<Contact>)} placeholder="специальность не указана" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Теги */}
+                <div>
+                  <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Теги</div>
+                  <div className="flex flex-wrap gap-1.5 mb-2.5">
+                    {contact.tags.map(tag => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--frox-gray-200)] text-[var(--frox-gray-600)] text-xs font-medium"
+                      >
+                        {tag}
+                        <button onClick={() => removeTag(tag)} className="text-[var(--frox-gray-400)] hover:text-red-500 transition-colors ml-0.5">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                    {contact.tags.length === 0 && <span className="text-xs text-[var(--frox-gray-300)] italic">нет тегов</span>}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      value={tagInput}
+                      onChange={e => setTagInput(e.target.value)}
+                      placeholder="Добавить тег..."
+                      className="h-8 text-sm bg-[var(--frox-gray-100)]"
+                      onKeyDown={e => { if (e.key === 'Enter') addTag(); }}
+                    />
+                    <Button size="sm" variant="outline" onClick={addTag} className="h-8 w-8 p-0 shrink-0">
+                      <Plus className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+
               </div>
             </div>
 
             {/* Заметки */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider">Заметки</div>
+            <div className="rounded-xl border border-[var(--frox-gray-200)] bg-[var(--frox-gray-50)] p-3">
+              <div className="flex items-center justify-between mb-2.5">
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--frox-gray-500)] uppercase tracking-wider">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="shrink-0"><path d="M2 4h12M2 8h8M2 12h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                  Заметки
+                </div>
                 <Button
                   size="sm"
                   variant="outline"

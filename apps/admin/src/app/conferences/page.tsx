@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
+import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,29 +30,19 @@ interface Conference {
   location?: string;
 }
 
+async function conferencesFetcher(url: string): Promise<Conference[]> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Ошибка загрузки');
+  return res.json();
+}
+
 export default function AdminConferencesList() {
-  const [conferences, setConferences] = useState<Conference[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: conferences = [], isLoading: loading, mutate } = useSWR<Conference[]>(
+    '/api/conferences',
+    conferencesFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 5000, keepPreviousData: true }
+  );
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadConferences();
-  }, []);
-
-  const loadConferences = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('/api/conferences');
-      if (response.ok) {
-        const data = await response.json();
-        setConferences(data);
-      }
-    } catch (error) {
-      console.error('Error loading conferences:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDelete = async (id: string) => {
     try {
@@ -64,7 +55,7 @@ export default function AdminConferencesList() {
 
       if (response.ok) {
         setDeleteConfirmId(null);
-        loadConferences();
+        mutate();
       } else {
         alert('Ошибка удаления');
       }
@@ -76,7 +67,7 @@ export default function AdminConferencesList() {
   const togglePublish = async (item: Conference) => {
     const newStatus = item.status === 'published' ? 'draft' : 'published';
     
-    setConferences(conferences.map(n => n.id === item.id ? { ...n, status: newStatus } : n));
+    mutate(conferences.map(n => n.id === item.id ? { ...n, status: newStatus } : n), false);
 
     try {
       const itemResponse = await fetch(`/api/conferences/${item.id}`, { credentials: 'include' });
@@ -95,13 +86,13 @@ export default function AdminConferencesList() {
         });
 
         if (!response.ok) {
-           loadConferences();
+           mutate();
            alert('Ошибка обновления статуса');
         }
       }
     } catch (error) {
       console.error('Error updating status:', error);
-      loadConferences();
+      mutate();
     }
   };
 

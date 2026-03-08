@@ -30,10 +30,12 @@
 ```
 
 ### `dev-remote.ps1`
-Локальная разработка с SSH-туннелем к удаленной БД.
+Локальная разработка с SSH-туннелем к удаленной БД. Запускает `site` (порт 3000) и `admin` (порт 3001) параллельно. Ctrl+C корректно завершает все дочерние процессы (рекурсивный `Stop-ProcessTree`).
 
 ```powershell
 .\scripts\dev-remote.ps1
+# или через package.json:
+bun run dev:remote
 ```
 
 ### `clear-all-caches.ps1`

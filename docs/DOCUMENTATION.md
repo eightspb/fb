@@ -12,10 +12,9 @@
 ## Разделы docs
 
 - [Быстрый старт](./QUICK_START.md)
-- [Автоматизация](./AUTOMATION_GUIDE.md)
+- [Удалённая БД для dev](./REMOTE_DB_SETUP.md)
 - [Тестирование (подробно)](./TESTING.md)
-- [Тестирование (кратко, команды)](./tests.md)
-- [Удаленная БД для dev](./REMOTE_DB_SETUP.md)
+- [Тестирование (кратко)](./tests.md)
 - [Логирование](./LOGGING.md)
 - [SMTP](./SMTP_SETUP.md)
 - [SSL](./SSL_QUICKSTART.md)
@@ -23,7 +22,6 @@
 - [Telegram: quick fix](./TELEGRAM_FIX_QUICK.md)
 - [Telegram: debug](./TELEGRAM_DEBUG.md)
 - [Yandex Direct roadmap](./yandex-direct-roadmap.md)
-- [Deploy banner](./DEPLOY_BANNER.md)
 
 ## Служебная документация
 

@@ -197,53 +197,31 @@ Write-Host ""
 # Получаем путь к текущей директории (корень проекта)
 $projectRoot = (Get-Location).Path
 
-# Запускаем site (порт 3000) в отдельном процессе
-$siteProcess = Start-Process -FilePath "cmd" `
-    -ArgumentList "/c", "bun run dev:site" `
-    -WorkingDirectory $projectRoot `
-    -PassThru `
-    -NoNewWindow
-
-Write-Info "Запущен site (PID: $($siteProcess.Id)) на http://localhost:3000"
-
-# Небольшая пауза чтобы site успел стартовать первым
-Start-Sleep -Seconds 2
-
-# Запускаем admin (порт 3001) в отдельном процессе
-$adminProcess = Start-Process -FilePath "cmd" `
-    -ArgumentList "/c", "bun run dev:admin" `
-    -WorkingDirectory $projectRoot `
-    -PassThru `
-    -NoNewWindow
-
-Write-Info "Запущен admin (PID: $($adminProcess.Id)) на http://localhost:3001/admin"
-Write-Host ""
+# Рекурсивно убить процесс и всех его потомков
+function Stop-ProcessTree {
+    param([int]$ParentId)
+    try {
+        $children = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+                    Where-Object { $_.ParentProcessId -eq $ParentId }
+        foreach ($child in $children) {
+            Stop-ProcessTree -ParentId $child.ProcessId
+        }
+        Stop-Process -Id $ParentId -Force -ErrorAction SilentlyContinue
+    } catch {}
+}
 
 function Stop-AllProcesses {
     Write-Host ""
     Write-Info "Остановка всех процессов..."
 
-    # Останавливаем site
-    if ($siteProcess -and -not $siteProcess.HasExited) {
-        try {
-            # Убиваем дочерние процессы (bun spawns child node processes)
-            $children = Get-CimInstance Win32_Process | Where-Object { $_.ParentProcessId -eq $siteProcess.Id }
-            foreach ($child in $children) {
-                Stop-Process -Id $child.ProcessId -Force -ErrorAction SilentlyContinue
-            }
-            Stop-Process -Id $siteProcess.Id -Force -ErrorAction SilentlyContinue
-        } catch {}
+    # Останавливаем site (дерево процессов)
+    if ($script:siteProcess -and -not $script:siteProcess.HasExited) {
+        Stop-ProcessTree -ParentId $script:siteProcess.Id
     }
 
-    # Останавливаем admin
-    if ($adminProcess -and -not $adminProcess.HasExited) {
-        try {
-            $children = Get-CimInstance Win32_Process | Where-Object { $_.ParentProcessId -eq $adminProcess.Id }
-            foreach ($child in $children) {
-                Stop-Process -Id $child.ProcessId -Force -ErrorAction SilentlyContinue
-            }
-            Stop-Process -Id $adminProcess.Id -Force -ErrorAction SilentlyContinue
-        } catch {}
+    # Останавливаем admin (дерево процессов)
+    if ($script:adminProcess -and -not $script:adminProcess.HasExited) {
+        Stop-ProcessTree -ParentId $script:adminProcess.Id
     }
 
     # Останавливаем SSH туннель
@@ -267,23 +245,52 @@ function Stop-AllProcesses {
     Write-Success "Всё остановлено. Готово!"
 }
 
-# Обработчик выхода
-$null = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action { Stop-AllProcesses }
+# Запускаем site (порт 3000)
+$siteProcess = Start-Process -FilePath "cmd.exe" `
+    -ArgumentList "/c", "bun run dev:site" `
+    -WorkingDirectory $projectRoot `
+    -PassThru `
+    -NoNewWindow
+
+Write-Info "Запущен site (PID: $($siteProcess.Id)) на http://localhost:3000"
+
+# Небольшая пауза чтобы site успел стартовать первым
+Start-Sleep -Seconds 2
+
+# Запускаем admin (порт 3001)
+$adminProcess = Start-Process -FilePath "cmd.exe" `
+    -ArgumentList "/c", "bun run dev:admin" `
+    -WorkingDirectory $projectRoot `
+    -PassThru `
+    -NoNewWindow
+
+Write-Info "Запущен admin (PID: $($adminProcess.Id)) на http://localhost:3001/admin"
+Write-Host ""
+
+# Перехватываем Ctrl+C вручную чтобы избежать "Terminate batch job?" от cmd
+[Console]::TreatControlCAsInput = $true
 
 try {
-    # Ждём пока оба процесса живы
     while (-not $siteProcess.HasExited -and -not $adminProcess.HasExited) {
-        Start-Sleep -Seconds 2
+        # Проверяем нажатие Ctrl+C
+        if ([Console]::KeyAvailable) {
+            $key = [Console]::ReadKey($true)
+            if ($key.Key -eq 'C' -and ($key.Modifiers -band [ConsoleModifiers]::Control)) {
+                Write-Host ""
+                Write-Info "Получен Ctrl+C, завершение..."
+                break
+            }
+        }
+        Start-Sleep -Milliseconds 300
     }
 
-    if ($siteProcess.HasExited) {
+    if ($siteProcess.HasExited -and -not $adminProcess.HasExited) {
         Write-Warning-Custom "Site процесс завершился (код: $($siteProcess.ExitCode))"
     }
-    if ($adminProcess.HasExited) {
+    if ($adminProcess.HasExited -and -not $siteProcess.HasExited) {
         Write-Warning-Custom "Admin процесс завершился (код: $($adminProcess.ExitCode))"
     }
-} catch {
-    # Ctrl+C
 } finally {
+    [Console]::TreatControlCAsInput = $false
     Stop-AllProcesses
 }
