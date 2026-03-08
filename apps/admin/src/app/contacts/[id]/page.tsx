@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EmailThread } from '@/components/admin/EmailThread';
+import { TagAutocompleteInput } from '@/components/admin/TagAutocompleteInput';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 import {
   ArrowLeft,
@@ -15,8 +16,6 @@ import {
   MapPin,
   Building2,
   Stethoscope,
-  Tag,
-  Plus,
   X,
   Trash2,
   AlertCircle,
@@ -256,7 +255,6 @@ export default function ContactDetailPage() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [showStatusMenu]);
-  const [tagInput, setTagInput] = useState('');
   const [researching, setResearching] = useState(false);
   const [researchError, setResearchError] = useState<string | null>(null);
 
@@ -269,12 +267,9 @@ export default function ContactDetailPage() {
     if (res.ok) mutate(await res.json(), false);
   };
 
-  const addTag = async () => {
-    if (!contact) return;
-    const tag = tagInput.trim();
-    if (!tag || contact.tags.includes(tag)) { setTagInput(''); return; }
+  const addTag = async (tag: string) => {
+    if (!contact || contact.tags.includes(tag)) return;
     await patchField({ tags: [...contact.tags, tag] });
-    setTagInput('');
   };
 
   const removeTag = async (tag: string) => {
@@ -404,7 +399,7 @@ export default function ContactDetailPage() {
         <TabsContent value="info" className="mt-4">
           <div className="bg-white border border-[var(--frox-neutral-border)] rounded-2xl p-5 sm:p-6 shadow-sm space-y-6">
 
-            {/* Контактные данные + Место работы + Теги — двухколоночный layout */}
+            {/* Контактные данные + Место работы — двухколоночный layout */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
               {/* Левая колонка: контактные данные */}
@@ -426,56 +421,46 @@ export default function ContactDetailPage() {
                 </div>
               </div>
 
-              {/* Правая колонка: место работы + теги */}
-              <div className="space-y-5">
-
-                {/* Место работы */}
-                <div>
-                  <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-3">Место работы</div>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <Building2 className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
-                      <EditableField value={contact.institution} onSave={v => patchField({ institution: v || null } as Partial<Contact>)} placeholder="организация не указана" />
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Stethoscope className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
-                      <EditableField value={contact.speciality} onSave={v => patchField({ speciality: v || null } as Partial<Contact>)} placeholder="специальность не указана" />
-                    </div>
+              {/* Правая колонка: место работы */}
+              <div>
+                <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-3">Место работы</div>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Building2 className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
+                    <EditableField value={contact.institution} onSave={v => patchField({ institution: v || null } as Partial<Contact>)} placeholder="организация не указана" />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Stethoscope className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
+                    <EditableField value={contact.speciality} onSave={v => patchField({ speciality: v || null } as Partial<Contact>)} placeholder="специальность не указана" />
                   </div>
                 </div>
-
-                {/* Теги */}
-                <div>
-                  <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Теги</div>
-                  <div className="flex flex-wrap gap-1.5 mb-2.5">
-                    {contact.tags.map(tag => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--frox-gray-200)] text-[var(--frox-gray-600)] text-xs font-medium"
-                      >
-                        {tag}
-                        <button onClick={() => removeTag(tag)} className="text-[var(--frox-gray-400)] hover:text-red-500 transition-colors ml-0.5">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                    {contact.tags.length === 0 && <span className="text-xs text-[var(--frox-gray-300)] italic">нет тегов</span>}
-                  </div>
-                  <div className="flex gap-2">
-                    <Input
-                      value={tagInput}
-                      onChange={e => setTagInput(e.target.value)}
-                      placeholder="Добавить тег..."
-                      className="h-8 text-sm bg-[var(--frox-gray-100)]"
-                      onKeyDown={e => { if (e.key === 'Enter') addTag(); }}
-                    />
-                    <Button size="sm" variant="outline" onClick={addTag} className="h-8 w-8 p-0 shrink-0">
-                      <Plus className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                </div>
-
               </div>
+
+            </div>
+
+            {/* Теги — на всю ширину */}
+            <div>
+              <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Теги</div>
+              <div className="flex flex-wrap gap-1.5 mb-2.5">
+                {contact.tags.map(tag => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--frox-gray-200)] text-[var(--frox-gray-600)] text-xs font-medium"
+                  >
+                    {tag}
+                    <button onClick={() => removeTag(tag)} className="text-[var(--frox-gray-400)] hover:text-red-500 transition-colors ml-0.5">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+                {contact.tags.length === 0 && <span className="text-xs text-[var(--frox-gray-300)] italic">нет тегов</span>}
+              </div>
+              <TagAutocompleteInput
+                existingTags={contact.tags}
+                onAdd={addTag}
+                placeholder="Добавить тег..."
+                inputClassName="h-8 text-sm bg-[var(--frox-gray-100)]"
+              />
             </div>
 
             {/* Заметки */}
