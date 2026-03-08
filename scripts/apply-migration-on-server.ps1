@@ -14,6 +14,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 
 Write-Host "`n=== Проверка и применение миграции 006_fix_app_logs_rls ===" -ForegroundColor Cyan
 
