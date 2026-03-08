@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { researchContactWithAI } from '@/lib/openrouter';
 
 export const runtime = 'nodejs';
 
@@ -157,9 +158,54 @@ export async function POST(request: NextRequest) {
         notes?.trim() || null,
       ]
     );
-    return NextResponse.json(result.rows[0], { status: 201 });
+    const newContact = result.rows[0];
+
+    // Запускаем AI-исследование в фоне, не блокируя ответ
+    if (newContact.full_name?.trim()) {
+      void triggerBackgroundResearch(newContact);
+    }
+
+    return NextResponse.json(newContact, { status: 201 });
   } finally {
     client.release();
+  }
+}
+
+async function triggerBackgroundResearch(contact: {
+  id: string; full_name: string; city?: string | null;
+  institution?: string | null; speciality?: string | null;
+  phone?: string | null; email?: string | null;
+}) {
+  const AI_RESEARCH_HEADER = '── AI Исследование';
+  try {
+    const researchResult = await researchContactWithAI({
+      full_name: contact.full_name,
+      city: contact.city,
+      institution: contact.institution,
+      speciality: contact.speciality,
+      phone: contact.phone,
+      email: contact.email,
+    });
+
+    const now = new Date().toLocaleDateString('ru-RU', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+    const aiBlock = `${AI_RESEARCH_HEADER} (${now}) ──\n${researchResult}\n── конец исследования ──`;
+
+    const client = await pool.connect();
+    try {
+      // Обновляем только если notes всё ещё пустые (не затираем ручные заметки)
+      await client.query(
+        `UPDATE contacts SET notes = $1, updated_at = NOW()
+         WHERE id = $2 AND (notes IS NULL OR TRIM(notes) = '')`,
+        [aiBlock, contact.id]
+      );
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error(`[AutoResearch] Ошибка для контакта ${contact.id}:`, err);
   }
 }
 

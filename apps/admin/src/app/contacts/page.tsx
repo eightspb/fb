@@ -26,7 +26,6 @@ import {
   MapPin,
   Stethoscope,
   Building2,
-  Plus,
   Pencil,
   Check,
   XCircle,
@@ -43,6 +42,7 @@ import {
 } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 import { FroxStatCard } from '@/components/admin/FroxStatCard';
+import { TagAutocompleteInput } from '@/components/admin/TagAutocompleteInput';
 
 interface Contact {
   id: string;
@@ -639,7 +639,6 @@ function ContactPanel({
   onDelete: (id: string) => void;
 }) {
   const router = useRouter();
-  const [tagInput, setTagInput] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [researching, setResearching] = useState(false);
   const [researchError, setResearchError] = useState<string | null>(null);
@@ -707,11 +706,9 @@ function ContactPanel({
     if (res.ok) onUpdate(await res.json());
   };
 
-  const addTag = async () => {
-    const tag = tagInput.trim();
-    if (!tag || contact.tags.includes(tag)) { setTagInput(''); return; }
+  const addTag = async (tag: string) => {
+    if (contact.tags.includes(tag)) return;
     await patchField({ tags: [...contact.tags, tag] });
-    setTagInput('');
   };
 
   const removeTag = async (tag: string) => {
@@ -825,52 +822,45 @@ function ContactPanel({
               </div>
             </div>
 
-            {/* Правая колонка: место работы + теги */}
-            <div className="space-y-4">
-              <div>
-                <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Место работы</div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3 text-sm">
-                    <Building2 className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
-                    <EditableField value={contact.institution} onSave={v => patchField({ institution: v || null } as Partial<Contact>)} placeholder="организация не указана" />
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <Stethoscope className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
-                    <EditableField value={contact.speciality} onSave={v => patchField({ speciality: v || null } as Partial<Contact>)} placeholder="специальность не указана" />
-                  </div>
+            {/* Правая колонка: место работы */}
+            <div>
+              <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Место работы</div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-3 text-sm">
+                  <Building2 className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
+                  <EditableField value={contact.institution} onSave={v => patchField({ institution: v || null } as Partial<Contact>)} placeholder="организация не указана" />
                 </div>
-              </div>
-
-              <div>
-                <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Теги</div>
-                <div className="flex flex-wrap gap-1.5 mb-2.5">
-                  {contact.tags.map(tag => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--frox-gray-200)] text-[var(--frox-gray-600)] text-xs font-medium"
-                    >
-                      {tag}
-                      <button onClick={() => removeTag(tag)} className="text-[var(--frox-gray-400)] hover:text-red-500 transition-colors ml-0.5">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                  {contact.tags.length === 0 && <span className="text-xs text-[var(--frox-gray-300)] italic">нет тегов</span>}
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    value={tagInput}
-                    onChange={e => setTagInput(e.target.value)}
-                    placeholder="Добавить тег..."
-                    className="h-8 text-sm bg-[var(--frox-gray-100)]"
-                    onKeyDown={e => { if (e.key === 'Enter') addTag(); }}
-                  />
-                  <Button size="sm" variant="outline" onClick={addTag} className="h-8 w-8 p-0 shrink-0">
-                    <Plus className="w-3.5 h-3.5" />
-                  </Button>
+                <div className="flex items-center gap-3 text-sm">
+                  <Stethoscope className="w-4 h-4 text-[var(--frox-gray-400)] shrink-0" />
+                  <EditableField value={contact.speciality} onSave={v => patchField({ speciality: v || null } as Partial<Contact>)} placeholder="специальность не указана" />
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Теги — на всю ширину */}
+          <div>
+            <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Теги</div>
+            <div className="flex flex-wrap gap-1.5 mb-2.5">
+              {contact.tags.map(tag => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--frox-gray-200)] text-[var(--frox-gray-600)] text-xs font-medium"
+                >
+                  {tag}
+                  <button onClick={() => removeTag(tag)} className="text-[var(--frox-gray-400)] hover:text-red-500 transition-colors ml-0.5">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+              {contact.tags.length === 0 && <span className="text-xs text-[var(--frox-gray-300)] italic">нет тегов</span>}
+            </div>
+            <TagAutocompleteInput
+              existingTags={contact.tags}
+              onAdd={addTag}
+              placeholder="Добавить тег..."
+              inputClassName="h-8 text-sm bg-[var(--frox-gray-100)]"
+            />
           </div>
 
           {/* Заметки */}
@@ -1075,15 +1065,14 @@ export default function ContactsPage() {
   const [filterTag, setFilterTag] = useState('');
   const [filterCity, setFilterCity] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState('created_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortBy, setSortBy] = useState('full_name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
 
   const [showBulkTagInput, setShowBulkTagInput] = useState(false);
-  const [bulkTagValue, setBulkTagValue] = useState('');
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showMerge, setShowMerge] = useState(false);
@@ -1159,15 +1148,14 @@ export default function ContactsPage() {
     if (res.ok) { loadContacts(); setSelectedIds(new Set()); setSelectAll(false); }
   };
 
-  const handleBulkAddTag = async () => {
-    const tag = bulkTagValue.trim();
+  const handleBulkAddTag = async (tag: string) => {
     if (!tag || !selectedIds.size) return;
     const res = await adminCsrfFetch('/api/admin/contacts', {
       method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids: Array.from(selectedIds), tags_add: [tag] }),
     });
-    if (res.ok) { loadContacts(); setBulkTagValue(''); setShowBulkTagInput(false); }
+    if (res.ok) { loadContacts(); setShowBulkTagInput(false); }
   };
 
   const handleBulkDelete = async () => {
@@ -1352,15 +1340,14 @@ export default function ContactsPage() {
               </Button>
             ) : (
               <div className="flex items-center gap-1.5 bg-white/10 rounded-lg px-2 py-1">
-                <Input
-                  value={bulkTagValue}
-                  onChange={e => setBulkTagValue(e.target.value)}
+                <TagAutocompleteInput
+                  onAdd={tag => handleBulkAddTag(tag)}
                   placeholder="Тег..."
-                  className="h-6 text-xs w-28 bg-white/20 border-0 text-white placeholder:text-white/60 focus-visible:ring-0"
+                  inputClassName="h-6 text-xs w-28 bg-white/20 border-0 text-white placeholder:text-white/60 focus-visible:ring-0"
+                  showButton={false}
                   autoFocus
-                  onKeyDown={e => { if (e.key === 'Enter') handleBulkAddTag(); if (e.key === 'Escape') setShowBulkTagInput(false); }}
+                  onKeyDownExtra={e => { if (e.key === 'Escape') setShowBulkTagInput(false); }}
                 />
-                <button onClick={handleBulkAddTag} className="p-0.5 hover:text-emerald-300"><Check className="w-3.5 h-3.5" /></button>
                 <button onClick={() => setShowBulkTagInput(false)} className="p-0.5 hover:text-[var(--frox-gray-300)]"><X className="w-3.5 h-3.5" /></button>
               </div>
             )}
