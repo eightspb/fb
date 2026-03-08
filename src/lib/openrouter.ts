@@ -623,6 +623,131 @@ export async function transcribeAudioWithAI(
 
 
 /**
+ * Данные контакта для AI-исследования
+ */
+interface ContactResearchInput {
+  full_name: string;
+  city?: string | null;
+  institution?: string | null;
+  speciality?: string | null;
+  phone?: string | null;
+  email?: string | null;
+}
+
+/**
+ * Проводит AI due diligence по контакту: ищет информацию в открытых источниках
+ * Использует Perplexity Sonar Pro через OpenRouter для веб-поиска
+ */
+export async function researchContactWithAI(contact: ContactResearchInput): Promise<string> {
+  console.log(`[AI] 🔍 Начало исследования контакта: ${contact.full_name}`);
+
+  const apiKey = process.env.OPENROUTER_API_KEY;
+
+  if (!apiKey || apiKey.trim().length === 0) {
+    throw new Error('OPENROUTER_API_KEY не настроен. Обратитесь к администратору.');
+  }
+
+  const contactInfo = [
+    `ФИО: ${contact.full_name}`,
+    contact.city ? `Город: ${contact.city}` : null,
+    contact.institution ? `Клиника/учреждение: ${contact.institution}` : null,
+    contact.speciality ? `Специальность: ${contact.speciality}` : null,
+    contact.phone ? `Телефон: ${contact.phone}` : null,
+    contact.email ? `Email: ${contact.email}` : null,
+  ].filter(Boolean).join('\n');
+
+  const systemPrompt = `Ты — аналитик, проводящий due diligence по медицинскому специалисту.
+Твоя задача — найти и суммаризировать информацию из открытых интернет-источников.
+
+ВАЖНО:
+- Используй ТОЛЬКО проверенные факты из открытых источников
+- Если информация не найдена — так и укажи, НЕ выдумывай
+- Пиши компактно: 100-200 слов
+- Язык ответа: русский
+- Не используй markdown-заголовки (##), пиши простым текстом с разделением на абзацы`;
+
+  const userPrompt = `Проведи исследование по следующему медицинскому специалисту:
+
+${contactInfo}
+
+Найди и суммаризируй:
+1. Отзывы пациентов об этом враче (prodoctorov.ru, napopravku.ru, zoon.ru и другие)
+2. Квалификация: учёная степень, врачебная категория, стаж работы
+3. Информация о клинике/учреждении: профиль, репутация, рейтинг
+4. Другие предполагаемые места работы этого доктора (врачи часто работают в нескольких клиниках)
+5. Публикации, участие в конференциях, научная деятельность
+6. Контактная информация и профили в соцсетях/профессиональных сообществах
+
+Формат: компактное резюме, 100-200 слов. Группируй информацию логически.
+Если по какому-то пункту ничего не найдено — пропусти его, не пиши "не найдено" по каждому пункту.`;
+
+  // Модели в порядке приоритета: Sonar Pro (веб-поиск) → Sonar (дешевле) → GPT-4o-mini (fallback без поиска)
+  const models = ['perplexity/sonar-pro', 'perplexity/sonar', 'openai/gpt-4o-mini'];
+
+  for (const model of models) {
+    try {
+      console.log(`[AI] 📤 Отправка запроса к ${model}...`);
+      const response = await axios.post<OpenRouterResponse>(
+        OPENROUTER_API_URL,
+        {
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.3,
+          max_tokens: 1500,
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+            'X-Title': 'FB.net Contact Research',
+            'Content-Type': 'application/json',
+          },
+          timeout: 60000,
+        }
+      );
+
+      const content = response.data.choices[0]?.message?.content;
+
+      if (!content || content.trim().length === 0) {
+        console.warn(`[AI] ⚠️ Пустой ответ от ${model}, пробуем следующую модель...`);
+        continue;
+      }
+
+      console.log(`[AI] ✅ Исследование завершено через ${model} (${content.length} символов)`);
+      let result = content.trim();
+      if (model !== models[0]) {
+        const modelLabel = model === 'perplexity/sonar' ? 'Perplexity Sonar (упрощённая)' : 'GPT-4o-mini (без веб-поиска)';
+        result += `\n\n⚠️ Использована запасная модель: ${modelLabel}. Результат может быть менее полным.`;
+      }
+      return result;
+    } catch (error) {
+      console.error(`[AI] ⚠️ Ошибка с моделью ${model}:`, error);
+
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          throw new Error('Неверный API ключ OpenRouter. Проверьте OPENROUTER_API_KEY');
+        }
+        // 402 (недостаточно средств), 429 (лимит), 5xx — пробуем следующую модель
+        if (error.response?.status === 402 || error.response?.status === 429 || (error.response?.status ?? 0) >= 500) {
+          console.warn(`[AI] ⚠️ ${model} недоступна (${error.response?.status}), пробуем следующую...`);
+          continue;
+        }
+      }
+
+      // Для последней модели в списке — бросаем ошибку
+      if (model === models[models.length - 1]) {
+        throw new Error('Не удалось провести исследование. Попробуйте позже');
+      }
+    }
+  }
+
+  throw new Error('Все модели AI недоступны. Попробуйте позже');
+}
+
+/**
 
  * Улучшает текст описания новости с помощью AI
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,7 @@ import {
   Loader2,
   Check,
   Pencil,
+  Search,
 } from 'lucide-react';
 
 interface Contact {
@@ -114,6 +115,8 @@ function EditableField({ value, onSave, placeholder = '—' }: {
   );
 }
 
+const TEXTAREA_MIN_H = 96;
+
 function EditableTextarea({ value, onSave, placeholder = '—' }: {
   value: string | null;
   onSave: (val: string) => Promise<void>;
@@ -122,8 +125,12 @@ function EditableTextarea({ value, onSave, placeholder = '—' }: {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value || '');
   const [saving, setSaving] = useState(false);
+  const [height, setHeight] = useState(TEXTAREA_MIN_H);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const startRef = useRef({ y: 0, h: 0 });
 
   useEffect(() => { if (!editing) setDraft(value || ''); }, [value, editing]);
+  useEffect(() => { if (editing) setHeight(TEXTAREA_MIN_H); }, [editing]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -131,15 +138,54 @@ function EditableTextarea({ value, onSave, placeholder = '—' }: {
     finally { setSaving(false); }
   };
 
+  const onResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const el = textareaRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    startRef.current = { y: e.clientY, h: rect.height };
+    const onMove = (ev: MouseEvent) => {
+      const dh = ev.clientY - startRef.current.y;
+      setHeight(Math.max(TEXTAREA_MIN_H, startRef.current.h + dh));
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, []);
+
   if (editing) {
     return (
       <div className="space-y-2">
-        <textarea
-          value={draft}
-          onChange={e => setDraft(e.target.value)}
-          className="w-full h-24 text-sm px-3 py-2 border border-[var(--frox-neutral-border)] rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-          autoFocus
-        />
+        <div className="relative inline-block w-full">
+          <textarea
+            ref={textareaRef}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            className="w-full text-sm px-3 py-2 pr-8 pb-6 border border-[var(--frox-neutral-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 block"
+            style={{ minHeight: TEXTAREA_MIN_H, height }}
+            autoFocus
+          />
+          <div
+            role="button"
+            tabIndex={-1}
+            onMouseDown={onResizeStart}
+            className="absolute bottom-0 right-0 w-6 h-6 cursor-ns-resize flex items-end justify-end p-1 rounded-bl-lg"
+            title="Изменить высоту"
+            aria-label="Изменить высоту поля"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" className="text-[var(--frox-gray-400)] shrink-0">
+              <path d="M4 8h4M8 8h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
+            </svg>
+          </div>
+        </div>
         <div className="flex gap-2">
           <Button size="sm" onClick={handleSave} disabled={saving} className="h-7 text-xs">Сохранить</Button>
           <Button size="sm" variant="ghost" onClick={() => setEditing(false)} className="h-7 text-xs">Отмена</Button>
@@ -153,7 +199,7 @@ function EditableTextarea({ value, onSave, placeholder = '—' }: {
       onClick={() => setEditing(true)}
       className="w-full text-left text-sm text-[var(--frox-gray-800)] hover:text-[var(--frox-gray-1100)] group flex items-start gap-1.5"
     >
-      <span className={`flex-1 ${value ? '' : 'text-[var(--frox-gray-300)] italic'}`}>{value || placeholder}</span>
+      <span className={`flex-1 whitespace-pre-wrap ${value ? '' : 'text-[var(--frox-gray-300)] italic'}`}>{value || placeholder}</span>
       <Pencil className="w-3 h-3 text-[var(--frox-gray-300)] group-hover:text-[var(--frox-gray-500)] transition-colors shrink-0 mt-0.5" />
     </button>
   );
@@ -169,6 +215,8 @@ export default function ContactDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [tagInput, setTagInput] = useState('');
+  const [researching, setResearching] = useState(false);
+  const [researchError, setResearchError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchContact() {
@@ -210,6 +258,26 @@ export default function ContactDetailPage() {
   const removeTag = async (tag: string) => {
     if (!contact) return;
     await patchField({ tags: contact.tags.filter(t => t !== tag) });
+  };
+
+  const handleResearch = async () => {
+    setResearching(true);
+    setResearchError(null);
+    try {
+      const res = await adminCsrfFetch(`/api/admin/contacts/${id}/research`, {
+        method: 'POST', credentials: 'include',
+      });
+      if (res.ok) {
+        setContact(await res.json());
+      } else {
+        const data = await res.json().catch(() => null);
+        setResearchError(data?.error || 'Ошибка при исследовании');
+      }
+    } catch {
+      setResearchError('Ошибка подключения к серверу');
+    } finally {
+      setResearching(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -382,7 +450,34 @@ export default function ContactDetailPage() {
 
             {/* Заметки */}
             <div>
-              <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Заметки</div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider">Заметки</div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleResearch}
+                  disabled={researching}
+                  className="h-7 text-xs gap-1.5"
+                >
+                  {researching ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Исследую...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-3 h-3" />
+                      AI Исследование
+                    </>
+                  )}
+                </Button>
+              </div>
+              {researchError && (
+                <div className="flex items-center gap-2 p-2.5 mb-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  {researchError}
+                </div>
+              )}
               <EditableTextarea value={contact.notes} onSave={v => patchField({ notes: v || null } as Partial<Contact>)} placeholder="добавить заметку..." />
             </div>
 
