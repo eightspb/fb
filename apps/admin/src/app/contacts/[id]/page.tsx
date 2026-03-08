@@ -24,6 +24,7 @@ import {
   Check,
   Pencil,
   Search,
+  ChevronDown,
 } from 'lucide-react';
 
 interface Contact {
@@ -242,6 +243,19 @@ export default function ContactDetailPage() {
     : null;
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const statusMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showStatusMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (statusMenuRef.current && !statusMenuRef.current.contains(e.target as Node)) {
+        setShowStatusMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showStatusMenu]);
   const [tagInput, setTagInput] = useState('');
   const [researching, setResearching] = useState(false);
   const [researchError, setResearchError] = useState<string | null>(null);
@@ -338,11 +352,33 @@ export default function ContactDetailPage() {
             <span className="font-semibold text-[var(--frox-gray-1100)] truncate text-lg">{contact.full_name}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${sc.pill}`}>
+        <div className="relative flex items-center gap-2 shrink-0" ref={statusMenuRef}>
+          <button
+            onClick={() => setShowStatusMenu(v => !v)}
+            className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium cursor-pointer hover:opacity-80 transition-opacity ${sc.pill}`}
+          >
             <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
             {sc.label}
-          </span>
+            <ChevronDown className="w-3 h-3 opacity-60" />
+          </button>
+          {showStatusMenu && (
+            <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-[var(--frox-neutral-border)] rounded-xl shadow-lg p-1 flex flex-col gap-0.5 min-w-[140px]">
+              {statusConfig.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => { patchField({ status: opt.value }); setShowStatusMenu(false); }}
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-left ${
+                    contact.status === opt.value
+                      ? opt.pill
+                      : 'text-[var(--frox-gray-700)] hover:bg-[var(--frox-gray-100)]'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${opt.dot}`} />
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -367,29 +403,6 @@ export default function ContactDetailPage() {
         {/* ── Информация ── */}
         <TabsContent value="info" className="mt-4">
           <div className="bg-white border border-[var(--frox-neutral-border)] rounded-2xl p-5 sm:p-6 shadow-sm space-y-6">
-
-            {/* Статус */}
-            <div>
-              <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Статус</div>
-              <div className="flex flex-wrap gap-2">
-                {statusConfig.map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => patchField({ status: opt.value })}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                      contact.status === opt.value
-                        ? opt.pill + ' shadow-sm'
-                        : 'bg-white text-[var(--frox-gray-400)] border-[var(--frox-neutral-border)] hover:border-[var(--frox-gray-300)]'
-                    }`}
-                  >
-                    <span className={`w-2 h-2 rounded-full ${opt.dot}`} />
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="h-px bg-[var(--frox-gray-200)]" />
 
             {/* Контактные данные + Место работы + Теги — двухколоночный layout */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">

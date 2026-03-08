@@ -39,6 +39,7 @@ import {
   ExternalLink,
   Merge,
   Loader2,
+  ChevronDown,
 } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 import { FroxStatCard } from '@/components/admin/FroxStatCard';
@@ -649,6 +650,19 @@ function ContactPanel({
   const notesViewRef = useRef<HTMLButtonElement>(null);
   const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
   const { width: panelWidth, onResizeStart } = usePanelResize();
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const statusMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showStatusMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (statusMenuRef.current && !statusMenuRef.current.contains(e.target as Node)) {
+        setShowStatusMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showStatusMenu]);
 
   useEffect(() => { if (!notesEditing) setNotesDraft(contact.notes || ''); }, [contact.notes, notesEditing]);
 
@@ -740,10 +754,34 @@ function ContactPanel({
                 <div className="font-semibold text-[var(--frox-gray-1100)] leading-tight">
                   <EditableField value={contact.full_name} onSave={v => patchField({ full_name: v } as Partial<Contact>)} placeholder="имя не указано" />
                 </div>
-                <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full mt-0.5 ${sc.pill}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
-                  {sc.label}
-                </span>
+                <div className="relative mt-0.5" ref={statusMenuRef}>
+                  <button
+                    onClick={() => setShowStatusMenu(v => !v)}
+                    className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity ${sc.pill}`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
+                    {sc.label}
+                    <ChevronDown className="w-3 h-3 opacity-60" />
+                  </button>
+                  {showStatusMenu && (
+                    <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-[var(--frox-neutral-border)] rounded-xl shadow-lg p-1 flex flex-col gap-0.5 min-w-[140px]">
+                      {statusConfig.map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => { patchField({ status: opt.value }); setShowStatusMenu(false); }}
+                          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-left ${
+                            contact.status === opt.value
+                              ? opt.pill
+                              : 'text-[var(--frox-gray-700)] hover:bg-[var(--frox-gray-100)]'
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${opt.dot}`} />
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-1 shrink-0">
@@ -766,29 +804,6 @@ function ContactPanel({
 
         {/* Content */}
         <div className="flex-1 px-5 py-5 space-y-5">
-          {/* Статус */}
-          <div>
-            <div className="text-[11px] font-semibold text-[var(--frox-gray-400)] uppercase tracking-wider mb-2">Статус</div>
-            <div className="flex flex-wrap gap-2">
-              {statusConfig.map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => patchField({ status: opt.value })}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                    contact.status === opt.value
-                      ? opt.pill + ' shadow-sm'
-                      : 'bg-white text-[var(--frox-gray-400)] border-[var(--frox-neutral-border)] hover:border-[var(--frox-gray-300)]'
-                  }`}
-                >
-                  <span className={`w-2 h-2 rounded-full ${opt.dot}`} />
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="h-px bg-[var(--frox-gray-200)]" />
-
           {/* Контактные данные + Место работы — двухколоночный layout */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {/* Левая колонка: контактные данные */}
