@@ -39,6 +39,8 @@ import {
   Merge,
   Loader2,
   ChevronDown,
+  Microscope,
+  ChevronUp,
 } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 import { FroxStatCard } from '@/components/admin/FroxStatCard';
@@ -966,12 +968,18 @@ function ContactPanel({
   const router = useRouter();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [researching, setResearching] = useState(false);
+  const [deepResearching, setDeepResearching] = useState(false);
   const [researchError, setResearchError] = useState<string | null>(null);
   const [panelNotes, setPanelNotes] = useState<PanelNote[]>([]);
   const [notesLoading, setNotesLoading] = useState(true);
   const [newNoteOpen, setNewNoteOpen] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState('');
   const [newNoteSaving, setNewNoteSaving] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteDraft, setEditingNoteDraft] = useState('');
+  const [editingNoteSaving, setEditingNoteSaving] = useState(false);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [collapsedNotes, setCollapsedNotes] = useState<Set<string>>(new Set());
   const { width: panelWidth, onResizeStart } = usePanelResize();
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement>(null);
@@ -1021,6 +1029,26 @@ function ContactPanel({
     }
   };
 
+  const handleDeepResearch = async () => {
+    setDeepResearching(true);
+    setResearchError(null);
+    try {
+      const res = await adminCsrfFetch(`/api/admin/contacts/${contact.id}/deep-research`, {
+        method: 'POST', credentials: 'include',
+      });
+      if (res.ok) {
+        loadNotes();
+      } else {
+        const data = await res.json().catch(() => null);
+        setResearchError(data?.error || 'Ошибка при глубоком исследовании');
+      }
+    } catch {
+      setResearchError('Ошибка подключения к серверу');
+    } finally {
+      setDeepResearching(false);
+    }
+  };
+
   const handleAddNote = async () => {
     if (!newNoteContent.trim()) return;
     setNewNoteSaving(true);
@@ -1043,6 +1071,36 @@ function ContactPanel({
       method: 'DELETE', credentials: 'include',
     });
     if (res.ok || res.status === 204) loadNotes();
+  };
+
+  const startEditNote = (note: PanelNote) => {
+    setEditingNoteId(note.id);
+    setEditingNoteDraft(note.content);
+    requestAnimationFrame(() => {
+      if (editTextareaRef.current) {
+        const el = editTextareaRef.current;
+        el.style.height = 'auto';
+        el.style.height = Math.max(60, el.scrollHeight) + 'px';
+        el.focus();
+      }
+    });
+  };
+
+  const handleEditNoteSave = async () => {
+    if (!editingNoteId || !editingNoteDraft.trim()) return;
+    setEditingNoteSaving(true);
+    try {
+      const res = await adminCsrfFetch(`/api/admin/contacts/${contact.id}/notes/${editingNoteId}`, {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: editingNoteDraft.trim() }),
+      });
+      if (res.ok) {
+        setEditingNoteId(null);
+        setEditingNoteDraft('');
+        loadNotes();
+      }
+    } finally { setEditingNoteSaving(false); }
   };
 
   const patchField = async (fields: Partial<Contact>) => {
@@ -1223,25 +1281,26 @@ function ContactPanel({
                   </span>
                 )}
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleResearch}
-                disabled={researching}
-                className="h-7 text-xs gap-1.5"
-              >
-                {researching ? (
-                  <>
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    Исследую...
-                  </>
-                ) : (
-                  <>
-                    <Search className="w-3 h-3" />
-                    AI Исследование
-                  </>
-                )}
-              </Button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleResearch}
+                  disabled={researching || deepResearching}
+                  className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-[var(--frox-gray-200)] text-[10px] font-medium text-[var(--frox-gray-500)] hover:bg-[var(--frox-gray-100)] hover:text-[var(--frox-gray-700)] disabled:opacity-50 transition-colors"
+                  title="AI Исследование"
+                >
+                  {researching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+                  AI
+                </button>
+                <button
+                  onClick={handleDeepResearch}
+                  disabled={researching || deepResearching}
+                  className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-blue-200 text-[10px] font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50 transition-colors"
+                  title="Deep Research"
+                >
+                  {deepResearching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Microscope className="w-3 h-3" />}
+                  Deep
+                </button>
+              </div>
             </div>
             {researchError && (
               <div className="flex items-center gap-2 p-2.5 mb-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
@@ -1263,10 +1322,47 @@ function ContactPanel({
                       import: { label: 'Импорт', cls: 'bg-amber-50 text-amber-600' },
                       manual: { label: '', cls: '' },
                     }[note.source] || { label: '', cls: '' };
+
+                    if (editingNoteId === note.id) {
+                      return (
+                        <div key={note.id} className="rounded-lg border-2 border-blue-400 bg-white p-2.5 space-y-2">
+                          <textarea
+                            ref={editTextareaRef}
+                            value={editingNoteDraft}
+                            onChange={e => {
+                              setEditingNoteDraft(e.target.value);
+                              const el = e.target;
+                              el.style.height = 'auto';
+                              el.style.height = Math.max(60, el.scrollHeight) + 'px';
+                            }}
+                            className="w-full text-sm px-2 py-1.5 border border-[var(--frox-gray-200)] rounded focus:outline-none focus:border-blue-400 bg-white min-h-[60px] resize-y"
+                            onKeyDown={e => { if (e.key === 'Escape') { setEditingNoteId(null); setEditingNoteDraft(''); } }}
+                          />
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={handleEditNoteSave} disabled={editingNoteSaving || !editingNoteDraft.trim()} className="h-6 text-xs">
+                              {editingNoteSaving ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                              Сохранить
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => { setEditingNoteId(null); setEditingNoteDraft(''); }} className="h-6 text-xs">Отмена</Button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const isCollapsed = collapsedNotes.has(note.id);
+                    const toggleCollapse = () => {
+                      setCollapsedNotes(prev => {
+                        const next = new Set(prev);
+                        if (next.has(note.id)) next.delete(note.id); else next.add(note.id);
+                        return next;
+                      });
+                    };
+
                     return (
                       <div key={note.id} className="group rounded-lg border border-[var(--frox-gray-200)] bg-white p-2.5">
                         <div className="flex items-center justify-between gap-1 mb-1">
-                          <div className="flex items-center gap-1.5 min-w-0">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1 cursor-pointer" onClick={toggleCollapse}>
+                            <ChevronDown className={`w-3 h-3 text-[var(--frox-gray-400)] shrink-0 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
                             {note.title ? (
                               <span className="text-xs font-medium text-[var(--frox-gray-700)] truncate">{note.title}</span>
                             ) : (
@@ -1278,15 +1374,26 @@ function ContactPanel({
                               <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${srcCfg.cls}`}>{srcCfg.label}</span>
                             )}
                           </div>
-                          <button
-                            onClick={() => handleDeleteNote(note.id)}
-                            className="p-0.5 text-[var(--frox-gray-300)] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all shrink-0"
-                            title="Удалить"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                            <button
+                              onClick={() => startEditNote(note)}
+                              className="p-0.5 text-[var(--frox-gray-300)] hover:text-[var(--frox-gray-600)] transition-colors"
+                              title="Редактировать"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteNote(note.id)}
+                              className="p-0.5 text-[var(--frox-gray-300)] hover:text-red-500 transition-colors"
+                              title="Удалить"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="text-sm text-[var(--frox-gray-700)] whitespace-pre-wrap leading-relaxed line-clamp-6">{note.content}</div>
+                        {!isCollapsed && (
+                          <div className="text-sm text-[var(--frox-gray-700)] whitespace-pre-wrap leading-relaxed line-clamp-6 ml-[18px]">{note.content}</div>
+                        )}
                       </div>
                     );
                   })}

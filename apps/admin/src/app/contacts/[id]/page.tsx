@@ -28,6 +28,8 @@ import {
   Pin,
   Sparkles,
   Microscope,
+  RefreshCw,
+  ArrowRight,
 } from 'lucide-react';
 
 interface Contact {
@@ -163,6 +165,7 @@ function NoteCard({ note, onUpdate, onDelete }: {
   onDelete: (noteId: string) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [draft, setDraft] = useState(note.content);
   const [titleDraft, setTitleDraft] = useState(note.title || '');
   const [saving, setSaving] = useState(false);
@@ -192,6 +195,16 @@ function NoteCard({ note, onUpdate, onDelete }: {
     await onUpdate(note.id, { pinned: !note.pinned });
   };
 
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (editing && textareaRef.current) {
+      const el = textareaRef.current;
+      el.style.height = 'auto';
+      el.style.height = Math.max(80, el.scrollHeight) + 'px';
+    }
+  }, [editing]);
+
   if (editing) {
     return (
       <div className="rounded-lg border-2 border-blue-400 bg-white p-3 space-y-2 shadow-sm">
@@ -203,8 +216,14 @@ function NoteCard({ note, onUpdate, onDelete }: {
           onKeyDown={e => { if (e.key === 'Escape') setEditing(false); }}
         />
         <textarea
+          ref={textareaRef}
           value={draft}
-          onChange={e => setDraft(e.target.value)}
+          onChange={e => {
+            setDraft(e.target.value);
+            const el = e.target;
+            el.style.height = 'auto';
+            el.style.height = Math.max(80, el.scrollHeight) + 'px';
+          }}
           className="w-full text-sm px-3 py-2 border border-[var(--frox-gray-200)] rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white min-h-[80px] resize-y"
           autoFocus
         />
@@ -222,7 +241,8 @@ function NoteCard({ note, onUpdate, onDelete }: {
   return (
     <div className={`group rounded-lg border bg-white hover:shadow-sm transition-all p-3 ${note.pinned ? 'border-amber-200 bg-amber-50/30' : 'border-[var(--frox-gray-200)]'}`}>
       <div className="flex items-start justify-between gap-2 mb-1">
-        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1 cursor-pointer" onClick={() => setCollapsed(c => !c)}>
+          <ChevronDown className={`w-3 h-3 text-[var(--frox-gray-400)] shrink-0 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
           {note.pinned && <Pin className="w-3 h-3 text-amber-500 shrink-0 fill-amber-500" />}
           {note.title ? (
             <span className="text-sm font-medium text-[var(--frox-gray-900)] truncate">{note.title}</span>
@@ -231,21 +251,23 @@ function NoteCard({ note, onUpdate, onDelete }: {
           )}
           <NoteSourceBadge source={note.source} />
         </div>
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-          <button
-            onClick={handlePin}
-            className={`p-1 rounded transition-colors ${note.pinned ? 'text-amber-500 hover:text-amber-600' : 'text-[var(--frox-gray-400)] hover:text-amber-500'}`}
-            title={note.pinned ? 'Открепить' : 'Закрепить'}
-          >
-            <Pin className={`w-3 h-3 ${note.pinned ? 'fill-current' : ''}`} />
-          </button>
-          <button onClick={() => setEditing(true)} className="p-1 text-[var(--frox-gray-400)] hover:text-[var(--frox-gray-600)] rounded transition-colors" title="Редактировать">
-            <Pencil className="w-3 h-3" />
-          </button>
+        <div className={`flex items-center gap-0.5 shrink-0 transition-opacity ${showDeleteConfirm ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
           {!showDeleteConfirm ? (
-            <button onClick={() => setShowDeleteConfirm(true)} className="p-1 text-[var(--frox-gray-400)] hover:text-red-500 rounded transition-colors" title="Удалить">
-              <Trash2 className="w-3 h-3" />
-            </button>
+            <>
+              <button
+                onClick={handlePin}
+                className={`p-1 rounded transition-colors ${note.pinned ? 'text-amber-500 hover:text-amber-600' : 'text-[var(--frox-gray-400)] hover:text-amber-500'}`}
+                title={note.pinned ? 'Открепить' : 'Закрепить'}
+              >
+                <Pin className={`w-3 h-3 ${note.pinned ? 'fill-current' : ''}`} />
+              </button>
+              <button onClick={() => setEditing(true)} className="p-1 text-[var(--frox-gray-400)] hover:text-[var(--frox-gray-600)] rounded transition-colors" title="Редактировать">
+                <Pencil className="w-3 h-3" />
+              </button>
+              <button onClick={() => setShowDeleteConfirm(true)} className="p-1 text-[var(--frox-gray-400)] hover:text-red-500 rounded transition-colors" title="Удалить">
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </>
           ) : (
             <div className="flex items-center gap-1">
               <button onClick={() => onDelete(note.id)} className="p-1 text-red-500 hover:text-red-600 rounded transition-colors" title="Подтвердить удаление">
@@ -258,10 +280,14 @@ function NoteCard({ note, onUpdate, onDelete }: {
           )}
         </div>
       </div>
-      {note.title && (
-        <div className="text-[10px] text-[var(--frox-gray-400)] mb-1">{formatDateTime(note.created_at)}</div>
+      {!collapsed && (
+        <>
+          {note.title && (
+            <div className="text-[10px] text-[var(--frox-gray-400)] mb-1 ml-[18px]">{formatDateTime(note.created_at)}</div>
+          )}
+          <div className="text-sm text-[var(--frox-gray-700)] whitespace-pre-wrap leading-relaxed ml-[18px]">{note.content}</div>
+        </>
       )}
-      <div className="text-sm text-[var(--frox-gray-700)] whitespace-pre-wrap leading-relaxed">{note.content}</div>
     </div>
   );
 }
@@ -333,6 +359,194 @@ function NewNoteForm({ contactId, onCreated }: { contactId: string; onCreated: (
   );
 }
 
+// ── Extract fields from research notes ──
+interface ExtractedField {
+  key: string;
+  label: string;
+  currentValue: string | null;
+  newValue: string;
+}
+
+function extractFieldsFromNotes(notes: ContactNote[], contact: Contact): ExtractedField[] {
+  const fields: ExtractedField[] = [];
+  const seen = new Set<string>();
+
+  const addField = (key: string, label: string, newValue: string) => {
+    if (!newValue || seen.has(key)) return;
+    const current = contact[key as keyof Contact] as string | null;
+    if (current === newValue) return;
+    seen.add(key);
+    fields.push({ key, label, currentValue: current, newValue });
+  };
+
+  // Deep research notes — structured metadata
+  for (const note of notes) {
+    if (note.source !== 'ai_deep_research' && note.source !== 'ai_research') continue;
+    const meta = note.metadata as Record<string, unknown>;
+    const structured = meta?.structured as Record<string, unknown> | undefined;
+
+    if (structured) {
+      // Deep research structured data
+      const specs = structured.specialties as string[] | undefined;
+      if (specs?.length) addField('speciality', 'Специальность', specs.join(', '));
+
+      const locations = structured.locations as string[] | undefined;
+      if (locations?.length) addField('city', 'Город', locations[0]);
+
+      const current = structured.current_affiliations as string[] | undefined;
+      if (current?.length) addField('institution', 'Организация', current.join('; '));
+    }
+
+    // Parse content text (emoji format from both ai_research and ai_deep_research)
+    const content = note.content;
+    if (!content) continue;
+
+    // 📧 / ✉️ Email
+    const emailMatch = content.match(/[📧✉️]\s*(?:Email|Почта|E-mail)[:\s]*([^\s\n,]+@[^\s\n,]+)/i);
+    if (emailMatch) addField('email', 'Email', emailMatch[1].trim());
+
+    // 📱 / ☎️ Phone
+    const phoneMatch = content.match(/[📱☎️📞]\s*(?:Телефон|Тел\.?)[:\s]*([+\d\s()-]{7,})/i);
+    if (phoneMatch) addField('phone', 'Телефон', phoneMatch[1].trim());
+
+    // 🏥 Institution
+    const instMatch = content.match(/🏥\s*(?:Текущ(?:ие|ее)\s*мест[оа]\s*работы|Организация|Клиника)[:\s]*([^\n]+)/i);
+    if (instMatch && !seen.has('institution')) addField('institution', 'Организация', instMatch[1].trim());
+
+    // 🩺 Speciality
+    const specMatch = content.match(/🩺\s*(?:Специализация|Специальность)[:\s]*([^\n]+)/i);
+    if (specMatch && !seen.has('speciality')) addField('speciality', 'Специальность', specMatch[1].trim());
+
+    // 📍 City
+    const cityMatch = content.match(/📍\s*(?:Город|Локация|Регион)[:\s]*([^\n]+)/i);
+    if (cityMatch && !seen.has('city')) addField('city', 'Город', cityMatch[1].trim());
+  }
+
+  return fields;
+}
+
+// ── Enrich from research modal ──
+function EnrichModal({ contact, notes, onApply, onClose }: {
+  contact: Contact;
+  notes: ContactNote[];
+  onApply: (fields: Partial<Contact>) => Promise<void>;
+  onClose: () => void;
+}) {
+  const extracted = extractFieldsFromNotes(notes, contact);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(extracted.map(f => f.key)));
+  const [saving, setSaving] = useState(false);
+
+  const toggle = (key: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const handleApply = async () => {
+    const patch: Record<string, string> = {};
+    for (const f of extracted) {
+      if (selected.has(f.key)) patch[f.key] = f.newValue;
+    }
+    if (!Object.keys(patch).length) return;
+    setSaving(true);
+    try {
+      await onApply(patch as Partial<Contact>);
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+      <div
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-white border-b border-[var(--frox-gray-200)] px-5 py-4 flex items-center justify-between rounded-t-2xl">
+          <div className="flex items-center gap-2">
+            <RefreshCw className="w-4 h-4 text-emerald-500" />
+            <span className="font-semibold text-[var(--frox-gray-900)]">Обновить из исследования</span>
+          </div>
+          <button onClick={onClose} className="p-1 text-[var(--frox-gray-400)] hover:text-[var(--frox-gray-600)]">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-5 py-4">
+          {extracted.length === 0 ? (
+            <div className="text-center py-8 text-[var(--frox-gray-400)]">
+              <AlertCircle className="w-8 h-8 mx-auto mb-2 stroke-1" />
+              <p className="text-sm">Не найдено новых данных для обновления</p>
+              <p className="text-xs mt-1">Запустите AI Исследование или Deep Research для поиска информации</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-[var(--frox-gray-500)]">
+                Выберите поля для обновления. Данные извлечены из заметок AI-исследований.
+              </p>
+              {extracted.map(field => (
+                <label
+                  key={field.key}
+                  className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                    selected.has(field.key)
+                      ? 'border-emerald-300 bg-emerald-50/50'
+                      : 'border-[var(--frox-gray-200)] hover:border-[var(--frox-gray-300)]'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.has(field.key)}
+                    onChange={() => toggle(field.key)}
+                    className="mt-0.5 rounded border-[var(--frox-gray-300)] text-emerald-500 focus:ring-emerald-500"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-[var(--frox-gray-500)] uppercase tracking-wider mb-1">
+                      {field.label}
+                    </div>
+                    {field.currentValue && (
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-xs text-[var(--frox-gray-400)] line-through truncate">{field.currentValue}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5">
+                      {field.currentValue && <ArrowRight className="w-3 h-3 text-emerald-500 shrink-0" />}
+                      <span className="text-sm text-[var(--frox-gray-800)] font-medium break-words">{field.newValue}</span>
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {extracted.length > 0 && (
+          <div className="sticky bottom-0 bg-white border-t border-[var(--frox-gray-200)] px-5 py-3 flex items-center justify-between rounded-b-2xl">
+            <span className="text-xs text-[var(--frox-gray-400)]">
+              {selected.size} из {extracted.length} полей
+            </span>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={onClose} className="h-8 text-xs">Отмена</Button>
+              <Button
+                size="sm"
+                onClick={handleApply}
+                disabled={saving || selected.size === 0}
+                className="h-8 text-xs bg-emerald-500 hover:bg-emerald-600 text-white"
+              >
+                {saving ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                Обновить
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const contactFetcher = (url: string) =>
   fetch(url, { credentials: 'include' }).then(async res => {
     if (!res.ok) {
@@ -392,6 +606,7 @@ export default function ContactDetailPage() {
   const [researching, setResearching] = useState(false);
   const [deepResearching, setDeepResearching] = useState(false);
   const [researchError, setResearchError] = useState<string | null>(null);
+  const [showEnrichModal, setShowEnrichModal] = useState(false);
 
   const patchField = async (fields: Partial<Contact>) => {
     const res = await adminCsrfFetch(`/api/admin/contacts/${id}`, {
@@ -648,45 +863,35 @@ export default function ContactDetailPage() {
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    size="sm"
-                    variant="outline"
+                <div className="flex items-center gap-1">
+                  <button
                     onClick={handleResearch}
                     disabled={researching || deepResearching}
-                    className="h-7 text-xs gap-1.5"
+                    className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-[var(--frox-gray-200)] text-[10px] font-medium text-[var(--frox-gray-500)] hover:bg-[var(--frox-gray-100)] hover:text-[var(--frox-gray-700)] disabled:opacity-50 transition-colors"
+                    title="AI Исследование"
                   >
-                    {researching ? (
-                      <>
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        Исследую...
-                      </>
-                    ) : (
-                      <>
-                        <Search className="w-3 h-3" />
-                        AI Исследование
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
+                    {researching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+                    AI
+                  </button>
+                  <button
                     onClick={handleDeepResearch}
                     disabled={researching || deepResearching}
-                    className="h-7 text-xs gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                    className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-blue-200 text-[10px] font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50 transition-colors"
+                    title="Deep Research"
                   >
-                    {deepResearching ? (
-                      <>
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        Deep Research...
-                      </>
-                    ) : (
-                      <>
-                        <Microscope className="w-3 h-3" />
-                        Deep Research
-                      </>
-                    )}
-                  </Button>
+                    {deepResearching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Microscope className="w-3 h-3" />}
+                    Deep
+                  </button>
+                  {notes.some(n => n.source === 'ai_research' || n.source === 'ai_deep_research') && (
+                    <button
+                      onClick={() => setShowEnrichModal(true)}
+                      className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-emerald-200 text-[10px] font-medium text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                      title="Обновить данные из исследования"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      Обновить
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -759,6 +964,18 @@ export default function ContactDetailPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {showEnrichModal && contact && (
+        <EnrichModal
+          contact={contact}
+          notes={notes}
+          onApply={async (fields) => {
+            await patchField(fields);
+            mutateNotes();
+          }}
+          onClose={() => setShowEnrichModal(false)}
+        />
+      )}
     </div>
   );
 }
