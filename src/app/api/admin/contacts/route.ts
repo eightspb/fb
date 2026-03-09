@@ -176,7 +176,6 @@ async function triggerBackgroundResearch(contact: {
   institution?: string | null; speciality?: string | null;
   phone?: string | null; email?: string | null;
 }) {
-  const AI_RESEARCH_HEADER = '── AI Исследование';
   try {
     const researchResult = await researchContactWithAI({
       full_name: contact.full_name,
@@ -191,15 +190,18 @@ async function triggerBackgroundResearch(contact: {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit',
     });
-    const aiBlock = `${AI_RESEARCH_HEADER} (${now}) ──\n${researchResult}\n── конец исследования ──`;
 
     const client = await pool.connect();
     try {
-      // Обновляем только если notes всё ещё пустые (не затираем ручные заметки)
       await client.query(
-        `UPDATE contacts SET notes = $1, updated_at = NOW()
-         WHERE id = $2 AND (notes IS NULL OR TRIM(notes) = '')`,
-        [aiBlock, contact.id]
+        `INSERT INTO contact_notes (contact_id, title, content, source, metadata)
+         VALUES ($1, $2, $3, 'ai_research', $4)`,
+        [
+          contact.id,
+          `AI Исследование (${now})`,
+          researchResult,
+          JSON.stringify({ model: 'perplexity/sonar-pro', auto: true, timestamp: new Date().toISOString() }),
+        ]
       );
     } finally {
       client.release();
