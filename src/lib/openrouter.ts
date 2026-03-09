@@ -11,8 +11,35 @@ import axios from 'axios';
 
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const POLZA_API_URL = 'https://polza.ai/api/v1/chat/completions';
 
 const OPENROUTER_MODEL = 'openai/gpt-4o-mini'; // Можно изменить на openai/gpt-4 или openai/gpt-3.5-turbo
+
+/** Возвращает API URL и ключ — Polza как primary, OpenRouter как fallback */
+function getApiConfig() {
+  const polzaKey = process.env.POLZA_API_KEY;
+  const openrouterKey = process.env.OPENROUTER_API_KEY;
+  if (polzaKey && polzaKey.trim().length > 0) {
+    return { apiUrl: POLZA_API_URL, apiKey: polzaKey, provider: 'polza' as const };
+  }
+  if (openrouterKey && openrouterKey.trim().length > 0) {
+    return { apiUrl: OPENROUTER_API_URL, apiKey: openrouterKey, provider: 'openrouter' as const };
+  }
+  throw new Error('Ни POLZA_API_KEY, ни OPENROUTER_API_KEY не настроены.');
+}
+
+/** Формирует заголовки для API-запроса */
+function getApiHeaders(apiKey: string, provider: 'polza' | 'openrouter', title?: string) {
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+  };
+  if (provider === 'openrouter') {
+    headers['HTTP-Referer'] = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    headers['X-Title'] = title || 'FB.net';
+  }
+  return headers;
+}
 
 
 
@@ -641,11 +668,7 @@ interface ContactResearchInput {
 export async function researchContactWithAI(contact: ContactResearchInput): Promise<string> {
   console.log(`[AI] 🔍 Начало исследования контакта: ${contact.full_name}`);
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
-
-  if (!apiKey || apiKey.trim().length === 0) {
-    throw new Error('OPENROUTER_API_KEY не настроен. Обратитесь к администратору.');
-  }
+  const config = getApiConfig();
 
   const contactInfo = [
     `ФИО: ${contact.full_name}`,
@@ -700,9 +723,9 @@ ${[contact.phone ? `- Телефон: ${contact.phone}` : null, contact.email ? 
 
   for (const model of models) {
     try {
-      console.log(`[AI] 📤 Отправка запроса к ${model}...`);
+      console.log(`[AI] 📤 Отправка запроса к ${model} через ${config.provider}...`);
       const response = await axios.post<OpenRouterResponse>(
-        OPENROUTER_API_URL,
+        config.apiUrl,
         {
           model,
           messages: [
@@ -713,12 +736,7 @@ ${[contact.phone ? `- Телефон: ${contact.phone}` : null, contact.email ? 
           max_tokens: 1500,
         },
         {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-            'X-Title': 'FB.net Contact Research',
-            'Content-Type': 'application/json',
-          },
+          headers: getApiHeaders(config.apiKey, config.provider, 'FB.net Contact Research'),
           timeout: 60000,
         }
       );
@@ -801,10 +819,7 @@ export async function deepResearchContactWithAI(contact: ContactResearchInput): 
 }> {
   console.log(`[AI] 🔬 Начало глубокого исследования контакта: ${contact.full_name}`);
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey || apiKey.trim().length === 0) {
-    throw new Error('OPENROUTER_API_KEY не настроен.');
-  }
+  const config = getApiConfig();
 
   const contactInfo = [
     `ФИО: ${contact.full_name}`,
@@ -856,9 +871,9 @@ ${contactInfo}
 
   for (const model of searchModels) {
     try {
-      console.log(`[AI] 📤 Stage 1: отправка к ${model}...`);
+      console.log(`[AI] 📤 Stage 1: отправка к ${model} через ${config.provider}...`);
       const response = await axios.post<OpenRouterResponse>(
-        OPENROUTER_API_URL,
+        config.apiUrl,
         {
           model,
           messages: [
@@ -868,12 +883,7 @@ ${contactInfo}
           max_tokens: 8000,
         },
         {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-            'X-Title': 'FB.net Deep Contact Research',
-            'Content-Type': 'application/json',
-          },
+          headers: getApiHeaders(config.apiKey, config.provider, 'FB.net Deep Contact Research'),
           timeout: 300000, // 5 min — deep research can be slow
         }
       );
@@ -938,33 +948,20 @@ ${rawResearch}
 - Если confidence < 0.5, добавь в notes что нужно для disambiguation
 - Верни ТОЛЬКО валидный JSON, без пояснений`;
 
-  // Stage 2 verify models: Polza (GPT-5.4) first, then OpenRouter fallbacks
-  const POLZA_API_URL = 'https://polza.ai/api/v1/chat/completions';
-  const polzaApiKey = process.env.POLZA_API_KEY;
-
+  // Stage 2 verify models: all through Polza (primary) or OpenRouter (fallback)
   interface VerifyTarget {
     model: string;
     apiUrl: string;
-    authHeader: string;
-    extraHeaders?: Record<string, string>;
+    apiKey: string;
+    provider: 'polza' | 'openrouter';
     label: string;
   }
 
-  const verifyTargets: VerifyTarget[] = [];
-
-  // Polza GPT-5.4 — primary choice
-  if (polzaApiKey && polzaApiKey.trim().length > 0) {
-    verifyTargets.push(
-      { model: 'openai/gpt-5.4', apiUrl: POLZA_API_URL, authHeader: `Bearer ${polzaApiKey}`, label: 'Polza GPT-5.4' },
-    );
-  }
-
-  // OpenRouter fallbacks
-  verifyTargets.push(
-    { model: 'openai/gpt-4.1', apiUrl: OPENROUTER_API_URL, authHeader: `Bearer ${apiKey}`, extraHeaders: { 'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000', 'X-Title': 'FB.net Deep Research Verify' }, label: 'OpenRouter GPT-4.1' },
-    { model: 'openai/gpt-4o', apiUrl: OPENROUTER_API_URL, authHeader: `Bearer ${apiKey}`, extraHeaders: { 'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000', 'X-Title': 'FB.net Deep Research Verify' }, label: 'OpenRouter GPT-4o' },
-    { model: 'anthropic/claude-sonnet-4', apiUrl: OPENROUTER_API_URL, authHeader: `Bearer ${apiKey}`, extraHeaders: { 'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000', 'X-Title': 'FB.net Deep Research Verify' }, label: 'OpenRouter Claude Sonnet 4' },
-  );
+  const verifyTargets: VerifyTarget[] = [
+    { model: 'openai/gpt-5.4', apiUrl: config.apiUrl, apiKey: config.apiKey, provider: config.provider, label: `${config.provider} GPT-5.4` },
+    { model: 'openai/gpt-4.1', apiUrl: config.apiUrl, apiKey: config.apiKey, provider: config.provider, label: `${config.provider} GPT-4.1` },
+    { model: 'anthropic/claude-sonnet-4', apiUrl: config.apiUrl, apiKey: config.apiKey, provider: config.provider, label: `${config.provider} Claude Sonnet 4` },
+  ];
 
   let structured: DeepResearchResult | null = null;
   let usedVerifyModel = '';
@@ -983,11 +980,7 @@ ${rawResearch}
           max_tokens: 4000,
         },
         {
-          headers: {
-            'Authorization': target.authHeader,
-            'Content-Type': 'application/json',
-            ...(target.extraHeaders || {}),
-          },
+          headers: getApiHeaders(target.apiKey, target.provider, 'FB.net Deep Research Verify'),
           timeout: 120000,
         }
       );
@@ -1019,11 +1012,7 @@ ${rawResearch}
     } catch (error) {
       console.error(`[AI] ⚠️ Stage 2 ошибка с ${target.label}:`, error);
       if (axios.isAxiosError(error) && error.response?.status === 401) {
-        // Для Polza — пропускаем к fallback, для OpenRouter — бросаем
-        if (target.apiUrl === OPENROUTER_API_URL) {
-          throw new Error('Неверный API ключ OpenRouter');
-        }
-        console.warn(`[AI] ⚠️ Polza API ключ невалиден, переходим к fallback...`);
+        throw new Error(`Неверный API ключ ${target.provider}`);
       }
       continue;
     }
