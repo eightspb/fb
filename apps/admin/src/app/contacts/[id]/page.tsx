@@ -24,6 +24,12 @@ import {
   Pencil,
   Search,
   ChevronDown,
+  Plus,
+  Pin,
+  Sparkles,
+  Microscope,
+  RefreshCw,
+  ArrowRight,
 } from 'lucide-react';
 
 interface Contact {
@@ -42,6 +48,18 @@ interface Contact {
   updated_at: string;
 }
 
+interface ContactNote {
+  id: string;
+  contact_id: string;
+  title: string | null;
+  content: string;
+  source: 'manual' | 'ai_research' | 'ai_deep_research' | 'import';
+  pinned: boolean;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
 const statusConfig = [
   { value: 'new', label: 'Новый', pill: 'bg-blue-50 text-blue-700 border border-blue-200', dot: 'bg-blue-500' },
   { value: 'in_progress', label: 'В работе', pill: 'bg-amber-50 text-amber-700 border border-amber-200', dot: 'bg-amber-500' },
@@ -55,6 +73,13 @@ function getStatusConfig(status: string) {
 
 function formatDate(s: string) {
   return new Date(s).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+function formatDateTime(s: string) {
+  return new Date(s).toLocaleDateString('ru-RU', {
+    day: '2-digit', month: '2-digit', year: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  });
 }
 
 function Avatar({ name }: { name: string }) {
@@ -116,86 +141,97 @@ function EditableField({ value, onSave, placeholder = '—' }: {
   );
 }
 
-const TEXTAREA_MIN_H = 96;
+// ── Note source badge ──
+const sourceLabels: Record<string, { label: string; className: string }> = {
+  manual: { label: 'Вручную', className: 'bg-[var(--frox-gray-100)] text-[var(--frox-gray-500)]' },
+  ai_research: { label: 'AI', className: 'bg-violet-50 text-violet-600' },
+  ai_deep_research: { label: 'Deep Research', className: 'bg-blue-50 text-blue-600' },
+  import: { label: 'Импорт', className: 'bg-amber-50 text-amber-600' },
+};
 
-function EditableTextarea({ value, onSave, placeholder = '—' }: {
-  value: string | null;
-  onSave: (val: string) => Promise<void>;
-  placeholder?: string;
+function NoteSourceBadge({ source }: { source: string }) {
+  const cfg = sourceLabels[source] || sourceLabels.manual;
+  return (
+    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${cfg.className}`}>
+      {cfg.label}
+    </span>
+  );
+}
+
+// ── Single note card ──
+function NoteCard({ note, onUpdate, onDelete }: {
+  note: ContactNote;
+  onUpdate: (noteId: string, fields: Partial<ContactNote>) => Promise<void>;
+  onDelete: (noteId: string) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value || '');
+  const [collapsed, setCollapsed] = useState(false);
+  const [draft, setDraft] = useState(note.content);
+  const [titleDraft, setTitleDraft] = useState(note.title || '');
   const [saving, setSaving] = useState(false);
-  const [height, setHeight] = useState(TEXTAREA_MIN_H);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const viewRef = useRef<HTMLButtonElement>(null);
-  const startRef = useRef({ y: 0, h: 0 });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  useEffect(() => { if (!editing) setDraft(value || ''); }, [value, editing]);
-
-  const startEditing = useCallback(() => {
-    // Сохраняем текущую высоту блока просмотра, чтобы не было прыжка
-    const viewH = viewRef.current?.getBoundingClientRect().height ?? TEXTAREA_MIN_H;
-    setHeight(Math.max(TEXTAREA_MIN_H, viewH));
-    setEditing(true);
-  }, []);
+  useEffect(() => {
+    if (!editing) {
+      setDraft(note.content);
+      setTitleDraft(note.title || '');
+    }
+  }, [note.content, note.title, editing]);
 
   const handleSave = async () => {
     setSaving(true);
-    try { await onSave(draft); setEditing(false); }
-    finally { setSaving(false); }
+    try {
+      await onUpdate(note.id, {
+        content: draft,
+        title: titleDraft.trim() || null,
+      });
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const onResizeStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const el = textareaRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    startRef.current = { y: e.clientY, h: rect.height };
-    const onMove = (ev: MouseEvent) => {
-      const dh = ev.clientY - startRef.current.y;
-      setHeight(Math.max(TEXTAREA_MIN_H, startRef.current.h + dh));
-    };
-    const onUp = () => {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-    document.body.style.cursor = 'ns-resize';
-    document.body.style.userSelect = 'none';
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  }, []);
+  const handlePin = async () => {
+    await onUpdate(note.id, { pinned: !note.pinned });
+  };
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (editing && textareaRef.current) {
+      const el = textareaRef.current;
+      el.style.height = 'auto';
+      el.style.height = Math.max(80, el.scrollHeight) + 'px';
+    }
+  }, [editing]);
 
   if (editing) {
     return (
-      <div className="space-y-2">
-        <div className="relative inline-block w-full">
-          <textarea
-            ref={textareaRef}
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            className="w-full text-sm px-3 py-2.5 pr-8 pb-6 border-2 border-blue-400 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 block bg-white shadow-sm transition-colors"
-            style={{ minHeight: TEXTAREA_MIN_H, height }}
-            autoFocus
-          />
-          <div
-            role="button"
-            tabIndex={-1}
-            onMouseDown={onResizeStart}
-            className="absolute bottom-0 right-0 w-6 h-6 cursor-ns-resize flex items-end justify-end p-1 rounded-bl-lg"
-            title="Изменить высоту"
-            aria-label="Изменить высоту поля"
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12" className="text-[var(--frox-gray-400)] shrink-0">
-              <path d="M4 8h4M8 8h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
-            </svg>
-          </div>
-        </div>
+      <div className="rounded-lg border-2 border-blue-400 bg-white p-3 space-y-2 shadow-sm">
+        <Input
+          value={titleDraft}
+          onChange={e => setTitleDraft(e.target.value)}
+          placeholder="Заголовок (необязательно)"
+          className="h-7 text-sm font-medium"
+          onKeyDown={e => { if (e.key === 'Escape') setEditing(false); }}
+        />
+        <textarea
+          ref={textareaRef}
+          value={draft}
+          onChange={e => {
+            setDraft(e.target.value);
+            const el = e.target;
+            el.style.height = 'auto';
+            el.style.height = Math.max(80, el.scrollHeight) + 'px';
+          }}
+          className="w-full text-sm px-3 py-2 border border-[var(--frox-gray-200)] rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white min-h-[80px] resize-y"
+          autoFocus
+        />
         <div className="flex gap-2">
-          <Button size="sm" onClick={handleSave} disabled={saving} className="h-7 text-xs">Сохранить</Button>
+          <Button size="sm" onClick={handleSave} disabled={saving || !draft.trim()} className="h-7 text-xs">
+            {saving ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+            Сохранить
+          </Button>
           <Button size="sm" variant="ghost" onClick={() => setEditing(false)} className="h-7 text-xs">Отмена</Button>
         </div>
       </div>
@@ -203,14 +239,311 @@ function EditableTextarea({ value, onSave, placeholder = '—' }: {
   }
 
   return (
-    <button
-      ref={viewRef}
-      onClick={startEditing}
-      className="w-full text-left text-sm text-[var(--frox-gray-800)] hover:text-[var(--frox-gray-1100)] group flex items-start gap-1.5 border border-[var(--frox-gray-200)] hover:border-[var(--frox-gray-300)] rounded-lg px-3 py-2.5 bg-[var(--frox-gray-50)] hover:bg-white transition-colors min-h-[96px]"
-    >
-      <span className={`flex-1 whitespace-pre-wrap ${value ? '' : 'text-[var(--frox-gray-300)] italic'}`}>{value || placeholder}</span>
-      <Pencil className="w-3 h-3 text-[var(--frox-gray-300)] group-hover:text-[var(--frox-gray-500)] transition-colors shrink-0 mt-0.5" />
-    </button>
+    <div className={`group rounded-lg border bg-white hover:shadow-sm transition-all p-3 ${note.pinned ? 'border-amber-200 bg-amber-50/30' : 'border-[var(--frox-gray-200)]'}`}>
+      <div className="flex items-start justify-between gap-2 mb-1">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1 cursor-pointer" onClick={() => setCollapsed(c => !c)}>
+          <ChevronDown className={`w-3 h-3 text-[var(--frox-gray-400)] shrink-0 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
+          {note.pinned && <Pin className="w-3 h-3 text-amber-500 shrink-0 fill-amber-500" />}
+          {note.title ? (
+            <span className="text-sm font-medium text-[var(--frox-gray-900)] truncate">{note.title}</span>
+          ) : (
+            <span className="text-xs text-[var(--frox-gray-400)]">{formatDateTime(note.created_at)}</span>
+          )}
+          <NoteSourceBadge source={note.source} />
+        </div>
+        <div className={`flex items-center gap-0.5 shrink-0 transition-opacity ${showDeleteConfirm ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+          {!showDeleteConfirm ? (
+            <>
+              <button
+                onClick={handlePin}
+                className={`p-1 rounded transition-colors ${note.pinned ? 'text-amber-500 hover:text-amber-600' : 'text-[var(--frox-gray-400)] hover:text-amber-500'}`}
+                title={note.pinned ? 'Открепить' : 'Закрепить'}
+              >
+                <Pin className={`w-3 h-3 ${note.pinned ? 'fill-current' : ''}`} />
+              </button>
+              <button onClick={() => setEditing(true)} className="p-1 text-[var(--frox-gray-400)] hover:text-[var(--frox-gray-600)] rounded transition-colors" title="Редактировать">
+                <Pencil className="w-3 h-3" />
+              </button>
+              <button onClick={() => setShowDeleteConfirm(true)} className="p-1 text-[var(--frox-gray-400)] hover:text-red-500 rounded transition-colors" title="Удалить">
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </>
+          ) : (
+            <div className="flex items-center gap-1">
+              <button onClick={() => onDelete(note.id)} className="p-1 text-red-500 hover:text-red-600 rounded transition-colors" title="Подтвердить удаление">
+                <Check className="w-3 h-3" />
+              </button>
+              <button onClick={() => setShowDeleteConfirm(false)} className="p-1 text-[var(--frox-gray-400)] hover:text-[var(--frox-gray-600)] rounded transition-colors" title="Отмена">
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      {!collapsed && (
+        <>
+          {note.title && (
+            <div className="text-[10px] text-[var(--frox-gray-400)] mb-1 ml-[18px]">{formatDateTime(note.created_at)}</div>
+          )}
+          <div className="text-sm text-[var(--frox-gray-700)] whitespace-pre-wrap leading-relaxed ml-[18px]">{note.content}</div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── New note form ──
+function NewNoteForm({ contactId, onCreated }: { contactId: string; onCreated: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!content.trim()) return;
+    setSaving(true);
+    try {
+      const res = await adminCsrfFetch(`/api/admin/contacts/${contactId}/notes`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title.trim() || null, content: content.trim() }),
+      });
+      if (res.ok) {
+        setTitle('');
+        setContent('');
+        setOpen(false);
+        onCreated();
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-[var(--frox-gray-400)] hover:text-[var(--frox-gray-600)] border border-dashed border-[var(--frox-gray-200)] hover:border-[var(--frox-gray-300)] rounded-lg transition-colors"
+      >
+        <Plus className="w-3.5 h-3.5" />
+        Добавить заметку
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border-2 border-blue-400 bg-white p-3 space-y-2 shadow-sm">
+      <Input
+        value={title}
+        onChange={e => setTitle(e.target.value)}
+        placeholder="Заголовок (необязательно)"
+        className="h-7 text-sm font-medium"
+        onKeyDown={e => { if (e.key === 'Escape') setOpen(false); }}
+      />
+      <textarea
+        value={content}
+        onChange={e => setContent(e.target.value)}
+        placeholder="Текст заметки..."
+        className="w-full text-sm px-3 py-2 border border-[var(--frox-gray-200)] rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white min-h-[80px] resize-y"
+        autoFocus
+      />
+      <div className="flex gap-2">
+        <Button size="sm" onClick={handleSave} disabled={saving || !content.trim()} className="h-7 text-xs">
+          {saving ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+          Сохранить
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => { setOpen(false); setTitle(''); setContent(''); }} className="h-7 text-xs">Отмена</Button>
+      </div>
+    </div>
+  );
+}
+
+// ── Extract fields from research notes ──
+interface ExtractedField {
+  key: string;
+  label: string;
+  currentValue: string | null;
+  newValue: string;
+}
+
+function extractFieldsFromNotes(notes: ContactNote[], contact: Contact): ExtractedField[] {
+  const fields: ExtractedField[] = [];
+  const seen = new Set<string>();
+
+  const addField = (key: string, label: string, newValue: string) => {
+    if (!newValue || seen.has(key)) return;
+    const current = contact[key as keyof Contact] as string | null;
+    if (current === newValue) return;
+    seen.add(key);
+    fields.push({ key, label, currentValue: current, newValue });
+  };
+
+  // Deep research notes — structured metadata
+  for (const note of notes) {
+    if (note.source !== 'ai_deep_research' && note.source !== 'ai_research') continue;
+    const meta = note.metadata as Record<string, unknown>;
+    const structured = meta?.structured as Record<string, unknown> | undefined;
+
+    if (structured) {
+      // Deep research structured data
+      const specs = structured.specialties as string[] | undefined;
+      if (specs?.length) addField('speciality', 'Специальность', specs.join(', '));
+
+      const locations = structured.locations as string[] | undefined;
+      if (locations?.length) addField('city', 'Город', locations[0]);
+
+      const current = structured.current_affiliations as string[] | undefined;
+      if (current?.length) addField('institution', 'Организация', current.join('; '));
+    }
+
+    // Parse content text (emoji format from both ai_research and ai_deep_research)
+    const content = note.content;
+    if (!content) continue;
+
+    // 📧 / ✉️ Email
+    const emailMatch = content.match(/[📧✉️]\s*(?:Email|Почта|E-mail)[:\s]*([^\s\n,]+@[^\s\n,]+)/i);
+    if (emailMatch) addField('email', 'Email', emailMatch[1].trim());
+
+    // 📱 / ☎️ Phone
+    const phoneMatch = content.match(/[📱☎️📞]\s*(?:Телефон|Тел\.?)[:\s]*([+\d\s()-]{7,})/i);
+    if (phoneMatch) addField('phone', 'Телефон', phoneMatch[1].trim());
+
+    // 🏥 Institution
+    const instMatch = content.match(/🏥\s*(?:Текущ(?:ие|ее)\s*мест[оа]\s*работы|Организация|Клиника)[:\s]*([^\n]+)/i);
+    if (instMatch && !seen.has('institution')) addField('institution', 'Организация', instMatch[1].trim());
+
+    // 🩺 Speciality
+    const specMatch = content.match(/🩺\s*(?:Специализация|Специальность)[:\s]*([^\n]+)/i);
+    if (specMatch && !seen.has('speciality')) addField('speciality', 'Специальность', specMatch[1].trim());
+
+    // 📍 City
+    const cityMatch = content.match(/📍\s*(?:Город|Локация|Регион)[:\s]*([^\n]+)/i);
+    if (cityMatch && !seen.has('city')) addField('city', 'Город', cityMatch[1].trim());
+  }
+
+  return fields;
+}
+
+// ── Enrich from research modal ──
+function EnrichModal({ contact, notes, onApply, onClose }: {
+  contact: Contact;
+  notes: ContactNote[];
+  onApply: (fields: Partial<Contact>) => Promise<void>;
+  onClose: () => void;
+}) {
+  const extracted = extractFieldsFromNotes(notes, contact);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(extracted.map(f => f.key)));
+  const [saving, setSaving] = useState(false);
+
+  const toggle = (key: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const handleApply = async () => {
+    const patch: Record<string, string> = {};
+    for (const f of extracted) {
+      if (selected.has(f.key)) patch[f.key] = f.newValue;
+    }
+    if (!Object.keys(patch).length) return;
+    setSaving(true);
+    try {
+      await onApply(patch as Partial<Contact>);
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+      <div
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-white border-b border-[var(--frox-gray-200)] px-5 py-4 flex items-center justify-between rounded-t-2xl">
+          <div className="flex items-center gap-2">
+            <RefreshCw className="w-4 h-4 text-emerald-500" />
+            <span className="font-semibold text-[var(--frox-gray-900)]">Обновить из исследования</span>
+          </div>
+          <button onClick={onClose} className="p-1 text-[var(--frox-gray-400)] hover:text-[var(--frox-gray-600)]">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-5 py-4">
+          {extracted.length === 0 ? (
+            <div className="text-center py-8 text-[var(--frox-gray-400)]">
+              <AlertCircle className="w-8 h-8 mx-auto mb-2 stroke-1" />
+              <p className="text-sm">Не найдено новых данных для обновления</p>
+              <p className="text-xs mt-1">Запустите AI Исследование или Deep Research для поиска информации</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-[var(--frox-gray-500)]">
+                Выберите поля для обновления. Данные извлечены из заметок AI-исследований.
+              </p>
+              {extracted.map(field => (
+                <label
+                  key={field.key}
+                  className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                    selected.has(field.key)
+                      ? 'border-emerald-300 bg-emerald-50/50'
+                      : 'border-[var(--frox-gray-200)] hover:border-[var(--frox-gray-300)]'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.has(field.key)}
+                    onChange={() => toggle(field.key)}
+                    className="mt-0.5 rounded border-[var(--frox-gray-300)] text-emerald-500 focus:ring-emerald-500"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-[var(--frox-gray-500)] uppercase tracking-wider mb-1">
+                      {field.label}
+                    </div>
+                    {field.currentValue && (
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-xs text-[var(--frox-gray-400)] line-through truncate">{field.currentValue}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5">
+                      {field.currentValue && <ArrowRight className="w-3 h-3 text-emerald-500 shrink-0" />}
+                      <span className="text-sm text-[var(--frox-gray-800)] font-medium break-words">{field.newValue}</span>
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {extracted.length > 0 && (
+          <div className="sticky bottom-0 bg-white border-t border-[var(--frox-gray-200)] px-5 py-3 flex items-center justify-between rounded-b-2xl">
+            <span className="text-xs text-[var(--frox-gray-400)]">
+              {selected.size} из {extracted.length} полей
+            </span>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={onClose} className="h-8 text-xs">Отмена</Button>
+              <Button
+                size="sm"
+                onClick={handleApply}
+                disabled={saving || selected.size === 0}
+                className="h-8 text-xs bg-emerald-500 hover:bg-emerald-600 text-white"
+              >
+                {saving ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                Обновить
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -224,6 +557,12 @@ const contactFetcher = (url: string) =>
     return res.json() as Promise<Contact>;
   });
 
+const notesFetcher = (url: string) =>
+  fetch(url, { credentials: 'include' }).then(async res => {
+    if (!res.ok) throw new Error('Ошибка загрузки заметок');
+    return res.json() as Promise<{ notes: ContactNote[] }>;
+  });
+
 export default function ContactDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -234,6 +573,14 @@ export default function ContactDetailPage() {
     contactFetcher,
     { revalidateOnFocus: false, dedupingInterval: 5000, keepPreviousData: true }
   );
+
+  const { data: notesData, mutate: mutateNotes } = useSWR(
+    id ? `/api/admin/contacts/${id}/notes` : null,
+    notesFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 5000, keepPreviousData: true }
+  );
+
+  const notes = notesData?.notes || [];
 
   const error = swrError
     ? swrError.status === 404 ? 'Контакт не найден'
@@ -255,8 +602,11 @@ export default function ContactDetailPage() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [showStatusMenu]);
+
   const [researching, setResearching] = useState(false);
+  const [deepResearching, setDeepResearching] = useState(false);
   const [researchError, setResearchError] = useState<string | null>(null);
+  const [showEnrichModal, setShowEnrichModal] = useState(false);
 
   const patchField = async (fields: Partial<Contact>) => {
     const res = await adminCsrfFetch(`/api/admin/contacts/${id}`, {
@@ -285,7 +635,8 @@ export default function ContactDetailPage() {
         method: 'POST', credentials: 'include',
       });
       if (res.ok) {
-        mutate(await res.json(), false);
+        mutateNotes();
+        mutate();
       } else {
         const data = await res.json().catch(() => null);
         setResearchError(data?.error || 'Ошибка при исследовании');
@@ -295,6 +646,43 @@ export default function ContactDetailPage() {
     } finally {
       setResearching(false);
     }
+  };
+
+  const handleDeepResearch = async () => {
+    setDeepResearching(true);
+    setResearchError(null);
+    try {
+      const res = await adminCsrfFetch(`/api/admin/contacts/${id}/deep-research`, {
+        method: 'POST', credentials: 'include',
+      });
+      if (res.ok) {
+        mutateNotes();
+        mutate();
+      } else {
+        const data = await res.json().catch(() => null);
+        setResearchError(data?.error || 'Ошибка при глубоком исследовании');
+      }
+    } catch {
+      setResearchError('Ошибка подключения к серверу');
+    } finally {
+      setDeepResearching(false);
+    }
+  };
+
+  const handleUpdateNote = async (noteId: string, fields: Partial<ContactNote>) => {
+    const res = await adminCsrfFetch(`/api/admin/contacts/${id}/notes/${noteId}`, {
+      method: 'PATCH', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    });
+    if (res.ok) mutateNotes();
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    const res = await adminCsrfFetch(`/api/admin/contacts/${id}/notes/${noteId}`, {
+      method: 'DELETE', credentials: 'include',
+    });
+    if (res.ok || res.status === 204) mutateNotes();
   };
 
   const handleDelete = async () => {
@@ -463,40 +851,68 @@ export default function ContactDetailPage() {
               />
             </div>
 
-            {/* Заметки */}
+            {/* ── Заметки ── */}
             <div className="rounded-xl border border-[var(--frox-gray-200)] bg-[var(--frox-gray-50)] p-3">
-              <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--frox-gray-500)] uppercase tracking-wider">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="shrink-0"><path d="M2 4h12M2 8h8M2 12h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
                   Заметки
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleResearch}
-                  disabled={researching}
-                  className="h-7 text-xs gap-1.5"
-                >
-                  {researching ? (
-                    <>
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      Исследую...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="w-3 h-3" />
-                      AI Исследование
-                    </>
+                  {notes.length > 0 && (
+                    <span className="text-[10px] font-medium bg-[var(--frox-gray-200)] text-[var(--frox-gray-500)] px-1.5 py-0.5 rounded-full ml-1">
+                      {notes.length}
+                    </span>
                   )}
-                </Button>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleResearch}
+                    disabled={researching || deepResearching}
+                    className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-[var(--frox-gray-200)] text-[10px] font-medium text-[var(--frox-gray-500)] hover:bg-[var(--frox-gray-100)] hover:text-[var(--frox-gray-700)] disabled:opacity-50 transition-colors"
+                    title="AI Исследование"
+                  >
+                    {researching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+                    AI
+                  </button>
+                  <button
+                    onClick={handleDeepResearch}
+                    disabled={researching || deepResearching}
+                    className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-blue-200 text-[10px] font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50 transition-colors"
+                    title="Deep Research"
+                  >
+                    {deepResearching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Microscope className="w-3 h-3" />}
+                    Deep
+                  </button>
+                  {notes.some(n => n.source === 'ai_research' || n.source === 'ai_deep_research') && (
+                    <button
+                      onClick={() => setShowEnrichModal(true)}
+                      className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-emerald-200 text-[10px] font-medium text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                      title="Обновить данные из исследования"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      Обновить
+                    </button>
+                  )}
+                </div>
               </div>
+
               {researchError && (
                 <div className="flex items-center gap-2 p-2.5 mb-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                   {researchError}
                 </div>
               )}
-              <EditableTextarea value={contact.notes} onSave={v => patchField({ notes: v || null } as Partial<Contact>)} placeholder="добавить заметку..." />
+
+              <div className="space-y-2">
+                {notes.map(note => (
+                  <NoteCard
+                    key={note.id}
+                    note={note}
+                    onUpdate={handleUpdateNote}
+                    onDelete={handleDeleteNote}
+                  />
+                ))}
+                <NewNoteForm contactId={id} onCreated={() => mutateNotes()} />
+              </div>
             </div>
 
             {/* Мета */}
@@ -548,6 +964,18 @@ export default function ContactDetailPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {showEnrichModal && contact && (
+        <EnrichModal
+          contact={contact}
+          notes={notes}
+          onApply={async (fields) => {
+            await patchField(fields);
+            mutateNotes();
+          }}
+          onClose={() => setShowEnrichModal(false)}
+        />
+      )}
     </div>
   );
 }

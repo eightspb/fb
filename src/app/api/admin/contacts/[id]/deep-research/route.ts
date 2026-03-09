@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
-import { researchContactWithAI } from '@/lib/openrouter';
+import { deepResearchContactWithAI } from '@/lib/openrouter';
 
 export const runtime = 'nodejs';
 
@@ -26,7 +26,7 @@ async function verifyAdminSession(): Promise<boolean> {
   }
 }
 
-// POST /api/admin/contacts/[id]/research
+// POST /api/admin/contacts/[id]/deep-research
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!await verifyAdminSession()) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -36,7 +36,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const client = await pool.connect();
 
   try {
-    // Load contact
     const contactResult = await client.query('SELECT * FROM contacts WHERE id = $1', [id]);
     if (!contactResult.rows.length) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -48,8 +47,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: 'У контакта не указано ФИО' }, { status: 400 });
     }
 
-    // Run AI research
-    const researchResult = await researchContactWithAI({
+    const result = await deepResearchContactWithAI({
       full_name: contact.full_name,
       city: contact.city,
       institution: contact.institution,
@@ -58,7 +56,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       email: contact.email,
     });
 
-    // Save as a contact_note
     const now = new Date().toLocaleDateString('ru-RU', {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit',
@@ -66,23 +63,28 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
     const noteResult = await client.query(
       `INSERT INTO contact_notes (contact_id, title, content, source, metadata)
-       VALUES ($1, $2, $3, 'ai_research', $4)
+       VALUES ($1, $2, $3, 'ai_deep_research', $4)
        RETURNING *`,
       [
         id,
-        `AI Исследование (${now})`,
-        researchResult,
-        JSON.stringify({ model: 'perplexity/sonar-pro', timestamp: new Date().toISOString() }),
+        `Deep Research (${now})`,
+        result.summary,
+        JSON.stringify({
+          structured: result.structured,
+          searchModel: result.searchModel,
+          verifyModel: result.verifyModel,
+          confidence: result.structured.matched_identity_confidence,
+          timestamp: new Date().toISOString(),
+        }),
       ]
     );
 
-    // Update contact's updated_at
     await client.query('UPDATE contacts SET updated_at = NOW() WHERE id = $1', [id]);
 
     return NextResponse.json({ note: noteResult.rows[0] });
   } catch (error) {
-    console.error('[Research API] Error:', error);
-    const message = error instanceof Error ? error.message : 'Ошибка при исследовании контакта';
+    console.error('[Deep Research API] Error:', error);
+    const message = error instanceof Error ? error.message : 'Ошибка при глубоком исследовании';
     return NextResponse.json({ error: message }, { status: 500 });
   } finally {
     client.release();

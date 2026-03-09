@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: '/conferences', label: 'Мероприятия', icon: '/admin/icons/icon-calendar-1.svg' },
   { href: '/banner', label: 'Баннер', icon: '/admin/icons/icon-notification-bing.svg' },
   { href: '/direct', label: 'Автоброкер', icon: '/admin/icons/icon-analytics.svg' },
+  { href: '/ai-assistant', label: 'AI Ассистент', icon: '/admin/icons/icon-ai.svg' },
   { href: '/logs', label: 'Логи', icon: '/admin/icons/icon-chart.svg' },
   { href: '/settings', label: 'Настройки', icon: '/admin/icons/icon-setting.svg' },
 ];

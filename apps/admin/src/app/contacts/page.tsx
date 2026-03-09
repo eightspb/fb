@@ -39,6 +39,8 @@ import {
   Merge,
   Loader2,
   ChevronDown,
+  Microscope,
+  ChevronUp,
 } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 import { FroxStatCard } from '@/components/admin/FroxStatCard';
@@ -946,6 +948,15 @@ function usePanelResize() {
   return { width, onResizeStart };
 }
 
+interface PanelNote {
+  id: string;
+  title: string | null;
+  content: string;
+  source: string;
+  pinned: boolean;
+  created_at: string;
+}
+
 function ContactPanel({
   contact, onUpdate, onClose, onDelete,
 }: {
@@ -957,16 +968,35 @@ function ContactPanel({
   const router = useRouter();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [researching, setResearching] = useState(false);
+  const [deepResearching, setDeepResearching] = useState(false);
   const [researchError, setResearchError] = useState<string | null>(null);
-  const [notesEditing, setNotesEditing] = useState(false);
-  const [notesDraft, setNotesDraft] = useState(contact.notes || '');
-  const [notesSaving, setNotesSaving] = useState(false);
-  const [notesHeight, setNotesHeight] = useState(96);
-  const notesViewRef = useRef<HTMLButtonElement>(null);
-  const notesTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [panelNotes, setPanelNotes] = useState<PanelNote[]>([]);
+  const [notesLoading, setNotesLoading] = useState(true);
+  const [newNoteOpen, setNewNoteOpen] = useState(false);
+  const [newNoteContent, setNewNoteContent] = useState('');
+  const [newNoteSaving, setNewNoteSaving] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteDraft, setEditingNoteDraft] = useState('');
+  const [editingNoteSaving, setEditingNoteSaving] = useState(false);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [collapsedNotes, setCollapsedNotes] = useState<Set<string>>(new Set());
   const { width: panelWidth, onResizeStart } = usePanelResize();
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement>(null);
+
+  // Load notes
+  const loadNotes = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/contacts/${contact.id}/notes`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setPanelNotes(data.notes || []);
+      }
+    } catch { /* silent */ }
+    finally { setNotesLoading(false); }
+  }, [contact.id]);
+
+  useEffect(() => { loadNotes(); }, [loadNotes]);
 
   useEffect(() => {
     if (!showStatusMenu) return;
@@ -979,20 +1009,6 @@ function ContactPanel({
     return () => document.removeEventListener('mousedown', handler);
   }, [showStatusMenu]);
 
-  useEffect(() => { if (!notesEditing) setNotesDraft(contact.notes || ''); }, [contact.notes, notesEditing]);
-
-  const startNotesEditing = useCallback(() => {
-    const viewH = notesViewRef.current?.getBoundingClientRect().height ?? 96;
-    setNotesHeight(Math.max(96, viewH));
-    setNotesEditing(true);
-  }, []);
-
-  const handleNotesSave = async () => {
-    setNotesSaving(true);
-    try { await patchField({ notes: notesDraft || null } as Partial<Contact>); setNotesEditing(false); }
-    finally { setNotesSaving(false); }
-  };
-
   const handleResearch = async () => {
     setResearching(true);
     setResearchError(null);
@@ -1001,7 +1017,7 @@ function ContactPanel({
         method: 'POST', credentials: 'include',
       });
       if (res.ok) {
-        onUpdate(await res.json());
+        loadNotes();
       } else {
         const data = await res.json().catch(() => null);
         setResearchError(data?.error || 'Ошибка при исследовании');
@@ -1011,6 +1027,80 @@ function ContactPanel({
     } finally {
       setResearching(false);
     }
+  };
+
+  const handleDeepResearch = async () => {
+    setDeepResearching(true);
+    setResearchError(null);
+    try {
+      const res = await adminCsrfFetch(`/api/admin/contacts/${contact.id}/deep-research`, {
+        method: 'POST', credentials: 'include',
+      });
+      if (res.ok) {
+        loadNotes();
+      } else {
+        const data = await res.json().catch(() => null);
+        setResearchError(data?.error || 'Ошибка при глубоком исследовании');
+      }
+    } catch {
+      setResearchError('Ошибка подключения к серверу');
+    } finally {
+      setDeepResearching(false);
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!newNoteContent.trim()) return;
+    setNewNoteSaving(true);
+    try {
+      const res = await adminCsrfFetch(`/api/admin/contacts/${contact.id}/notes`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newNoteContent.trim() }),
+      });
+      if (res.ok) {
+        setNewNoteContent('');
+        setNewNoteOpen(false);
+        loadNotes();
+      }
+    } finally { setNewNoteSaving(false); }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    const res = await adminCsrfFetch(`/api/admin/contacts/${contact.id}/notes/${noteId}`, {
+      method: 'DELETE', credentials: 'include',
+    });
+    if (res.ok || res.status === 204) loadNotes();
+  };
+
+  const startEditNote = (note: PanelNote) => {
+    setEditingNoteId(note.id);
+    setEditingNoteDraft(note.content);
+    requestAnimationFrame(() => {
+      if (editTextareaRef.current) {
+        const el = editTextareaRef.current;
+        el.style.height = 'auto';
+        el.style.height = Math.max(60, el.scrollHeight) + 'px';
+        el.focus();
+      }
+    });
+  };
+
+  const handleEditNoteSave = async () => {
+    if (!editingNoteId || !editingNoteDraft.trim()) return;
+    setEditingNoteSaving(true);
+    try {
+      const res = await adminCsrfFetch(`/api/admin/contacts/${contact.id}/notes/${editingNoteId}`, {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: editingNoteDraft.trim() }),
+      });
+      if (res.ok) {
+        setEditingNoteId(null);
+        setEditingNoteDraft('');
+        loadNotes();
+      }
+    } finally { setEditingNoteSaving(false); }
   };
 
   const patchField = async (fields: Partial<Contact>) => {
@@ -1185,26 +1275,32 @@ function ContactPanel({
               <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--frox-gray-500)] uppercase tracking-wider">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="shrink-0"><path d="M2 4h12M2 8h8M2 12h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
                 Заметки
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleResearch}
-                disabled={researching}
-                className="h-7 text-xs gap-1.5"
-              >
-                {researching ? (
-                  <>
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    Исследую...
-                  </>
-                ) : (
-                  <>
-                    <Search className="w-3 h-3" />
-                    AI Исследование
-                  </>
+                {panelNotes.length > 0 && (
+                  <span className="text-[10px] font-medium bg-[var(--frox-gray-200)] text-[var(--frox-gray-500)] px-1.5 py-0.5 rounded-full ml-1">
+                    {panelNotes.length}
+                  </span>
                 )}
-              </Button>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleResearch}
+                  disabled={researching || deepResearching}
+                  className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-[var(--frox-gray-200)] text-[10px] font-medium text-[var(--frox-gray-500)] hover:bg-[var(--frox-gray-100)] hover:text-[var(--frox-gray-700)] disabled:opacity-50 transition-colors"
+                  title="AI Исследование"
+                >
+                  {researching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+                  AI
+                </button>
+                <button
+                  onClick={handleDeepResearch}
+                  disabled={researching || deepResearching}
+                  className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-blue-200 text-[10px] font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50 transition-colors"
+                  title="Deep Research"
+                >
+                  {deepResearching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Microscope className="w-3 h-3" />}
+                  Deep
+                </button>
+              </div>
             </div>
             {researchError && (
               <div className="flex items-center gap-2 p-2.5 mb-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
@@ -1212,31 +1308,120 @@ function ContactPanel({
                 {researchError}
               </div>
             )}
-            {notesEditing ? (
-              <div className="space-y-2">
-                <textarea
-                  ref={notesTextareaRef}
-                  value={notesDraft}
-                  onChange={e => setNotesDraft(e.target.value)}
-                  className="w-full text-sm px-3 py-2.5 border-2 border-blue-400 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white shadow-sm transition-colors"
-                  style={{ minHeight: 96, height: notesHeight }}
-                  autoFocus
-                />
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={handleNotesSave} disabled={notesSaving} className="h-7 text-xs">Сохранить</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setNotesEditing(false)} className="h-7 text-xs">Отмена</Button>
+            <div className="space-y-2">
+              {notesLoading ? (
+                <div className="text-center py-4 text-[var(--frox-gray-400)]">
+                  <Loader2 className="w-4 h-4 animate-spin mx-auto" />
                 </div>
-              </div>
-            ) : (
-              <button
-                ref={notesViewRef}
-                onClick={startNotesEditing}
-                className="w-full text-left text-sm text-[var(--frox-gray-800)] hover:text-[var(--frox-gray-1100)] group flex items-start gap-1.5 border border-[var(--frox-gray-200)] hover:border-[var(--frox-gray-300)] rounded-lg px-3 py-2.5 bg-[var(--frox-gray-50)] hover:bg-white transition-colors min-h-[96px]"
-              >
-                <span className={`flex-1 whitespace-pre-wrap ${contact.notes ? '' : 'text-[var(--frox-gray-300)] italic'}`}>{contact.notes || 'добавить заметку...'}</span>
-                <Pencil className="w-3 h-3 text-[var(--frox-gray-300)] group-hover:text-[var(--frox-gray-500)] transition-colors shrink-0 mt-0.5" />
-              </button>
-            )}
+              ) : (
+                <>
+                  {panelNotes.map(note => {
+                    const srcCfg = {
+                      ai_research: { label: 'AI', cls: 'bg-violet-50 text-violet-600' },
+                      ai_deep_research: { label: 'Deep', cls: 'bg-blue-50 text-blue-600' },
+                      import: { label: 'Импорт', cls: 'bg-amber-50 text-amber-600' },
+                      manual: { label: '', cls: '' },
+                    }[note.source] || { label: '', cls: '' };
+
+                    if (editingNoteId === note.id) {
+                      return (
+                        <div key={note.id} className="rounded-lg border-2 border-blue-400 bg-white p-2.5 space-y-2">
+                          <textarea
+                            ref={editTextareaRef}
+                            value={editingNoteDraft}
+                            onChange={e => {
+                              setEditingNoteDraft(e.target.value);
+                              const el = e.target;
+                              el.style.height = 'auto';
+                              el.style.height = Math.max(60, el.scrollHeight) + 'px';
+                            }}
+                            className="w-full text-sm px-2 py-1.5 border border-[var(--frox-gray-200)] rounded focus:outline-none focus:border-blue-400 bg-white min-h-[60px] resize-y"
+                            onKeyDown={e => { if (e.key === 'Escape') { setEditingNoteId(null); setEditingNoteDraft(''); } }}
+                          />
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={handleEditNoteSave} disabled={editingNoteSaving || !editingNoteDraft.trim()} className="h-6 text-xs">
+                              {editingNoteSaving ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                              Сохранить
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => { setEditingNoteId(null); setEditingNoteDraft(''); }} className="h-6 text-xs">Отмена</Button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const isCollapsed = collapsedNotes.has(note.id);
+                    const toggleCollapse = () => {
+                      setCollapsedNotes(prev => {
+                        const next = new Set(prev);
+                        if (next.has(note.id)) next.delete(note.id); else next.add(note.id);
+                        return next;
+                      });
+                    };
+
+                    return (
+                      <div key={note.id} className="group rounded-lg border border-[var(--frox-gray-200)] bg-white p-2.5">
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1 cursor-pointer" onClick={toggleCollapse}>
+                            <ChevronDown className={`w-3 h-3 text-[var(--frox-gray-400)] shrink-0 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                            {note.title ? (
+                              <span className="text-xs font-medium text-[var(--frox-gray-700)] truncate">{note.title}</span>
+                            ) : (
+                              <span className="text-[10px] text-[var(--frox-gray-400)]">
+                                {new Date(note.created_at).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            )}
+                            {srcCfg.label && (
+                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${srcCfg.cls}`}>{srcCfg.label}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                            <button
+                              onClick={() => startEditNote(note)}
+                              className="p-0.5 text-[var(--frox-gray-300)] hover:text-[var(--frox-gray-600)] transition-colors"
+                              title="Редактировать"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteNote(note.id)}
+                              className="p-0.5 text-[var(--frox-gray-300)] hover:text-red-500 transition-colors"
+                              title="Удалить"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                        {!isCollapsed && (
+                          <div className="text-sm text-[var(--frox-gray-700)] whitespace-pre-wrap leading-relaxed line-clamp-6 ml-[18px]">{note.content}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {newNoteOpen ? (
+                    <div className="rounded-lg border-2 border-blue-400 bg-white p-2.5 space-y-2">
+                      <textarea
+                        value={newNoteContent}
+                        onChange={e => setNewNoteContent(e.target.value)}
+                        placeholder="Текст заметки..."
+                        className="w-full text-sm px-2 py-1.5 border border-[var(--frox-gray-200)] rounded focus:outline-none focus:border-blue-400 bg-white min-h-[60px] resize-y"
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleAddNote} disabled={newNoteSaving || !newNoteContent.trim()} className="h-6 text-xs">Сохранить</Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setNewNoteOpen(false); setNewNoteContent(''); }} className="h-6 text-xs">Отмена</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setNewNoteOpen(true)}
+                      className="w-full flex items-center justify-center gap-1 py-1.5 text-xs text-[var(--frox-gray-400)] hover:text-[var(--frox-gray-600)] border border-dashed border-[var(--frox-gray-200)] hover:border-[var(--frox-gray-300)] rounded-lg transition-colors"
+                    >
+                      <span className="text-sm leading-none">+</span> Добавить заметку
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
 
           {/* Мета */}
