@@ -105,12 +105,43 @@ function inlineFormat(text: string): string {
     .replace(/`(.+?)`/g, '<code style="background:var(--frox-gray-100,#f3f4f6);padding:1px 4px;border-radius:3px;font-size:0.9em">$1</code>');
 }
 
+const STORAGE_KEY = 'ai-assistant-chat-history';
+
+function loadHistory(): ChatMessage[] {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch { /* ignore */ }
+  return [];
+}
+
+function saveHistory(messages: ChatMessage[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+  } catch { /* ignore */ }
+}
+
 export default function AiAssistantPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const initializedRef = useRef(false);
+
+  // Load history on mount
+  useEffect(() => {
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      const saved = loadHistory();
+      if (saved.length > 0) setMessages(saved);
+    }
+  }, []);
+
+  // Save history on change
+  useEffect(() => {
+    if (initializedRef.current) saveHistory(messages);
+  }, [messages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -188,7 +219,7 @@ export default function AiAssistantPage() {
         </div>
         {messages.length > 0 && (
           <button
-            onClick={() => setMessages([])}
+            onClick={() => { setMessages([]); saveHistory([]); }}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '6px 12px', borderRadius: 8, border: '1px solid var(--frox-gray-200)',
