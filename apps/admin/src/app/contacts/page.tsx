@@ -264,7 +264,7 @@ function ConflictReview({
     const sel = selections[idx];
     const merged: Partial<CsvContact> = { email: csv.email };
     for (const { key } of CONFLICT_FIELDS) {
-      merged[key] = sel[key] === 'csv' ? (csv[key] ?? null) : ((existing[key] as string | null) ?? null);
+      merged[key] = sel[key] === 'csv' ? (csv[key] ?? undefined) : ((existing[key] as string | undefined) ?? undefined);
     }
     // Tags: union
     merged.tags = [...new Set([...(csv.tags || []), ...(existing.tags || [])])];
