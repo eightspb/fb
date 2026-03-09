@@ -102,115 +102,265 @@ const FIELD_MAP: Record<string, string> = {
   'комментарий': 'notes',
 };
 
-function mapHeaders(row: Record<string, string>): {
-  full_name?: string; email?: string; phone?: string; city?: string;
-  institution?: string; speciality?: string; tags?: string; notes?: string;
-} {
+interface MappedContact {
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  institution: string | null;
+  speciality: string | null;
+  tags: string[];
+  notes: string | null;
+}
+
+function mapHeaders(row: Record<string, string>, defaultTags: string[]): MappedContact | null {
   const mapped: Record<string, string> = {};
   for (const [key, value] of Object.entries(row)) {
     const normalized = key.trim().toLowerCase();
     const field = FIELD_MAP[normalized];
     if (field && value) mapped[field] = value;
   }
-  return mapped;
+
+  const full_name = mapped.full_name?.trim();
+  const email = mapped.email?.trim() || null;
+
+  // Skip rows without email
+  if (!email) return null;
+  // Skip rows without name
+  if (!full_name) return null;
+
+  const rowTags = mapped.tags
+    ? mapped.tags.split(/[,;]/).map(t => t.trim()).filter(Boolean)
+    : [];
+  const tags = [...new Set([...rowTags, ...defaultTags])];
+
+  return {
+    full_name,
+    email,
+    phone: mapped.phone?.trim() || null,
+    city: mapped.city?.trim() || null,
+    institution: mapped.institution?.trim() || null,
+    speciality: mapped.speciality?.trim() || null,
+    tags,
+    notes: mapped.notes?.trim() || null,
+  };
+}
+
+interface ExistingContact {
+  id: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  institution: string | null;
+  speciality: string | null;
+  tags: string[];
+  status: string;
+  notes: string | null;
+  import_source: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ConflictItem {
+  csv: MappedContact;
+  existing: ExistingContact;
+}
+
+interface DryRunResult {
+  newContacts: MappedContact[];
+  conflicts: ConflictItem[];
+  skipped: number; // rows without email or name
 }
 
 // POST /api/admin/contacts/import
-// Accepts multipart/form-data with file (CSV) + optional tags (comma-separated)
+// Two modes:
+//   dry_run=true  → parse CSV, detect conflicts by email, return preview (no DB writes)
+//   dry_run=false → apply import: insert new + apply resolved conflicts
 export async function POST(request: NextRequest) {
   if (!await verifyAdminSession()) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const formData = await request.formData();
-  const file = formData.get('file') as File | null;
-  const defaultTags = (formData.get('tags') as string || '')
-    .split(',').map(t => t.trim()).filter(Boolean);
-  const defaultStatus = (formData.get('status') as string) || 'archived';
-  const importSource = (formData.get('import_source') as string) || 'csv';
+  const contentType = request.headers.get('content-type') || '';
 
-  const allowedStatuses = ['new', 'in_progress', 'processed', 'archived'];
-  if (!allowedStatuses.includes(defaultStatus)) {
-    return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
-  }
+  // ── Dry run: multipart form with file ────────────────────────────────────────
+  if (contentType.includes('multipart/form-data')) {
+    const formData = await request.formData();
+    const file = formData.get('file') as File | null;
+    const defaultTags = (formData.get('tags') as string || '')
+      .split(',').map(t => t.trim()).filter(Boolean);
+    const defaultStatus = (formData.get('status') as string) || 'archived';
+    const importSource = (formData.get('import_source') as string) || 'csv';
+    const dryRun = formData.get('dry_run') === 'true';
 
-  if (!file) {
-    return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
-  }
-
-  const fileName = file.name.toLowerCase();
-  if (!fileName.endsWith('.csv') && !fileName.endsWith('.txt')) {
-    return NextResponse.json(
-      { error: 'Поддерживаются только CSV файлы (.csv, .txt)' },
-      { status: 400 }
-    );
-  }
-
-  const text = await file.text();
-  const rows = parseCsv(text);
-
-  if (rows.length === 0) {
-    return NextResponse.json({ error: 'Файл пустой или содержит только заголовки' }, { status: 400 });
-  }
-
-  const client = await pool.connect();
-  let imported = 0;
-  let skipped = 0;
-  const errors: string[] = [];
-
-  try {
-    await client.query('BEGIN');
-
-    for (let i = 0; i < rows.length; i++) {
-      const raw = rows[i];
-      const mapped = mapHeaders(raw);
-
-      const full_name = mapped.full_name?.trim();
-      if (!full_name) {
-        skipped++;
-        continue;
-      }
-
-      const email = mapped.email?.trim() || null;
-      const phone = mapped.phone?.trim() || null;
-      const city = mapped.city?.trim() || null;
-      const institution = mapped.institution?.trim() || null;
-      const speciality = mapped.speciality?.trim() || null;
-      const notes = mapped.notes?.trim() || null;
-
-      // Merge row-level tags + default tags
-      const rowTags = mapped.tags
-        ? mapped.tags.split(/[,;]/).map(t => t.trim()).filter(Boolean)
-        : [];
-      const tags = [...new Set([...rowTags, ...defaultTags])];
-
-      try {
-        await client.query(
-          `INSERT INTO contacts
-             (full_name, email, phone, city, institution, speciality, tags, status, notes, import_source)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-           ON CONFLICT DO NOTHING`,
-          [full_name, email, phone, city, institution, speciality, tags, defaultStatus, notes, importSource]
-        );
-        imported++;
-      } catch (err) {
-        errors.push(`Строка ${i + 2}: ${err instanceof Error ? err.message : String(err)}`);
-        skipped++;
-      }
+    const allowedStatuses = ['new', 'in_progress', 'processed', 'archived'];
+    if (!allowedStatuses.includes(defaultStatus)) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
 
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
+    if (!file) {
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    }
+
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.csv') && !fileName.endsWith('.txt')) {
+      return NextResponse.json(
+        { error: 'Поддерживаются только CSV файлы (.csv, .txt)' },
+        { status: 400 }
+      );
+    }
+
+    const text = await file.text();
+    const rows = parseCsv(text);
+
+    if (rows.length === 0) {
+      return NextResponse.json({ error: 'Файл пустой или содержит только заголовки' }, { status: 400 });
+    }
+
+    // Map all rows, skip those without email
+    let skipped = 0;
+    const mapped: MappedContact[] = [];
+    for (const row of rows) {
+      const contact = mapHeaders(row, defaultTags);
+      if (!contact) { skipped++; continue; }
+      mapped.push(contact);
+    }
+
+    if (mapped.length === 0) {
+      return NextResponse.json({
+        error: `Нет строк с email для импорта. Пропущено: ${skipped}`,
+      }, { status: 400 });
+    }
+
+    // Find existing contacts by email (batch query)
+    const emails = mapped.map(c => c.email).filter(Boolean) as string[];
+    const client = await pool.connect();
+    try {
+      const existingRes = await client.query<ExistingContact>(
+        `SELECT id, full_name, email, phone, city, institution, speciality, tags, status, notes, import_source, created_at, updated_at
+         FROM contacts WHERE email = ANY($1)`,
+        [emails]
+      );
+      const existingByEmail = new Map<string, ExistingContact>();
+      for (const row of existingRes.rows) {
+        if (row.email) existingByEmail.set(row.email.toLowerCase(), row);
+      }
+
+      if (dryRun) {
+        // Return preview: split into new vs conflicts
+        const result: DryRunResult = { newContacts: [], conflicts: [], skipped };
+        for (const c of mapped) {
+          const existing = existingByEmail.get(c.email!.toLowerCase());
+          if (existing) {
+            result.conflicts.push({ csv: c, existing });
+          } else {
+            result.newContacts.push(c);
+          }
+        }
+        return NextResponse.json({ ...result, defaultStatus, importSource });
+      }
+
+      // Non-dry-run from multipart = old behavior (insert all without conflict resolution)
+      // This path is kept for backward compat but shouldn't normally be used anymore
+      await client.query('BEGIN');
+      let imported = 0;
+      const errors: string[] = [];
+      for (let i = 0; i < mapped.length; i++) {
+        const c = mapped[i];
+        try {
+          await client.query(
+            `INSERT INTO contacts (full_name, email, phone, city, institution, speciality, tags, status, notes, import_source)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+             ON CONFLICT DO NOTHING`,
+            [c.full_name, c.email, c.phone, c.city, c.institution, c.speciality, c.tags, defaultStatus, c.notes, importSource]
+          );
+          imported++;
+        } catch (err) {
+          errors.push(`Строка ${i + 2}: ${err instanceof Error ? err.message : String(err)}`);
+          skipped++;
+        }
+      }
+      await client.query('COMMIT');
+      return NextResponse.json({ imported, skipped, total: rows.length, errors: errors.slice(0, 20) });
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
-  return NextResponse.json({
-    imported,
-    skipped,
-    total: rows.length,
-    errors: errors.slice(0, 20), // max 20 error messages
-  });
+  // ── Apply import: JSON body with resolved conflicts ──────────────────────────
+  if (contentType.includes('application/json')) {
+    const body = await request.json() as {
+      newContacts: MappedContact[];
+      resolvedConflicts: Array<{
+        existingId: string;
+        merged: Partial<MappedContact> & { status?: string };
+      }>;
+      defaultStatus: string;
+      importSource: string;
+    };
+
+    const { newContacts, resolvedConflicts, defaultStatus, importSource } = body;
+    const allowedStatuses = ['new', 'in_progress', 'processed', 'archived'];
+    if (!allowedStatuses.includes(defaultStatus)) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      let imported = 0;
+      let updated = 0;
+      const errors: string[] = [];
+
+      // Insert new contacts
+      for (const c of newContacts) {
+        try {
+          await client.query(
+            `INSERT INTO contacts (full_name, email, phone, city, institution, speciality, tags, status, notes, import_source)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+            [c.full_name, c.email, c.phone, c.city, c.institution, c.speciality, c.tags, defaultStatus, c.notes, importSource]
+          );
+          imported++;
+        } catch (err) {
+          errors.push(`Новый ${c.email}: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+
+      // Apply resolved conflicts (update existing records)
+      for (const { existingId, merged } of resolvedConflicts) {
+        try {
+          await client.query(
+            `UPDATE contacts SET
+               full_name = $1, email = $2, phone = $3, city = $4,
+               institution = $5, speciality = $6, tags = $7,
+               notes = $8, updated_at = NOW()
+             WHERE id = $9`,
+            [
+              merged.full_name, merged.email, merged.phone, merged.city,
+              merged.institution, merged.speciality, merged.tags,
+              merged.notes, existingId,
+            ]
+          );
+          updated++;
+        } catch (err) {
+          errors.push(`Обновление ${existingId}: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+
+      await client.query('COMMIT');
+      return NextResponse.json({ imported, updated, errors: errors.slice(0, 20) });
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  return NextResponse.json({ error: 'Unsupported content type' }, { status: 415 });
 }

@@ -12,11 +12,12 @@ const pool = new Pool({
 });
 
 const AI_RESEARCH_HEADER = '── AI Исследование';
-const CONCURRENCY = 3; // параллельных запросов одновременно
-const REQUEST_TIMEOUT_MS = 120_000; // 2 минуты hard timeout на один запрос
+const CONCURRENCY = 4;
+const REQUEST_TIMEOUT_MS = 180_000; // 3 минуты — perplexity иногда долго думает
 const LOG_FILE = '/tmp/research.log';
+const TG_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
+const TG_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || '';
 
-// Логирование одновременно в stdout и файл
 const logStream = fs.createWriteStream(LOG_FILE, { flags: 'a' });
 function log(msg: string) {
   const line = `[${new Date().toISOString()}] ${msg}`;
@@ -24,13 +25,29 @@ function log(msg: string) {
   logStream.write(line + '\n');
 }
 
-// Hard timeout — защита от зависания HTTP-соединения
+async function sendTelegram(text: string) {
+  if (!TG_BOT_TOKEN || !TG_CHAT_ID) { log('TG: токены не найдены, пропускаю'); return; }
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: TG_CHAT_ID, text }),
+    });
+    const json = await res.json() as { ok: boolean };
+    log(`TG: ${json.ok ? 'отправлено' : 'ошибка: ' + JSON.stringify(json)}`);
+  } catch (e) {
+    log(`TG: исключение: ${e}`);
+  }
+}
+
 function withHardTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Timeout ${ms / 1000}s: ${label}`)), ms);
+  });
   return Promise.race([
-    promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Timeout ${ms / 1000}s: ${label}`)), ms)
-    ),
+    promise.finally(() => clearTimeout(timer)),
+    timeoutPromise,
   ]);
 }
 
@@ -77,12 +94,12 @@ async function researchOne(
 
     successCount++;
     doneCount++;
-    log(`[${index + 1}/${total}] ✓ ${contact.full_name} (${researchResult.length} симв.) | прогресс: ${doneCount}/${total}`);
+    log(`[${index + 1}/${total}] OK: ${contact.full_name} (${researchResult.length} symv) | progress: ${doneCount}/${total}`);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     errorCount++;
     doneCount++;
-    log(`[${index + 1}/${total}] ✗ ${contact.full_name}: ${message} | прогресс: ${doneCount}/${total}`);
+    log(`[${index + 1}/${total}] ERR: ${contact.full_name}: ${message} | progress: ${doneCount}/${total}`);
   } finally {
     client.release();
   }
@@ -100,8 +117,8 @@ async function runBatch<T>(items: T[], fn: (item: T, i: number) => Promise<void>
 }
 
 async function main() {
-  log(`=== Старт (concurrency=${CONCURRENCY}, timeout=${REQUEST_TIMEOUT_MS / 1000}s) ===`);
-  log(`Лог пишется в: ${LOG_FILE}`);
+  const startTime = Date.now();
+  log(`=== Start (concurrency=${CONCURRENCY}, timeout=${REQUEST_TIMEOUT_MS / 1000}s) ===`);
 
   const client = await pool.connect();
   let contacts: Array<{
@@ -124,9 +141,10 @@ async function main() {
     client.release();
   }
 
-  log(`Найдено контактов без заметок: ${contacts.length}`);
+  log(`Contacts without notes: ${contacts.length}`);
   if (contacts.length === 0) {
-    log('Нечего делать.');
+    log('Nothing to do.');
+    await sendTelegram('AI-исследование: все контакты уже обработаны.');
     await pool.end();
     logStream.end();
     return;
@@ -134,9 +152,16 @@ async function main() {
 
   await runBatch(contacts, (contact, idx) => researchOne(contact, idx, contacts.length), CONCURRENCY);
 
-  log(`\n=== Готово === Успешно: ${successCount}, Ошибок: ${errorCount}`);
+  const elapsed = Math.round((Date.now() - startTime) / 60000);
+  const summary = `AI-исследование контактов завершено!\n\nОК: ${successCount}\nОшибок: ${errorCount}\nВсего: ${contacts.length}\nВремя: ~${elapsed} мин.`;
+  log(`\n=== Done === OK: ${successCount}, Errors: ${errorCount}`);
+  await sendTelegram(summary);
   await pool.end();
   logStream.end();
 }
 
-main().catch(e => { log(`FATAL: ${e}`); process.exit(1); });
+main().catch(async e => {
+  log(`FATAL: ${e}`);
+  await sendTelegram(`AI-исследование: FATAL ERROR\n${e}`);
+  process.exit(1);
+});

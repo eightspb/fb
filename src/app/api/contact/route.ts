@@ -73,7 +73,7 @@ export const POST = withApiLogging('/api/contact', async (request: NextRequest) 
         await client.query(
           `INSERT INTO form_submissions (form_type, name, email, phone, message, status, page_url, contact_id)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          ['contact', body.name, body.email, body.phone, body.message, 'new', request.headers.get('referer') || '', contactId]
+          ['contact', body.name, body.email, body.phone, body.message, 'new', request.headers.get('referer') || null, contactId]
         );
         console.log('[Contact Form] Заявка сохранена в БД, contact_id:', contactId);
         

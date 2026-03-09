@@ -195,26 +195,301 @@ const STATUS_OPTIONS_IMPORT = [
   { value: 'processed', label: 'Обработан' },
 ];
 
+// ── Types for import preview ──────────────────────────────────────────────────
+
+interface CsvContact {
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  institution: string | null;
+  speciality: string | null;
+  tags: string[];
+  notes: string | null;
+}
+
+interface ImportConflict {
+  csv: CsvContact;
+  existing: Contact;
+}
+
+interface ImportPreview {
+  newContacts: CsvContact[];
+  conflicts: ImportConflict[];
+  skipped: number;
+  defaultStatus: string;
+  importSource: string;
+}
+
+type ConflictFieldKey = 'full_name' | 'phone' | 'city' | 'institution' | 'speciality' | 'notes';
+const CONFLICT_FIELDS: { key: ConflictFieldKey; label: string }[] = [
+  { key: 'full_name', label: 'Имя' },
+  { key: 'phone', label: 'Телефон' },
+  { key: 'city', label: 'Город' },
+  { key: 'institution', label: 'Организация' },
+  { key: 'speciality', label: 'Специальность' },
+  { key: 'notes', label: 'Заметки' },
+];
+
+// ── Import conflict review step ───────────────────────────────────────────────
+
+function ConflictReview({
+  preview,
+  onBack,
+  onApply,
+}: {
+  preview: ImportPreview;
+  onBack: () => void;
+  onApply: (resolvedConflicts: Array<{ existingId: string; merged: Partial<CsvContact> }>) => void;
+}) {
+  // For each conflict: which source is selected per field ('csv' | 'db')
+  const [selections, setSelections] = useState<Array<Record<ConflictFieldKey, 'csv' | 'db'>>>(() =>
+    preview.conflicts.map(({ csv, existing }) =>
+      Object.fromEntries(
+        CONFLICT_FIELDS.map(({ key }) => {
+          const csvVal = csv[key] ?? null;
+          const dbVal = (existing[key] as string | null) ?? null;
+          // Default: prefer non-empty; if both non-empty prefer db (existing is authoritative)
+          const source = (!csvVal && dbVal) ? 'db' : (!dbVal && csvVal) ? 'csv' : 'db';
+          return [key, source];
+        })
+      ) as Record<ConflictFieldKey, 'csv' | 'db'>
+    )
+  );
+
+  const buildMerged = (idx: number): Partial<CsvContact> => {
+    const { csv, existing } = preview.conflicts[idx];
+    const sel = selections[idx];
+    const merged: Partial<CsvContact> = { email: csv.email };
+    for (const { key } of CONFLICT_FIELDS) {
+      merged[key] = sel[key] === 'csv' ? (csv[key] ?? null) : ((existing[key] as string | null) ?? null);
+    }
+    // Tags: union
+    merged.tags = [...new Set([...(csv.tags || []), ...(existing.tags || [])])];
+    return merged;
+  };
+
+  const setField = (conflictIdx: number, field: ConflictFieldKey, source: 'csv' | 'db') => {
+    setSelections(prev => prev.map((sel, i) => i === conflictIdx ? { ...sel, [field]: source } : sel));
+  };
+
+  const handleApply = () => {
+    const resolved = preview.conflicts.map(({ existing }, idx) => ({
+      existingId: existing.id,
+      merged: buildMerged(idx),
+    }));
+    onApply(resolved);
+  };
+
+  const hasConflicts = preview.conflicts.length > 0;
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Summary bar */}
+      <div className="px-6 py-3 border-b border-[var(--frox-gray-200)] bg-[var(--frox-gray-100)]/60 flex gap-4 text-sm shrink-0">
+        <span className="flex items-center gap-1.5 text-emerald-700">
+          <CheckCircle2 className="w-4 h-4" />
+          <strong>{preview.newContacts.length}</strong> новых
+        </span>
+        {hasConflicts && (
+          <span className="flex items-center gap-1.5 text-amber-600">
+            <AlertTriangle className="w-4 h-4" />
+            <strong>{preview.conflicts.length}</strong> совпадений по email
+          </span>
+        )}
+        {preview.skipped > 0 && (
+          <span className="flex items-center gap-1.5 text-[var(--frox-gray-400)]">
+            <XCircle className="w-4 h-4" />
+            <strong>{preview.skipped}</strong> пропущено (нет email)
+          </span>
+        )}
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+        {/* Conflicts */}
+        {hasConflicts && (
+          <div>
+            <div className="text-xs font-semibold text-amber-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Совпадения по email — выберите значения
+            </div>
+            <div className="space-y-4">
+              {preview.conflicts.map(({ csv, existing }, idx) => {
+                const sel = selections[idx];
+                const allTagsUnion = [...new Set([...(csv.tags || []), ...(existing.tags || [])])];
+                return (
+                  <div key={existing.id} className="border border-amber-200 rounded-xl overflow-hidden bg-amber-50/30">
+                    {/* Contact header */}
+                    <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-100 flex items-center gap-2">
+                      <Mail className="w-3.5 h-3.5 text-amber-600" />
+                      <span className="text-sm font-medium text-amber-800">{csv.email}</span>
+                    </div>
+                    {/* Column headers */}
+                    <div className="grid grid-cols-[120px_1fr_1fr] text-xs font-semibold text-[var(--frox-gray-500)] uppercase tracking-wider bg-[var(--frox-gray-100)] border-b border-[var(--frox-gray-200)]">
+                      <div className="px-3 py-2">Поле</div>
+                      <div className="px-3 py-2 flex items-center gap-1.5">
+                        <Upload className="w-3 h-3" /> Из CSV
+                      </div>
+                      <div className="px-3 py-2 flex items-center gap-1.5">
+                        <Users className="w-3 h-3" /> В базе
+                      </div>
+                    </div>
+                    {/* Field rows */}
+                    {CONFLICT_FIELDS.map(({ key, label }) => {
+                      const csvVal = csv[key] ?? null;
+                      const dbVal = (existing[key] as string | null) ?? null;
+                      const differs = csvVal !== dbVal;
+                      return (
+                        <div
+                          key={key}
+                          className={`grid grid-cols-[120px_1fr_1fr] border-b border-[var(--frox-gray-100)] last:border-b-0 ${differs ? '' : 'opacity-60'}`}
+                        >
+                          <div className="px-3 py-2.5 flex items-center gap-1">
+                            <span className="text-xs font-medium text-[var(--frox-gray-600)]">{label}</span>
+                            {differs && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />}
+                          </div>
+                          {(['csv', 'db'] as const).map(source => {
+                            const val = source === 'csv' ? csvVal : dbVal;
+                            const isSelected = sel[key] === source;
+                            return (
+                              <div
+                                key={source}
+                                className={`px-3 py-2.5 cursor-pointer transition-all ${
+                                  differs
+                                    ? isSelected
+                                      ? 'bg-violet-50 ring-1 ring-inset ring-violet-300'
+                                      : 'hover:bg-[var(--frox-gray-100)]'
+                                    : ''
+                                }`}
+                                onClick={() => { if (differs) setField(idx, key, source); }}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {differs && (
+                                    <span className={`w-3.5 h-3.5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
+                                      isSelected ? 'border-violet-600 bg-violet-600' : 'border-[var(--frox-gray-300)]'
+                                    }`}>
+                                      {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                    </span>
+                                  )}
+                                  <span className={`text-xs truncate ${val ? 'text-[var(--frox-gray-800)]' : 'text-[var(--frox-gray-300)] italic'}`}>
+                                    {val || '—'}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                    {/* Tags row */}
+                    {allTagsUnion.length > 0 && (
+                      <div className="grid grid-cols-[120px_1fr_1fr] bg-[var(--frox-gray-100)]/60">
+                        <div className="px-3 py-2.5 text-xs font-medium text-[var(--frox-gray-600)]">Теги</div>
+                        <div className="px-3 py-2.5 col-span-2">
+                          <div className="flex flex-wrap gap-1 items-center">
+                            <span className="text-xs text-[var(--frox-gray-400)] mr-1">Объединение:</span>
+                            {allTagsUnion.map(t => (
+                              <span key={t} className="px-1.5 py-0.5 rounded-full text-xs bg-violet-100 text-violet-700">{t}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* New contacts list */}
+        {preview.newContacts.length > 0 && (
+          <div>
+            <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Новые контакты ({preview.newContacts.length})
+            </div>
+            <div className="border border-[var(--frox-neutral-border)] rounded-xl overflow-hidden">
+              {preview.newContacts.map((c, i) => (
+                <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-b border-[var(--frox-gray-100)] last:border-b-0 text-sm">
+                  <Avatar name={c.full_name} />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-[var(--frox-gray-800)] truncate">{c.full_name}</div>
+                    <div className="text-xs text-[var(--frox-gray-400)] truncate">{c.email}</div>
+                  </div>
+                  {c.city && <span className="text-xs text-[var(--frox-gray-400)] shrink-0">{c.city}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="px-6 py-4 border-t border-[var(--frox-gray-200)] bg-[var(--frox-gray-100)]/60 flex justify-between items-center shrink-0">
+        <Button variant="ghost" onClick={onBack} className="gap-1.5">
+          <ChevronLeft className="w-4 h-4" /> Назад
+        </Button>
+        <Button onClick={handleApply} className="gap-2">
+          <Check className="w-4 h-4" />
+          Применить
+          {preview.newContacts.length > 0 && ` (${preview.newContacts.length} новых`}
+          {hasConflicts && `, ${preview.conflicts.length} обновлений`}
+          {(preview.newContacts.length > 0 || hasConflicts) && ')'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ── Import modal ──────────────────────────────────────────────────────────────
+
 function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [tags, setTags] = useState('');
   const [status, setStatus] = useState('archived');
   const [importSource, setImportSource] = useState('csv');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ imported: number; skipped: number; total: number; errors: string[] } | null>(null);
+  const [preview, setPreview] = useState<ImportPreview | null>(null);
+  const [result, setResult] = useState<{ imported: number; updated: number; errors: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleSubmit = async () => {
+  // Step 1: upload CSV → dry run → get preview
+  const handlePreview = async () => {
     if (!file) return;
-    setLoading(true); setError(null); setResult(null);
+    setLoading(true); setError(null); setPreview(null); setResult(null);
     try {
       const fd = new FormData();
       fd.append('file', file);
       fd.append('tags', tags);
       fd.append('status', status);
       fd.append('import_source', importSource || 'csv');
+      fd.append('dry_run', 'true');
       const res = await adminCsrfFetch('/api/admin/contacts/import', { method: 'POST', credentials: 'include', body: fd });
+      const data = await res.json();
+      if (!res.ok) setError(data.error || 'Ошибка разбора файла');
+      else setPreview(data);
+    } catch { setError('Ошибка соединения'); }
+    finally { setLoading(false); }
+  };
+
+  // Step 2: apply with resolved conflicts
+  const handleApply = async (resolvedConflicts: Array<{ existingId: string; merged: Partial<CsvContact> }>) => {
+    if (!preview) return;
+    setLoading(true); setError(null);
+    try {
+      const res = await adminCsrfFetch('/api/admin/contacts/import', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          newContacts: preview.newContacts,
+          resolvedConflicts,
+          defaultStatus: preview.defaultStatus,
+          importSource: preview.importSource,
+        }),
+      });
       const data = await res.json();
       if (!res.ok) setError(data.error || 'Ошибка импорта');
       else { setResult(data); onDone(); }
@@ -222,100 +497,141 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
     finally { setLoading(false); }
   };
 
+  const isWide = !!preview && !result;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="frox-shell-surface w-full max-w-lg overflow-hidden rounded-[28px] mx-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--frox-gray-200)]">
+      <div
+        className={`frox-shell-surface overflow-hidden rounded-[28px] mx-4 flex flex-col transition-all ${isWide ? 'w-full max-w-3xl max-h-[90vh]' : 'w-full max-w-lg'}`}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--frox-gray-200)] shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--frox-brand-soft)]">
               <Upload className="h-4 w-4 text-[var(--frox-brand-strong)]" />
             </div>
-            <h2 className="font-semibold text-[var(--frox-gray-1100)]">Импорт контактов из CSV</h2>
+            <h2 className="font-semibold text-[var(--frox-gray-1100)]">
+              {preview && !result ? 'Предпросмотр импорта' : 'Импорт контактов из CSV'}
+            </h2>
           </div>
           <button onClick={onClose} className="text-[var(--frox-gray-400)] hover:text-[var(--frox-gray-600)] p-1 rounded-lg hover:bg-[var(--frox-gray-200)] transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-2 uppercase tracking-wider">Файл CSV</label>
-            <div
-              className="cursor-pointer rounded-xl border-2 border-dashed border-[rgba(115,100,219,0.18)] p-5 text-center transition-all hover:border-[var(--frox-brand)] hover:bg-[var(--frox-brand-softer)]"
-              onClick={() => fileRef.current?.click()}
-            >
-              {file ? (
-                <div className="flex items-center justify-center gap-2 text-sm text-[var(--frox-gray-800)]">
-                  <FileText className="w-4 h-4 text-[var(--frox-brand)]" />
-                  <span className="font-medium">{file.name}</span>
-                  <span className="text-[var(--frox-gray-400)]">({(file.size / 1024).toFixed(1)} KB)</span>
+        {/* Preview step */}
+        {preview && !result && (
+          <ConflictReview
+            preview={preview}
+            onBack={() => setPreview(null)}
+            onApply={handleApply}
+          />
+        )}
+
+        {/* Upload step */}
+        {!preview && !result && (
+          <>
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-2 uppercase tracking-wider">Файл CSV</label>
+                <div
+                  className="cursor-pointer rounded-xl border-2 border-dashed border-[rgba(115,100,219,0.18)] p-5 text-center transition-all hover:border-[var(--frox-brand)] hover:bg-[var(--frox-brand-softer)]"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {file ? (
+                    <div className="flex items-center justify-center gap-2 text-sm text-[var(--frox-gray-800)]">
+                      <FileText className="w-4 h-4 text-[var(--frox-brand)]" />
+                      <span className="font-medium">{file.name}</span>
+                      <span className="text-[var(--frox-gray-400)]">({(file.size / 1024).toFixed(1)} KB)</span>
+                    </div>
+                  ) : (
+                    <div className="text-[var(--frox-gray-400)] text-sm">
+                      <Upload className="w-6 h-6 mx-auto mb-2 opacity-50" />
+                      Нажмите для выбора файла (.csv, .txt)
+                    </div>
+                  )}
+                  <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={e => setFile(e.target.files?.[0] || null)} />
                 </div>
-              ) : (
-                <div className="text-[var(--frox-gray-400)] text-sm">
-                  <Upload className="w-6 h-6 mx-auto mb-2 opacity-50" />
-                  Нажмите для выбора файла (.csv, .txt)
-                </div>
-              )}
-              <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={e => setFile(e.target.files?.[0] || null)} />
-            </div>
-            <p className="mt-1.5 text-xs text-[var(--frox-gray-400)] leading-relaxed">
-              Поля: ФИО, email, телефон, город, организация, специальность, теги, заметки
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-1.5 uppercase tracking-wider">Источник</label>
-              <Input value={importSource} onChange={e => setImportSource(e.target.value)} placeholder="tilda, excel..." className="h-9 bg-[var(--frox-gray-100)]" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-1.5 uppercase tracking-wider">Статус по умолчанию</label>
-              <select
-                className="frox-select h-9 w-full rounded-lg px-3 text-sm"
-                value={status}
-                onChange={e => setStatus(e.target.value)}
-              >
-                {STATUS_OPTIONS_IMPORT.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-1.5 uppercase tracking-wider">Теги для всех (через запятую)</label>
-            <Input value={tags} onChange={e => setTags(e.target.value)} placeholder="conf-2025, tilda-import..." className="h-9 bg-[var(--frox-gray-100)]" />
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">
-              <AlertTriangle className="w-4 h-4 shrink-0" /> {error}
-            </div>
-          )}
-
-          {result && (
-            <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 text-sm space-y-1">
-              <div className="font-semibold text-emerald-800 flex items-center gap-2">
-                <Check className="w-4 h-4" />
-                Импортировано: {result.imported} из {result.total}
+                <p className="mt-1.5 text-xs text-[var(--frox-gray-400)] leading-relaxed">
+                  Поля: ФИО, email, телефон, город, организация, специальность, теги, заметки. Строки без email пропускаются.
+                </p>
               </div>
-              {result.skipped > 0 && <div className="text-[var(--frox-gray-500)]">Пропущено: {result.skipped}</div>}
-              {result.errors.length > 0 && (
-                <div className="mt-1 space-y-0.5">
-                  {result.errors.map((e, i) => <div key={i} className="text-xs text-red-600">{e}</div>)}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-1.5 uppercase tracking-wider">Источник</label>
+                  <Input value={importSource} onChange={e => setImportSource(e.target.value)} placeholder="tilda, excel..." className="h-9 bg-[var(--frox-gray-100)]" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-1.5 uppercase tracking-wider">Статус по умолчанию</label>
+                  <select
+                    className="frox-select h-9 w-full rounded-lg px-3 text-sm"
+                    value={status}
+                    onChange={e => setStatus(e.target.value)}
+                  >
+                    {STATUS_OPTIONS_IMPORT.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-[var(--frox-gray-500)] mb-1.5 uppercase tracking-wider">Теги для всех (через запятую)</label>
+                <Input value={tags} onChange={e => setTags(e.target.value)} placeholder="conf-2025, tilda-import..." className="h-9 bg-[var(--frox-gray-100)]" />
+              </div>
+
+              {error && (
+                <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">
+                  <AlertTriangle className="w-4 h-4 shrink-0" /> {error}
                 </div>
               )}
             </div>
-          )}
-        </div>
 
-        <div className="px-6 py-4 border-t border-[var(--frox-gray-200)] bg-[var(--frox-gray-100)]/60 flex justify-end gap-3">
-          <Button variant="ghost" onClick={onClose}>{result ? 'Закрыть' : 'Отмена'}</Button>
-          {!result && (
-            <Button onClick={handleSubmit} disabled={!file || loading} className="gap-2">
-              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              Импортировать
-            </Button>
-          )}
-        </div>
+            <div className="px-6 py-4 border-t border-[var(--frox-gray-200)] bg-[var(--frox-gray-100)]/60 flex justify-end gap-3">
+              <Button variant="ghost" onClick={onClose}>Отмена</Button>
+              <Button onClick={handlePreview} disabled={!file || loading} className="gap-2">
+                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                Далее
+              </Button>
+            </div>
+          </>
+        )}
+
+        {/* Result step */}
+        {result && (
+          <>
+            <div className="px-6 py-5">
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 text-sm space-y-1">
+                <div className="font-semibold text-emerald-800 flex items-center gap-2">
+                  <Check className="w-4 h-4" />
+                  Готово
+                </div>
+                {result.imported > 0 && <div className="text-[var(--frox-gray-600)]">Добавлено новых: <strong>{result.imported}</strong></div>}
+                {result.updated > 0 && <div className="text-[var(--frox-gray-600)]">Обновлено существующих: <strong>{result.updated}</strong></div>}
+                {result.errors.length > 0 && (
+                  <div className="mt-1 space-y-0.5">
+                    {result.errors.map((e, i) => <div key={i} className="text-xs text-red-600">{e}</div>)}
+                  </div>
+                )}
+              </div>
+              {error && (
+                <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 mt-3">
+                  <AlertTriangle className="w-4 h-4 shrink-0" /> {error}
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-[var(--frox-gray-200)] bg-[var(--frox-gray-100)]/60 flex justify-end">
+              <Button variant="ghost" onClick={onClose}>Закрыть</Button>
+            </div>
+          </>
+        )}
+
+        {/* Loading overlay for apply step */}
+        {loading && preview && (
+          <div className="absolute inset-0 bg-white/70 flex items-center justify-center rounded-[28px]">
+            <RefreshCw className="w-6 h-6 animate-spin text-[var(--frox-brand)]" />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -81,7 +81,7 @@ export const POST = withApiLogging('/api/request-cp', async (request: NextReques
 
         await client.query(
           `INSERT INTO form_submissions (form_type, name, email, phone, city, institution, status, page_url, metadata, contact_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8::text, $9::jsonb, $10)`,
           [
             formType,
             name,
@@ -90,7 +90,7 @@ export const POST = withApiLogging('/api/request-cp', async (request: NextReques
             city || null,
             institution || null,
             'new',
-            request.headers.get('referer') || '',
+            request.headers.get('referer') || null,
             JSON.stringify({ city, institution }),
             contactId,
           ]
