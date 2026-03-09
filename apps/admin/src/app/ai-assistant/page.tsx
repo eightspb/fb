@@ -1,13 +1,64 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Sparkles, Send, RotateCcw, Loader2, User, Bot } from 'lucide-react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { Sparkles, Send, Loader2, User, Bot, Plus, Trash2, MessageSquare } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   sql?: string;
+}
+
+interface ChatSession {
+  id: string;
+  title: string;
+  messages: ChatMessage[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+const STORAGE_KEY = 'ai-assistant-sessions';
+const ACTIVE_SESSION_KEY = 'ai-assistant-active-session';
+
+function generateId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function loadSessions(): ChatSession[] {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch { /* ignore */ }
+  return [];
+}
+
+function saveSessions(sessions: ChatSession[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+  } catch { /* ignore */ }
+}
+
+function loadActiveSessionId(): string | null {
+  try {
+    return localStorage.getItem(ACTIVE_SESSION_KEY);
+  } catch { /* ignore */ }
+  return null;
+}
+
+function saveActiveSessionId(id: string | null) {
+  try {
+    if (id) localStorage.setItem(ACTIVE_SESSION_KEY, id);
+    else localStorage.removeItem(ACTIVE_SESSION_KEY);
+  } catch { /* ignore */ }
+}
+
+/** Derive session title from first user message */
+function deriveTitle(messages: ChatMessage[]): string {
+  const first = messages.find(m => m.role === 'user');
+  if (!first) return 'Новый чат';
+  const text = first.content.trim();
+  return text.length > 50 ? text.slice(0, 47) + '...' : text;
 }
 
 const EXAMPLE_PROMPTS = [
@@ -20,14 +71,12 @@ const EXAMPLE_PROMPTS = [
 ];
 
 function renderMarkdown(text: string): string {
-  // Tables
   const lines = text.split('\n');
   const output: string[] = [];
   let i = 0;
 
   while (i < lines.length) {
     const line = lines[i];
-    // Detect table: line with | that is not a code block
     if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
       const tableLines: string[] = [line];
       i++;
@@ -35,7 +84,6 @@ function renderMarkdown(text: string): string {
         tableLines.push(lines[i]);
         i++;
       }
-      // Filter out separator rows (---|---)
       const rows = tableLines.filter(l => !/^\s*\|[\s\-|:]+\|\s*$/.test(l));
       if (rows.length > 0) {
         let tableHtml = '<table style="border-collapse:collapse;width:100%;font-size:0.85em;margin:8px 0">';
@@ -52,18 +100,13 @@ function renderMarkdown(text: string): string {
       }
       continue;
     }
-
-    // Headings
     if (/^### (.+)$/.test(line)) {
       output.push(`<h3 style="font-size:1em;font-weight:600;margin:10px 0 4px">${line.replace(/^### /, '')}</h3>`);
     } else if (/^## (.+)$/.test(line)) {
       output.push(`<h2 style="font-size:1.1em;font-weight:600;margin:12px 0 4px">${line.replace(/^## /, '')}</h2>`);
     } else if (/^# (.+)$/.test(line)) {
       output.push(`<h1 style="font-size:1.2em;font-weight:700;margin:12px 0 4px">${line.replace(/^# /, '')}</h1>`);
-    }
-    // Lists
-    else if (/^[-*] (.+)$/.test(line)) {
-      // Collect consecutive list items
+    } else if (/^[-*] (.+)$/.test(line)) {
       const items: string[] = [line.replace(/^[-*] /, '')];
       i++;
       while (i < lines.length && /^[-*] (.+)$/.test(lines[i])) {
@@ -72,9 +115,7 @@ function renderMarkdown(text: string): string {
       }
       output.push(`<ul style="margin:4px 0;padding-left:20px">${items.map(it => `<li style="margin:2px 0">${inlineFormat(it)}</li>`).join('')}</ul>`);
       continue;
-    }
-    // Numbered lists
-    else if (/^\d+\. (.+)$/.test(line)) {
+    } else if (/^\d+\. (.+)$/.test(line)) {
       const items: string[] = [line.replace(/^\d+\. /, '')];
       i++;
       while (i < lines.length && /^\d+\. (.+)$/.test(lines[i])) {
@@ -83,13 +124,9 @@ function renderMarkdown(text: string): string {
       }
       output.push(`<ol style="margin:4px 0;padding-left:20px">${items.map(it => `<li style="margin:2px 0">${inlineFormat(it)}</li>`).join('')}</ol>`);
       continue;
-    }
-    // Empty line
-    else if (line.trim() === '') {
+    } else if (line.trim() === '') {
       output.push('<br>');
-    }
-    // Normal paragraph
-    else {
+    } else {
       output.push(`<p style="margin:4px 0">${inlineFormat(line)}</p>`);
     }
     i++;
@@ -105,47 +142,102 @@ function inlineFormat(text: string): string {
     .replace(/`(.+?)`/g, '<code style="background:var(--frox-gray-100,#f3f4f6);padding:1px 4px;border-radius:3px;font-size:0.9em">$1</code>');
 }
 
-const STORAGE_KEY = 'ai-assistant-chat-history';
-
-function loadHistory(): ChatMessage[] {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch { /* ignore */ }
-  return [];
-}
-
-function saveHistory(messages: ChatMessage[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-  } catch { /* ignore */ }
-}
-
 export default function AiAssistantPage() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const initializedRef = useRef(false);
 
-  // Load history on mount
+  const activeSession = sessions.find(s => s.id === activeSessionId) || null;
+  const messages = activeSession?.messages || [];
+
+  // Load on mount
   useEffect(() => {
     if (!initializedRef.current) {
       initializedRef.current = true;
-      const saved = loadHistory();
-      if (saved.length > 0) setMessages(saved);
+      const saved = loadSessions();
+      setSessions(saved);
+      const savedActiveId = loadActiveSessionId();
+      if (savedActiveId && saved.some(s => s.id === savedActiveId)) {
+        setActiveSessionId(savedActiveId);
+      }
+      // Migrate old single-chat history
+      try {
+        const oldHistory = localStorage.getItem('ai-assistant-chat-history');
+        if (oldHistory) {
+          const oldMessages = JSON.parse(oldHistory) as ChatMessage[];
+          if (oldMessages.length > 0) {
+            const migrated: ChatSession = {
+              id: generateId(),
+              title: deriveTitle(oldMessages),
+              messages: oldMessages,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            };
+            const updated = [migrated, ...saved];
+            setSessions(updated);
+            setActiveSessionId(migrated.id);
+            saveSessions(updated);
+            saveActiveSessionId(migrated.id);
+          }
+          localStorage.removeItem('ai-assistant-chat-history');
+        }
+      } catch { /* ignore */ }
     }
   }, []);
 
-  // Save history on change
+  // Persist sessions
   useEffect(() => {
-    if (initializedRef.current) saveHistory(messages);
-  }, [messages]);
+    if (initializedRef.current) saveSessions(sessions);
+  }, [sessions]);
+
+  useEffect(() => {
+    if (initializedRef.current) saveActiveSessionId(activeSessionId);
+  }, [activeSessionId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
+
+  const updateSessionMessages = useCallback((sessionId: string, newMessages: ChatMessage[]) => {
+    setSessions(prev => prev.map(s =>
+      s.id === sessionId
+        ? { ...s, messages: newMessages, title: deriveTitle(newMessages), updatedAt: Date.now() }
+        : s
+    ));
+  }, []);
+
+  function createNewSession() {
+    const session: ChatSession = {
+      id: generateId(),
+      title: 'Новый чат',
+      messages: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    setSessions(prev => [session, ...prev]);
+    setActiveSessionId(session.id);
+    setInput('');
+  }
+
+  function deleteSession(id: string) {
+    setSessions(prev => prev.filter(s => s.id !== id));
+    if (activeSessionId === id) {
+      const remaining = sessions.filter(s => s.id !== id);
+      setActiveSessionId(remaining.length > 0 ? remaining[0].id : null);
+    }
+    setDeletingId(null);
+  }
+
+  function switchSession(id: string) {
+    setActiveSessionId(id);
+    setInput('');
+  }
 
   function autoResize() {
     const el = textareaRef.current;
@@ -158,8 +250,24 @@ export default function AiAssistantPage() {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
 
+    let sessionId = activeSessionId;
+
+    // Auto-create session if none active
+    if (!sessionId) {
+      const session: ChatSession = {
+        id: generateId(),
+        title: 'Новый чат',
+        messages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      setSessions(prev => [session, ...prev]);
+      sessionId = session.id;
+      setActiveSessionId(session.id);
+    }
+
     const newMessages: ChatMessage[] = [...messages, { role: 'user', content: trimmed }];
-    setMessages(newMessages);
+    updateSessionMessages(sessionId, newMessages);
     setInput('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
     setLoading(true);
@@ -176,20 +284,20 @@ export default function AiAssistantPage() {
       const data = await response.json() as { reply?: string; sql?: string; error?: string };
 
       if (!response.ok || data.error) {
-        setMessages(prev => [...prev, {
+        updateSessionMessages(sessionId, [...newMessages, {
           role: 'assistant',
           content: `❌ Ошибка: ${data.error || 'Что-то пошло не так'}`,
         }]);
         return;
       }
 
-      setMessages(prev => [...prev, {
+      updateSessionMessages(sessionId, [...newMessages, {
         role: 'assistant',
         content: data.reply || '',
         sql: data.sql,
       }]);
     } catch {
-      setMessages(prev => [...prev, {
+      updateSessionMessages(sessionId, [...newMessages, {
         role: 'assistant',
         content: '❌ Ошибка сети. Попробуйте снова.',
       }]);
@@ -205,99 +313,227 @@ export default function AiAssistantPage() {
     }
   }
 
+  const sortedSessions = [...sessions].sort((a, b) => b.updatedAt - a.updatedAt);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-      {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 24px', borderBottom: '1px solid var(--frox-gray-200)',
-        flexShrink: 0,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Sparkles size={20} color="var(--frox-blue)" />
-          <h1 style={{ fontSize: '1.1em', fontWeight: 600, margin: 0 }}>AI Ассистент</h1>
+    <div style={{ display: 'flex', height: '100%', minHeight: 0 }}>
+      {/* Sidebar */}
+      {sidebarOpen && (
+        <div style={{
+          width: 260, flexShrink: 0, borderRight: '1px solid var(--frox-gray-200)',
+          display: 'flex', flexDirection: 'column', background: 'var(--frox-gray-50, #f9fafb)',
+        }}>
+          {/* Sidebar header */}
+          <div style={{
+            padding: '12px 12px 8px', display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <button
+              onClick={createNewSession}
+              style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: '8px 12px', borderRadius: 10,
+                border: '1px solid var(--frox-gray-200)',
+                background: 'white', cursor: 'pointer',
+                fontSize: '0.85em', fontWeight: 500, color: 'var(--frox-gray-700)',
+                transition: 'border-color 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--frox-blue)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--frox-gray-200)'; }}
+            >
+              <Plus size={14} />
+              Новый чат
+            </button>
+          </div>
+
+          {/* Session list */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '4px 8px 12px' }}>
+            {sortedSessions.length === 0 && (
+              <p style={{ textAlign: 'center', fontSize: '0.8em', color: 'var(--frox-gray-400)', padding: '20px 0' }}>
+                Нет сохранённых чатов
+              </p>
+            )}
+            {sortedSessions.map(session => (
+              <div
+                key={session.id}
+                onClick={() => switchSession(session.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '8px 10px', borderRadius: 8, cursor: 'pointer',
+                  marginBottom: 2,
+                  background: session.id === activeSessionId ? 'white' : 'transparent',
+                  border: session.id === activeSessionId ? '1px solid var(--frox-gray-200)' : '1px solid transparent',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => {
+                  if (session.id !== activeSessionId) e.currentTarget.style.background = 'rgba(255,255,255,0.6)';
+                }}
+                onMouseLeave={e => {
+                  if (session.id !== activeSessionId) e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                <MessageSquare size={14} color="var(--frox-gray-400)" style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: '0.83em', fontWeight: session.id === activeSessionId ? 600 : 400,
+                    color: 'var(--frox-gray-800)',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  }}>
+                    {session.title}
+                  </div>
+                  <div style={{ fontSize: '0.7em', color: 'var(--frox-gray-400)', marginTop: 1 }}>
+                    {session.messages.length} сообщ. · {new Date(session.updatedAt).toLocaleDateString('ru-RU')}
+                  </div>
+                </div>
+                {/* Delete button */}
+                {deletingId === session.id ? (
+                  <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                    <button
+                      onClick={() => deleteSession(session.id)}
+                      style={{
+                        padding: '2px 8px', fontSize: '0.75em', borderRadius: 4,
+                        border: '1px solid #ef4444', background: '#fef2f2', color: '#ef4444',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Да
+                    </button>
+                    <button
+                      onClick={() => setDeletingId(null)}
+                      style={{
+                        padding: '2px 8px', fontSize: '0.75em', borderRadius: 4,
+                        border: '1px solid var(--frox-gray-200)', background: 'white',
+                        color: 'var(--frox-gray-600)', cursor: 'pointer',
+                      }}
+                    >
+                      Нет
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={e => { e.stopPropagation(); setDeletingId(session.id); }}
+                    style={{
+                      padding: 4, border: 'none', background: 'transparent',
+                      cursor: 'pointer', borderRadius: 4, flexShrink: 0,
+                      opacity: 0.4, transition: 'opacity 0.15s',
+                      display: 'flex', alignItems: 'center',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.opacity = '1'; }}
+                    onMouseLeave={e => { e.currentTarget.style.opacity = '0.4'; }}
+                  >
+                    <Trash2 size={13} color="var(--frox-gray-500)" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-        {messages.length > 0 && (
+      )}
+
+      {/* Main chat area */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 24px', borderBottom: '1px solid var(--frox-gray-200)',
+          flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              onClick={() => setSidebarOpen(v => !v)}
+              title={sidebarOpen ? 'Скрыть панель' : 'Показать панель'}
+              style={{
+                padding: 6, border: 'none', background: 'transparent',
+                cursor: 'pointer', borderRadius: 6, display: 'flex',
+                color: 'var(--frox-gray-500)',
+              }}
+            >
+              <MessageSquare size={18} />
+            </button>
+            <Sparkles size={18} color="var(--frox-blue)" />
+            <h1 style={{ fontSize: '1em', fontWeight: 600, margin: 0 }}>
+              {activeSession?.title || 'AI Ассистент'}
+            </h1>
+          </div>
           <button
-            onClick={() => { setMessages([]); saveHistory([]); }}
+            onClick={createNewSession}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '6px 12px', borderRadius: 8, border: '1px solid var(--frox-gray-200)',
               background: 'white', cursor: 'pointer', fontSize: '0.85em', color: 'var(--frox-gray-600)',
             }}
           >
-            <RotateCcw size={14} />
+            <Plus size={14} />
             Новый чат
           </button>
-        )}
-      </div>
-
-      {/* Messages area */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px', minHeight: 0 }}>
-        {messages.length === 0 ? (
-          <WelcomeScreen onExample={text => sendMessage(text)} />
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 800, margin: '0 auto' }}>
-            {messages.map((msg, idx) => (
-              <MessageBubble key={idx} message={msg} />
-            ))}
-            {loading && <TypingIndicator />}
-            <div ref={bottomRef} />
-          </div>
-        )}
-      </div>
-
-      {/* Input area */}
-      <div style={{
-        padding: '12px 24px 16px',
-        borderTop: '1px solid var(--frox-gray-200)',
-        flexShrink: 0,
-        background: 'white',
-      }}>
-        <div style={{
-          display: 'flex', gap: 8, alignItems: 'flex-end',
-          maxWidth: 800, margin: '0 auto',
-          border: '1px solid var(--frox-gray-200)', borderRadius: 16,
-          padding: '8px 8px 8px 16px',
-          background: 'white',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-        }}>
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={e => { setInput(e.target.value); autoResize(); }}
-            onKeyDown={handleKeyDown}
-            placeholder="Задайте вопрос по базе данных..."
-            disabled={loading}
-            rows={1}
-            style={{
-              flex: 1, border: 'none', outline: 'none', resize: 'none',
-              fontSize: '0.95em', lineHeight: 1.5, background: 'transparent',
-              fontFamily: 'inherit', minHeight: 24, maxHeight: 120,
-              color: 'var(--frox-gray-900)',
-            }}
-          />
-          <button
-            onClick={() => sendMessage(input)}
-            disabled={loading || !input.trim()}
-            style={{
-              width: 36, height: 36, borderRadius: 10, border: 'none',
-              background: input.trim() && !loading ? 'var(--frox-blue)' : 'var(--frox-gray-200)',
-              color: input.trim() && !loading ? 'white' : 'var(--frox-gray-400)',
-              cursor: input.trim() && !loading ? 'pointer' : 'default',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0, transition: 'background 0.2s',
-            }}
-          >
-            {loading ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Send size={16} />}
-          </button>
         </div>
-        <p style={{ textAlign: 'center', fontSize: '0.75em', color: 'var(--frox-gray-400)', marginTop: 8 }}>
-          Enter — отправить · Shift+Enter — новая строка
-        </p>
-      </div>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }`}</style>
+        {/* Messages area */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px', minHeight: 0 }}>
+          {messages.length === 0 ? (
+            <WelcomeScreen onExample={text => sendMessage(text)} />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 800, margin: '0 auto' }}>
+              {messages.map((msg, idx) => (
+                <MessageBubble key={idx} message={msg} />
+              ))}
+              {loading && <TypingIndicator />}
+              <div ref={bottomRef} />
+            </div>
+          )}
+        </div>
+
+        {/* Input area */}
+        <div style={{
+          padding: '12px 24px 16px',
+          borderTop: '1px solid var(--frox-gray-200)',
+          flexShrink: 0,
+          background: 'white',
+        }}>
+          <div style={{
+            display: 'flex', gap: 8, alignItems: 'flex-end',
+            maxWidth: 800, margin: '0 auto',
+            border: '1px solid var(--frox-gray-200)', borderRadius: 16,
+            padding: '8px 8px 8px 16px',
+            background: 'white',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+          }}>
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={e => { setInput(e.target.value); autoResize(); }}
+              onKeyDown={handleKeyDown}
+              placeholder="Задайте вопрос по базе данных..."
+              disabled={loading}
+              rows={1}
+              style={{
+                flex: 1, border: 'none', outline: 'none', resize: 'none',
+                fontSize: '0.95em', lineHeight: 1.5, background: 'transparent',
+                fontFamily: 'inherit', minHeight: 24, maxHeight: 120,
+                color: 'var(--frox-gray-900)',
+              }}
+            />
+            <button
+              onClick={() => sendMessage(input)}
+              disabled={loading || !input.trim()}
+              style={{
+                width: 36, height: 36, borderRadius: 10, border: 'none',
+                background: input.trim() && !loading ? 'var(--frox-blue)' : 'var(--frox-gray-200)',
+                color: input.trim() && !loading ? 'white' : 'var(--frox-gray-400)',
+                cursor: input.trim() && !loading ? 'pointer' : 'default',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0, transition: 'background 0.2s',
+              }}
+            >
+              {loading ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Send size={16} />}
+            </button>
+          </div>
+          <p style={{ textAlign: 'center', fontSize: '0.75em', color: 'var(--frox-gray-400)', marginTop: 8 }}>
+            Enter — отправить · Shift+Enter — новая строка
+          </p>
+        </div>
+
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }`}</style>
+      </div>
     </div>
   );
 }
@@ -360,7 +596,6 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       flexDirection: isUser ? 'row-reverse' : 'row',
       gap: 10, alignItems: 'flex-start',
     }}>
-      {/* Avatar */}
       <div style={{
         width: 32, height: 32, borderRadius: 10, flexShrink: 0,
         background: isUser ? 'var(--frox-blue)' : 'var(--frox-gray-100)',
@@ -373,7 +608,6 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       </div>
 
       <div style={{ maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {/* Bubble */}
         <div style={{
           padding: '10px 14px',
           borderRadius: isUser ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
@@ -389,7 +623,6 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           )}
         </div>
 
-        {/* SQL block */}
         {message.sql && (
           <details style={{
             border: '1px solid var(--frox-gray-200)',
