@@ -710,3 +710,51 @@ CREATE POLICY "Allow all for postgres on contact_notes" ON contact_notes
 COMMENT ON TABLE contact_notes IS 'Multiple notes per contact: manual, AI research, deep research, imported';
 COMMENT ON COLUMN contact_notes.source IS 'Origin: manual | ai_research | ai_deep_research | import';
 COMMENT ON COLUMN contact_notes.metadata IS 'Extra data, e.g. AI model used, research JSON for deep research';
+
+-- =====================================================
+-- Векторный поиск по заметкам контактов (pgvector)
+-- =====================================================
+
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE IF NOT EXISTS contact_embeddings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  note_id UUID NOT NULL REFERENCES contact_notes(id) ON DELETE CASCADE,
+  contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+  embedding vector(1536) NOT NULL,  -- text-embedding-3-small
+  model TEXT NOT NULL DEFAULT 'text-embedding-3-small',
+  content_hash TEXT NOT NULL,  -- md5 контента для отслеживания изменений
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS contact_embeddings_note_id_idx
+  ON contact_embeddings(note_id);
+
+CREATE INDEX IF NOT EXISTS contact_embeddings_contact_id_idx
+  ON contact_embeddings(contact_id);
+
+CREATE INDEX IF NOT EXISTS contact_embeddings_vector_idx
+  ON contact_embeddings USING ivfflat (embedding vector_cosine_ops)
+  WITH (lists = 50);
+
+CREATE OR REPLACE FUNCTION search_notes(
+  query_embedding vector(1536),
+  similarity_threshold float DEFAULT 0.3,
+  max_results int DEFAULT 20
+)
+RETURNS TABLE (
+  note_id UUID,
+  contact_id UUID,
+  similarity float
+) AS $$
+  SELECT ce.note_id, ce.contact_id,
+         1 - (ce.embedding <=> query_embedding) as similarity
+  FROM contact_embeddings ce
+  WHERE 1 - (ce.embedding <=> query_embedding) > similarity_threshold
+  ORDER BY ce.embedding <=> query_embedding
+  LIMIT max_results;
+$$ LANGUAGE sql STABLE;
+
+COMMENT ON TABLE contact_embeddings IS 'Vector embeddings for semantic search across contact notes';
+COMMENT ON COLUMN contact_embeddings.embedding IS '1536-dim vector from text-embedding-3-small via OpenRouter';
+COMMENT ON COLUMN contact_embeddings.content_hash IS 'MD5 hash to skip re-indexing unchanged notes';

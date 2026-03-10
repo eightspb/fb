@@ -1251,3 +1251,40 @@ export async function improveDescriptionWithAI(text: string): Promise<string> {
 
 }
 
+/**
+ * Получить embedding-вектор для текста через OpenRouter API.
+ * Используется для семантического поиска по заметкам контактов.
+ * Модель: text-embedding-3-small (1536 dimensions).
+ */
+export async function getEmbedding(text: string): Promise<number[]> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error('OPENROUTER_API_KEY not set');
+
+  const response = await fetch('https://openrouter.ai/api/v1/embeddings', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+      'X-Title': 'FB.net Embeddings',
+    },
+    body: JSON.stringify({
+      model: 'openai/text-embedding-3-small',
+      input: text.slice(0, 8000),  // лимит токенов
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    throw new Error(`Embedding API error: ${response.status} ${errorText}`);
+  }
+  const data = await response.json() as {
+    data: Array<{ embedding: number[] }>;
+  };
+  if (!data.data?.[0]?.embedding) {
+    throw new Error('Empty embedding response');
+  }
+  return data.data[0].embedding;
+}
+

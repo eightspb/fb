@@ -17,6 +17,12 @@
 - `011_add_crm_emails.sql`
 - `012_add_imap_uid_to_attachments.sql`
 - `013_fix_uid_bigint.sql`
+- `014_add_contacts.sql`
+- `015_link_submissions_to_contacts.sql`
+- `016_add_imap_sync_backfill_state.sql`
+- `017_add_crm_emails_lower_indexes.sql`
+- `018_add_contact_notes.sql`
+- `019_vector_search.sql` — pgvector: таблица `contact_embeddings`, функция `search_notes()`
 
 ## Как применяются миграции
 
@@ -27,7 +33,7 @@
 
 ## Правила для новых миграций
 
-- Используйте последовательную нумерацию: `014_some_change.sql`, `015_...`.
+- Используйте последовательную нумерацию: `020_some_change.sql`, `021_...`.
 - Пишите идемпотентный SQL:
   - `CREATE TABLE IF NOT EXISTS`
   - `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`
