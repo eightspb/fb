@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
-import { researchContactWithAI } from '@/lib/openrouter';
+import { researchContactWithAI, getEmbedding } from '@/lib/openrouter';
 import { syncAll } from '@/lib/imap-client';
 
 export const runtime = 'nodejs';
@@ -124,6 +124,17 @@ CREATE TABLE crm_emails (
   sent_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- contact_embeddings (векторы заметок для семантического поиска, pgvector)
+CREATE TABLE contact_embeddings (
+  id UUID PRIMARY KEY,
+  note_id UUID NOT NULL REFERENCES contact_notes(id) ON DELETE CASCADE,
+  contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+  embedding vector(1536) NOT NULL, -- text-embedding-3-small
+  content_hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+-- Для семантического поиска используй блок \`\`\`semantic_search\`\`\`, а не SQL по этой таблице напрямую.
 `.trim();
 
 const SYSTEM_PROMPT = `Ты — AI-ассистент CRM-системы для медицинского оборудования (компания ЗЕНИТ МЕД / fibroadenoma.net).
@@ -144,6 +155,19 @@ const SYSTEM_PROMPT = `Ты — AI-ассистент CRM-системы для 
 8. Если вопрос не связан с БД — отвечай как обычный помощник
 9. При ошибке SQL объясни что пошло не так
 10. Когда пользователь спрашивает о конкретном контакте, тебе автоматически предоставляются данные из CRM (карточка, заметки, переписка, заявки) в системном сообщении. Используй эти данные для ответа, не делай SQL-запрос если ответ уже есть. Если данных недостаточно — дополни SQL-запросом.
+11. Если результат — рейтинг, топ или распределение (топ городов, статистика тегов, источники трафика, динамика по дням/неделям) — добавь в конец ответа блок с данными для графика:
+    \`\`\`chart
+    {"type":"horizontal-bar","title":"Название графика","labels":["A","B","C"],"values":[100,50,25]}
+    \`\`\`
+    Используй "horizontal-bar" для рейтингов и распределений, "bar" для временных рядов. Максимум 15 элементов.
+    НЕ добавляй chart-блок если данные не подходят для графика (например, одна цифра, карточка контакта, текстовый ответ).
+12. СЕМАНТИЧЕСКИЙ ПОИСК по заметкам контактов. Если пользователь ищет контакты по теме, смыслу, области деятельности или специализации в заметках (не точное слово, а по смыслу) — используй семантический поиск. Напиши блок:
+    \`\`\`semantic_search
+    {"query": "поисковый запрос на русском или английском", "limit": 10}
+    \`\`\`
+    Система автоматически выполнит семантический поиск по всем заметкам контактов и вернёт результаты.
+    Примеры когда использовать: "найди контакты связанные с онкологией", "кто занимается маммографией", "контакты из области лучевой диагностики".
+    НЕ используй semantic_search для точных запросов (по имени, городу, email) — для них используй SQL с ILIKE.
 
 ЗАПРЕЩЕНО:
 - Говорить "вот запрос, который вы можете выполнить"
@@ -151,11 +175,19 @@ const SYSTEM_PROMPT = `Ты — AI-ассистент CRM-системы для 
 - Предлагать пользователю самому выполнять что-либо в базе данных
 - Отвечать без реальных данных, если вопрос предполагает запрос к БД
 
-КНОПКИ:
-- Когда уместно предложить варианты действий, добавь в конце ответа кнопки в формате: [[btn:Текст кнопки]]. Каждая кнопка на отдельной строке.
-- Используй для: уточнений, предложений следующих шагов, вариантов фильтрации.
-- При анализе контакта предлагай: "Показать всю переписку", "Показать заявки", "Показать заметки", "Похожие контакты".
-- Не злоупотребляй — максимум 3-5 кнопок.
+КНОПКИ — ОБЯЗАТЕЛЬНЫЙ ФОРМАТ:
+ВАЖНО: Если ты предлагаешь пользователю выбрать вариант или задаёшь уточняющий вопрос — ты ОБЯЗАН использовать кнопки [[btn:...]]. НИКОГДА не перечисляй варианты маркированным или нумерованным списком — это запрещено. Только кнопки.
+
+Формат: [[btn:Текст кнопки]] — каждая кнопка на отдельной строке после текста ответа.
+
+ОБЯЗАТЕЛЬНО добавляй кнопки в этих случаях:
+- Если нашёл несколько контактов и просишь уточнить — кнопка для каждого: [[btn:Скурихин Иван Петрович]]
+- Если просишь уточнить что именно показать — [[btn:Показать переписку]] [[btn:Показать заметки]] [[btn:Показать заявки]]
+- После показа карточки контакта — [[btn:Показать всю переписку]] [[btn:Показать заявки]] [[btn:Похожие контакты]]
+- Если предлагаешь варианты фильтрации или следующих шагов
+
+ЗАПРЕЩЕНО: перечислять варианты действий обычным текстом или списком — только [[btn:...]]
+Максимум 5 кнопок. Минимум — 0 (если нет вариантов выбора).
 
 ФОРМАТИРОВАНИЕ — ОЧЕНЬ ВАЖНО:
 - Всегда структурируй ответы красиво и наглядно
@@ -244,6 +276,21 @@ function extractSql(text: string): string | null {
   return match[1].trim();
 }
 
+function extractSemanticSearch(text: string): { query: string; limit: number } | null {
+  const match = text.match(/```semantic_search\s*([\s\S]*?)\s*```/i);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(match[1].trim()) as { query?: string; limit?: number };
+    if (!parsed.query?.trim()) return null;
+    return {
+      query: parsed.query.trim(),
+      limit: Math.min(Math.max(1, parsed.limit || 10), 50),
+    };
+  } catch {
+    return null;
+  }
+}
+
 function ensureLimit(sql: string): string {
   if (/\bLIMIT\b/i.test(sql)) return sql;
   return sql.replace(/;?\s*$/, ' LIMIT 100');
@@ -312,7 +359,73 @@ export async function POST(request: NextRequest) {
 
         const firstReply = await callAI(aiMessages);
         const rawSql = extractSql(firstReply);
+        const semanticSearch = extractSemanticSearch(firstReply);
 
+        // --- Semantic search path ---
+        if (semanticSearch) {
+          sendEvent('action', { text: `🔮 Семантический поиск: "${semanticSearch.query}"...` });
+
+          let searchRows: unknown[];
+          try {
+            const queryEmbedding = await getEmbedding(semanticSearch.query);
+            const vectorStr = `[${queryEmbedding.join(',')}]`;
+
+            const client = await pool.connect();
+            try {
+              await client.query("SET statement_timeout = '15s'");
+              const result = await client.query(`
+                SELECT
+                  c.id, c.full_name, c.city, c.speciality, c.institution,
+                  cn.id as note_id, cn.title as note_title,
+                  LEFT(cn.content, 300) as note_content, cn.source as note_source,
+                  ROUND((1 - (ce.embedding <=> $1::vector))::numeric, 3) as similarity
+                FROM contact_embeddings ce
+                JOIN contact_notes cn ON cn.id = ce.note_id
+                JOIN contacts c ON c.id = ce.contact_id
+                WHERE 1 - (ce.embedding <=> $1::vector) > 0.3
+                ORDER BY ce.embedding <=> $1::vector
+                LIMIT $2
+              `, [vectorStr, semanticSearch.limit]);
+              searchRows = result.rows;
+            } finally {
+              client.release();
+            }
+          } catch (searchErr) {
+            const msg = searchErr instanceof Error ? searchErr.message : String(searchErr);
+            sendEvent('reply', {
+              reply: firstReply + `\n\n❌ Ошибка семантического поиска: ${msg}`,
+              actionsPerformed: enrichmentResult?.actionsPerformed ?? [],
+            });
+            controller.close();
+            return;
+          }
+
+          sendEvent('action', { text: `📊 Найдено ${searchRows.length} результатов, интерпретирую...` });
+
+          const followUpMessages: Message[] = [
+            ...aiMessages,
+            { role: 'assistant', content: firstReply },
+            {
+              role: 'user',
+              content: `[СИСТЕМА] Семантический поиск выполнен автоматически по запросу "${semanticSearch.query}". Результат (${searchRows.length} контактов):\n${JSON.stringify(searchRows, null, 2)}\n\nТеперь дай пользователю финальный ответ. Перечисли найденных контактов с указанием релевантности (similarity) и фрагмента заметки. Не упоминай семантический поиск — просто представь найденных контактов.`,
+            },
+          ];
+
+          const finalReply = await callAI(followUpMessages);
+
+          sendEvent('reply', {
+            reply: finalReply,
+            sqlResult: searchRows,
+            actionsPerformed: enrichmentResult?.actionsPerformed ?? [],
+            contactIds: (searchRows as Array<Record<string, unknown>>)
+              .map(r => r.id as string)
+              .filter((id, i, arr) => arr.indexOf(id) === i),
+          });
+          controller.close();
+          return;
+        }
+
+        // --- SQL path ---
         if (!rawSql) {
           sendEvent('reply', {
             reply: firstReply,

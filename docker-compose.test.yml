@@ -4,7 +4,7 @@
 services:
   # PostgreSQL для тестов
   postgres:
-    image: postgres:15
+    image: pgvector/pgvector:pg15
     container_name: fb-net-test-postgres
     environment:
       POSTGRES_USER: test_user

@@ -4,7 +4,7 @@
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:15
+    image: pgvector/pgvector:pg15
     container_name: fb-net-db
     command: postgres -c listen_addresses='*'
     healthcheck:

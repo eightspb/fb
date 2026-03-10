@@ -1,16 +1,98 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Sparkles, Send, Loader2, User, Bot, Plus, Trash2, MessageSquare } from 'lucide-react';
+import { Sparkles, Send, Loader2, User, Bot, Plus, Trash2, MessageSquare, Download, BarChart2, Star, X } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
+import { MiniChart, extractChart, detectChartable } from './MiniChart';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   sql?: string;
+  sqlResult?: Record<string, unknown>[];
   actionLog?: string[];
   contactIds?: string[];   // контакты, упомянутые в этом сообщении
   question?: string;       // вопрос пользователя, к которому относится ответ
+}
+
+type DigestPeriod = 'today' | 'week' | 'month';
+
+interface SavedQuery {
+  id: string;
+  text: string;
+  label: string;
+  createdAt: string;
+  usageCount: number;
+  lastUsedAt: string;
+}
+
+const SAVED_QUERIES_KEY = 'ai-assistant-saved-queries';
+
+function useSavedQueries() {
+  const [queries, setQueries] = useState<SavedQuery[]>(() => {
+    try { return JSON.parse(localStorage.getItem(SAVED_QUERIES_KEY) || '[]'); }
+    catch { return []; }
+  });
+
+  function save(text: string) {
+    if (queries.some(q => q.text === text)) return;
+    const newQuery: SavedQuery = {
+      id: crypto.randomUUID(), text,
+      label: text.slice(0, 50),
+      createdAt: new Date().toISOString(),
+      usageCount: 0, lastUsedAt: new Date().toISOString(),
+    };
+    const updated = [newQuery, ...queries].slice(0, 20);
+    setQueries(updated);
+    localStorage.setItem(SAVED_QUERIES_KEY, JSON.stringify(updated));
+  }
+
+  function remove(id: string) {
+    const updated = queries.filter(q => q.id !== id);
+    setQueries(updated);
+    localStorage.setItem(SAVED_QUERIES_KEY, JSON.stringify(updated));
+  }
+
+  function recordUsage(id: string) {
+    const updated = queries.map(q =>
+      q.id === id ? { ...q, usageCount: q.usageCount + 1, lastUsedAt: new Date().toISOString() } : q
+    );
+    setQueries(updated);
+    localStorage.setItem(SAVED_QUERIES_KEY, JSON.stringify(updated));
+  }
+
+  const isSaved = (text: string) => queries.some(q => q.text === text);
+
+  return { queries, save, remove, recordUsage, isSaved };
+}
+
+function toCSV(rows: Record<string, unknown>[]): string {
+  if (rows.length === 0) return '';
+  const headers = Object.keys(rows[0]);
+  const escape = (val: unknown): string => {
+    const str = val === null || val === undefined ? '' : String(val);
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+  };
+  const lines = [
+    headers.join(','),
+    ...rows.map(row => headers.map(h => escape(row[h])).join(',')),
+  ];
+  return lines.join('\n');
+}
+
+function downloadCSV(rows: Record<string, unknown>[], filename: string) {
+  const bom = '\uFEFF';
+  const csv = bom + toCSV(rows);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 interface ChatSession {
@@ -72,6 +154,12 @@ const EXAMPLE_PROMPTS = [
   'Кто добавлен за последнюю неделю?',
   'Сколько заявок за этот месяц?',
 ];
+
+const DIGEST_PERIOD_LABELS: Record<DigestPeriod, string> = {
+  today: 'сегодня',
+  week: 'за неделю',
+  month: 'за месяц',
+};
 
 function renderMarkdown(text: string): string {
   const lines = text.split('\n');
@@ -168,9 +256,13 @@ export default function AiAssistantPage() {
   const [liveActionLog, setLiveActionLog] = useState<string[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [digestPeriod, setDigestPeriod] = useState<DigestPeriod>('today');
+  const [showSaved, setShowSaved] = useState(false);
+  const savedDropdownRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const initializedRef = useRef(false);
+  const { queries: savedQueries, save: saveQuery, remove: removeQuery, recordUsage, isSaved } = useSavedQueries();
 
   const activeSession = sessions.find(s => s.id === activeSessionId) || null;
   const messages = activeSession?.messages || [];
@@ -222,6 +314,17 @@ export default function AiAssistantPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
+
+  useEffect(() => {
+    if (!showSaved) return;
+    function handleClick(e: MouseEvent) {
+      if (savedDropdownRef.current && !savedDropdownRef.current.contains(e.target as Node)) {
+        setShowSaved(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showSaved]);
 
   const updateSessionMessages = useCallback((sessionId: string, newMessages: ChatMessage[]) => {
     setSessions(prev => prev.map(s =>
@@ -344,11 +447,13 @@ export default function AiAssistantPage() {
             } else if (eventName === 'reply') {
               const actionLog = (parsed.actionsPerformed as string[] | undefined) ?? [];
               const contactIds = (parsed.contactIds as string[] | undefined) ?? [];
+              const sqlResult = (parsed.sqlResult as Record<string, unknown>[] | undefined) ?? undefined;
               const lastUserContent = newMessages.findLast(m => m.role === 'user')?.content ?? '';
               updateSessionMessages(capturedSessionId, [...newMessages, {
                 role: 'assistant',
                 content: String(parsed.reply || ''),
                 sql: parsed.sql ? String(parsed.sql) : undefined,
+                sqlResult: sqlResult && sqlResult.length > 0 ? sqlResult : undefined,
                 actionLog,
                 contactIds: contactIds.length > 0 ? contactIds : undefined,
                 question: contactIds.length > 0 ? lastUserContent : undefined,
@@ -370,6 +475,54 @@ export default function AiAssistantPage() {
         content: '❌ Ошибка сети. Попробуйте снова.',
       }]);
       setLiveActionLog([]);
+    } finally {
+      setLoading(false);
+      setLiveActionLog([]);
+    }
+  }
+
+  async function runDigest(period: DigestPeriod) {
+    if (loading) return;
+
+    let sessionId = activeSessionId;
+    if (!sessionId) {
+      const session: ChatSession = {
+        id: generateId(),
+        title: 'Новый чат',
+        messages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      setSessions(prev => [session, ...prev]);
+      sessionId = session.id;
+      setActiveSessionId(session.id);
+    }
+
+    const periodLabel = DIGEST_PERIOD_LABELS[period];
+    const userMsg: ChatMessage = { role: 'user', content: `📊 Аналитический дайджест ${periodLabel}` };
+    const newMessages: ChatMessage[] = [userMsg];
+    updateSessionMessages(sessionId, newMessages);
+    setLoading(true);
+    setLiveActionLog(['📊 Собираю данные из базы...']);
+
+    const capturedSessionId = sessionId;
+
+    try {
+      const response = await adminCsrfFetch('/api/admin/ai-assistant/digest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ period }),
+      });
+      const data = await response.json() as { reply?: string; error?: string };
+      updateSessionMessages(capturedSessionId, [...newMessages, {
+        role: 'assistant',
+        content: data.reply || `❌ Ошибка: ${data.error || 'Что-то пошло не так'}`,
+      }]);
+    } catch {
+      updateSessionMessages(capturedSessionId, [...newMessages, {
+        role: 'assistant',
+        content: '❌ Ошибка сети. Попробуйте снова.',
+      }]);
     } finally {
       setLoading(false);
       setLiveActionLog([]);
@@ -524,17 +677,104 @@ export default function AiAssistantPage() {
               {activeSession?.title || 'AI Ассистент'}
             </h1>
           </div>
-          <button
-            onClick={createNewSession}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '6px 12px', borderRadius: 8, border: '1px solid var(--frox-gray-200)',
-              background: 'white', cursor: 'pointer', fontSize: '0.85em', color: 'var(--frox-gray-600)',
-            }}
-          >
-            <Plus size={14} />
-            Новый чат
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {/* Saved queries dropdown */}
+            <div ref={savedDropdownRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowSaved(v => !v)}
+                title="Сохранённые запросы"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '6px 10px', borderRadius: 8,
+                  border: '1px solid var(--frox-gray-200)',
+                  background: showSaved ? 'var(--frox-gray-50)' : 'white',
+                  cursor: 'pointer', fontSize: '0.85em', color: 'var(--frox-gray-600)',
+                }}
+              >
+                <Star size={14} fill={savedQueries.length > 0 ? '#f59e0b' : 'none'} color={savedQueries.length > 0 ? '#f59e0b' : 'currentColor'} />
+                {savedQueries.length > 0 && <span style={{ fontSize: '0.85em', fontWeight: 600 }}>{savedQueries.length}</span>}
+              </button>
+              {showSaved && (
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 4px)', right: 0, zIndex: 50,
+                  background: 'white', border: '1px solid var(--frox-gray-200)',
+                  borderRadius: 12, width: 320, boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+                  maxHeight: 400, overflowY: 'auto',
+                }}>
+                  <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--frox-gray-100)', fontSize: '0.8em', color: 'var(--frox-gray-500)' }}>
+                    Сохранённые запросы
+                  </div>
+                  {savedQueries.length === 0 ? (
+                    <p style={{ padding: '16px 14px', color: 'var(--frox-gray-400)', fontSize: '0.875em', margin: 0 }}>
+                      Нет сохранённых запросов
+                    </p>
+                  ) : (
+                    [...savedQueries]
+                      .sort((a, b) => new Date(b.lastUsedAt).getTime() - new Date(a.lastUsedAt).getTime())
+                      .map(q => (
+                        <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderBottom: '1px solid var(--frox-gray-50)' }}>
+                          <button
+                            onClick={() => { sendMessage(q.text); recordUsage(q.id); setShowSaved(false); }}
+                            style={{ flex: 1, textAlign: 'left', fontSize: '0.875em', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--frox-gray-800)', padding: 0 }}
+                          >
+                            {q.label}
+                          </button>
+                          {q.usageCount > 0 && (
+                            <span style={{ fontSize: '0.75em', color: 'var(--frox-gray-400)', flexShrink: 0 }}>{q.usageCount}×</span>
+                          )}
+                          <button
+                            onClick={() => removeQuery(q.id)}
+                            style={{ padding: 4, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', color: 'var(--frox-gray-400)', flexShrink: 0 }}
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))
+                  )}
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', border: '1px solid var(--frox-gray-200)', borderRadius: 8, overflow: 'hidden' }}>
+              <button
+                onClick={() => runDigest(digestPeriod)}
+                disabled={loading}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '6px 12px', border: 'none', borderRight: '1px solid var(--frox-gray-200)',
+                  background: 'white', cursor: loading ? 'default' : 'pointer',
+                  fontSize: '0.85em', color: loading ? 'var(--frox-gray-400)' : 'var(--frox-gray-600)',
+                }}
+              >
+                <BarChart2 size={14} />
+                Дайджест
+              </button>
+              <select
+                value={digestPeriod}
+                onChange={e => setDigestPeriod(e.target.value as DigestPeriod)}
+                disabled={loading}
+                style={{
+                  padding: '6px 8px', border: 'none', background: 'white',
+                  fontSize: '0.85em', color: 'var(--frox-gray-600)', cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                <option value="today">Сегодня</option>
+                <option value="week">За неделю</option>
+                <option value="month">За месяц</option>
+              </select>
+            </div>
+            <button
+              onClick={createNewSession}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '6px 12px', borderRadius: 8, border: '1px solid var(--frox-gray-200)',
+                background: 'white', cursor: 'pointer', fontSize: '0.85em', color: 'var(--frox-gray-600)',
+              }}
+            >
+              <Plus size={14} />
+              Новый чат
+            </button>
+          </div>
         </div>
 
         {/* Messages area */}
@@ -549,6 +789,8 @@ export default function AiAssistantPage() {
                   message={msg}
                   isLast={idx === messages.length - 1}
                   onQuickReply={loading ? undefined : (text) => sendMessage(text)}
+                  onSaveQuery={saveQuery}
+                  isSaved={isSaved}
                 />
               ))}
               {loading && <LiveActionLog log={liveActionLog} />}
@@ -672,21 +914,26 @@ function extractButtons(content: string): { text: string; buttons: string[] } {
   return { text, buttons };
 }
 
-function MessageBubble({ message, isLast, onQuickReply }: {
+function MessageBubble({ message, isLast, onQuickReply, onSaveQuery, isSaved }: {
   message: ChatMessage;
   isLast?: boolean;
   onQuickReply?: (text: string) => void;
+  onSaveQuery?: (text: string) => void;
+  isSaved?: (text: string) => boolean;
 }) {
   const isUser = message.role === 'user';
   const { text, buttons } = isUser ? { text: message.content, buttons: [] } : extractButtons(message.content);
+  const { text: cleanText, chart } = isUser ? { text, chart: null } : extractChart(text);
+  const autoChart = (!chart && message.sqlResult) ? detectChartable(message.sqlResult) : null;
   const showButtons = isLast && buttons.length > 0 && onQuickReply;
   const [noteSaved, setNoteSaved] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+  const saved = isUser && isSaved ? isSaved(message.content) : false;
 
   const handleSaveNote = async () => {
     if (!message.contactIds?.length) return;
     setNoteSaved('saving');
     try {
-      const res = await fetch('/api/admin/ai-assistant/save-note', {
+      const res = await adminCsrfFetch('/api/admin/ai-assistant/save-note', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -746,9 +993,44 @@ function MessageBubble({ message, isLast, onQuickReply }: {
           {isUser ? (
             <span style={{ whiteSpace: 'pre-wrap' }}>{text}</span>
           ) : (
-            <div dangerouslySetInnerHTML={{ __html: renderMarkdown(text) }} />
+            <div dangerouslySetInnerHTML={{ __html: renderMarkdown(cleanText) }} />
           )}
         </div>
+
+        {/* Chart (from AI chart block or auto-detected from sqlResult) */}
+        {!isUser && (chart || autoChart) && (
+          <div style={{
+            padding: '10px 14px', borderRadius: '4px 16px 16px 16px',
+            background: 'white', border: '1px solid var(--frox-gray-200)',
+            fontSize: '0.9em',
+          }}>
+            <MiniChart data={(chart || autoChart)!} />
+          </div>
+        )}
+
+        {/* Star button for user messages */}
+        {isUser && onSaveQuery && (
+          <button
+            onClick={() => onSaveQuery(message.content)}
+            title={saved ? 'Уже в избранном' : 'Сохранить запрос'}
+            disabled={saved}
+            style={{
+              alignSelf: 'flex-end',
+              padding: '3px 8px', borderRadius: 6, fontSize: '0.75em',
+              border: '1px solid var(--frox-gray-200)',
+              background: 'white', cursor: saved ? 'default' : 'pointer',
+              color: saved ? '#f59e0b' : 'var(--frox-gray-400)',
+              display: 'flex', alignItems: 'center', gap: 4,
+              opacity: saved ? 1 : 0.6,
+              transition: 'opacity 0.15s',
+            }}
+            onMouseEnter={e => { if (!saved) e.currentTarget.style.opacity = '1'; }}
+            onMouseLeave={e => { if (!saved) e.currentTarget.style.opacity = '0.6'; }}
+          >
+            <Star size={11} fill={saved ? '#f59e0b' : 'none'} color={saved ? '#f59e0b' : 'currentColor'} />
+            {saved ? 'В избранном' : 'Сохранить'}
+          </button>
+        )}
 
         {/* Quick reply buttons */}
         {showButtons && (
@@ -802,6 +1084,26 @@ function MessageBubble({ message, isLast, onQuickReply }: {
               {message.sql}
             </pre>
           </details>
+        )}
+
+        {message.sqlResult && message.sqlResult.length > 0 && (
+          <button
+            onClick={() => downloadCSV(
+              message.sqlResult!,
+              `export-${new Date().toISOString().slice(0, 10)}.csv`
+            )}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '5px 12px', borderRadius: 8, fontSize: '0.8em',
+              border: '1px solid var(--frox-gray-200)',
+              background: 'white', cursor: 'pointer',
+              color: 'var(--frox-gray-600)',
+              width: 'fit-content',
+            }}
+          >
+            <Download size={13} />
+            Скачать CSV ({message.sqlResult.length} строк)
+          </button>
         )}
 
         {!isUser && message.contactIds && message.contactIds.length > 0 && (

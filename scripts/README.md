@@ -95,6 +95,29 @@ bash scripts/clear-server-caches.sh --rebuild
 - `fix-logs-table.sh` — ручная настройка `app_logs`
 - `check-logs-migration.sh` — проверка legacy-миграции логов
 
+## TypeScript утилиты (bun)
+
+### `research-contacts-without-notes.ts`
+Bulk AI-исследование контактов без заметок (параллельно, с Telegram уведомлениями).
+
+```bash
+cd /opt/fb-net && bun scripts/research-contacts-without-notes.ts
+```
+
+### `index-embeddings.ts`
+Индексация embeddings для семантического поиска по заметкам контактов. Находит незаиндексированные/обновлённые заметки и генерирует для них вектора через OpenRouter (text-embedding-3-small).
+
+```bash
+cd /opt/fb-net && bun scripts/index-embeddings.ts
+```
+
+- Требует: `pgvector` расширение (образ `pgvector/pgvector:pg15`), миграция `019_vector_search.sql`
+- Concurrency: 3, timeout: 30s на embedding
+- Пропускает заметки с неизменённым content_hash
+
+### `tag-contacts-by-formname.ts`
+Тегирование контактов по имени формы.
+
 ## JS/Node утилиты
 
 - `check-env.js` — проверка env-переменных
