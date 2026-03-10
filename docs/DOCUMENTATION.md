@@ -23,6 +23,12 @@
 - [Telegram: debug](./TELEGRAM_DEBUG.md)
 - [Yandex Direct roadmap](./yandex-direct-roadmap.md)
 
+## AI-функции и CRM
+
+- [AI Assistant промпты](../prompts/ai-assistant-chat.md) — промпт системы для AI Assistant (NL→SQL)
+- [AI Assistant — план развития](../prompts/ai-assistant-features/) — streaming, chat history, export, analytics, charts, vector search
+- [Batch Research план](../prompts/batch-research/batch-research-plan.md) — массовый AI research контактов
+
 ## Служебная документация
 
 - [Скрипты](../scripts/README.md)

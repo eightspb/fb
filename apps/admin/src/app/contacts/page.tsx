@@ -45,6 +45,7 @@ import {
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 import { FroxStatCard } from '@/components/admin/FroxStatCard';
 import { TagAutocompleteInput } from '@/components/admin/TagAutocompleteInput';
+import { BulkResearchModal } from '@/components/admin/BulkResearchModal';
 
 interface Contact {
   id: string;
@@ -1577,6 +1578,7 @@ export default function ContactsPage() {
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showMerge, setShowMerge] = useState(false);
+  const [showBulkResearch, setShowBulkResearch] = useState(false);
 
   const searchParams = useSearchParams();
   const { tableRef, setColRef, onResizeStart, defaultWidths } = useColumnResize();
@@ -1721,6 +1723,10 @@ export default function ContactsPage() {
             <Upload className="w-4 h-4" />
             <span className="hidden sm:inline">Импорт CSV</span>
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowBulkResearch(true)} className="gap-2 h-9">
+            <Microscope className="w-4 h-4" />
+            <span className="hidden sm:inline">AI Исследование</span>
+          </Button>
           <Button variant="outline" size="icon" onClick={loadContacts} title="Обновить" className="h-9 w-9">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
@@ -1852,6 +1858,9 @@ export default function ContactsPage() {
                 <button onClick={() => setShowBulkTagInput(false)} className="p-0.5 hover:text-[var(--frox-gray-300)]"><X className="w-3.5 h-3.5" /></button>
               </div>
             )}
+            <Button size="sm" variant="secondary" onClick={() => setShowBulkResearch(true)} className="h-7 border-0 bg-white/20 text-xs text-white hover:bg-white/30">
+              <Microscope className="w-3.5 h-3.5 mr-1" /> Исследовать
+            </Button>
             {selectedIds.size >= 2 && (
               <Button size="sm" variant="secondary" onClick={() => setShowMerge(true)} className="h-7 border-0 bg-white/20 text-xs text-white hover:bg-white/30">
                 <Merge className="w-3.5 h-3.5 mr-1" /> Объединить
@@ -2099,6 +2108,15 @@ export default function ContactsPage() {
             setSelectAll(false);
             loadContacts();
           }}
+        />
+      )}
+
+      {/* ── Массовое AI-исследование ── */}
+      {showBulkResearch && (
+        <BulkResearchModal
+          selectedIds={selectedIds}
+          onClose={() => setShowBulkResearch(false)}
+          onDone={() => loadContacts()}
         />
       )}
     </div>

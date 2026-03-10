@@ -1,4 +1,4 @@
-# Руководство разработчика Компания Зенит
+# Руководство разработчика fb.net
 
 Документация для разработчиков, работающих над проектом.
 
@@ -36,7 +36,7 @@
 ### Интеграции
 - **Telegram Bot**: node-telegram-bot-api
 - **Email**: Nodemailer (SMTP)
-- **AI**: OpenRouter API
+- **AI**: OpenRouter API (транскрипция, AI research) + Polza.ai/GPT-5.4 (Deep Research верификация, AI Assistant)
 
 ---
 
@@ -141,6 +141,8 @@ const result = await pool.query('SELECT * FROM news WHERE id = $1', [id]);
 | `conferences` | Конференции |
 | `conference_registrations` | Регистрации на конференции |
 | `form_submissions` | Заявки с форм |
+| `contacts` | CRM-контакты (~2000 записей) |
+| `contact_notes` | Заметки к контактам (multiple per contact, pinning, source tracking) |
 | `analytics_sessions` | Сессии пользователей |
 | `analytics_page_views` | Просмотры страниц |
 
@@ -209,6 +211,26 @@ POST /api/request-cp        # Запрос коммерческого предл
 
 ```
 POST /api/admin/auth        # Вход в админ-панель
+```
+
+### Contacts (CRM)
+
+```
+GET    /api/admin/contacts                        # Список контактов (с фильтрами)
+GET    /api/admin/contacts/[id]                   # Один контакт
+PUT    /api/admin/contacts/[id]                   # Обновление контакта
+GET    /api/admin/contacts/[id]/notes             # Заметки контакта
+POST   /api/admin/contacts/[id]/notes             # Добавить заметку
+PUT    /api/admin/contacts/[id]/notes/[noteId]    # Обновить заметку
+DELETE /api/admin/contacts/[id]/notes/[noteId]    # Удалить заметку
+POST   /api/admin/contacts/[id]/research          # AI research (быстрый)
+POST   /api/admin/contacts/[id]/deep-research     # Deep Research (2-stage pipeline)
+```
+
+### AI Assistant
+
+```
+POST /api/admin/ai-assistant  # NL→SQL чат с базой данных (GPT-5.4 / OpenRouter fallback)
 ```
 
 ### Telegram
@@ -287,13 +309,17 @@ import { ActiveSessions } from "@/components/admin/ActiveSessions";
 ### 1. Локальная разработка
 
 ```bash
-# Запустить БД
-bun run docker:up
+# Рекомендуемый способ — одной командой (SSH-туннель к remote БД + оба сервера):
+bun run dev:remote
 
-# Запустить public site (порт 3000)
+# Или вручную (3 терминала):
+# Терминал 1 — SSH туннель к БД (держать открытым)
+ssh -p 2222 -N -L 54321:172.18.0.5:5432 root@155.212.217.60
+
+# Терминал 2 — публичный сайт (порт 3000)
 bun run dev:site
 
-# Запустить admin UI (порт 3001)
+# Терминал 3 — admin UI (порт 3001)
 bun run dev:admin
 
 # Открыть:
@@ -310,16 +336,8 @@ bun run dev:admin
 
 ### 3. Коммит и push
 
-```powershell
-# Автоматический коммит всех изменений
-.\scripts\commit-and-push.ps1 -Message "Описание изменений"
-```
-
-Скрипт автоматически:
-- Добавляет все файлы
-- Проверяет отсутствие секретов
-- Создает коммит
-- Пушит в GitHub
+Использовать скилл `commit-commands:commit-push-pr` — он создаёт коммит, пушит и открывает PR.
+Или скилл `commit-commands:commit` — только коммит без пуша.
 
 ### 4. Деплой на продакшен
 
@@ -343,7 +361,7 @@ bun run dev:admin
 
 ```bash
 # На сервере: откат к предыдущему коммиту и пересборка
-ssh root@155.212.217.60
+ssh -p 2222 root@155.212.217.60
 cd /opt/fb-net
 git checkout <previous_commit_sha>
 docker compose -f docker-compose.ssl.yml build --no-cache site admin
@@ -563,7 +581,7 @@ import type { NewsItem } from "@/lib/types";
 # Локально - в консоли dev сервера
 
 # На сервере
-ssh root@your-server.com
+ssh -p 2222 root@155.212.217.60
 cd /opt/fb-net
 docker compose -f docker-compose.ssl.yml logs site admin --tail=50
 ```
