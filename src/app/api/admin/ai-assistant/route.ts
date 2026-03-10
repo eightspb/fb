@@ -18,6 +18,44 @@ const COOKIE_NAME = 'admin-session';
 const POLZA_API_URL = 'https://polza.ai/api/v1/chat/completions';
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
+const STOP_WORDS = new Set([
+  'Покажи', 'Найди', 'Расскажи', 'Информация', 'Данные', 'Контакт', 'Переписка',
+  'Заметки', 'Что', 'Кто', 'Как', 'Где', 'Когда', 'Сколько', 'Какие', 'Какой',
+  'Какая', 'Все', 'Вся', 'Про', 'Для', 'Email', 'Статистика', 'Последние',
+  'Новые', 'Старые', 'Подробнее', 'Список', 'Доктор', 'Доктору', 'Доктора',
+  'Врач', 'Врачу', 'Врача', 'Профессор', 'Профессору', 'Профессора',
+  'Информацию', 'Контакты', 'Контакту', 'Контактов', 'Есть', 'Нужно',
+  'Можно', 'Пожалуйста', 'Подробности', 'Ищу', 'Найти', 'Показать',
+  'Расскажите', 'Покажите', 'Выведи', 'Выведите', 'Напиши', 'Дай',
+]);
+
+/**
+ * Get a stem for Russian name suitable for ILIKE search.
+ * Instead of trying to precisely strip case endings (error-prone),
+ * we strip the last 1-2 chars for words > 5 chars to get a fuzzy stem.
+ * The ILIKE '%stem%' will then match all case forms.
+ * E.g. "Скурихину" → "Скурихи" → ILIKE '%Скурихи%' matches "Скурихин"
+ */
+function getStemForSearch(word: string): string {
+  if (word.length <= 5) return word;
+  // For longer words, strip last 2 chars to handle endings like -ну, -на, -ым, etc.
+  // This is aggressive but safe because we use ILIKE '%stem%'
+  return word.slice(0, -2);
+}
+
+/**
+ * Extract name candidates from a Russian text message.
+ * Returns stemmed words suitable for ILIKE search.
+ */
+function extractNameCandidates(text: string): string[] {
+  // Match words starting with uppercase Cyrillic, 3+ chars
+  const namePatterns = text.match(/[А-ЯЁ][а-яё]{2,}/g);
+  if (!namePatterns) return [];
+  return namePatterns
+    .filter(w => !STOP_WORDS.has(w) && w.length >= 3)
+    .map(w => getStemForSearch(w));
+}
+
 async function verifyAdminSession(): Promise<boolean> {
   try {
     const cookieStore = await cookies();
@@ -327,9 +365,7 @@ export async function POST(request: NextRequest) {
 
         // Detect if a contact is mentioned — if so, start enrichment with live progress
         const uuidMatch = lastUserMsg.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-        const namePatterns = lastUserMsg.match(/[А-ЯЁ][а-яё]{2,}/g);
-        const stopWords = new Set(['Покажи', 'Найди', 'Расскажи', 'Информация', 'Данные', 'Контакт', 'Переписка', 'Заметки', 'Что', 'Кто', 'Как', 'Где', 'Когда', 'Сколько', 'Какие', 'Какой', 'Какая', 'Все', 'Вся', 'Про', 'Для', 'Email', 'Статистика', 'Последние', 'Новые', 'Старые', 'Подробнее', 'Список']);
-        const nameCandidates = (namePatterns || []).filter(w => !stopWords.has(w) && w.length >= 3);
+        const nameCandidates = extractNameCandidates(lastUserMsg);
         const mightMentionContact = !!(uuidMatch || nameCandidates.length >= 1);
 
         if (mightMentionContact) {
@@ -541,16 +577,7 @@ async function enrichWithContactContextStreaming(
     }
 
     if (contactRows.length === 0) {
-      const namePatterns = lastUserMessage.match(/[А-ЯЁ][а-яё]{2,}/g);
-      if (!namePatterns || namePatterns.length === 0) return null;
-
-      const stopWords = new Set([
-        'Покажи', 'Найди', 'Расскажи', 'Информация', 'Данные', 'Контакт', 'Переписка',
-        'Заметки', 'Что', 'Кто', 'Как', 'Где', 'Когда', 'Сколько', 'Какие', 'Какой',
-        'Какая', 'Все', 'Вся', 'Про', 'Для', 'Email', 'Статистика', 'Последние',
-        'Новые', 'Старые', 'Подробнее', 'Список',
-      ]);
-      const candidates = namePatterns.filter(w => !stopWords.has(w) && w.length >= 3);
+      const candidates = extractNameCandidates(lastUserMessage);
       if (candidates.length === 0) return null;
 
       const conditions = candidates.map((_, i) => `full_name ILIKE $${i + 1}`).join(' AND ');
