@@ -474,7 +474,12 @@ export default function AiAssistantPage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 800, margin: '0 auto' }}>
               {messages.map((msg, idx) => (
-                <MessageBubble key={idx} message={msg} />
+                <MessageBubble
+                  key={idx}
+                  message={msg}
+                  isLast={idx === messages.length - 1}
+                  onQuickReply={loading ? undefined : (text) => sendMessage(text)}
+                />
               ))}
               {loading && <TypingIndicator />}
               <div ref={bottomRef} />
@@ -587,8 +592,24 @@ function WelcomeScreen({ onExample }: { onExample: (text: string) => void }) {
   );
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+/** Extract [[btn:...]] buttons from message content */
+function extractButtons(content: string): { text: string; buttons: string[] } {
+  const buttons: string[] = [];
+  const text = content.replace(/\[\[btn:(.+?)\]\]/g, (_, label) => {
+    buttons.push(label.trim());
+    return '';
+  }).replace(/\n{3,}/g, '\n\n').trim();
+  return { text, buttons };
+}
+
+function MessageBubble({ message, isLast, onQuickReply }: {
+  message: ChatMessage;
+  isLast?: boolean;
+  onQuickReply?: (text: string) => void;
+}) {
   const isUser = message.role === 'user';
+  const { text, buttons } = isUser ? { text: message.content, buttons: [] } : extractButtons(message.content);
+  const showButtons = isLast && buttons.length > 0 && onQuickReply;
 
   return (
     <div style={{
@@ -617,11 +638,41 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           lineHeight: 1.6,
         }}>
           {isUser ? (
-            <span style={{ whiteSpace: 'pre-wrap' }}>{message.content}</span>
+            <span style={{ whiteSpace: 'pre-wrap' }}>{text}</span>
           ) : (
-            <div dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }} />
+            <div dangerouslySetInnerHTML={{ __html: renderMarkdown(text) }} />
           )}
         </div>
+
+        {/* Quick reply buttons */}
+        {showButtons && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+            {buttons.map((label, i) => (
+              <button
+                key={i}
+                onClick={() => onQuickReply(label)}
+                style={{
+                  padding: '6px 14px', borderRadius: 18,
+                  border: '1px solid var(--frox-blue)',
+                  background: 'white', cursor: 'pointer',
+                  fontSize: '0.83em', color: 'var(--frox-blue)',
+                  fontWeight: 500, lineHeight: 1.3,
+                  transition: 'background 0.15s, color 0.15s',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'var(--frox-blue)';
+                  e.currentTarget.style.color = 'white';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'white';
+                  e.currentTarget.style.color = 'var(--frox-blue)';
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {message.sql && (
           <details style={{
