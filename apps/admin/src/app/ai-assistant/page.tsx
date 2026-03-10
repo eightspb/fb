@@ -78,6 +78,21 @@ function renderMarkdown(text: string): string {
 
   while (i < lines.length) {
     const line = lines[i];
+    // Fenced code blocks (```lang ... ```)
+    if (/^```/.test(line.trim())) {
+      const lang = line.trim().slice(3).trim();
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !/^```/.test(lines[i].trim())) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      i++; // skip closing ```
+      const escaped = codeLines.join('\n').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const label = lang ? `<span style="font-size:0.8em;opacity:0.6;text-transform:uppercase;letter-spacing:0.05em">${lang}</span>` : '';
+      output.push(`<div style="margin:8px 0;border-radius:8px;overflow:hidden;border:1px solid var(--frox-gray-200)">${label ? `<div style="padding:4px 12px;background:var(--frox-gray-100)">${label}</div>` : ''}<pre style="margin:0;padding:10px 12px;background:#1e1e2e;color:#cdd6f4;overflow-x:auto;font-size:0.88em;font-family:monospace;line-height:1.5">${escaped}</pre></div>`);
+      continue;
+    }
     if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
       const tableLines: string[] = [line];
       i++;
