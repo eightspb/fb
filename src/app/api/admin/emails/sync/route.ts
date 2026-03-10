@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
-        function send(event: string, data: any) {
+        function send(event: string, data: unknown) {
           controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
         }
 
@@ -48,8 +48,9 @@ export async function GET(request: NextRequest) {
             errors: result.errors,
             lastSyncAt,
           });
-        } catch (error: any) {
-          send('error', { message: error.message });
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          send('error', { message });
         } finally {
           controller.close();
         }
@@ -63,9 +64,10 @@ export async function GET(request: NextRequest) {
         'Connection': 'keep-alive',
       },
     });
-  } catch (error: any) {
-    console.error('[CRM Emails] SSE sync error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[CRM Emails] SSE sync error:', message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -85,8 +87,9 @@ export async function POST() {
       errors: result.errors,
       lastSyncAt,
     });
-  } catch (error: any) {
-    console.error('[CRM Emails] Sync error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[CRM Emails] Sync error:', message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

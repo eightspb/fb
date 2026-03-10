@@ -82,7 +82,9 @@ export const researchJobs = {
       job.status = 'done';
       job.stage = undefined;
       job.finishedAt = new Date().toISOString();
-      activeByContact.delete(job.contactId);
+      if (activeByContact.get(job.contactId) === jobId) {
+        activeByContact.delete(job.contactId);
+      }
       scheduleCleanup(jobId);
     }
   },
@@ -94,7 +96,9 @@ export const researchJobs = {
       job.error = error;
       job.stage = undefined;
       job.finishedAt = new Date().toISOString();
-      activeByContact.delete(job.contactId);
+      if (activeByContact.get(job.contactId) === jobId) {
+        activeByContact.delete(job.contactId);
+      }
       scheduleCleanup(jobId);
     }
   },

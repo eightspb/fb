@@ -33,79 +33,56 @@ export function createEmailTransporter(): Transporter {
   const user = process.env.SMTP_USER!;
   const password = process.env.SMTP_PASSWORD!;
 
-  // Используем service для mail.ru, если это mail.ru домен
-  const isMailRu = user.includes('@mail.ru') || user.includes('@inbox.ru') || 
-                    user.includes('@list.ru') || user.includes('@bk.ru') ||
-                    host === 'smtp.mail.ru';
+  // Используем явную конфигурацию
+  const config: any = {
+    host,
+    port,
+    secure: port === 465, // SSL/TLS для порта 465
+    auth: {
+      user,
+      pass: password,
+    },
+    // Таймауты для предотвращения разрыва соединения
+    connectionTimeout: 60000, // 60 секунд
+    socketTimeout: 300000, // 5 минут
+    greetingTimeout: 30000, // 30 секунд
+  };
 
-  let transporter: Transporter;
-
-  // Для mail.ru всегда используем явную конфигурацию с правильными настройками
-  // Встроенная конфигурация может не работать корректно
-  if (false && isMailRu && !process.env.SMTP_HOST) {
-    // Используем встроенную конфигурацию для mail.ru (отключено, используем явную)
-    console.log('[SMTP] Использование встроенной конфигурации для Mail.ru');
-    transporter = nodemailer.createTransport({
-      service: 'Mail.ru',
-      auth: {
-        user,
-        pass: password,
-      },
-      connectionTimeout: 60000,
-      socketTimeout: 300000,
-    });
-  } else {
-    // Используем явную конфигурацию
-    const config: any = {
-      host,
-      port,
-      secure: port === 465, // SSL/TLS для порта 465
-      auth: {
-        user,
-        pass: password,
-      },
-      // Таймауты для предотвращения разрыва соединения
-      connectionTimeout: 60000, // 60 секунд
-      socketTimeout: 300000, // 5 минут
-      greetingTimeout: 30000, // 30 секунд
-    };
-
-    // Для порта 465 используем secure: true, для 587 - secure: false с STARTTLS
-    if (port === 587) {
-      config.secure = false;
-      config.requireTLS = true;
-    }
-
-    const rejectUnauthorized = parseBooleanEnv(process.env.SMTP_TLS_REJECT_UNAUTHORIZED, true);
-
-    // TLS настройки для mail.ru
-    config.tls = {
-      rejectUnauthorized, // По умолчанию true
-      minVersion: 'TLSv1.2', // Минимальная версия TLS
-    };
-
-    // Дополнительные опции для надежности соединения
-    config.pool = false; // Отключаем пул соединений для избежания проблем
-    config.maxConnections = 1;
-    config.maxMessages = 1;
-    
-    // Включаем отладку для nodemailer
-    config.debug = true;
-    config.logger = true;
-
-    // Принудительно используем IPv4, так как с IPv6 часто бывают проблемы
-    config.family = 4;
-
-    transporter = nodemailer.createTransport(config);
-    console.log('[SMTP] Транспортер создан с конфигурацией:', {
-      host,
-      port,
-      secure: config.secure,
-      requireTLS: config.requireTLS,
-      tls: config.tls
-    });
+  // Для порта 465 используем secure: true, для 587 - secure: false с STARTTLS
+  if (port === 587) {
+    config.secure = false;
+    config.requireTLS = true;
   }
-  
+
+  const rejectUnauthorized = parseBooleanEnv(process.env.SMTP_TLS_REJECT_UNAUTHORIZED, true);
+
+  // TLS настройки для mail.ru
+  config.tls = {
+    rejectUnauthorized, // По умолчанию true
+    minVersion: 'TLSv1.2', // Минимальная версия TLS
+  };
+
+  // Дополнительные опции для надежности соединения
+  config.pool = false; // Отключаем пул соединений для избежания проблем
+  config.maxConnections = 1;
+  config.maxMessages = 1;
+
+  // Включаем отладку для nodemailer только в development
+  config.debug = process.env.NODE_ENV !== 'production';
+  config.logger = process.env.NODE_ENV !== 'production';
+
+  // Принудительно используем IPv4, так как с IPv6 часто бывают проблемы
+  config.family = 4;
+
+  const transporter = nodemailer.createTransport(config);
+  console.log('[SMTP] Транспортер создан с конфигурацией:', {
+    host,
+    port,
+    secure: config.secure,
+    requireTLS: config.requireTLS,
+    tls: config.tls
+  });
+
   return transporter;
 }
 

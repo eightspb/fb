@@ -48,6 +48,16 @@ export const POST = withApiLogging('/api/request-cp', async (request: NextReques
   try {
     const body = await request.json();
     ({ name, phone, email, city, institution, formType = 'cp' } = body);
+
+    // Validate formType
+    const ALLOWED_FORM_TYPES = ['cp', 'training'];
+    if (!ALLOWED_FORM_TYPES.includes(formType)) {
+      return NextResponse.json(
+        { error: `Недопустимый тип формы: ${formType}` },
+        { status: 400 }
+      );
+    }
+
     console.log('[Request CP API] Данные формы получены:', {
       name,
       email,

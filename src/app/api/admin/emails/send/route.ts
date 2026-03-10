@@ -3,6 +3,7 @@ import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { createEmailTransporter, getSenderEmail, getSenderAddress } from '@/lib/email';
 import { saveOutboundEmail } from '@/lib/imap-client';
+import type Mail from 'nodemailer/lib/mailer';
 
 export const runtime = 'nodejs';
 
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
     const transporter = createEmailTransporter();
 
     // Формируем заголовки для threading
-    const mailOptions: any = {
+    const mailOptions: Mail.Options = {
       from: fromAddress,
       to,
       subject,
@@ -105,8 +106,9 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ success: true, email: saved });
-  } catch (error: any) {
-    console.error('[CRM Emails] Send error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[CRM Emails] Send error:', message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
