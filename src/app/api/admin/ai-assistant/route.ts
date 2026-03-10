@@ -139,6 +139,8 @@ const SYSTEM_PROMPT = `Ты — AI-ассистент CRM-системы для 
 9. Если вопрос не связан с БД — отвечай как обычный помощник
 10. При ошибке SQL объясни что пошло не так
 11. Когда уместно предложить пользователю варианты действий или уточняющие вопросы, добавь в конце ответа интерактивные кнопки в формате: [[btn:Текст кнопки]]. Каждая кнопка на отдельной строке. Используй это для: уточнений ("За какой период?"), предложений следующих шагов ("Показать подробнее", "Экспорт в CSV"), вариантов фильтрации. Не злоупотребляй — добавляй кнопки только когда это действительно полезно.
+12. Когда пользователь спрашивает о конкретном контакте, тебе автоматически предоставляются данные из CRM (карточка, заметки, переписка, заявки) в системном сообщении. Используй эти данные для ответа, не делай SQL-запрос если ответ уже есть. Если данных недостаточно — дополни SQL-запросом.
+13. При анализе контакта предлагай кнопки для углубления: "Показать всю переписку", "Показать заявки", "Показать заметки", "Похожие контакты".
 
 СХЕМА БД:
 ${DB_SCHEMA}`;
@@ -212,6 +214,133 @@ async function callAI(messages: Message[]): Promise<string> {
   return content.trim();
 }
 
+/**
+ * Ищет упоминание контакта в последнем сообщении пользователя.
+ * Если находит — возвращает обогащённый контекст: карточка + заметки + переписка.
+ */
+async function enrichWithContactContext(lastUserMessage: string): Promise<string | null> {
+  // Ищем паттерны: "о Иванове", "про Смирнову", "контакт Берберян", фамилию с заглавной буквы 2+ слова
+  // Также ищем по UUID если пользователь копирует ID
+  const uuidMatch = lastUserMessage.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+
+  let contactRows: Array<Record<string, unknown>> = [];
+  const client = await pool.connect();
+
+  try {
+    await client.query("SET statement_timeout = '5s'");
+
+    if (uuidMatch) {
+      const result = await client.query(
+        `SELECT id, full_name, email, phone, city, institution, speciality, tags, status, created_at
+         FROM contacts WHERE id = $1 LIMIT 1`,
+        [uuidMatch[0]]
+      );
+      contactRows = result.rows;
+    }
+
+    if (contactRows.length === 0) {
+      // Ищем по фамилии/имени — слова с заглавной буквы (кириллица)
+      const namePatterns = lastUserMessage.match(/[А-ЯЁ][а-яё]{2,}/g);
+      if (!namePatterns || namePatterns.length === 0) return null;
+
+      // Фильтруем служебные слова
+      const stopWords = new Set([
+        'Покажи', 'Найди', 'Расскажи', 'Информация', 'Данные', 'Контакт', 'Переписка',
+        'Заметки', 'Что', 'Кто', 'Как', 'Где', 'Когда', 'Сколько', 'Какие', 'Какой',
+        'Какая', 'Все', 'Вся', 'Про', 'Для', 'Email', 'Статистика', 'Последние',
+        'Новые', 'Старые', 'Подробнее', 'Список',
+      ]);
+      const candidates = namePatterns.filter(w => !stopWords.has(w) && w.length >= 3);
+      if (candidates.length === 0) return null;
+
+      // Ищем контакт по ILIKE на каждом кандидате
+      const conditions = candidates.map((_, i) => `full_name ILIKE $${i + 1}`).join(' AND ');
+      const params = candidates.map(c => `%${c}%`);
+
+      const result = await client.query(
+        `SELECT id, full_name, email, phone, city, institution, speciality, tags, status, created_at
+         FROM contacts WHERE ${conditions} LIMIT 5`,
+        params
+      );
+      contactRows = result.rows;
+    }
+
+    if (contactRows.length === 0) return null;
+
+    // Если нашли несколько — берём всех (до 3), но подробно обогащаем только первого
+    const contactIds = contactRows.slice(0, 3).map(r => r.id as string);
+    const parts: string[] = [];
+
+    for (const contact of contactRows.slice(0, 3)) {
+      const cId = contact.id as string;
+      const contactInfo = Object.entries(contact)
+        .filter(([, v]) => v !== null && v !== '' && v !== undefined)
+        .map(([k, v]) => `  ${k}: ${Array.isArray(v) ? (v as string[]).join(', ') : String(v)}`)
+        .join('\n');
+
+      parts.push(`📋 Карточка контакта:\n${contactInfo}`);
+
+      // Заметки
+      const notesResult = await client.query(
+        `SELECT title, content, source, pinned, created_at FROM contact_notes
+         WHERE contact_id = $1 ORDER BY pinned DESC, created_at DESC LIMIT 10`,
+        [cId]
+      );
+      if (notesResult.rows.length > 0) {
+        const notesText = notesResult.rows.map((n: Record<string, unknown>) => {
+          const prefix = n.pinned ? '📌 ' : '';
+          const title = n.title ? `[${n.title}] ` : '';
+          const content = String(n.content).slice(0, 500);
+          return `  ${prefix}${title}(${n.source}, ${new Date(n.created_at as string).toLocaleDateString('ru-RU')}): ${content}`;
+        }).join('\n');
+        parts.push(`📝 Заметки (${notesResult.rows.length}):\n${notesText}`);
+      }
+
+      // Email-переписка
+      const emailResult = await client.query(
+        `SELECT direction, from_address, to_addresses, subject, body_text, sent_at FROM crm_emails
+         WHERE contact_email = $1 OR contact_email = $2
+         ORDER BY sent_at DESC LIMIT 15`,
+        [contact.email || '', contact.email || '__no_email__']
+      );
+      if (emailResult.rows.length > 0) {
+        const emailsText = emailResult.rows.map((e: Record<string, unknown>) => {
+          const dir = e.direction === 'inbound' ? '📥' : '📤';
+          const date = new Date(e.sent_at as string).toLocaleDateString('ru-RU');
+          const body = String(e.body_text || '').slice(0, 300);
+          return `  ${dir} ${date} | ${e.subject || '(без темы)'}\n    ${body}`;
+        }).join('\n');
+        parts.push(`📧 Переписка (${emailResult.rows.length} писем):\n${emailsText}`);
+      }
+
+      // Заявки
+      const submissionsResult = await client.query(
+        `SELECT form_type, status, message, page_url, created_at FROM form_submissions
+         WHERE contact_id = $1 ORDER BY created_at DESC LIMIT 5`,
+        [cId]
+      );
+      if (submissionsResult.rows.length > 0) {
+        const subsText = submissionsResult.rows.map((s: Record<string, unknown>) => {
+          const date = new Date(s.created_at as string).toLocaleDateString('ru-RU');
+          return `  ${date} | ${s.form_type} (${s.status})${s.message ? ': ' + String(s.message).slice(0, 200) : ''}`;
+        }).join('\n');
+        parts.push(`📋 Заявки (${submissionsResult.rows.length}):\n${subsText}`);
+      }
+    }
+
+    if (contactRows.length > 3) {
+      parts.push(`\n⚠️ Найдено ещё ${contactRows.length - 3} контактов, показаны первые 3.`);
+    }
+
+    return parts.join('\n\n');
+  } catch (err) {
+    console.warn('[AI Assistant] Contact enrichment failed:', err);
+    return null;
+  } finally {
+    client.release();
+  }
+}
+
 function extractSql(text: string): string | null {
   const match = text.match(/```sql\s*([\s\S]*?)\s*```/i);
   if (!match) return null;
@@ -240,10 +369,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'messages required' }, { status: 400 });
   }
 
+  // Enrich with contact context if a contact is mentioned
+  const lastUserMsg = messages[messages.length - 1]?.content || '';
+  let contextEnrichment: string | null = null;
+  try {
+    contextEnrichment = await enrichWithContactContext(lastUserMsg);
+  } catch { /* ignore enrichment errors */ }
+
   const aiMessages: Message[] = [
     { role: 'system', content: SYSTEM_PROMPT },
     ...messages,
   ];
+
+  // Inject enrichment as a system message before the last user message
+  if (contextEnrichment) {
+    const enrichmentMsg: Message = {
+      role: 'system',
+      content: `КОНТЕКСТ: Ниже — данные из CRM о контакте, упомянутом пользователем. Используй эту информацию для ответа. Не нужно делать SQL-запрос, если ответ уже есть в этих данных.\n\n${contextEnrichment}`,
+    };
+    // Insert before the last user message
+    aiMessages.splice(aiMessages.length - 1, 0, enrichmentMsg);
+    console.log(`[AI Assistant] Enriched context with contact data (${contextEnrichment.length} chars)`);
+  }
 
   try {
     const firstReply = await callAI(aiMessages);
