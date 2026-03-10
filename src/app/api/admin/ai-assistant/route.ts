@@ -288,7 +288,7 @@ export async function POST(request: NextRequest) {
           sendEvent('action', { text: '🔍 Ищу контакт в базе данных...' });
         }
 
-        let enrichmentResult: { context: string; actionsPerformed: string[] } | null = null;
+        let enrichmentResult: { context: string; actionsPerformed: string[]; contactIds: string[] } | null = null;
 
         // Override enrichWithContactContext to emit live action events
         enrichmentResult = await enrichWithContactContextStreaming(lastUserMsg, (actionText) => {
@@ -314,7 +314,11 @@ export async function POST(request: NextRequest) {
         const rawSql = extractSql(firstReply);
 
         if (!rawSql) {
-          sendEvent('reply', { reply: firstReply, actionsPerformed: enrichmentResult?.actionsPerformed ?? [] });
+          sendEvent('reply', {
+            reply: firstReply,
+            actionsPerformed: enrichmentResult?.actionsPerformed ?? [],
+            contactIds: enrichmentResult?.contactIds ?? [],
+          });
           controller.close();
           return;
         }
@@ -376,6 +380,7 @@ export async function POST(request: NextRequest) {
           sql: safeSql,
           sqlResult: rows,
           actionsPerformed: enrichmentResult?.actionsPerformed ?? [],
+          contactIds: enrichmentResult?.contactIds ?? [],
         });
 
       } catch (err) {
@@ -403,7 +408,7 @@ export async function POST(request: NextRequest) {
 async function enrichWithContactContextStreaming(
   lastUserMessage: string,
   onAction: (text: string) => void
-): Promise<{ context: string; actionsPerformed: string[] } | null> {
+): Promise<{ context: string; actionsPerformed: string[]; contactIds: string[] } | null> {
   const uuidMatch = lastUserMessage.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
 
   let contactRows: Array<Record<string, unknown>> = [];
@@ -584,7 +589,11 @@ async function enrichWithContactContextStreaming(
       parts.push(`\n⚠️ Найдено ещё ${contactRows.length - 3} контактов, показаны первые 3.`);
     }
 
-    return { context: parts.join('\n\n'), actionsPerformed };
+    return {
+      context: parts.join('\n\n'),
+      actionsPerformed,
+      contactIds: contactRows.slice(0, 3).map(c => c.id as string),
+    };
   } catch (err) {
     console.warn('[AI Assistant] Contact enrichment (streaming) failed:', err);
     return null;
