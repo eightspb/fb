@@ -50,9 +50,9 @@ export async function upsertContact(
         city        = COALESCE(NULLIF(city, ''),        $4),
         institution = COALESCE(NULLIF(institution, ''), $5),
         speciality  = COALESCE(NULLIF(speciality, ''),  $6),
-        tags        = CASE WHEN $7 = ANY(tags) THEN tags ELSE array_append(tags, $7) END,
-        source_urls = CASE WHEN $8 IS NULL OR $8 = ANY(source_urls) THEN source_urls
-                          ELSE array_append(source_urls, $8) END,
+        tags        = CASE WHEN $7::text = ANY(tags) THEN tags ELSE array_append(tags, $7::text) END,
+        source_urls = CASE WHEN $8::text IS NULL OR $8::text = ANY(source_urls) THEN source_urls
+                          ELSE array_append(source_urls, $8::text) END,
         import_source = CASE WHEN import_source = 'tilda' THEN 'form' ELSE import_source END,
         updated_at  = NOW()
        WHERE id = $1`,

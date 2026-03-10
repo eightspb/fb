@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
 
         await client.query(
           `INSERT INTO form_submissions (form_type, name, email, phone, city, institution, status, page_url, metadata, contact_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8::text, $9::jsonb, $10)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8::text, $9::jsonb, $10::uuid)`,
           [
             'conference_registration',
             body.name,
