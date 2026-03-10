@@ -51,6 +51,6 @@ RETURNS TABLE (
 $$ LANGUAGE sql STABLE;
 
 -- Трекинг миграции
-INSERT INTO schema_migrations (version, name)
-VALUES (19, '019_vector_search')
-ON CONFLICT (version) DO NOTHING;
+INSERT INTO schema_migrations (name)
+VALUES ('019_vector_search')
+ON CONFLICT (name) DO NOTHING;
