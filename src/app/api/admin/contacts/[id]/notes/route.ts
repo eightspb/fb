@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { indexNoteEmbedding } from '@/lib/embedding-utils';
 
 export const runtime = 'nodejs';
 
@@ -78,7 +79,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       [id, title?.trim() || null, content.trim(), noteSource, pinned || false, metadata || {}]
     );
 
-    return NextResponse.json(result.rows[0], { status: 201 });
+    const note = result.rows[0];
+
+    // Fire-and-forget embedding indexing
+    void indexNoteEmbedding(note.id, content.trim(), id);
+
+    return NextResponse.json(note, { status: 201 });
   } finally {
     client.release();
   }

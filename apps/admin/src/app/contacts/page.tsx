@@ -971,6 +971,8 @@ function ContactPanel({
   const [researching, setResearching] = useState(false);
   const [deepResearching, setDeepResearching] = useState(false);
   const [researchError, setResearchError] = useState<string | null>(null);
+  const [researchStage, setResearchStage] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [panelNotes, setPanelNotes] = useState<PanelNote[]>([]);
   const [notesLoading, setNotesLoading] = useState(true);
   const [newNoteOpen, setNewNoteOpen] = useState(false);
@@ -981,6 +983,7 @@ function ContactPanel({
   const [editingNoteSaving, setEditingNoteSaving] = useState(false);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [collapsedNotes, setCollapsedNotes] = useState<Set<string>>(new Set());
+  const [deleteConfirmNoteId, setDeleteConfirmNoteId] = useState<string | null>(null);
   const { width: panelWidth, onResizeStart } = usePanelResize();
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement>(null);
@@ -999,6 +1002,71 @@ function ContactPanel({
 
   useEffect(() => { loadNotes(); }, [loadNotes]);
 
+  // Cleanup poll interval on unmount or contact change
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [contact.id]);
+
+  const startPolling = useCallback((jobId: string, type: 'ai' | 'deep') => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    const endpoint = type === 'deep' ? 'deep-research' : 'research';
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/admin/contacts/${contact.id}/${endpoint}?jobId=${jobId}`, {
+          credentials: 'include',
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.status === 'running') {
+          setResearchStage(data.stage || (type === 'deep' ? 'Deep Research...' : 'Исследование...'));
+        } else if (data.status === 'done') {
+          if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+          setResearchStage(null);
+          if (type === 'deep') setDeepResearching(false); else setResearching(false);
+          loadNotes();
+        } else if (data.status === 'error') {
+          if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+          setResearchStage(null);
+          if (type === 'deep') setDeepResearching(false); else setResearching(false);
+          setResearchError(data.error || 'Ошибка при исследовании');
+        }
+      } catch { /* silent, will retry on next tick */ }
+    }, 2000);
+  }, [contact.id, loadNotes]);
+
+  // Check for active research job on mount (e.g., if panel was re-opened)
+  useEffect(() => {
+    let cancelled = false;
+    async function checkActive() {
+      try {
+        // Check both endpoints for active jobs
+        const [resRes, deepRes] = await Promise.all([
+          fetch(`/api/admin/contacts/${contact.id}/research`, { credentials: 'include' }),
+          fetch(`/api/admin/contacts/${contact.id}/deep-research`, { credentials: 'include' }),
+        ]);
+        if (cancelled) return;
+        const resData = await resRes.json();
+        const deepData = await deepRes.json();
+        if (resData.status === 'running') {
+          setResearching(true);
+          setResearchStage(resData.stage || 'Исследование...');
+          startPolling(resData.id, 'ai');
+        } else if (deepData.status === 'running') {
+          setDeepResearching(true);
+          setResearchStage(deepData.stage || 'Deep Research...');
+          startPolling(deepData.id, 'deep');
+        }
+      } catch { /* silent */ }
+    }
+    checkActive();
+    return () => { cancelled = true; };
+  }, [contact.id, startPolling]);
+
   useEffect(() => {
     if (!showStatusMenu) return;
     const handler = (e: MouseEvent) => {
@@ -1013,40 +1081,56 @@ function ContactPanel({
   const handleResearch = async () => {
     setResearching(true);
     setResearchError(null);
+    setResearchStage('Запуск AI исследования...');
     try {
       const res = await adminCsrfFetch(`/api/admin/contacts/${contact.id}/research`, {
         method: 'POST', credentials: 'include',
       });
-      if (res.ok) {
-        loadNotes();
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.jobId) {
+        startPolling(data.jobId, 'ai');
+      } else if (res.status === 409 && data?.jobId) {
+        // Already running — start polling existing job
+        setResearchStage(data.error || 'Исследование уже запущено...');
+        startPolling(data.jobId, 'ai');
       } else {
-        const data = await res.json().catch(() => null);
+        setResearching(false);
+        setResearchStage(null);
         setResearchError(data?.error || 'Ошибка при исследовании');
       }
     } catch {
-      setResearchError('Ошибка подключения к серверу');
-    } finally {
       setResearching(false);
+      setResearchStage(null);
+      setResearchError('Ошибка подключения к серверу');
     }
   };
 
   const handleDeepResearch = async () => {
     setDeepResearching(true);
     setResearchError(null);
+    setResearchStage('Запуск Deep Research...');
     try {
       const res = await adminCsrfFetch(`/api/admin/contacts/${contact.id}/deep-research`, {
         method: 'POST', credentials: 'include',
       });
-      if (res.ok) {
-        loadNotes();
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.jobId) {
+        startPolling(data.jobId, 'deep');
+      } else if (res.status === 409 && data?.jobId) {
+        // Already running — start polling existing job
+        setResearchStage(data.error || 'Исследование уже запущено...');
+        const existingType = data.error?.includes('Deep') ? 'deep' : 'ai';
+        if (existingType === 'ai') { setDeepResearching(false); setResearching(true); }
+        startPolling(data.jobId, existingType);
       } else {
-        const data = await res.json().catch(() => null);
+        setDeepResearching(false);
+        setResearchStage(null);
         setResearchError(data?.error || 'Ошибка при глубоком исследовании');
       }
     } catch {
-      setResearchError('Ошибка подключения к серверу');
-    } finally {
       setDeepResearching(false);
+      setResearchStage(null);
+      setResearchError('Ошибка подключения к серверу');
     }
   };
 
@@ -1303,6 +1387,13 @@ function ContactPanel({
                 </button>
               </div>
             </div>
+            {researchStage && (
+              <div className="flex items-center gap-2 p-2.5 mb-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
+                <span className="flex-1">{researchStage}</span>
+                <span className="text-[10px] text-blue-400">Подождите...</span>
+              </div>
+            )}
             {researchError && (
               <div className="flex items-center gap-2 p-2.5 mb-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -1375,21 +1466,42 @@ function ContactPanel({
                               <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${srcCfg.cls}`}>{srcCfg.label}</span>
                             )}
                           </div>
-                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0">
-                            <button
-                              onClick={() => startEditNote(note)}
-                              className="p-0.5 text-[var(--frox-gray-300)] hover:text-[var(--frox-gray-600)] transition-colors"
-                              title="Редактировать"
-                            >
-                              <Pencil className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteNote(note.id)}
-                              className="p-0.5 text-[var(--frox-gray-300)] hover:text-red-500 transition-colors"
-                              title="Удалить"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
+                          <div className={`flex items-center gap-0.5 shrink-0 transition-all ${deleteConfirmNoteId === note.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                            {deleteConfirmNoteId === note.id ? (
+                              <>
+                                <button
+                                  onClick={() => { handleDeleteNote(note.id); setDeleteConfirmNoteId(null); }}
+                                  className="p-0.5 text-red-500 hover:text-red-600 transition-colors"
+                                  title="Подтвердить удаление"
+                                >
+                                  <Check className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => setDeleteConfirmNoteId(null)}
+                                  className="p-0.5 text-[var(--frox-gray-300)] hover:text-[var(--frox-gray-600)] transition-colors"
+                                  title="Отмена"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => startEditNote(note)}
+                                  className="p-0.5 text-[var(--frox-gray-300)] hover:text-[var(--frox-gray-600)] transition-colors"
+                                  title="Редактировать"
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => setDeleteConfirmNoteId(note.id)}
+                                  className="p-0.5 text-[var(--frox-gray-300)] hover:text-red-500 transition-colors"
+                                  title="Удалить"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </div>
                         {!isCollapsed && (
