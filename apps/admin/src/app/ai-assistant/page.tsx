@@ -8,6 +8,7 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   sql?: string;
+  actionLog?: string[];
 }
 
 interface ChatSession {
@@ -147,6 +148,7 @@ export default function AiAssistantPage() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [liveActionLog, setLiveActionLog] = useState<string[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -271,6 +273,9 @@ export default function AiAssistantPage() {
     setInput('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
     setLoading(true);
+    setLiveActionLog([]);
+
+    const capturedSessionId = sessionId;
 
     try {
       const response = await adminCsrfFetch('/api/admin/ai-assistant', {
@@ -281,28 +286,72 @@ export default function AiAssistantPage() {
         }),
       });
 
-      const data = await response.json() as { reply?: string; sql?: string; error?: string };
-
-      if (!response.ok || data.error) {
-        updateSessionMessages(sessionId, [...newMessages, {
+      if (!response.ok || !response.body) {
+        const data = await response.json() as { error?: string };
+        updateSessionMessages(capturedSessionId, [...newMessages, {
           role: 'assistant',
           content: `❌ Ошибка: ${data.error || 'Что-то пошло не так'}`,
         }]);
         return;
       }
 
-      updateSessionMessages(sessionId, [...newMessages, {
-        role: 'assistant',
-        content: data.reply || '',
-        sql: data.sql,
-      }]);
+      // Read SSE stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        // Parse SSE events from buffer
+        const events = buffer.split('\n\n');
+        buffer = events.pop() ?? '';
+
+        for (const eventBlock of events) {
+          const lines = eventBlock.split('\n');
+          let eventName = '';
+          let eventData = '';
+          for (const line of lines) {
+            if (line.startsWith('event: ')) eventName = line.slice(7).trim();
+            if (line.startsWith('data: ')) eventData = line.slice(6).trim();
+          }
+          if (!eventName || !eventData) continue;
+
+          try {
+            const parsed = JSON.parse(eventData) as Record<string, unknown>;
+
+            if (eventName === 'action') {
+              setLiveActionLog(prev => [...prev, String(parsed.text || '')]);
+            } else if (eventName === 'reply') {
+              const actionLog = (parsed.actionsPerformed as string[] | undefined) ?? [];
+              updateSessionMessages(capturedSessionId, [...newMessages, {
+                role: 'assistant',
+                content: String(parsed.reply || ''),
+                sql: parsed.sql ? String(parsed.sql) : undefined,
+                actionLog,
+              }]);
+              setLiveActionLog([]);
+            } else if (eventName === 'error') {
+              updateSessionMessages(capturedSessionId, [...newMessages, {
+                role: 'assistant',
+                content: `❌ Ошибка: ${String(parsed.error || 'Что-то пошло не так')}`,
+              }]);
+              setLiveActionLog([]);
+            }
+          } catch { /* ignore parse errors */ }
+        }
+      }
     } catch {
-      updateSessionMessages(sessionId, [...newMessages, {
+      updateSessionMessages(capturedSessionId, [...newMessages, {
         role: 'assistant',
         content: '❌ Ошибка сети. Попробуйте снова.',
       }]);
+      setLiveActionLog([]);
     } finally {
       setLoading(false);
+      setLiveActionLog([]);
     }
   }
 
@@ -481,7 +530,7 @@ export default function AiAssistantPage() {
                   onQuickReply={loading ? undefined : (text) => sendMessage(text)}
                 />
               ))}
-              {loading && <TypingIndicator />}
+              {loading && <LiveActionLog log={liveActionLog} />}
               <div ref={bottomRef} />
             </div>
           )}
@@ -629,6 +678,21 @@ function MessageBubble({ message, isLast, onQuickReply }: {
       </div>
 
       <div style={{ maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {/* Action log (автоматически выполненные действия) */}
+        {!isUser && message.actionLog && message.actionLog.length > 0 && (
+          <div style={{
+            padding: '8px 12px', borderRadius: 10,
+            background: 'var(--frox-gray-50)',
+            border: '1px solid var(--frox-gray-200)',
+            fontSize: '0.78em', color: 'var(--frox-gray-500)',
+            display: 'flex', flexDirection: 'column', gap: 3,
+          }}>
+            {message.actionLog.map((action, i) => (
+              <div key={i} dangerouslySetInnerHTML={{ __html: inlineFormat(action) }} />
+            ))}
+          </div>
+        )}
+
         <div style={{
           padding: '10px 14px',
           borderRadius: isUser ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
@@ -702,7 +766,8 @@ function MessageBubble({ message, isLast, onQuickReply }: {
   );
 }
 
-function TypingIndicator() {
+/** Живой лог действий во время обработки */
+function LiveActionLog({ log }: { log: string[] }) {
   return (
     <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
       <div style={{
@@ -713,17 +778,35 @@ function TypingIndicator() {
         <Bot size={16} color="var(--frox-gray-600)" />
       </div>
       <div style={{
-        padding: '12px 16px', borderRadius: '4px 16px 16px 16px',
+        padding: '10px 14px', borderRadius: '4px 16px 16px 16px',
         background: 'white', border: '1px solid var(--frox-gray-200)',
-        display: 'flex', gap: 5, alignItems: 'center',
+        minWidth: 200,
       }}>
-        {[0, 1, 2].map(i => (
-          <div key={i} style={{
-            width: 7, height: 7, borderRadius: '50%',
-            background: 'var(--frox-gray-400)',
-            animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite`,
-          }} />
-        ))}
+        {log.length === 0 ? (
+          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+            {[0, 1, 2].map(i => (
+              <div key={i} style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: 'var(--frox-gray-400)',
+                animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite`,
+              }} />
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {log.map((line, i) => (
+              <div key={i} style={{
+                fontSize: '0.82em', color: i === log.length - 1 ? 'var(--frox-gray-700)' : 'var(--frox-gray-400)',
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+                {i === log.length - 1 && (
+                  <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--frox-blue)', flexShrink: 0, animation: 'pulse 1s ease-in-out infinite' }} />
+                )}
+                <span dangerouslySetInnerHTML={{ __html: inlineFormat(line) }} />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
