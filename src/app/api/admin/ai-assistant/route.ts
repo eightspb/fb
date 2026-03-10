@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { researchContactWithAI } from '@/lib/openrouter';
+import { syncAll } from '@/lib/imap-client';
 
 export const runtime = 'nodejs';
 
@@ -226,145 +228,6 @@ async function callAI(messages: Message[]): Promise<string> {
   return content.trim();
 }
 
-/**
- * Ищет упоминание контакта в последнем сообщении пользователя.
- * Если находит — возвращает обогащённый контекст: карточка + заметки + переписка.
- */
-async function enrichWithContactContext(lastUserMessage: string): Promise<string | null> {
-  // Ищем паттерны: "о Иванове", "про Смирнову", "контакт Берберян", фамилию с заглавной буквы 2+ слова
-  // Также ищем по UUID если пользователь копирует ID
-  const uuidMatch = lastUserMessage.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-
-  let contactRows: Array<Record<string, unknown>> = [];
-  const client = await pool.connect();
-
-  try {
-    await client.query("SET statement_timeout = '5s'");
-
-    if (uuidMatch) {
-      const result = await client.query(
-        `SELECT id, full_name, email, phone, city, institution, speciality, tags, status, created_at
-         FROM contacts WHERE id = $1 LIMIT 1`,
-        [uuidMatch[0]]
-      );
-      contactRows = result.rows;
-    }
-
-    if (contactRows.length === 0) {
-      // Ищем по фамилии/имени — слова с заглавной буквы (кириллица)
-      const namePatterns = lastUserMessage.match(/[А-ЯЁ][а-яё]{2,}/g);
-      if (!namePatterns || namePatterns.length === 0) return null;
-
-      // Фильтруем служебные слова
-      const stopWords = new Set([
-        'Покажи', 'Найди', 'Расскажи', 'Информация', 'Данные', 'Контакт', 'Переписка',
-        'Заметки', 'Что', 'Кто', 'Как', 'Где', 'Когда', 'Сколько', 'Какие', 'Какой',
-        'Какая', 'Все', 'Вся', 'Про', 'Для', 'Email', 'Статистика', 'Последние',
-        'Новые', 'Старые', 'Подробнее', 'Список',
-      ]);
-      const candidates = namePatterns.filter(w => !stopWords.has(w) && w.length >= 3);
-      if (candidates.length === 0) return null;
-
-      // Ищем контакт по ILIKE на каждом кандидате
-      const conditions = candidates.map((_, i) => `full_name ILIKE $${i + 1}`).join(' AND ');
-      const params = candidates.map(c => `%${c}%`);
-
-      const result = await client.query(
-        `SELECT id, full_name, email, phone, city, institution, speciality, tags, status, created_at
-         FROM contacts WHERE ${conditions} LIMIT 5`,
-        params
-      );
-      contactRows = result.rows;
-    }
-
-    if (contactRows.length === 0) return null;
-
-    // Если нашли несколько — берём всех (до 3), но подробно обогащаем только первого
-    const contactIds = contactRows.slice(0, 3).map(r => r.id as string);
-    const parts: string[] = [];
-
-    for (const contact of contactRows.slice(0, 3)) {
-      const cId = contact.id as string;
-      const contactInfo = Object.entries(contact)
-        .filter(([, v]) => v !== null && v !== '' && v !== undefined)
-        .map(([k, v]) => `  ${k}: ${Array.isArray(v) ? (v as string[]).join(', ') : String(v)}`)
-        .join('\n');
-
-      parts.push(`📋 Карточка контакта:\n${contactInfo}`);
-
-      // Заметки (только pinned + последние 5, краткое содержание)
-      const notesResult = await client.query(
-        `SELECT title, content, source, pinned, created_at FROM contact_notes
-         WHERE contact_id = $1 ORDER BY pinned DESC, created_at DESC LIMIT 5`,
-        [cId]
-      );
-      const totalNotesResult = await client.query(
-        `SELECT count(*)::int as cnt FROM contact_notes WHERE contact_id = $1`, [cId]
-      );
-      const totalNotes = totalNotesResult.rows[0]?.cnt || 0;
-      if (notesResult.rows.length > 0) {
-        const notesText = notesResult.rows.map((n: Record<string, unknown>) => {
-          const prefix = n.pinned ? '📌 ' : '';
-          const title = n.title ? `[${n.title}] ` : '';
-          const content = String(n.content).slice(0, 250);
-          return `  ${prefix}${title}(${n.source}, ${new Date(n.created_at as string).toLocaleDateString('ru-RU')}): ${content}${String(n.content).length > 250 ? '...' : ''}`;
-        }).join('\n');
-        const moreNote = totalNotes > 5 ? `\n  (ещё ${totalNotes - 5} заметок, доступны по запросу)` : '';
-        parts.push(`📝 Заметки (${totalNotes}):\n${notesText}${moreNote}`);
-      }
-
-      // Email-переписка (краткая сводка: последние 5 + общее кол-во)
-      if (contact.email) {
-        const totalEmailsResult = await client.query(
-          `SELECT count(*)::int as cnt FROM crm_emails WHERE contact_email = $1`,
-          [contact.email]
-        );
-        const totalEmails = totalEmailsResult.rows[0]?.cnt || 0;
-
-        if (totalEmails > 0) {
-          const emailResult = await client.query(
-            `SELECT direction, subject, LEFT(body_text, 150) as body_preview, sent_at FROM crm_emails
-             WHERE contact_email = $1 ORDER BY sent_at DESC LIMIT 5`,
-            [contact.email]
-          );
-          const emailsText = emailResult.rows.map((e: Record<string, unknown>) => {
-            const dir = e.direction === 'inbound' ? '📥' : '📤';
-            const date = new Date(e.sent_at as string).toLocaleDateString('ru-RU');
-            return `  ${dir} ${date} | ${e.subject || '(без темы)'}${e.body_preview ? '\n    ' + String(e.body_preview).replace(/\n/g, ' ').trim() + '...' : ''}`;
-          }).join('\n');
-          const moreEmails = totalEmails > 5 ? `\n  (ещё ${totalEmails - 5} писем, доступны по запросу "Показать всю переписку")` : '';
-          parts.push(`📧 Переписка (${totalEmails} писем, последние 5):\n${emailsText}${moreEmails}`);
-        }
-      }
-
-      // Заявки (краткая сводка)
-      const submissionsResult = await client.query(
-        `SELECT form_type, status, LEFT(message, 100) as msg_preview, created_at FROM form_submissions
-         WHERE contact_id = $1 ORDER BY created_at DESC LIMIT 3`,
-        [cId]
-      );
-      if (submissionsResult.rows.length > 0) {
-        const subsText = submissionsResult.rows.map((s: Record<string, unknown>) => {
-          const date = new Date(s.created_at as string).toLocaleDateString('ru-RU');
-          return `  ${date} | ${s.form_type} (${s.status})${s.msg_preview ? ': ' + String(s.msg_preview) : ''}`;
-        }).join('\n');
-        parts.push(`📋 Заявки (${submissionsResult.rows.length}):\n${subsText}`);
-      }
-    }
-
-    if (contactRows.length > 3) {
-      parts.push(`\n⚠️ Найдено ещё ${contactRows.length - 3} контактов, показаны первые 3.`);
-    }
-
-    return parts.join('\n\n');
-  } catch (err) {
-    console.warn('[AI Assistant] Contact enrichment failed:', err);
-    return null;
-  } finally {
-    client.release();
-  }
-}
-
 function extractSql(text: string): string | null {
   const match = text.match(/```sql\s*([\s\S]*?)\s*```/i);
   if (!match) return null;
@@ -393,92 +256,329 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'messages required' }, { status: 400 });
   }
 
-  // Enrich with contact context if a contact is mentioned
-  const lastUserMsg = messages[messages.length - 1]?.content || '';
-  let contextEnrichment: string | null = null;
-  try {
-    contextEnrichment = await enrichWithContactContext(lastUserMsg);
-  } catch { /* ignore enrichment errors */ }
+  const encoder = new TextEncoder();
 
-  const aiMessages: Message[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
-    ...messages,
-  ];
-
-  // Inject enrichment as a system message before the last user message
-  if (contextEnrichment) {
-    const enrichmentMsg: Message = {
-      role: 'system',
-      content: `КОНТЕКСТ: Ниже — данные из CRM о контакте, упомянутом пользователем. Используй эту информацию для ответа. Не нужно делать SQL-запрос, если ответ уже есть в этих данных.\n\n${contextEnrichment}`,
-    };
-    // Insert before the last user message
-    aiMessages.splice(aiMessages.length - 1, 0, enrichmentMsg);
-    console.log(`[AI Assistant] Enriched context with contact data (${contextEnrichment.length} chars)`);
-  }
-
-  try {
-    const firstReply = await callAI(aiMessages);
-    const rawSql = extractSql(firstReply);
-
-    if (!rawSql) {
-      return NextResponse.json({ reply: firstReply });
-    }
-
-    // Validate: only SELECT or WITH
-    if (!/^\s*(SELECT|WITH)\b/i.test(rawSql)) {
-      return NextResponse.json({
-        reply: firstReply + '\n\n⚠️ Запрос отклонён: разрешены только SELECT-запросы.',
-        sql: rawSql,
-      });
-    }
-
-    const safeSql = ensureLimit(rawSql);
-
-    // Execute SQL with timeout
-    const client = await pool.connect();
-    let rows: unknown[];
-    let truncated = false;
-
-    try {
-      await client.query("SET statement_timeout = '10s'");
-      const result = await client.query(safeSql);
-      rows = result.rows;
-      if (rows.length > 50) {
-        rows = rows.slice(0, 50);
-        truncated = true;
+  const stream = new ReadableStream({
+    async start(controller) {
+      function sendEvent(event: string, data: unknown) {
+        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
       }
-    } catch (sqlError) {
-      const msg = sqlError instanceof Error ? sqlError.message : String(sqlError);
-      return NextResponse.json({
-        reply: firstReply + `\n\n❌ Ошибка выполнения SQL: ${msg}`,
-        sql: safeSql,
-      });
-    } finally {
-      client.release();
+
+      try {
+        const lastUserMsg = messages[messages.length - 1]?.content || '';
+
+        // Detect if a contact is mentioned — if so, start enrichment with live progress
+        const uuidMatch = lastUserMsg.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+        const namePatterns = lastUserMsg.match(/[А-ЯЁ][а-яё]{2,}/g);
+        const stopWords = new Set(['Покажи', 'Найди', 'Расскажи', 'Информация', 'Данные', 'Контакт', 'Переписка', 'Заметки', 'Что', 'Кто', 'Как', 'Где', 'Когда', 'Сколько', 'Какие', 'Какой', 'Какая', 'Все', 'Вся', 'Про', 'Для', 'Email', 'Статистика', 'Последние', 'Новые', 'Старые', 'Подробнее', 'Список']);
+        const nameCandidates = (namePatterns || []).filter(w => !stopWords.has(w) && w.length >= 3);
+        const mightMentionContact = !!(uuidMatch || nameCandidates.length >= 1);
+
+        if (mightMentionContact) {
+          sendEvent('action', { text: '🔍 Ищу контакт в базе данных...' });
+        }
+
+        let enrichmentResult: { context: string; actionsPerformed: string[] } | null = null;
+
+        // Override enrichWithContactContext to emit live action events
+        enrichmentResult = await enrichWithContactContextStreaming(lastUserMsg, (actionText) => {
+          sendEvent('action', { text: actionText });
+        });
+
+        const aiMessages: Message[] = [
+          { role: 'system', content: SYSTEM_PROMPT },
+          ...messages,
+        ];
+
+        if (enrichmentResult) {
+          const enrichmentMsg: Message = {
+            role: 'system',
+            content: `КОНТЕКСТ: Ниже — данные из CRM о контакте, упомянутом пользователем. Используй эту информацию для ответа. Не нужно делать SQL-запрос, если ответ уже есть в этих данных.\n\n${enrichmentResult.context}`,
+          };
+          aiMessages.splice(aiMessages.length - 1, 0, enrichmentMsg);
+        }
+
+        sendEvent('action', { text: '🤖 Формирую ответ...' });
+
+        const firstReply = await callAI(aiMessages);
+        const rawSql = extractSql(firstReply);
+
+        if (!rawSql) {
+          sendEvent('reply', { reply: firstReply, actionsPerformed: enrichmentResult?.actionsPerformed ?? [] });
+          controller.close();
+          return;
+        }
+
+        if (!/^\s*(SELECT|WITH)\b/i.test(rawSql)) {
+          sendEvent('reply', {
+            reply: firstReply + '\n\n⚠️ Запрос отклонён: разрешены только SELECT-запросы.',
+            sql: rawSql,
+            actionsPerformed: enrichmentResult?.actionsPerformed ?? [],
+          });
+          controller.close();
+          return;
+        }
+
+        const safeSql = ensureLimit(rawSql);
+        sendEvent('action', { text: '🗄️ Выполняю SQL-запрос к базе данных...' });
+
+        const client = await pool.connect();
+        let rows: unknown[];
+        let truncated = false;
+
+        try {
+          await client.query("SET statement_timeout = '10s'");
+          const result = await client.query(safeSql);
+          rows = result.rows;
+          if (rows.length > 50) {
+            rows = rows.slice(0, 50);
+            truncated = true;
+          }
+        } catch (sqlError) {
+          const msg = sqlError instanceof Error ? sqlError.message : String(sqlError);
+          sendEvent('reply', {
+            reply: firstReply + `\n\n❌ Ошибка выполнения SQL: ${msg}`,
+            sql: safeSql,
+            actionsPerformed: enrichmentResult?.actionsPerformed ?? [],
+          });
+          controller.close();
+          return;
+        } finally {
+          client.release();
+        }
+
+        sendEvent('action', { text: `📊 Получено ${rows.length} строк, интерпретирую результат...` });
+
+        const truncationNote = truncated ? ' (показаны первые 50 из большего числа строк)' : '';
+        const followUpMessages: Message[] = [
+          ...aiMessages,
+          { role: 'assistant', content: firstReply },
+          {
+            role: 'user',
+            content: `Результат SQL-запроса (${rows.length} строк${truncationNote}):\n${JSON.stringify(rows, null, 2)}`,
+          },
+        ];
+
+        const finalReply = await callAI(followUpMessages);
+
+        sendEvent('reply', {
+          reply: finalReply,
+          sql: safeSql,
+          sqlResult: rows,
+          actionsPerformed: enrichmentResult?.actionsPerformed ?? [],
+        });
+
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('[AI Assistant] Error:', err);
+        controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ error: msg })}\n\n`));
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    },
+  });
+}
+
+/**
+ * Версия enrichWithContactContext с колбэком для стриминга прогресса.
+ */
+async function enrichWithContactContextStreaming(
+  lastUserMessage: string,
+  onAction: (text: string) => void
+): Promise<{ context: string; actionsPerformed: string[] } | null> {
+  const uuidMatch = lastUserMessage.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+
+  let contactRows: Array<Record<string, unknown>> = [];
+  const client = await pool.connect();
+
+  try {
+    await client.query("SET statement_timeout = '10s'");
+
+    if (uuidMatch) {
+      const result = await client.query(
+        `SELECT id, full_name, email, phone, city, institution, speciality, tags, status, created_at
+         FROM contacts WHERE id = $1 LIMIT 1`,
+        [uuidMatch[0]]
+      );
+      contactRows = result.rows;
     }
 
-    // Send results back to AI for interpretation
-    const truncationNote = truncated ? ' (показаны первые 50 из большего числа строк)' : '';
-    const followUpMessages: Message[] = [
-      ...aiMessages,
-      { role: 'assistant', content: firstReply },
-      {
-        role: 'user',
-        content: `Результат SQL-запроса (${rows.length} строк${truncationNote}):\n${JSON.stringify(rows, null, 2)}`,
-      },
-    ];
+    if (contactRows.length === 0) {
+      const namePatterns = lastUserMessage.match(/[А-ЯЁ][а-яё]{2,}/g);
+      if (!namePatterns || namePatterns.length === 0) return null;
 
-    const finalReply = await callAI(followUpMessages);
+      const stopWords = new Set([
+        'Покажи', 'Найди', 'Расскажи', 'Информация', 'Данные', 'Контакт', 'Переписка',
+        'Заметки', 'Что', 'Кто', 'Как', 'Где', 'Когда', 'Сколько', 'Какие', 'Какой',
+        'Какая', 'Все', 'Вся', 'Про', 'Для', 'Email', 'Статистика', 'Последние',
+        'Новые', 'Старые', 'Подробнее', 'Список',
+      ]);
+      const candidates = namePatterns.filter(w => !stopWords.has(w) && w.length >= 3);
+      if (candidates.length === 0) return null;
 
-    return NextResponse.json({
-      reply: finalReply,
-      sql: safeSql,
-      sqlResult: rows,
-    });
+      const conditions = candidates.map((_, i) => `full_name ILIKE $${i + 1}`).join(' AND ');
+      const params = candidates.map(c => `%${c}%`);
 
+      const result = await client.query(
+        `SELECT id, full_name, email, phone, city, institution, speciality, tags, status, created_at
+         FROM contacts WHERE ${conditions} LIMIT 5`,
+        params
+      );
+      contactRows = result.rows;
+    }
+
+    if (contactRows.length === 0) return null;
+
+    const actionsPerformed: string[] = [];
+    const parts: string[] = [];
+
+    for (const contact of contactRows.slice(0, 3)) {
+      const cId = contact.id as string;
+
+      if (contactRows.length > 1) {
+        onAction(`📋 Загружаю данные контакта: **${contact.full_name}**`);
+      }
+
+      const contactInfo = Object.entries(contact)
+        .filter(([, v]) => v !== null && v !== '' && v !== undefined)
+        .map(([k, v]) => `  ${k}: ${Array.isArray(v) ? (v as string[]).join(', ') : String(v)}`)
+        .join('\n');
+
+      parts.push(`📋 Карточка контакта:\n${contactInfo}`);
+
+      // Проверяем наличие ai_research заметок
+      const aiResearchCountResult = await client.query(
+        `SELECT count(*)::int as cnt FROM contact_notes WHERE contact_id = $1 AND source = 'ai_research'`,
+        [cId]
+      );
+      const hasAiResearch = (aiResearchCountResult.rows[0]?.cnt || 0) > 0;
+
+      if (!hasAiResearch && contact.full_name && String(contact.full_name).trim().length > 0) {
+        onAction(`🔍 AI-исследование для **${contact.full_name}** не найдено — запускаю...`);
+        try {
+          const researchResult = await researchContactWithAI({
+            full_name: String(contact.full_name),
+            city: contact.city ? String(contact.city) : undefined,
+            institution: contact.institution ? String(contact.institution) : undefined,
+            speciality: contact.speciality ? String(contact.speciality) : undefined,
+            phone: contact.phone ? String(contact.phone) : undefined,
+            email: contact.email ? String(contact.email) : undefined,
+          });
+          const now = new Date().toLocaleDateString('ru-RU', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+          });
+          await client.query(
+            `INSERT INTO contact_notes (contact_id, title, content, source, metadata)
+             VALUES ($1, $2, $3, 'ai_research', $4)`,
+            [cId, `AI Исследование (${now})`, researchResult, JSON.stringify({ model: 'perplexity/sonar-pro', auto: true, timestamp: new Date().toISOString() })]
+          );
+          onAction(`✅ AI-исследование завершено и сохранено`);
+          actionsPerformed.push(`🔍 Проведено AI-исследование для **${contact.full_name}**`);
+        } catch (researchErr) {
+          console.warn(`[AI Assistant] Auto-research failed for ${cId}:`, researchErr);
+          onAction(`⚠️ Не удалось выполнить AI-исследование`);
+          actionsPerformed.push(`⚠️ Не удалось выполнить AI-исследование для **${contact.full_name}**`);
+        }
+      }
+
+      // Проверяем наличие писем
+      if (contact.email) {
+        const emailCountResult = await client.query(
+          `SELECT count(*)::int as cnt FROM crm_emails WHERE contact_email = $1`,
+          [contact.email]
+        );
+        const emailCount = emailCountResult.rows[0]?.cnt || 0;
+
+        if (emailCount === 0) {
+          onAction(`📬 Писем для **${contact.full_name}** нет — синхронизирую почту...`);
+          try {
+            await syncAll();
+            onAction(`✅ Синхронизация почты завершена`);
+            actionsPerformed.push(`📬 Выполнена синхронизация почты для **${contact.full_name}**`);
+          } catch (syncErr) {
+            console.warn(`[AI Assistant] Auto-email-sync failed for ${cId}:`, syncErr);
+            onAction(`⚠️ Не удалось синхронизировать почту`);
+          }
+        }
+      }
+
+      // Заметки (после возможного авто-research)
+      const notesResult = await client.query(
+        `SELECT title, content, source, pinned, created_at FROM contact_notes
+         WHERE contact_id = $1 ORDER BY pinned DESC, created_at DESC LIMIT 5`,
+        [cId]
+      );
+      const totalNotesResult = await client.query(
+        `SELECT count(*)::int as cnt FROM contact_notes WHERE contact_id = $1`, [cId]
+      );
+      const totalNotes = totalNotesResult.rows[0]?.cnt || 0;
+      if (notesResult.rows.length > 0) {
+        const notesText = notesResult.rows.map((n: Record<string, unknown>) => {
+          const prefix = n.pinned ? '📌 ' : '';
+          const title = n.title ? `[${n.title}] ` : '';
+          const content = String(n.content).slice(0, 250);
+          return `  ${prefix}${title}(${n.source}, ${new Date(n.created_at as string).toLocaleDateString('ru-RU')}): ${content}${String(n.content).length > 250 ? '...' : ''}`;
+        }).join('\n');
+        const moreNote = totalNotes > 5 ? `\n  (ещё ${totalNotes - 5} заметок, доступны по запросу)` : '';
+        parts.push(`📝 Заметки (${totalNotes}):\n${notesText}${moreNote}`);
+      }
+
+      // Переписка (после возможной авто-синхронизации)
+      if (contact.email) {
+        const totalEmailsResult = await client.query(
+          `SELECT count(*)::int as cnt FROM crm_emails WHERE contact_email = $1`,
+          [contact.email]
+        );
+        const totalEmails = totalEmailsResult.rows[0]?.cnt || 0;
+        if (totalEmails > 0) {
+          const emailResult = await client.query(
+            `SELECT direction, subject, LEFT(body_text, 150) as body_preview, sent_at FROM crm_emails
+             WHERE contact_email = $1 ORDER BY sent_at DESC LIMIT 5`,
+            [contact.email]
+          );
+          const emailsText = emailResult.rows.map((e: Record<string, unknown>) => {
+            const dir = e.direction === 'inbound' ? '📥' : '📤';
+            const date = new Date(e.sent_at as string).toLocaleDateString('ru-RU');
+            return `  ${dir} ${date} | ${e.subject || '(без темы)'}${e.body_preview ? '\n    ' + String(e.body_preview).replace(/\n/g, ' ').trim() + '...' : ''}`;
+          }).join('\n');
+          const moreEmails = totalEmails > 5 ? `\n  (ещё ${totalEmails - 5} писем)` : '';
+          parts.push(`📧 Переписка (${totalEmails} писем, последние 5):\n${emailsText}${moreEmails}`);
+        }
+      }
+
+      // Заявки
+      const submissionsResult = await client.query(
+        `SELECT form_type, status, LEFT(message, 100) as msg_preview, created_at FROM form_submissions
+         WHERE contact_id = $1 ORDER BY created_at DESC LIMIT 3`,
+        [cId]
+      );
+      if (submissionsResult.rows.length > 0) {
+        const subsText = submissionsResult.rows.map((s: Record<string, unknown>) => {
+          const date = new Date(s.created_at as string).toLocaleDateString('ru-RU');
+          return `  ${date} | ${s.form_type} (${s.status})${s.msg_preview ? ': ' + String(s.msg_preview) : ''}`;
+        }).join('\n');
+        parts.push(`📋 Заявки (${submissionsResult.rows.length}):\n${subsText}`);
+      }
+    }
+
+    if (contactRows.length > 3) {
+      parts.push(`\n⚠️ Найдено ещё ${contactRows.length - 3} контактов, показаны первые 3.`);
+    }
+
+    return { context: parts.join('\n\n'), actionsPerformed };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error('[AI Assistant] Error:', err);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.warn('[AI Assistant] Contact enrichment (streaming) failed:', err);
+    return null;
+  } finally {
+    client.release();
   }
 }
