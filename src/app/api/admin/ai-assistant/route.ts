@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { researchContactWithAI, getEmbedding } from '@/lib/openrouter';
+import { indexNoteEmbedding } from '@/lib/embedding-utils';
 import { syncAll } from '@/lib/imap-client';
 
 export const runtime = 'nodejs';
@@ -604,11 +605,21 @@ async function enrichWithContactContextStreaming(
             day: '2-digit', month: '2-digit', year: 'numeric',
             hour: '2-digit', minute: '2-digit',
           });
+          // Delete previous ai_research notes (replace, not duplicate)
           await client.query(
+            `DELETE FROM contact_notes WHERE contact_id = $1 AND source = 'ai_research'`,
+            [cId]
+          );
+          const noteResult = await client.query(
             `INSERT INTO contact_notes (contact_id, title, content, source, metadata)
-             VALUES ($1, $2, $3, 'ai_research', $4)`,
+             VALUES ($1, $2, $3, 'ai_research', $4)
+             RETURNING id`,
             [cId, `AI Исследование (${now})`, researchResult, JSON.stringify({ model: 'perplexity/sonar-pro', auto: true, timestamp: new Date().toISOString() })]
           );
+
+          // Fire-and-forget embedding indexing
+          void indexNoteEmbedding(noteResult.rows[0].id, researchResult, cId);
+
           onAction(`✅ AI-исследование завершено и сохранено`);
           actionsPerformed.push(`🔍 Проведено AI-исследование для **${contact.full_name}**`);
         } catch (researchErr) {

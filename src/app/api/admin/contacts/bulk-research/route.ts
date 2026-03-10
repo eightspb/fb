@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { researchContactWithAI } from '@/lib/openrouter';
+import { indexNoteEmbedding } from '@/lib/embedding-utils';
 
 export const runtime = 'nodejs';
 
@@ -182,14 +183,21 @@ async function runBulkResearch(job: BulkResearchJob, contactIds: string[]) {
         email: contact.email,
       });
 
+      // Delete previous ai_research notes for this contact (replace, not duplicate)
+      await client.query(
+        `DELETE FROM contact_notes WHERE contact_id = $1 AND source = 'ai_research'`,
+        [id]
+      );
+
       const now = new Date().toLocaleDateString('ru-RU', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit',
       });
 
-      await client.query(
+      const noteResult = await client.query(
         `INSERT INTO contact_notes (contact_id, title, content, source, metadata)
-         VALUES ($1, $2, $3, 'ai_research', $4)`,
+         VALUES ($1, $2, $3, 'ai_research', $4)
+         RETURNING id`,
         [
           id,
           `AI Исследование (${now})`,
@@ -198,6 +206,10 @@ async function runBulkResearch(job: BulkResearchJob, contactIds: string[]) {
         ]
       );
       await client.query('UPDATE contacts SET updated_at = NOW() WHERE id = $1', [id]);
+
+      // Fire-and-forget embedding indexing
+      const noteId = noteResult.rows[0].id;
+      void indexNoteEmbedding(noteId, result, id);
       job.succeeded++;
     } catch (err) {
       job.failed++;

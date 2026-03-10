@@ -11,7 +11,6 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
 });
 
-const AI_RESEARCH_HEADER = '── AI Исследование';
 const CONCURRENCY = 4;
 const REQUEST_TIMEOUT_MS = 180_000; // 3 минуты — perplexity иногда долго думает
 const LOG_FILE = '/tmp/research.log';
@@ -85,12 +84,25 @@ async function researchOne(
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit',
     });
-    const aiBlock = `${AI_RESEARCH_HEADER} (${now}) ──\n${researchResult}\n── конец исследования ──`;
+
+    // Delete previous ai_research notes (replace, not duplicate)
+    await client.query(
+      `DELETE FROM contact_notes WHERE contact_id = $1 AND source = 'ai_research'`,
+      [contact.id]
+    );
 
     await client.query(
-      'UPDATE contacts SET notes = $1, updated_at = NOW() WHERE id = $2',
-      [aiBlock, contact.id],
+      `INSERT INTO contact_notes (contact_id, title, content, source, metadata)
+       VALUES ($1, $2, $3, 'ai_research', $4)`,
+      [
+        contact.id,
+        `AI Исследование (${now})`,
+        researchResult,
+        JSON.stringify({ model: 'perplexity/sonar-pro', batch: true, timestamp: new Date().toISOString() }),
+      ]
     );
+
+    await client.query('UPDATE contacts SET updated_at = NOW() WHERE id = $1', [contact.id]);
 
     successCount++;
     doneCount++;
@@ -129,12 +141,15 @@ async function main() {
 
   try {
     const result = await client.query(`
-      SELECT id, full_name, city, institution, speciality, phone, email
-      FROM contacts
-      WHERE (notes IS NULL OR TRIM(notes) = '')
-        AND full_name IS NOT NULL
-        AND TRIM(full_name) != ''
-      ORDER BY created_at DESC
+      SELECT c.id, c.full_name, c.city, c.institution, c.speciality, c.phone, c.email
+      FROM contacts c
+      WHERE NOT EXISTS (
+        SELECT 1 FROM contact_notes cn
+        WHERE cn.contact_id = c.id AND cn.source IN ('ai_research', 'ai_deep_research')
+      )
+        AND c.full_name IS NOT NULL
+        AND TRIM(c.full_name) != ''
+      ORDER BY c.created_at DESC
     `);
     contacts = result.rows;
   } finally {

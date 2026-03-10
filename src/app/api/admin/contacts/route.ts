@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { researchContactWithAI } from '@/lib/openrouter';
+import { indexNoteEmbedding } from '@/lib/embedding-utils';
 
 export const runtime = 'nodejs';
 
@@ -193,9 +194,15 @@ async function triggerBackgroundResearch(contact: {
 
     const client = await pool.connect();
     try {
+      // Delete previous ai_research notes (replace, not duplicate)
       await client.query(
+        `DELETE FROM contact_notes WHERE contact_id = $1 AND source = 'ai_research'`,
+        [contact.id]
+      );
+      const noteResult = await client.query(
         `INSERT INTO contact_notes (contact_id, title, content, source, metadata)
-         VALUES ($1, $2, $3, 'ai_research', $4)`,
+         VALUES ($1, $2, $3, 'ai_research', $4)
+         RETURNING id`,
         [
           contact.id,
           `AI Исследование (${now})`,
@@ -203,6 +210,10 @@ async function triggerBackgroundResearch(contact: {
           JSON.stringify({ model: 'perplexity/sonar-pro', auto: true, timestamp: new Date().toISOString() }),
         ]
       );
+
+      // Fire-and-forget embedding indexing
+      const noteId = noteResult.rows[0].id;
+      void indexNoteEmbedding(noteId, researchResult, contact.id);
     } finally {
       client.release();
     }
