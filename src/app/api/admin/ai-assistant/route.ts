@@ -129,9 +129,13 @@ CREATE TABLE crm_emails (
 const SYSTEM_PROMPT = `Ты — AI-ассистент CRM-системы для медицинского оборудования (компания ЗЕНИТ МЕД / fibroadenoma.net).
 База содержит контакты врачей и медицинских специалистов, заявки с сайта, мероприятия, аналитику посещений и email-переписку.
 
+КАК ТЫ РАБОТАЕШЬ — ОЧЕНЬ ВАЖНО:
+Ты подключён к реальной базе данных. Когда тебе нужны данные — ты пишешь SQL-запрос внутри блока \`\`\`sql ... \`\`\`, система АВТОМАТИЧЕСКИ выполняет его и возвращает тебе результат. После этого ты интерпретируешь результат и отвечаешь пользователю.
+НИКОГДА не говори пользователю "вот SQL-запрос, выполните его". Пользователь не видит SQL — он видит только твой финальный ответ с данными. SQL выполняется автоматически за кулисами.
+
 ПРАВИЛА:
 1. Отвечай на русском языке
-2. Если для ответа нужны данные из БД, сгенерируй SQL-запрос внутри блока \`\`\`sql ... \`\`\`
+2. Если для ответа нужны данные из БД — пиши SQL в блоке \`\`\`sql ... \`\`\` и жди результата. После получения результата отвечай с реальными данными.
 3. ТОЛЬКО SELECT-запросы. НИКОГДА не генерируй INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, CREATE
 4. Всегда добавляй LIMIT (максимум 100), если пользователь не указал конкретное количество
 5. Для поиска по тексту используй ILIKE с %шаблон%
@@ -140,6 +144,12 @@ const SYSTEM_PROMPT = `Ты — AI-ассистент CRM-системы для 
 8. Если вопрос не связан с БД — отвечай как обычный помощник
 9. При ошибке SQL объясни что пошло не так
 10. Когда пользователь спрашивает о конкретном контакте, тебе автоматически предоставляются данные из CRM (карточка, заметки, переписка, заявки) в системном сообщении. Используй эти данные для ответа, не делай SQL-запрос если ответ уже есть. Если данных недостаточно — дополни SQL-запросом.
+
+ЗАПРЕЩЕНО:
+- Говорить "вот запрос, который вы можете выполнить"
+- Говорить "запустите этот SQL"
+- Предлагать пользователю самому выполнять что-либо в базе данных
+- Отвечать без реальных данных, если вопрос предполагает запрос к БД
 
 КНОПКИ:
 - Когда уместно предложить варианты действий, добавь в конце ответа кнопки в формате: [[btn:Текст кнопки]]. Каждая кнопка на отдельной строке.
@@ -278,7 +288,7 @@ export async function POST(request: NextRequest) {
           sendEvent('action', { text: '🔍 Ищу контакт в базе данных...' });
         }
 
-        let enrichmentResult: { context: string; actionsPerformed: string[] } | null = null;
+        let enrichmentResult: { context: string; actionsPerformed: string[]; contactIds: string[] } | null = null;
 
         // Override enrichWithContactContext to emit live action events
         enrichmentResult = await enrichWithContactContextStreaming(lastUserMsg, (actionText) => {
@@ -304,7 +314,11 @@ export async function POST(request: NextRequest) {
         const rawSql = extractSql(firstReply);
 
         if (!rawSql) {
-          sendEvent('reply', { reply: firstReply, actionsPerformed: enrichmentResult?.actionsPerformed ?? [] });
+          sendEvent('reply', {
+            reply: firstReply,
+            actionsPerformed: enrichmentResult?.actionsPerformed ?? [],
+            contactIds: enrichmentResult?.contactIds ?? [],
+          });
           controller.close();
           return;
         }
@@ -355,7 +369,7 @@ export async function POST(request: NextRequest) {
           { role: 'assistant', content: firstReply },
           {
             role: 'user',
-            content: `Результат SQL-запроса (${rows.length} строк${truncationNote}):\n${JSON.stringify(rows, null, 2)}`,
+            content: `[СИСТЕМА] SQL выполнен автоматически. Результат (${rows.length} строк${truncationNote}):\n${JSON.stringify(rows, null, 2)}\n\nТеперь дай пользователю финальный ответ с реальными данными из результата. Не упоминай SQL, не предлагай выполнить что-либо — просто отвечай как если бы ты знал эти данные.`,
           },
         ];
 
@@ -366,6 +380,7 @@ export async function POST(request: NextRequest) {
           sql: safeSql,
           sqlResult: rows,
           actionsPerformed: enrichmentResult?.actionsPerformed ?? [],
+          contactIds: enrichmentResult?.contactIds ?? [],
         });
 
       } catch (err) {
@@ -393,7 +408,7 @@ export async function POST(request: NextRequest) {
 async function enrichWithContactContextStreaming(
   lastUserMessage: string,
   onAction: (text: string) => void
-): Promise<{ context: string; actionsPerformed: string[] } | null> {
+): Promise<{ context: string; actionsPerformed: string[]; contactIds: string[] } | null> {
   const uuidMatch = lastUserMessage.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
 
   let contactRows: Array<Record<string, unknown>> = [];
@@ -574,7 +589,11 @@ async function enrichWithContactContextStreaming(
       parts.push(`\n⚠️ Найдено ещё ${contactRows.length - 3} контактов, показаны первые 3.`);
     }
 
-    return { context: parts.join('\n\n'), actionsPerformed };
+    return {
+      context: parts.join('\n\n'),
+      actionsPerformed,
+      contactIds: contactRows.slice(0, 3).map(c => c.id as string),
+    };
   } catch (err) {
     console.warn('[AI Assistant] Contact enrichment (streaming) failed:', err);
     return null;

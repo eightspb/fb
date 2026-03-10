@@ -9,6 +9,8 @@ interface ChatMessage {
   content: string;
   sql?: string;
   actionLog?: string[];
+  contactIds?: string[];   // контакты, упомянутые в этом сообщении
+  question?: string;       // вопрос пользователя, к которому относится ответ
 }
 
 interface ChatSession {
@@ -78,6 +80,21 @@ function renderMarkdown(text: string): string {
 
   while (i < lines.length) {
     const line = lines[i];
+    // Fenced code blocks (```lang ... ```)
+    if (/^```/.test(line.trim())) {
+      const lang = line.trim().slice(3).trim();
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !/^```/.test(lines[i].trim())) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      i++; // skip closing ```
+      const escaped = codeLines.join('\n').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const label = lang ? `<span style="font-size:0.8em;opacity:0.6;text-transform:uppercase;letter-spacing:0.05em">${lang}</span>` : '';
+      output.push(`<div style="margin:8px 0;border-radius:8px;overflow:hidden;border:1px solid var(--frox-gray-200)">${label ? `<div style="padding:4px 12px;background:var(--frox-gray-100)">${label}</div>` : ''}<pre style="margin:0;padding:10px 12px;background:#1e1e2e;color:#cdd6f4;overflow-x:auto;font-size:0.88em;font-family:monospace;line-height:1.5">${escaped}</pre></div>`);
+      continue;
+    }
     if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
       const tableLines: string[] = [line];
       i++;
@@ -326,11 +343,15 @@ export default function AiAssistantPage() {
               setLiveActionLog(prev => [...prev, String(parsed.text || '')]);
             } else if (eventName === 'reply') {
               const actionLog = (parsed.actionsPerformed as string[] | undefined) ?? [];
+              const contactIds = (parsed.contactIds as string[] | undefined) ?? [];
+              const lastUserContent = newMessages.findLast(m => m.role === 'user')?.content ?? '';
               updateSessionMessages(capturedSessionId, [...newMessages, {
                 role: 'assistant',
                 content: String(parsed.reply || ''),
                 sql: parsed.sql ? String(parsed.sql) : undefined,
                 actionLog,
+                contactIds: contactIds.length > 0 ? contactIds : undefined,
+                question: contactIds.length > 0 ? lastUserContent : undefined,
               }]);
               setLiveActionLog([]);
             } else if (eventName === 'error') {
@@ -659,6 +680,27 @@ function MessageBubble({ message, isLast, onQuickReply }: {
   const isUser = message.role === 'user';
   const { text, buttons } = isUser ? { text: message.content, buttons: [] } : extractButtons(message.content);
   const showButtons = isLast && buttons.length > 0 && onQuickReply;
+  const [noteSaved, setNoteSaved] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+
+  const handleSaveNote = async () => {
+    if (!message.contactIds?.length) return;
+    setNoteSaved('saving');
+    try {
+      const res = await fetch('/api/admin/ai-assistant/save-note', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          contactIds: message.contactIds,
+          question: message.question ?? '',
+          reply: message.content,
+        }),
+      });
+      setNoteSaved(res.ok ? 'done' : 'error');
+    } catch {
+      setNoteSaved('error');
+    }
+  };
 
   return (
     <div style={{
@@ -760,6 +802,29 @@ function MessageBubble({ message, isLast, onQuickReply }: {
               {message.sql}
             </pre>
           </details>
+        )}
+
+        {!isUser && message.contactIds && message.contactIds.length > 0 && (
+          <button
+            onClick={handleSaveNote}
+            disabled={noteSaved === 'saving' || noteSaved === 'done'}
+            style={{
+              alignSelf: 'flex-start',
+              padding: '5px 12px', borderRadius: 8, fontSize: '0.78em',
+              border: '1px solid',
+              borderColor: noteSaved === 'done' ? '#22c55e' : noteSaved === 'error' ? '#ef4444' : 'var(--frox-gray-300)',
+              background: noteSaved === 'done' ? '#f0fdf4' : noteSaved === 'error' ? '#fef2f2' : 'white',
+              color: noteSaved === 'done' ? '#16a34a' : noteSaved === 'error' ? '#dc2626' : 'var(--frox-gray-500)',
+              cursor: noteSaved === 'saving' || noteSaved === 'done' ? 'default' : 'pointer',
+              display: 'flex', alignItems: 'center', gap: 5,
+              transition: 'all 0.15s',
+            }}
+          >
+            {noteSaved === 'saving' && '⏳ Сохраняю...'}
+            {noteSaved === 'done' && '✅ Сохранено в заметки'}
+            {noteSaved === 'error' && '❌ Ошибка сохранения'}
+            {noteSaved === 'idle' && '📝 Сохранить как заметку'}
+          </button>
         )}
       </div>
     </div>

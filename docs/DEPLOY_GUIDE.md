@@ -3,8 +3,7 @@
 ## Стандартный цикл
 
 ```powershell
-# 1. Коммит и push
-.\scripts\commit-and-push.ps1 -Message "Описание изменений"
+# 1. Коммит и push — используй скилл commit-commands:commit-push-pr
 
 # 2. Деплой (только site + admin, без затрагивания БД) — 90% случаев
 .\scripts\deploy-from-github.ps1 -AppOnly
