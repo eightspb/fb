@@ -134,13 +134,25 @@ const SYSTEM_PROMPT = `Ты — AI-ассистент CRM-системы для 
 4. Всегда добавляй LIMIT (максимум 100), если пользователь не указал конкретное количество
 5. Для поиска по тексту используй ILIKE с %шаблон%
 6. Для работы с тегами используй ANY (например: 'тег' = ANY(tags))
-7. Форматируй ответы в Markdown: таблицы для табличных данных, списки для перечислений
-8. Если результат пустой — скажи об этом, не придумывай данные
-9. Если вопрос не связан с БД — отвечай как обычный помощник
-10. При ошибке SQL объясни что пошло не так
-11. Когда уместно предложить пользователю варианты действий или уточняющие вопросы, добавь в конце ответа интерактивные кнопки в формате: [[btn:Текст кнопки]]. Каждая кнопка на отдельной строке. Используй это для: уточнений ("За какой период?"), предложений следующих шагов ("Показать подробнее", "Экспорт в CSV"), вариантов фильтрации. Не злоупотребляй — добавляй кнопки только когда это действительно полезно.
-12. Когда пользователь спрашивает о конкретном контакте, тебе автоматически предоставляются данные из CRM (карточка, заметки, переписка, заявки) в системном сообщении. Используй эти данные для ответа, не делай SQL-запрос если ответ уже есть. Если данных недостаточно — дополни SQL-запросом.
-13. При анализе контакта предлагай кнопки для углубления: "Показать всю переписку", "Показать заявки", "Показать заметки", "Похожие контакты".
+7. Если результат пустой — скажи об этом, не придумывай данные
+8. Если вопрос не связан с БД — отвечай как обычный помощник
+9. При ошибке SQL объясни что пошло не так
+10. Когда пользователь спрашивает о конкретном контакте, тебе автоматически предоставляются данные из CRM (карточка, заметки, переписка, заявки) в системном сообщении. Используй эти данные для ответа, не делай SQL-запрос если ответ уже есть. Если данных недостаточно — дополни SQL-запросом.
+
+КНОПКИ:
+- Когда уместно предложить варианты действий, добавь в конце ответа кнопки в формате: [[btn:Текст кнопки]]. Каждая кнопка на отдельной строке.
+- Используй для: уточнений, предложений следующих шагов, вариантов фильтрации.
+- При анализе контакта предлагай: "Показать всю переписку", "Показать заявки", "Показать заметки", "Похожие контакты".
+- Не злоупотребляй — максимум 3-5 кнопок.
+
+ФОРМАТИРОВАНИЕ — ОЧЕНЬ ВАЖНО:
+- Всегда структурируй ответы красиво и наглядно
+- Используй эмодзи для визуального разделения разделов: 📊 для статистики, 👤 для контактов, 📧 для переписки, 📝 для заметок, 🏥 для учреждений, 📍 для городов, 📋 для заявок, ⭐ для важного, ✅ для готового, ❌ для ошибок, 📈 для трендов, 🔍 для поиска
+- Таблицы для табличных данных (Markdown: |col1|col2|)
+- Нумерованные и маркированные списки для перечислений
+- **Жирный** для ключевых значений и цифр
+- Короткие абзацы, не стены текста
+- Для карточки контакта используй структурированный формат с эмодзи-полями
 
 СХЕМА БД:
 ${DB_SCHEMA}`;
@@ -280,49 +292,61 @@ async function enrichWithContactContext(lastUserMessage: string): Promise<string
 
       parts.push(`📋 Карточка контакта:\n${contactInfo}`);
 
-      // Заметки
+      // Заметки (только pinned + последние 5, краткое содержание)
       const notesResult = await client.query(
         `SELECT title, content, source, pinned, created_at FROM contact_notes
-         WHERE contact_id = $1 ORDER BY pinned DESC, created_at DESC LIMIT 10`,
+         WHERE contact_id = $1 ORDER BY pinned DESC, created_at DESC LIMIT 5`,
         [cId]
       );
+      const totalNotesResult = await client.query(
+        `SELECT count(*)::int as cnt FROM contact_notes WHERE contact_id = $1`, [cId]
+      );
+      const totalNotes = totalNotesResult.rows[0]?.cnt || 0;
       if (notesResult.rows.length > 0) {
         const notesText = notesResult.rows.map((n: Record<string, unknown>) => {
           const prefix = n.pinned ? '📌 ' : '';
           const title = n.title ? `[${n.title}] ` : '';
-          const content = String(n.content).slice(0, 500);
-          return `  ${prefix}${title}(${n.source}, ${new Date(n.created_at as string).toLocaleDateString('ru-RU')}): ${content}`;
+          const content = String(n.content).slice(0, 250);
+          return `  ${prefix}${title}(${n.source}, ${new Date(n.created_at as string).toLocaleDateString('ru-RU')}): ${content}${String(n.content).length > 250 ? '...' : ''}`;
         }).join('\n');
-        parts.push(`📝 Заметки (${notesResult.rows.length}):\n${notesText}`);
+        const moreNote = totalNotes > 5 ? `\n  (ещё ${totalNotes - 5} заметок, доступны по запросу)` : '';
+        parts.push(`📝 Заметки (${totalNotes}):\n${notesText}${moreNote}`);
       }
 
-      // Email-переписка
-      const emailResult = await client.query(
-        `SELECT direction, from_address, to_addresses, subject, body_text, sent_at FROM crm_emails
-         WHERE contact_email = $1 OR contact_email = $2
-         ORDER BY sent_at DESC LIMIT 15`,
-        [contact.email || '', contact.email || '__no_email__']
-      );
-      if (emailResult.rows.length > 0) {
-        const emailsText = emailResult.rows.map((e: Record<string, unknown>) => {
-          const dir = e.direction === 'inbound' ? '📥' : '📤';
-          const date = new Date(e.sent_at as string).toLocaleDateString('ru-RU');
-          const body = String(e.body_text || '').slice(0, 300);
-          return `  ${dir} ${date} | ${e.subject || '(без темы)'}\n    ${body}`;
-        }).join('\n');
-        parts.push(`📧 Переписка (${emailResult.rows.length} писем):\n${emailsText}`);
+      // Email-переписка (краткая сводка: последние 5 + общее кол-во)
+      if (contact.email) {
+        const totalEmailsResult = await client.query(
+          `SELECT count(*)::int as cnt FROM crm_emails WHERE contact_email = $1`,
+          [contact.email]
+        );
+        const totalEmails = totalEmailsResult.rows[0]?.cnt || 0;
+
+        if (totalEmails > 0) {
+          const emailResult = await client.query(
+            `SELECT direction, subject, LEFT(body_text, 150) as body_preview, sent_at FROM crm_emails
+             WHERE contact_email = $1 ORDER BY sent_at DESC LIMIT 5`,
+            [contact.email]
+          );
+          const emailsText = emailResult.rows.map((e: Record<string, unknown>) => {
+            const dir = e.direction === 'inbound' ? '📥' : '📤';
+            const date = new Date(e.sent_at as string).toLocaleDateString('ru-RU');
+            return `  ${dir} ${date} | ${e.subject || '(без темы)'}${e.body_preview ? '\n    ' + String(e.body_preview).replace(/\n/g, ' ').trim() + '...' : ''}`;
+          }).join('\n');
+          const moreEmails = totalEmails > 5 ? `\n  (ещё ${totalEmails - 5} писем, доступны по запросу "Показать всю переписку")` : '';
+          parts.push(`📧 Переписка (${totalEmails} писем, последние 5):\n${emailsText}${moreEmails}`);
+        }
       }
 
-      // Заявки
+      // Заявки (краткая сводка)
       const submissionsResult = await client.query(
-        `SELECT form_type, status, message, page_url, created_at FROM form_submissions
-         WHERE contact_id = $1 ORDER BY created_at DESC LIMIT 5`,
+        `SELECT form_type, status, LEFT(message, 100) as msg_preview, created_at FROM form_submissions
+         WHERE contact_id = $1 ORDER BY created_at DESC LIMIT 3`,
         [cId]
       );
       if (submissionsResult.rows.length > 0) {
         const subsText = submissionsResult.rows.map((s: Record<string, unknown>) => {
           const date = new Date(s.created_at as string).toLocaleDateString('ru-RU');
-          return `  ${date} | ${s.form_type} (${s.status})${s.message ? ': ' + String(s.message).slice(0, 200) : ''}`;
+          return `  ${date} | ${s.form_type} (${s.status})${s.msg_preview ? ': ' + String(s.msg_preview) : ''}`;
         }).join('\n');
         parts.push(`📋 Заявки (${submissionsResult.rows.length}):\n${subsText}`);
       }
