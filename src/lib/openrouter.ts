@@ -149,7 +149,7 @@ export async function expandTextWithAI(
 
 
 
-  console.log(`[AI] 🔑 API ключ найден (длина: ${apiKey.length} символов, первые 10: ${apiKey.substring(0, 10)}...)`);
+  console.log(`[AI] 🔑 API ключ: ${apiKey ? 'configured' : 'missing'}`);
 
 
 

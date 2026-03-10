@@ -72,6 +72,24 @@ interface PendingNews {
 // Хранилище незавершенных новостей (в продакшене лучше использовать Redis или БД)
 export const pendingNews = new Map<number, PendingNews>();
 
+// TTL-based cleanup: удаляем записи старше 15 минут
+const PENDING_NEWS_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
+function cleanupExpiredPendingNews(): void {
+  const now = Date.now();
+  for (const [chatId, entry] of pendingNews) {
+    // Не удаляем записи в процессе генерации или публикации
+    if (entry.state === 'generating' || entry.state === 'publishing') continue;
+    if (now - entry.startedAt.getTime() > PENDING_NEWS_TTL_MS) {
+      console.log(`[BOT] 🧹 Auto-expired pending news for chatId=${chatId} (age=${Math.round((now - entry.startedAt.getTime()) / 60000)}min)`);
+      pendingNews.delete(chatId);
+    }
+  }
+}
+
+// Периодическая очистка каждые 5 минут
+setInterval(cleanupExpiredPendingNews, 5 * 60 * 1000);
+
 function getStatusBar(pending: PendingNews): string {
   const parts: string[] = [];
   if (pending.images.length > 0) parts.push(`📷 ${pending.images.length} фото`);
@@ -282,19 +300,23 @@ export async function handlePhotoMessage(msg: TelegramBot.Message): Promise<void
     }
 
     // Устанавливаем новый таймаут - отправляем сообщение через 2 секунды после последнего фото
-    pending.mediaGroupTimeout = setTimeout(async () => {
+    pending.mediaGroupTimeout = setTimeout(() => {
       console.log(`[BOT] ⏱️ Таймаут медиа-группы ${mediaGroupId}, отправка сообщения`);
       const currentPending = pendingNews.get(chatId);
       if (currentPending && bot) {
         const msgText = isPreviewState
           ? `📷 Группа фото добавлена!\n\n📊 Материалы: ${getStatusBar(currentPending)}.\n\nНажмите «Перегенерировать», чтобы учесть новые фото.`
           : `📷 Группа фото добавлена!\n\n📊 Материалы: ${getStatusBar(currentPending)}.\n\nЧто дальше?`;
-        await bot.sendMessage(chatId, msgText, {
+        bot.sendMessage(chatId, msgText, {
           reply_markup: {
             inline_keyboard: isPreviewState ? previewKeyboard : collectingKeyboard
           }
+        }).then(() => {
+          currentPending.mediaGroupTimeout = undefined;
+        }).catch((err) => {
+          console.error(`[BOT] ❌ Ошибка отправки сообщения медиа-группы:`, err);
+          currentPending.mediaGroupTimeout = undefined;
         });
-        currentPending.mediaGroupTimeout = undefined;
       }
     }, 2000);
 
@@ -902,9 +924,10 @@ export async function publishNewsFromPreview(chatId: number): Promise<void> {
         console.log(`[BOT] ℹ️ Геолокация не найдена`);
       }
 
-      // Создаем новость
+      // Создаем новость в транзакции
       console.log('[BOT] 💾 Создание записи новости в БД...');
-      
+      await client.query('BEGIN');
+
       // Проверяем, есть ли колонка status
       const hasStatusColumn = await client.query(`
         SELECT EXISTS (
@@ -998,6 +1021,9 @@ export async function publishNewsFromPreview(chatId: number): Promise<void> {
       }
       console.log('[BOT] ✅ Видео добавлены в БД');
 
+      await client.query('COMMIT');
+      console.log('[BOT] ✅ Транзакция подтверждена');
+
       // Отправляем уведомление администратору
       console.log('[BOT] 📤 Отправка уведомления администратору...');
       const newsPreview = { title, shortDescription, fullDescription };
@@ -1015,6 +1041,10 @@ export async function publishNewsFromPreview(chatId: number): Promise<void> {
       // Удаляем из хранилища незавершенных новостей
       pendingNews.delete(chatId);
       console.log('[BOT] ✅ Новость удалена из временного хранилища');
+    } catch (dbError) {
+      await client.query('ROLLBACK').catch(() => {});
+      console.log('[BOT] ⚠️ Транзакция откачена');
+      throw dbError;
     } finally {
       client.release();
       console.log('[BOT] 🔌 Подключение к БД закрыто');

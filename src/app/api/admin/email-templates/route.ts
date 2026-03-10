@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       }
 
       let query = 'SELECT * FROM email_templates';
-      const params: any[] = [];
+      const params: string[] = [];
       
       if (formType && emailType) {
         query += ' WHERE form_type = $1 AND email_type = $2';
@@ -64,22 +64,24 @@ export async function GET(request: NextRequest) {
     } finally {
       client.release();
     }
-  } catch (error: any) {
-    console.error('[Email Templates API] Ошибка получения шаблонов:', error);
-    
-    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    const code = err instanceof Error && 'code' in err ? (err as Error & { code: string }).code : undefined;
+    console.error('[Email Templates API] Ошибка получения шаблонов:', message);
+
+    if (code === '42P01' || message.includes('does not exist')) {
       return NextResponse.json(
-        { 
+        {
           error: 'Таблица email_templates не найдена. Примените миграцию 005_add_email_templates.sql',
           templates: [],
-          details: error?.message 
+          details: message
         },
         { status: 500 }
       );
     }
-    
+
     return NextResponse.json(
-      { error: 'Ошибка получения шаблонов', details: error?.message, templates: [] },
+      { error: 'Ошибка получения шаблонов', details: message, templates: [] },
       { status: 500 }
     );
   }
@@ -175,31 +177,36 @@ export async function PUT(request: NextRequest) {
     } finally {
       client.release();
     }
-  } catch (error: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    const pgErr = err as Record<string, unknown>;
+    const code = typeof pgErr?.code === 'string' ? pgErr.code : undefined;
+    const detail = typeof pgErr?.detail === 'string' ? pgErr.detail : undefined;
+    const hint = typeof pgErr?.hint === 'string' ? pgErr.hint : undefined;
     console.error('[Email Templates API] Ошибка сохранения шаблона:', {
-      message: error?.message,
-      code: error?.code,
-      detail: error?.detail,
-      hint: error?.hint,
-      stack: error?.stack,
+      message,
+      code,
+      detail,
+      hint,
+      stack: err instanceof Error ? err.stack : undefined,
     });
-    
+
     // Проверяем, существует ли таблица
-    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+    if (code === '42P01' || message.includes('does not exist')) {
       return NextResponse.json(
-        { 
+        {
           error: 'Таблица email_templates не найдена. Примените миграцию 005_add_email_templates.sql',
-          details: error?.message 
+          details: message
         },
         { status: 500 }
       );
     }
-    
+
     return NextResponse.json(
-      { 
-        error: 'Ошибка сохранения шаблона', 
-        details: error?.message || error?.detail || 'Неизвестная ошибка',
-        code: error?.code 
+      {
+        error: 'Ошибка сохранения шаблона',
+        details: message || detail || 'Неизвестная ошибка',
+        code
       },
       { status: 500 }
     );

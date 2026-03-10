@@ -43,6 +43,18 @@ export interface BulkResearchJob {
 
 const jobs = new Map<string, BulkResearchJob>();
 
+// Auto-cleanup: remove finished jobs after 10 minutes
+const CLEANUP_TTL_MS = 10 * 60 * 1000;
+
+function scheduleCleanup(jobId: string) {
+  setTimeout(() => {
+    const job = jobs.get(jobId);
+    if (job && job.status !== 'running') {
+      jobs.delete(jobId);
+    }
+  }, CLEANUP_TTL_MS);
+}
+
 function makeJobId() {
   return `brj_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -171,7 +183,7 @@ async function runBulkResearch(job: BulkResearchJob, contactIds: string[]) {
     const client = await pool.connect();
     try {
       const res = await client.query('SELECT * FROM contacts WHERE id = $1', [id]);
-      if (!res.rows.length) { job.done++; job.skipped++; return; }
+      if (!res.rows.length) { job.skipped++; return; }
       const contact = res.rows[0];
 
       const result = await researchContactWithAI({
@@ -235,5 +247,6 @@ async function runBulkResearch(job: BulkResearchJob, contactIds: string[]) {
     job.status = 'error';
   } finally {
     job.finishedAt = new Date().toISOString();
+    scheduleCleanup(job.id);
   }
 }

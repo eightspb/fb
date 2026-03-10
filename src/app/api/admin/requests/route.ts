@@ -49,8 +49,8 @@ export async function GET(request: NextRequest) {
     const dateTo = searchParams.get('date_to') || '';
     const sortBy = searchParams.get('sort_by') || 'created_at';
     const sortOrder = searchParams.get('sort_order') || 'desc';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1') || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50') || 50));
     const offset = (page - 1) * limit;
 
     const client = await pool.connect();
@@ -181,11 +181,22 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    let body;
+    try { body = await request.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
     const { ids, status, priority } = body;
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json({ error: 'IDs array is required' }, { status: 400 });
+    }
+
+    const allowedStatuses = ['new', 'in_progress', 'processed', 'archived'];
+    if (status && !allowedStatuses.includes(status)) {
+      return NextResponse.json({ error: 'Invalid status value' }, { status: 400 });
+    }
+
+    const allowedPriorities = ['low', 'medium', 'high'];
+    if (priority && !allowedPriorities.includes(priority)) {
+      return NextResponse.json({ error: 'Invalid priority value' }, { status: 400 });
     }
 
     const client = await pool.connect();
@@ -245,7 +256,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    let body;
+    try { body = await request.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
     const { ids } = body;
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {

@@ -76,22 +76,24 @@ export async function GET(request: NextRequest) {
     } finally {
       client.release();
     }
-  } catch (error: any) {
-    console.error('[Admin Banner API] Ошибка получения баннера:', error);
-    
-    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    const code = err instanceof Error && 'code' in err ? (err as Error & { code: string }).code : undefined;
+    console.error('[Admin Banner API] Ошибка получения баннера:', message);
+
+    if (code === '42P01' || message.includes('does not exist')) {
       return NextResponse.json(
-        { 
+        {
           error: 'Таблица site_banner не найдена. Примените миграцию 007_add_site_banner.sql',
           banner: null,
-          details: error?.message 
+          details: message
         },
         { status: 500 }
       );
     }
-    
+
     return NextResponse.json(
-      { error: 'Ошибка получения баннера', details: error?.message },
+      { error: 'Ошибка получения баннера', details: message },
       { status: 500 }
     );
   }
@@ -242,21 +244,23 @@ export async function PUT(request: NextRequest) {
     } finally {
       client.release();
     }
-  } catch (error: any) {
-    console.error('[Admin Banner API] Ошибка обновления баннера:', error);
-    
-    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    const code = err instanceof Error && 'code' in err ? (err as Error & { code: string }).code : undefined;
+    console.error('[Admin Banner API] Ошибка обновления баннера:', message);
+
+    if (code === '42P01' || message.includes('does not exist')) {
       return NextResponse.json(
-        { 
+        {
           error: 'Таблица site_banner не найдена. Примените миграцию 007_add_site_banner.sql',
-          details: error?.message 
+          details: message
         },
         { status: 500 }
       );
     }
-    
+
     return NextResponse.json(
-      { error: 'Ошибка обновления баннера', details: error?.message },
+      { error: 'Ошибка обновления баннера', details: message },
       { status: 500 }
     );
   }
