@@ -19,6 +19,9 @@ COPY . .
 
 # Build environment variables (must be in builder stage)
 
+# Limit Node.js memory for low-RAM VPS (2GB)
+ENV NODE_OPTIONS="--max-old-space-size=1536"
+
 # Build Next.js with Bun
 RUN bun run build
 

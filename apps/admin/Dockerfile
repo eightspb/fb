@@ -14,6 +14,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Limit Node.js memory for low-RAM VPS (2GB)
+ENV NODE_OPTIONS="--max-old-space-size=1536"
+
 RUN bunx next build apps/admin
 
 FROM base AS runner

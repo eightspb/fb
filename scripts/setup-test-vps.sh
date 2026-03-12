@@ -26,10 +26,41 @@ echo "========================================================"
 echo ""
 
 # =================================================================
-# STEP 1 — Install required tools
+# STEP 1 — Setup swap space (needed for 2GB VPS)
 # =================================================================
 
-echo "[STEP 1/9] Installing required tools..."
+echo "[STEP 1/10] Setting up swap space (4GB)..."
+echo ""
+
+if swapon --show | grep -q "/swapfile"; then
+    echo "  OK: Swap already active"
+    swapon --show
+else
+    echo "  Creating 4GB swapfile..."
+    fallocate -l 4G /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile > /dev/null 2>&1
+    swapon /swapfile
+    # Make persistent across reboots
+    if ! grep -q '/swapfile' /etc/fstab; then
+        echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    fi
+    echo "  OK: 4GB swap created and activated"
+fi
+
+# Set swappiness for better OOM resistance during builds
+sysctl vm.swappiness=60 > /dev/null 2>&1
+
+echo ""
+echo "  Memory status:"
+free -h | head -3
+echo ""
+
+# =================================================================
+# STEP 2 — Install required tools
+# =================================================================
+
+echo "[STEP 2/10] Installing required tools..."
 echo ""
 
 # System packages
@@ -89,7 +120,7 @@ echo ""
 # STEP 2 — Prepare project directory
 # =================================================================
 
-echo "[STEP 2/9] Preparing project directory..."
+echo "[STEP 3/10] Preparing project directory..."
 echo ""
 
 if [ -d "$PROJECT_DIR/.git" ]; then
@@ -113,7 +144,7 @@ echo ""
 # STEP 3 — Repo summary
 # =================================================================
 
-echo "[STEP 3/9] Repository summary"
+echo "[STEP 4/10] Repository summary"
 echo ""
 echo "  Runtime:          Bun + Next.js"
 echo "  Apps:             site (:3000) + admin (:3001)"
@@ -129,7 +160,7 @@ echo ""
 # STEP 4 — Create .env safely
 # =================================================================
 
-echo "[STEP 4/9] Configuring .env..."
+echo "[STEP 5/10] Configuring .env..."
 echo ""
 
 cd "$PROJECT_DIR"
@@ -192,7 +223,7 @@ echo ""
 # STEP 5 — Install project dependencies
 # =================================================================
 
-echo "[STEP 5/9] Installing project dependencies..."
+echo "[STEP 6/10] Installing project dependencies..."
 echo ""
 
 cd "$PROJECT_DIR"
@@ -209,7 +240,7 @@ echo ""
 # STEP 6 — Configure firewall
 # =================================================================
 
-echo "[STEP 6/9] Configuring firewall..."
+echo "[STEP 7/10] Configuring firewall..."
 echo ""
 
 ufw default deny incoming > /dev/null 2>&1
@@ -230,7 +261,7 @@ echo ""
 # STEP 7 — Create helper scripts
 # =================================================================
 
-echo "[STEP 7/9] Creating helper scripts..."
+echo "[STEP 8/10] Creating helper scripts..."
 echo ""
 
 cd "$PROJECT_DIR"
@@ -245,11 +276,16 @@ SCRIPT
 chmod +x update.sh
 echo "  OK: update.sh"
 
-# test-up.sh
+# test-up.sh (sequential build to avoid OOM on 2GB VPS)
 cat > test-up.sh << 'SCRIPT'
 #!/bin/bash
 cd /opt/fb-net
-docker compose -f docker-compose.production.yml up -d --build
+echo "Building site..."
+docker compose -f docker-compose.production.yml build site
+echo "Building admin..."
+docker compose -f docker-compose.production.yml build admin
+echo "Starting all services..."
+docker compose -f docker-compose.production.yml up -d
 SCRIPT
 chmod +x test-up.sh
 echo "  OK: test-up.sh"
@@ -272,23 +308,32 @@ SCRIPT
 chmod +x test-logs.sh
 echo "  OK: test-logs.sh"
 
-# test-rebuild.sh
+# test-rebuild.sh (sequential build to avoid OOM on 2GB VPS)
 cat > test-rebuild.sh << 'SCRIPT'
 #!/bin/bash
 cd /opt/fb-net
-docker compose -f docker-compose.production.yml build --no-cache site admin
+echo "Rebuilding site (no cache)..."
+docker compose -f docker-compose.production.yml build --no-cache site
+echo "Rebuilding admin (no cache)..."
+docker compose -f docker-compose.production.yml build --no-cache admin
+echo "Starting services..."
 docker compose -f docker-compose.production.yml up -d site admin
 SCRIPT
 chmod +x test-rebuild.sh
 echo "  OK: test-rebuild.sh"
 
-# auto-deploy.sh
+# auto-deploy.sh (sequential build to avoid OOM on 2GB VPS)
 cat > auto-deploy.sh << 'SCRIPT'
 #!/bin/bash
 cd /opt/fb-net
 git pull origin master
 bun install
-docker compose -f docker-compose.production.yml up -d --build
+echo "Building site..."
+docker compose -f docker-compose.production.yml build site
+echo "Building admin..."
+docker compose -f docker-compose.production.yml build admin
+echo "Starting all services..."
+docker compose -f docker-compose.production.yml up -d
 SCRIPT
 chmod +x auto-deploy.sh
 echo "  OK: auto-deploy.sh"
@@ -299,7 +344,7 @@ echo ""
 # STEP 8 — Webhook auto-deploy (optional)
 # =================================================================
 
-echo "[STEP 8/9] Setting up webhook auto-deploy..."
+echo "[STEP 9/10] Setting up webhook auto-deploy..."
 echo ""
 
 # Install webhook tool
@@ -400,7 +445,7 @@ echo ""
 # STEP 9 — Verify
 # =================================================================
 
-echo "[STEP 9/9] Verifying setup..."
+echo "[STEP 10/10] Verifying setup..."
 echo ""
 
 # Docker
