@@ -29,7 +29,7 @@ echo ""
 # STEP 1 — Setup swap space (needed for 2GB VPS)
 # =================================================================
 
-echo "[STEP 1/10] Setting up swap space (4GB)..."
+echo "[STEP 1/12] Setting up swap space (4GB)..."
 echo ""
 
 if swapon --show | grep -q "/swapfile"; then
@@ -60,7 +60,7 @@ echo ""
 # STEP 2 — Install required tools
 # =================================================================
 
-echo "[STEP 2/10] Installing required tools..."
+echo "[STEP 2/12] Installing required tools..."
 echo ""
 
 # System packages
@@ -120,7 +120,7 @@ echo ""
 # STEP 2 — Prepare project directory
 # =================================================================
 
-echo "[STEP 3/10] Preparing project directory..."
+echo "[STEP 3/12] Preparing project directory..."
 echo ""
 
 if [ -d "$PROJECT_DIR/.git" ]; then
@@ -144,7 +144,7 @@ echo ""
 # STEP 3 — Repo summary
 # =================================================================
 
-echo "[STEP 4/10] Repository summary"
+echo "[STEP 4/12] Repository summary"
 echo ""
 echo "  Runtime:          Bun + Next.js"
 echo "  Apps:             site (:3000) + admin (:3001)"
@@ -160,7 +160,7 @@ echo ""
 # STEP 4 — Create .env safely
 # =================================================================
 
-echo "[STEP 5/10] Configuring .env..."
+echo "[STEP 5/12] Configuring .env..."
 echo ""
 
 cd "$PROJECT_DIR"
@@ -223,7 +223,7 @@ echo ""
 # STEP 5 — Install project dependencies
 # =================================================================
 
-echo "[STEP 6/10] Installing project dependencies..."
+echo "[STEP 6/12] Installing project dependencies..."
 echo ""
 
 cd "$PROJECT_DIR"
@@ -240,7 +240,7 @@ echo ""
 # STEP 6 — Configure firewall
 # =================================================================
 
-echo "[STEP 7/10] Configuring firewall..."
+echo "[STEP 7/12] Configuring firewall..."
 echo ""
 
 ufw default deny incoming > /dev/null 2>&1
@@ -261,7 +261,7 @@ echo ""
 # STEP 7 — Create helper scripts
 # =================================================================
 
-echo "[STEP 8/10] Creating helper scripts..."
+echo "[STEP 8/12] Creating helper scripts..."
 echo ""
 
 cd "$PROJECT_DIR"
@@ -350,7 +350,7 @@ echo ""
 # STEP 8 — Webhook auto-deploy (optional)
 # =================================================================
 
-echo "[STEP 9/10] Setting up webhook auto-deploy..."
+echo "[STEP 9/12] Setting up webhook auto-deploy..."
 echo ""
 
 # Install webhook tool
@@ -451,7 +451,7 @@ echo ""
 # STEP 9 — Verify
 # =================================================================
 
-echo "[STEP 10/10] Verifying setup..."
+echo "[STEP 10/12] Verifying setup..."
 echo ""
 
 # Docker
@@ -508,22 +508,110 @@ done
 echo ""
 
 # =================================================================
-# Start containers
+# STEP 11 — Build and start containers
 # =================================================================
 
-echo "========================================================"
-echo "  SETUP COMPLETE!"
-echo "========================================================"
+echo "[STEP 11/12] Building and starting containers..."
 echo ""
-echo "  To start the test server:"
-echo "    cd /opt/fb-net && ./test-up.sh"
+
+cd "$PROJECT_DIR"
+
+# Stop any existing containers
+docker compose -f docker-compose.production.yml down 2>/dev/null || true
+
+# Sequential build (2GB VPS — cannot build in parallel)
+echo "  Building site image..."
+docker compose -f docker-compose.production.yml build site
+echo "  OK: site image built"
+
+echo "  Building admin image..."
+docker compose -f docker-compose.production.yml build admin
+echo "  OK: admin image built"
+
+echo "  Starting all containers..."
+docker compose -f docker-compose.production.yml up -d
+echo "  OK: Containers started"
+
+# Wait for postgres to be healthy
 echo ""
-echo "  Test URLs:"
-echo "    Site:  http://${SERVER_IP}:3000"
-echo "    Admin: http://${SERVER_IP}:3001/admin"
+echo "  Waiting for PostgreSQL to be healthy..."
+for i in $(seq 1 30); do
+    if docker compose -f docker-compose.production.yml exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
+        echo "  OK: PostgreSQL is ready"
+        break
+    fi
+    if [ "$i" = "30" ]; then
+        echo "  ERROR: PostgreSQL did not become healthy in 30 seconds!"
+        echo "  Check logs: docker logs fb-net-db"
+        exit 1
+    fi
+    sleep 1
+done
+
+# Apply migrations
 echo ""
-echo "  To view logs:"
-echo "    cd /opt/fb-net && ./test-logs.sh"
+echo "  Applying database migrations..."
+bash scripts/apply-migrations-remote.sh docker-compose.production.yml
 echo ""
-echo "  REMINDER: NEVER use docker-compose.ssl.yml on this VPS!"
+
+# =================================================================
+# STEP 12 — Health check
+# =================================================================
+
+echo "[STEP 12/12] Health check..."
+echo ""
+
+# Check all containers are running
+FAILED=0
+
+for svc in postgres site admin; do
+    STATUS=$(docker compose -f docker-compose.production.yml ps --format '{{.Status}}' "$svc" 2>/dev/null | head -1)
+    if echo "$STATUS" | grep -qi "up"; then
+        echo "  OK: $svc is running ($STATUS)"
+    else
+        echo "  ERROR: $svc is NOT running ($STATUS)"
+        FAILED=1
+    fi
+done
+
+# Test HTTP responses
+echo ""
+sleep 3  # Give Next.js a moment to start
+
+for port_label in "3000:site" "3001:admin"; do
+    PORT=$(echo "$port_label" | cut -d: -f1)
+    LABEL=$(echo "$port_label" | cut -d: -f2)
+    HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5 "http://127.0.0.1:${PORT}/" 2>/dev/null || echo "000")
+    if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "307" ] || [ "$HTTP_CODE" = "302" ]; then
+        echo "  OK: $LABEL responds HTTP $HTTP_CODE on port $PORT"
+    else
+        echo "  WARNING: $LABEL returned HTTP $HTTP_CODE on port $PORT (may still be starting)"
+    fi
+done
+
+echo ""
+
+if [ "$FAILED" = "0" ]; then
+    echo "========================================================"
+    echo "  DEPLOYMENT COMPLETE!"
+    echo "========================================================"
+    echo ""
+    echo "  Site:   http://${SERVER_IP}:3000"
+    echo "  Admin:  http://${SERVER_IP}:3001/admin"
+    echo ""
+    echo "  Helper scripts:"
+    echo "    ./test-up.sh       — rebuild & start"
+    echo "    ./test-down.sh     — stop all"
+    echo "    ./test-logs.sh     — view logs"
+    echo "    ./test-rebuild.sh  — rebuild from scratch"
+    echo "    ./auto-deploy.sh   — git pull + rebuild"
+    echo ""
+    echo "  REMINDER: NEVER use docker-compose.ssl.yml on this VPS!"
+else
+    echo "========================================================"
+    echo "  DEPLOYMENT FAILED — some containers are not running"
+    echo "========================================================"
+    echo ""
+    echo "  Check logs: docker compose -f docker-compose.production.yml logs"
+fi
 echo ""
