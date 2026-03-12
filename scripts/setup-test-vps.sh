@@ -286,6 +286,10 @@ echo "Building admin..."
 docker compose -f docker-compose.production.yml build admin
 echo "Starting all services..."
 docker compose -f docker-compose.production.yml up -d
+echo "Waiting for postgres to be healthy..."
+sleep 5
+echo "Applying migrations..."
+bash scripts/apply-migrations-remote.sh docker-compose.production.yml
 SCRIPT
 chmod +x test-up.sh
 echo "  OK: test-up.sh"
@@ -334,6 +338,8 @@ echo "Building admin..."
 docker compose -f docker-compose.production.yml build admin
 echo "Starting all services..."
 docker compose -f docker-compose.production.yml up -d
+echo "Applying migrations..."
+bash scripts/apply-migrations-remote.sh docker-compose.production.yml
 SCRIPT
 chmod +x auto-deploy.sh
 echo "  OK: auto-deploy.sh"

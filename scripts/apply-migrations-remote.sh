@@ -28,7 +28,9 @@ for migration_path in $migrations; do
         echo "  [SKIP] $migration_name (уже применена)"
     else
         echo "  [APPLY] $migration_name"
-        if docker compose -f "$COMPOSE_FILE" exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f "$migration_path"; then
+        # Use /migrations/ path inside the container (mounted via docker-compose volumes)
+        container_path="/migrations/$(basename "$migration_path")"
+        if docker compose -f "$COMPOSE_FILE" exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f "$container_path"; then
             # Записываем успешную миграцию
             docker compose -f "$COMPOSE_FILE" exec -T postgres psql -U postgres -d postgres -c "INSERT INTO schema_migrations (name) VALUES ('$migration_name');"
         else
