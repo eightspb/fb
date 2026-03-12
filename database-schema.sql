@@ -7,6 +7,48 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+-- Таблица контактов CRM (contacts) — must be created before form_submissions
+CREATE TABLE IF NOT EXISTS contacts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  full_name TEXT NOT NULL,
+  email     TEXT,
+  phone     TEXT,
+  city        TEXT,
+  institution TEXT,
+  speciality  TEXT,
+  tags   TEXT[] NOT NULL DEFAULT '{}',
+  status TEXT NOT NULL DEFAULT 'archived'
+    CHECK (status IN ('new', 'in_progress', 'processed', 'archived')),
+  notes  TEXT,
+  import_source     TEXT DEFAULT 'tilda',
+  source_urls       TEXT[] DEFAULT '{}',
+  tilda_request_ids TEXT[] DEFAULT '{}',
+  metadata   JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_contacts_full_name  ON contacts(full_name);
+CREATE INDEX IF NOT EXISTS idx_contacts_email      ON contacts(email);
+CREATE INDEX IF NOT EXISTS idx_contacts_phone      ON contacts(phone);
+CREATE INDEX IF NOT EXISTS idx_contacts_tags       ON contacts USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_contacts_status     ON contacts(status);
+CREATE INDEX IF NOT EXISTS idx_contacts_city       ON contacts(city);
+CREATE INDEX IF NOT EXISTS idx_contacts_speciality ON contacts(speciality);
+CREATE INDEX IF NOT EXISTS idx_contacts_created_at ON contacts(created_at DESC);
+
+DROP TRIGGER IF EXISTS update_contacts_updated_at ON contacts;
+CREATE TRIGGER update_contacts_updated_at
+  BEFORE UPDATE ON contacts
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all for postgres on contacts" ON contacts;
+CREATE POLICY "Allow all for postgres on contacts" ON contacts
+  FOR ALL TO postgres USING (true) WITH CHECK (true);
+
 -- Таблица заявок с форм (form_submissions)
 CREATE TABLE IF NOT EXISTS form_submissions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -91,22 +133,30 @@ CREATE POLICY "Allow all for postgres on conferences" ON conferences
   FOR ALL TO postgres USING (true) WITH CHECK (true);
 
 -- Политики для news и news_images применяются через миграцию 010_remove_supabase_policies.sql
--- (таблицы news и news_images объявляются позже в схеме)
+-- (таблицы news и news_images создаются в Supabase, не в этом файле)
 
--- Индексы для новостей и связанных таблиц
-CREATE INDEX IF NOT EXISTS idx_news_year ON news(year);
-CREATE INDEX IF NOT EXISTS idx_news_status ON news(status);
-CREATE INDEX IF NOT EXISTS idx_news_category ON news(category);
-CREATE INDEX IF NOT EXISTS idx_news_date ON news(date);
-
-CREATE INDEX IF NOT EXISTS idx_news_tags_news_id ON news_tags(news_id);
-CREATE INDEX IF NOT EXISTS idx_news_images_news_id ON news_images(news_id);
-CREATE INDEX IF NOT EXISTS idx_news_videos_news_id ON news_videos(news_id);
-CREATE INDEX IF NOT EXISTS idx_news_documents_news_id ON news_documents(news_id);
-
--- Дополнительные поля для новостей
--- Точка фокуса изображения для карточек (CSS object-position)
-ALTER TABLE news ADD COLUMN IF NOT EXISTS image_focal_point VARCHAR(50) DEFAULT 'center 30%';
+-- Индексы для новостей и связанных таблиц (только если таблицы существуют)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'news') THEN
+    CREATE INDEX IF NOT EXISTS idx_news_year ON news(year);
+    CREATE INDEX IF NOT EXISTS idx_news_status ON news(status);
+    CREATE INDEX IF NOT EXISTS idx_news_category ON news(category);
+    CREATE INDEX IF NOT EXISTS idx_news_date ON news(date);
+    ALTER TABLE news ADD COLUMN IF NOT EXISTS image_focal_point VARCHAR(50) DEFAULT 'center 30%';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'news_tags') THEN
+    CREATE INDEX IF NOT EXISTS idx_news_tags_news_id ON news_tags(news_id);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'news_images') THEN
+    CREATE INDEX IF NOT EXISTS idx_news_images_news_id ON news_images(news_id);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'news_videos') THEN
+    CREATE INDEX IF NOT EXISTS idx_news_videos_news_id ON news_videos(news_id);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'news_documents') THEN
+    CREATE INDEX IF NOT EXISTS idx_news_documents_news_id ON news_documents(news_id);
+  END IF;
+END $$;
 
 -- =====================================================
 -- Таблицы для аналитики посещений сайта
