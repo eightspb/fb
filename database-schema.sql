@@ -63,7 +63,11 @@ CREATE TABLE IF NOT EXISTS form_submissions (
   city TEXT,
   page_url TEXT, -- where the form was submitted from
   metadata JSONB DEFAULT '{}'::jsonb, -- for any extra fields
-  contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL
+  contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
+  updated_at TIMESTAMPTZ,
+  notes TEXT,
+  assigned_to TEXT,
+  priority TEXT DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent'))
 );
 
 -- Индексы для form_submissions
@@ -71,6 +75,14 @@ CREATE INDEX IF NOT EXISTS idx_form_submissions_created_at ON form_submissions(c
 CREATE INDEX IF NOT EXISTS idx_form_submissions_status ON form_submissions(status);
 CREATE INDEX IF NOT EXISTS idx_form_submissions_type ON form_submissions(form_type);
 CREATE INDEX IF NOT EXISTS idx_form_submissions_contact_id ON form_submissions(contact_id);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_priority ON form_submissions(priority);
+
+-- Триггер для автоматического обновления updated_at
+DROP TRIGGER IF EXISTS update_form_submissions_updated_at ON form_submissions;
+CREATE TRIGGER update_form_submissions_updated_at
+  BEFORE UPDATE ON form_submissions
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
 
 -- RLS для form_submissions (разрешаем INSERT для всех, SELECT/UPDATE/DELETE только для postgres)
 ALTER TABLE form_submissions ENABLE ROW LEVEL SECURITY;
@@ -104,6 +116,7 @@ CREATE TABLE IF NOT EXISTS conferences (
   speakers JSONB DEFAULT '[]', -- Массив спикеров с детальной информацией
   organizer_contacts JSONB DEFAULT '{}', -- Контакты организатора
   additional_info TEXT, -- Дополнительная информация
+  videos JSONB DEFAULT '[]'::jsonb, -- Видео конференции
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -112,6 +125,7 @@ CREATE TABLE IF NOT EXISTS conferences (
 CREATE INDEX IF NOT EXISTS idx_conferences_date ON conferences(date);
 CREATE INDEX IF NOT EXISTS idx_conferences_date_end ON conferences(date_end);
 CREATE INDEX IF NOT EXISTS idx_conferences_slug ON conferences(slug);
+CREATE INDEX IF NOT EXISTS idx_conferences_videos ON conferences USING GIN (videos);
 
 -- Триггер для автоматического обновления updated_at
 DROP TRIGGER IF EXISTS update_conferences_updated_at ON conferences;
@@ -132,31 +146,98 @@ DROP POLICY IF EXISTS "Allow all for postgres on conferences" ON conferences;
 CREATE POLICY "Allow all for postgres on conferences" ON conferences
   FOR ALL TO postgres USING (true) WITH CHECK (true);
 
--- Политики для news и news_images применяются через миграцию 010_remove_supabase_policies.sql
--- (таблицы news и news_images создаются в Supabase, не в этом файле)
+-- =====================================================
+-- Таблица новостей и связанные таблицы
+-- =====================================================
 
--- Индексы для новостей и связанных таблиц (только если таблицы существуют)
-DO $$ BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'news') THEN
-    CREATE INDEX IF NOT EXISTS idx_news_year ON news(year);
-    CREATE INDEX IF NOT EXISTS idx_news_status ON news(status);
-    CREATE INDEX IF NOT EXISTS idx_news_category ON news(category);
-    CREATE INDEX IF NOT EXISTS idx_news_date ON news(date);
-    ALTER TABLE news ADD COLUMN IF NOT EXISTS image_focal_point VARCHAR(50) DEFAULT 'center 30%';
-  END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'news_tags') THEN
-    CREATE INDEX IF NOT EXISTS idx_news_tags_news_id ON news_tags(news_id);
-  END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'news_images') THEN
-    CREATE INDEX IF NOT EXISTS idx_news_images_news_id ON news_images(news_id);
-  END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'news_videos') THEN
-    CREATE INDEX IF NOT EXISTS idx_news_videos_news_id ON news_videos(news_id);
-  END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'news_documents') THEN
-    CREATE INDEX IF NOT EXISTS idx_news_documents_news_id ON news_documents(news_id);
-  END IF;
-END $$;
+CREATE TABLE IF NOT EXISTS news (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  short_description TEXT NOT NULL,
+  full_description TEXT NOT NULL,
+  date TEXT NOT NULL,
+  year INTEGER,
+  category TEXT,
+  location TEXT,
+  author TEXT,
+  status TEXT DEFAULT 'published',
+  image_focal_point VARCHAR(50) DEFAULT 'center 30%',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_news_year ON news(year);
+CREATE INDEX IF NOT EXISTS idx_news_status ON news(status);
+CREATE INDEX IF NOT EXISTS idx_news_category ON news(category);
+CREATE INDEX IF NOT EXISTS idx_news_date ON news(date);
+
+DROP TRIGGER IF EXISTS update_news_updated_at ON news;
+CREATE TRIGGER update_news_updated_at
+  BEFORE UPDATE ON news
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE news ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can read news" ON news;
+CREATE POLICY "Anyone can read news" ON news
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow all for postgres on news" ON news;
+CREATE POLICY "Allow all for postgres on news" ON news
+  FOR ALL TO postgres USING (true) WITH CHECK (true);
+
+-- Изображения новостей (с поддержкой хранения в БД через BYTEA)
+CREATE TABLE IF NOT EXISTS news_images (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  news_id UUID NOT NULL REFERENCES news(id) ON DELETE CASCADE,
+  image_url TEXT NOT NULL,
+  "order" INTEGER DEFAULT 0,
+  image_data BYTEA,
+  mime_type TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_news_images_news_id ON news_images(news_id);
+
+ALTER TABLE news_images ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can read news_images" ON news_images;
+CREATE POLICY "Anyone can read news_images" ON news_images
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow all for postgres on news_images" ON news_images;
+CREATE POLICY "Allow all for postgres on news_images" ON news_images
+  FOR ALL TO postgres USING (true) WITH CHECK (true);
+
+-- Теги новостей
+CREATE TABLE IF NOT EXISTS news_tags (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  news_id UUID NOT NULL REFERENCES news(id) ON DELETE CASCADE,
+  tag TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_news_tags_news_id ON news_tags(news_id);
+
+-- Видео новостей
+CREATE TABLE IF NOT EXISTS news_videos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  news_id UUID NOT NULL REFERENCES news(id) ON DELETE CASCADE,
+  video_url TEXT NOT NULL,
+  "order" INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_news_videos_news_id ON news_videos(news_id);
+
+-- Документы новостей
+CREATE TABLE IF NOT EXISTS news_documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  news_id UUID NOT NULL REFERENCES news(id) ON DELETE CASCADE,
+  document_url TEXT NOT NULL,
+  "order" INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_news_documents_news_id ON news_documents(news_id);
 
 -- =====================================================
 -- Таблицы для аналитики посещений сайта
@@ -693,7 +774,9 @@ CREATE TABLE IF NOT EXISTS crm_email_attachments (
   filename TEXT NOT NULL,
   content_type TEXT,
   size_bytes INTEGER,
-  storage_key TEXT NOT NULL,
+  storage_key TEXT,
+  imap_uid INTEGER,
+  imap_folder TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -707,8 +790,8 @@ CREATE POLICY "Allow all for postgres on crm_email_attachments" ON crm_email_att
 CREATE TABLE IF NOT EXISTS crm_imap_sync_state (
   id SERIAL PRIMARY KEY,
   folder_name TEXT NOT NULL UNIQUE,
-  last_uid_validity INTEGER,
-  last_synced_uid INTEGER DEFAULT 0,
+  last_uid_validity BIGINT,
+  last_synced_uid BIGINT DEFAULT 0,
   backfill_seq_cursor INTEGER,
   backfill_completed BOOLEAN NOT NULL DEFAULT false,
   last_sync_at TIMESTAMPTZ,
