@@ -1,5 +1,7 @@
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
+import type Mail from 'nodemailer/lib/mailer';
+import { randomUUID } from 'crypto';
 
 /**
  * Проверяет наличие обязательных переменных окружения для SMTP
@@ -84,6 +86,34 @@ export function createEmailTransporter(): Transporter {
   });
 
   return transporter;
+}
+
+/**
+ * Собирает RFC822-сообщение без отправки, чтобы можно было добавить копию в IMAP Sent.
+ */
+export async function buildRawEmail(mailOptions: Mail.Options): Promise<Buffer> {
+  const transporter = nodemailer.createTransport({
+    streamTransport: true,
+    buffer: true,
+    newline: 'unix',
+  } as any);
+
+  const info = await transporter.sendMail(mailOptions);
+  const rawMessage = (info as typeof info & { message?: unknown }).message;
+
+  if (!Buffer.isBuffer(rawMessage)) {
+    throw new Error('Не удалось собрать raw email для сохранения в Sent');
+  }
+
+  return rawMessage;
+}
+
+/**
+ * Генерирует стабильный Message-ID, общий для SMTP-отправки, IMAP Sent и CRM.
+ */
+export function generateMessageId(fromEmail: string): string {
+  const [, domain = 'localhost'] = fromEmail.trim().match(/@(.+)$/) || [];
+  return `<${randomUUID()}@${domain}>`;
 }
 
 /**

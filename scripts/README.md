@@ -4,10 +4,28 @@
 
 ## Основные (macOS/Linux, локально)
 
+### `deploy.sh`
+Короткий entrypoint для деплоя на сервер.
+Это удобная обертка над `deploy-from-github.sh`, чтобы можно было запускать деплой в виде `app/site/admin/full`.
+
+```bash
+bash scripts/deploy.sh
+bash scripts/deploy.sh app
+bash scripts/deploy.sh site
+bash scripts/deploy.sh admin
+bash scripts/deploy.sh full
+```
+
 ### `deploy-from-github.sh`
 Главный скрипт деплоя по SSH.
 По умолчанию автоматически определяет default branch удалённого репозитория; для другой ветки используйте `--branch <name>`.
 Запускается локально, но обновляет код и контейнеры на продакшн-сервере.
+
+Дополнительно умеет:
+- проверять свободное место на сервере перед деплоем;
+- подчищать Docker cache при нехватке места;
+- оставлять только последние 5 SQL-бэкапов;
+- показывать живой прогресс на долгих SSH-шагах.
 
 ```bash
 bash scripts/deploy-from-github.sh --site-only
@@ -62,6 +80,8 @@ bash scripts/check-telegram-webhook.sh
 
 - `bun run dev:remote` — когда нужна локальная разработка с удалённой БД.
 - `bash scripts/commit-and-push.sh --message "..."` — когда изменения готовы к отправке в GitHub.
+- `bash scripts/deploy.sh app` — короткий и удобный деплой `site + admin`.
+- `bash scripts/deploy.sh full` — полный деплой с миграциями через короткий entrypoint.
 - `bash scripts/deploy-from-github.sh --app-only` — когда уже запушенный код нужно выкатить на продакшн-сервер.
 - `bash scripts/deploy-from-github.sh` — когда нужен полный деплой с миграциями.
 

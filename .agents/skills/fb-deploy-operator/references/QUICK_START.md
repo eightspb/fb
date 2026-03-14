@@ -1,19 +1,28 @@
-# QUICK_START (TODO)
+# Deploy Quick Start
 
-## Назначение
-Минимальный сценарий деплоя за 5-10 минут для опытного оператора.
+## 90% случаев
+Если нет schema changes:
 
-## Что заполнить
-- TODO: 1 команда pre-flight.
-- TODO: 1 команда deploy.
-- TODO: 3 обязательные post-checks.
-- TODO: 1 команда rollback.
-
-## Пример структуры
 ```bash
-./scripts/run-tests.sh --quick
-./scripts/deploy.sh -AppOnly
-curl -s https://example.com/api/health
-./scripts/deploy.sh --rollback previous-stable
+bash scripts/deploy.sh app
 ```
 
+## Когда использовать другие режимы
+1. Только admin UI -> `bash scripts/deploy.sh admin`
+2. Только site/API/runtime -> `bash scripts/deploy.sh site`
+3. Есть миграции БД -> `bash scripts/deploy.sh full`
+
+## Быстрый pre-flight
+```bash
+git status --short
+git rev-parse --abbrev-ref HEAD
+```
+
+## Быстрый post-check
+```bash
+curl -I https://fibroadenoma.net/
+curl -I https://fibroadenoma.net/admin
+curl -s https://fibroadenoma.net/api/health
+```
+
+Если затронуты admin mutate-flow, после деплоя добавь quick save/smoke через `fb-release-smoke-operator`.

@@ -1,8 +1,10 @@
-import { ImapFlow } from 'imapflow';
+import { ImapFlow, type AppendResponseObject } from 'imapflow';
 import { simpleParser, type ParsedMail, type Attachment } from 'mailparser';
 import { Pool } from 'pg';
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, readFile } from 'fs/promises';
 import { join } from 'path';
+import type Mail from 'nodemailer/lib/mailer';
+import { buildRawEmail } from '@/lib/email';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
@@ -56,6 +58,49 @@ interface CrmEmailAttachment {
   created_at: string;
 }
 
+interface StoredOutboundEmailAttachment {
+  filename: string;
+  content_type: string | null;
+  storage_key: string | null;
+}
+
+interface StoredOutboundEmailRecord {
+  id: string;
+  message_id: string | null;
+  in_reply_to: string | null;
+  references_header: string | null;
+  from_address: string;
+  from_name: string | null;
+  to_addresses: string[];
+  cc_addresses: string[] | null;
+  subject: string | null;
+  body_html: string | null;
+  body_text: string | null;
+  sent_at: string;
+  direction: 'outbound';
+  sent_mailbox_status: 'legacy' | 'pending' | 'synced';
+}
+
+interface ImapClientTimeoutOptions {
+  connectionTimeout?: number;
+  greetingTimeout?: number;
+  socketTimeout?: number;
+}
+
+interface SentMailboxAppendResult {
+  saved: boolean;
+  path: string | null;
+  error: string | null;
+  skipped?: boolean;
+}
+
+interface PendingSentMailboxRetryResult {
+  checked: number;
+  appended: number;
+  failed: number;
+  skipped: number;
+}
+
 const EMAIL_PARTICIPANT_WHERE = `(
   LOWER(e.contact_email) = LOWER($1)
   OR LOWER(e.from_address) = LOWER($1)
@@ -71,7 +116,7 @@ const EMAIL_PARTICIPANT_WHERE = `(
   )
 )`;
 
-function createImapClient(): ImapFlow {
+function createImapClient(timeouts: ImapClientTimeoutOptions = {}): ImapFlow {
   const host = process.env.IMAP_HOST || 'imap.mail.ru';
   const port = parseInt(process.env.IMAP_PORT || '993');
 
@@ -84,7 +129,9 @@ function createImapClient(): ImapFlow {
       pass: process.env.SMTP_PASSWORD!,
     },
     logger: false,
-    socketTimeout: 120000,
+    connectionTimeout: timeouts.connectionTimeout ?? 90000,
+    greetingTimeout: timeouts.greetingTimeout ?? 16000,
+    socketTimeout: timeouts.socketTimeout ?? 120000,
   });
 
   client.on('error', (err: Error) => {
@@ -133,6 +180,286 @@ async function findSentFolder(client: ImapFlow): Promise<string | null> {
     }
   }
   return null;
+}
+
+/**
+ * Добавляет уже отправленное письмо в реальную IMAP-папку Sent основного ящика.
+ */
+export async function appendOutboundEmailToSentFolder(
+  rawMessage: Buffer,
+  sentAt: Date,
+  timeouts: ImapClientTimeoutOptions = {}
+): Promise<AppendResponseObject | null> {
+  const client = createImapClient(timeouts);
+  await client.connect();
+
+  try {
+    const sentFolder = await findSentFolder(client);
+    if (!sentFolder) {
+      console.warn('[IMAP] Sent folder not found, skipping append');
+      return null;
+    }
+
+    const appendResult = await client.append(sentFolder, rawMessage, ['\\Seen'], sentAt);
+    return appendResult || null;
+  } finally {
+    await client.logout().catch(() => {});
+  }
+}
+
+function formatMailboxAddress(address: string, name?: string | null): string {
+  return name ? `${name} <${address}>` : address;
+}
+
+async function loadStoredOutboundEmail(
+  emailId: string,
+  pgClient: any
+): Promise<{ email: StoredOutboundEmailRecord; attachments: StoredOutboundEmailAttachment[] } | null> {
+  const emailResult = await pgClient.query(
+    `SELECT
+      id, message_id, in_reply_to, references_header,
+      from_address, from_name, to_addresses, cc_addresses,
+      subject, body_html, body_text, sent_at, direction, sent_mailbox_status
+     FROM crm_emails
+     WHERE id = $1 AND direction = 'outbound'`,
+    [emailId]
+  );
+
+  const email = emailResult.rows[0] as StoredOutboundEmailRecord | undefined;
+  if (!email) {
+    return null;
+  }
+
+  const attachmentsResult = await pgClient.query(
+    `SELECT filename, content_type, storage_key
+     FROM crm_email_attachments
+     WHERE email_id = $1
+     ORDER BY created_at ASC, filename ASC`,
+    [emailId]
+  );
+
+  return {
+    email,
+    attachments: attachmentsResult.rows as StoredOutboundEmailAttachment[],
+  };
+}
+
+async function buildRawMessageForStoredOutboundEmail(
+  email: StoredOutboundEmailRecord,
+  attachments: StoredOutboundEmailAttachment[]
+): Promise<Buffer> {
+  const mailAttachments = await Promise.all(
+    attachments.map(async (attachment) => {
+      if (!attachment.storage_key) {
+        throw new Error(`Attachment ${attachment.filename} is missing storage_key`);
+      }
+
+      return {
+        filename: attachment.filename,
+        contentType: attachment.content_type || 'application/octet-stream',
+        content: await readFile(join(ATTACHMENTS_DIR, attachment.storage_key)),
+      };
+    })
+  );
+
+  const mailOptions: Mail.Options = {
+    from: formatMailboxAddress(email.from_address, email.from_name),
+    to: email.to_addresses,
+    cc: email.cc_addresses || undefined,
+    subject: email.subject || undefined,
+    text: email.body_text || undefined,
+    html: email.body_html || undefined,
+    attachments: mailAttachments,
+    messageId: email.message_id || undefined,
+    date: new Date(email.sent_at),
+  };
+
+  if (email.in_reply_to) {
+    mailOptions.inReplyTo = email.in_reply_to;
+  }
+
+  if (email.references_header) {
+    mailOptions.references = email.references_header;
+  }
+
+  return buildRawEmail(mailOptions);
+}
+
+async function recordSentMailboxAppendSuccess(
+  emailId: string,
+  appendResult: AppendResponseObject | null,
+  pgClient: any
+): Promise<void> {
+  await pgClient.query(
+    `UPDATE crm_emails
+     SET sent_mailbox_status = 'synced',
+         sent_mailbox_last_error = NULL,
+         sent_mailbox_last_attempt_at = NOW(),
+         sent_mailbox_synced_at = NOW(),
+         sent_mailbox_retry_count = sent_mailbox_retry_count + 1,
+         imap_folder = COALESCE($2, imap_folder),
+         imap_uid = COALESCE($3, imap_uid)
+     WHERE id = $1`,
+    [emailId, appendResult?.destination || null, appendResult?.uid || null]
+  );
+}
+
+async function recordSentMailboxAppendFailure(
+  emailId: string,
+  errorMessage: string,
+  pgClient: any
+): Promise<void> {
+  await pgClient.query(
+    `UPDATE crm_emails
+     SET sent_mailbox_status = 'pending',
+         sent_mailbox_last_error = $2,
+         sent_mailbox_last_attempt_at = NOW(),
+         sent_mailbox_retry_count = sent_mailbox_retry_count + 1
+     WHERE id = $1`,
+    [emailId, errorMessage]
+  );
+}
+
+async function tryClaimPendingSentMailboxEmail(
+  emailId: string,
+  pgClient: any
+): Promise<'claimed' | 'busy' | 'missing' | 'synced'> {
+  const lockResult = await pgClient.query(
+    `SELECT pg_try_advisory_xact_lock(
+       ('x' || substr(md5($1), 1, 16))::bit(64)::bigint
+     ) AS locked`,
+    [emailId]
+  );
+
+  if (!lockResult.rows[0]?.locked) {
+    return 'busy';
+  }
+
+  const emailResult = await pgClient.query(
+    `SELECT sent_mailbox_status
+     FROM crm_emails
+     WHERE id = $1 AND direction = 'outbound'`,
+    [emailId]
+  );
+
+  const email = emailResult.rows[0] as { sent_mailbox_status?: StoredOutboundEmailRecord['sent_mailbox_status'] } | undefined;
+  if (!email) {
+    return 'missing';
+  }
+
+  if (email.sent_mailbox_status === 'synced') {
+    return 'synced';
+  }
+
+  return 'claimed';
+}
+
+export async function appendSavedOutboundEmailToSent(
+  emailId: string,
+  timeouts: ImapClientTimeoutOptions = {}
+): Promise<SentMailboxAppendResult> {
+  const pgClient = await pool.connect();
+  let inTransaction = false;
+  try {
+    await pgClient.query('BEGIN');
+    inTransaction = true;
+
+    const claimState = await tryClaimPendingSentMailboxEmail(emailId, pgClient);
+    if (claimState === 'busy' || claimState === 'synced') {
+      await pgClient.query('ROLLBACK');
+      inTransaction = false;
+      return { saved: false, path: null, error: null, skipped: true };
+    }
+
+    if (claimState === 'missing') {
+      await pgClient.query('ROLLBACK');
+      inTransaction = false;
+      return { saved: false, path: null, error: 'Outbound email not found' };
+    }
+
+    const stored = await loadStoredOutboundEmail(emailId, pgClient);
+    if (!stored) {
+      await pgClient.query('ROLLBACK');
+      inTransaction = false;
+      return { saved: false, path: null, error: 'Outbound email not found' };
+    }
+
+    try {
+      const rawMessage = await buildRawMessageForStoredOutboundEmail(stored.email, stored.attachments);
+      const appendResult = await appendOutboundEmailToSentFolder(
+        rawMessage,
+        new Date(stored.email.sent_at),
+        timeouts
+      );
+
+      if (!appendResult) {
+        await recordSentMailboxAppendFailure(emailId, 'Sent folder not found', pgClient);
+        await pgClient.query('COMMIT');
+        inTransaction = false;
+        return { saved: false, path: null, error: 'Sent folder not found' };
+      }
+
+      await recordSentMailboxAppendSuccess(emailId, appendResult, pgClient);
+      await pgClient.query('COMMIT');
+      inTransaction = false;
+      return { saved: true, path: appendResult.destination, error: null };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await recordSentMailboxAppendFailure(emailId, message, pgClient);
+      await pgClient.query('COMMIT');
+      inTransaction = false;
+      return { saved: false, path: null, error: message };
+    }
+  } catch (error) {
+    if (inTransaction) {
+      await pgClient.query('ROLLBACK').catch(() => {});
+    }
+    throw error;
+  } finally {
+    pgClient.release();
+  }
+}
+
+export async function retryPendingSentMailboxEmails(
+  limit = 5,
+  timeouts: ImapClientTimeoutOptions = {}
+): Promise<PendingSentMailboxRetryResult> {
+  const pgClient = await pool.connect();
+  try {
+    const result = await pgClient.query(
+      `SELECT id
+       FROM crm_emails
+       WHERE direction = 'outbound'
+         AND sent_mailbox_status = 'pending'
+       ORDER BY sent_at ASC
+       LIMIT $1`,
+      [limit]
+    );
+
+    let appended = 0;
+    let failed = 0;
+    let skipped = 0;
+
+    for (const row of result.rows) {
+      const retry = await appendSavedOutboundEmailToSent(row.id, timeouts);
+      if (retry.saved) {
+        appended += 1;
+      } else if (retry.skipped) {
+        skipped += 1;
+      } else {
+        failed += 1;
+      }
+    }
+
+    return {
+      checked: result.rows.length,
+      appended,
+      failed,
+      skipped,
+    };
+  } finally {
+    pgClient.release();
+  }
 }
 
 /**
@@ -682,6 +1009,23 @@ export async function syncAll(onProgress?: (progress: SyncProgress) => void): Pr
     result.errors.push(`Sent: ${error.message}`);
   }
 
+  try {
+    const retried = await retryPendingSentMailboxEmails(10, {
+      connectionTimeout: 10000,
+      greetingTimeout: 7000,
+      socketTimeout: 15000,
+    });
+    if (retried.appended > 0) {
+      console.log(`[IMAP] Retried pending Sent copies: ${retried.appended}/${retried.checked}`);
+    }
+    if (retried.failed > 0) {
+      result.errors.push(`Pending Sent retries failed: ${retried.failed}`);
+    }
+  } catch (error: any) {
+    console.error('[IMAP] Error retrying pending Sent copies:', error.message);
+    result.errors.push(`Pending Sent retries: ${error.message}`);
+  }
+
   return result;
 }
 
@@ -727,19 +1071,15 @@ export async function getEmailsForContact(
   limit = 50,
   offset = 0
 ): Promise<EmailPage> {
-  const pgClient = await pool.connect();
-  try {
-    const [result, countResult] = await Promise.all([
-      pgClient.query(EMAIL_LIST_QUERY, [contactEmail, limit, offset]),
-      pgClient.query(EMAIL_COUNT_QUERY, [contactEmail]),
-    ]);
-    return {
-      emails: result.rows,
-      total: parseInt(countResult.rows[0].total, 10),
-    };
-  } finally {
-    pgClient.release();
-  }
+  const [result, countResult] = await Promise.all([
+    pool.query(EMAIL_LIST_QUERY, [contactEmail, limit, offset]),
+    pool.query(EMAIL_COUNT_QUERY, [contactEmail]),
+  ]);
+
+  return {
+    emails: result.rows,
+    total: parseInt(countResult.rows[0].total, 10),
+  };
 }
 
 /**
@@ -763,8 +1103,8 @@ export async function getEmailsForSubmission(
 
     const contactEmail = submission.rows[0].email;
     const [result, countResult] = await Promise.all([
-      pgClient.query(EMAIL_LIST_QUERY, [contactEmail, limit, offset]),
-      pgClient.query(EMAIL_COUNT_QUERY, [contactEmail]),
+      pool.query(EMAIL_LIST_QUERY, [contactEmail, limit, offset]),
+      pool.query(EMAIL_COUNT_QUERY, [contactEmail]),
     ]);
     return {
       emails: result.rows,
@@ -871,6 +1211,7 @@ export async function saveOutboundEmail(params: {
   bodyText?: string;
   submissionId?: string;
   sentAt: Date;
+  sentMailboxStatus?: 'legacy' | 'pending' | 'synced';
   attachments?: Array<{ filename: string; contentType: string; sizeBytes: number; content: Buffer }>;
 }): Promise<CrmEmail> {
   const pgClient = await pool.connect();
@@ -883,8 +1224,8 @@ export async function saveOutboundEmail(params: {
        (message_id, in_reply_to, references_header, direction, channel,
         from_address, from_name, to_addresses, cc_addresses,
         subject, body_html, body_text, has_attachments,
-        submission_id, contact_email, sent_at)
-       VALUES ($1, $2, $3, 'outbound', 'email', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        submission_id, contact_email, sent_at, sent_mailbox_status)
+       VALUES ($1, $2, $3, 'outbound', 'email', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING *`,
       [
         params.messageId,
@@ -901,6 +1242,7 @@ export async function saveOutboundEmail(params: {
         params.submissionId || null,
         contactEmail,
         params.sentAt,
+        params.sentMailboxStatus || 'legacy',
       ]
     );
 

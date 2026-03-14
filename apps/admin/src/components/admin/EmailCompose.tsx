@@ -89,6 +89,7 @@ export function EmailCompose({ contactEmail, contactName, submissionId, replyTo,
 ${body.split('\n').map(line => `<p style="margin: 0 0 8px 0;">${line || '&nbsp;'}</p>`).join('\n')}
 </div>`;
       formData.append('body_html', htmlBody);
+      formData.append('body_text', body);
 
       if (submissionId) {
         formData.append('submission_id', submissionId);

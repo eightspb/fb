@@ -1,17 +1,17 @@
-# AUTOMATION_GUIDE (TODO)
+# Deploy Automation Notes
 
-## Назначение
-Описывает автоматизацию деплоя через CI/CD, скрипты и безопасные повторные прогоны.
+## Локальный script-first подход
+Для этого репозитория основной операционный путь - bash scripts из репо.
+GitHub Actions useful как CI и secondary deployment automation, но не как единственный знаниевый источник.
 
-## Что заполнить
-- TODO: Стратегия auto-deploy по веткам/тегам.
-- TODO: Порядок dry-run и production-run.
-- TODO: Управление секретами.
-- TODO: Автоматические post-deploy checks и алерты.
-- TODO: Автоматический rollback policy.
+## Что синхронизировать при изменении релизного процесса
+1. `README.md`
+2. `docs/DEPLOY_GUIDE.md`
+3. `scripts/README.md`
+4. `.github/workflows/deploy.yml`
+5. связанные project skills
 
-## Быстрый grep
-```bash
-rg -n "pipeline|rollback|post-deploy|secrets" .agents/skills/fb-deploy-operator/references/AUTOMATION_GUIDE.md
-```
-
+## Safety rules
+1. Не вводи новый deploy path без обновления docs и skills.
+2. Не делай auto-deploy assumptions, если проект фактически деплоится локальным script flow.
+3. Перед rollout mode changes проверь handoff в `fb-change-impact-gate` и `fb-test-gatekeeper`.

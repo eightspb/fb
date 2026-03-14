@@ -22,6 +22,12 @@
 |------|------|-----------|
 | [batch-research/batch-research-plan.md](batch-research/batch-research-plan.md) | Пакетное AI-исследование контактов | Высокая |
 
+## Аналитика и CRM
+
+| Файл | Фича | Сложность |
+|------|------|-----------|
+| [visitor-identity-and-contact-linking.md](visitor-identity-and-contact-linking.md) | Visitor identity, visit sessions, fingerprint и ручная привязка к CRM-контактам | Высокая |
+
 ---
 
 ## Рекомендуемая очерёдность

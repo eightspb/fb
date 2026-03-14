@@ -22,10 +22,12 @@ import {
   X,
 } from 'lucide-react';
 import { EmailCompose } from './EmailCompose';
+import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 
 const PAGE_SIZE = 10; // тредов на страницу
 const FETCH_LIMIT = 50; // писем за один запрос к API
 const SEARCH_DEBOUNCE_MS = 400; // задержка перед серверным поиском
+const PENDING_SENT_RETRY_MS = 30000; // как часто пробуем дозаписать pending-письма в Sent
 
 interface EmailAttachment {
   id: string;
@@ -616,6 +618,38 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchEmails]);
+
+  const retryPendingSentCopies = useCallback(async () => {
+    try {
+      const response = await adminCsrfFetch('/api/admin/emails/retry-pending', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data = await response.json() as { appended?: number };
+      if ((data.appended || 0) > 0 && mountedRef.current) {
+        await fetchEmails();
+      }
+    } catch {
+      // Тихо игнорируем: следующий цикл повторит попытку.
+    }
+  }, [fetchEmails]);
+
+  useEffect(() => {
+    void retryPendingSentCopies();
+
+    const intervalId = window.setInterval(() => {
+      void retryPendingSentCopies();
+    }, PENDING_SENT_RETRY_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [retryPendingSentCopies]);
 
   const handleStopSearch = () => {
     searchAbortRef.current?.abort();

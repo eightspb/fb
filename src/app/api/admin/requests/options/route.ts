@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { Pool } from 'pg';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
@@ -26,31 +26,26 @@ async function verifyAdminSession(): Promise<boolean> {
 }
 
 // Получить уникальные значения городов и учреждений из БД
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const isAuthenticated = await verifyAdminSession();
     if (!isAuthenticated) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const client = await pool.connect();
-    try {
-      const [citiesResult, institutionsResult] = await Promise.all([
-        client.query(
-          `SELECT DISTINCT city FROM form_submissions WHERE city IS NOT NULL AND city != '' ORDER BY city`
-        ),
-        client.query(
-          `SELECT DISTINCT institution FROM form_submissions WHERE institution IS NOT NULL AND institution != '' ORDER BY institution`
-        ),
-      ]);
+    const [citiesResult, institutionsResult] = await Promise.all([
+      pool.query(
+        `SELECT DISTINCT city FROM form_submissions WHERE city IS NOT NULL AND city != '' ORDER BY city`
+      ),
+      pool.query(
+        `SELECT DISTINCT institution FROM form_submissions WHERE institution IS NOT NULL AND institution != '' ORDER BY institution`
+      ),
+    ]);
 
-      return NextResponse.json({
-        cities: citiesResult.rows.map(r => r.city),
-        institutions: institutionsResult.rows.map(r => r.institution),
-      });
-    } finally {
-      client.release();
-    }
+    return NextResponse.json({
+      cities: citiesResult.rows.map(r => r.city),
+      institutions: institutionsResult.rows.map(r => r.institution),
+    });
   } catch (error: any) {
     console.error('Error fetching options:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

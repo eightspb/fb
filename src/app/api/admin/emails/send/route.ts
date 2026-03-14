@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
-import { createEmailTransporter, getSenderEmail, getSenderAddress } from '@/lib/email';
-import { saveOutboundEmail } from '@/lib/imap-client';
+import { createEmailTransporter, generateMessageId, getSenderAddress, getSenderEmail, getSenderName } from '@/lib/email';
+import { appendSavedOutboundEmailToSent, saveOutboundEmail } from '@/lib/imap-client';
 import type Mail from 'nodemailer/lib/mailer';
 
 export const runtime = 'nodejs';
@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
     const to = formData.get('to') as string;
     const subject = formData.get('subject') as string;
     const bodyHtml = formData.get('body_html') as string;
+    const bodyText = formData.get('body_text') as string | null;
     const submissionId = formData.get('submission_id') as string | null;
     const inReplyTo = formData.get('in_reply_to') as string | null;
     const referencesHeader = formData.get('references') as string | null;
@@ -69,16 +70,22 @@ export async function POST(request: NextRequest) {
     }
 
     const fromEmail = getSenderEmail();
+    const fromName = getSenderName();
     const fromAddress = getSenderAddress();
     const transporter = createEmailTransporter();
+    const sentAt = new Date();
+    const messageId = generateMessageId(fromEmail);
 
     // Формируем заголовки для threading
     const mailOptions: Mail.Options = {
       from: fromAddress,
       to,
       subject,
+      text: bodyText || undefined,
       html: bodyHtml,
       attachments: nodemailerAttachments,
+      messageId,
+      date: sentAt,
     };
 
     if (inReplyTo) {
@@ -87,25 +94,42 @@ export async function POST(request: NextRequest) {
     }
 
     // Отправляем через nodemailer
-    const info = await transporter.sendMail(mailOptions);
+    await transporter.sendMail(mailOptions);
 
     // Сохраняем в БД
     const saved = await saveOutboundEmail({
-      messageId: info.messageId,
+      messageId,
       inReplyTo: inReplyTo || undefined,
       references: referencesHeader || inReplyTo || undefined,
       fromAddress: fromEmail,
-      fromName: undefined,
+      fromName,
       toAddresses: [to],
       subject,
       bodyHtml,
-      bodyText: undefined,
+      bodyText: bodyText || undefined,
       submissionId: submissionId || undefined,
-      sentAt: new Date(),
+      sentAt,
+      sentMailboxStatus: 'pending',
       attachments: attachmentFiles.length > 0 ? attachmentFiles : undefined,
     });
 
-    return NextResponse.json({ success: true, email: saved });
+    const sentAppend = await appendSavedOutboundEmailToSent(saved.id, {
+      connectionTimeout: 15000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
+    });
+
+    if (sentAppend.error) {
+      console.error('[CRM Emails] Failed to append message to IMAP Sent:', sentAppend.error);
+    }
+
+    return NextResponse.json({
+      success: true,
+      email: saved,
+      sentFolderSaved: sentAppend.saved,
+      sentFolderPath: sentAppend.path,
+      sentFolderError: sentAppend.error,
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[CRM Emails] Send error:', message);

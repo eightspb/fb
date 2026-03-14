@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Sparkles, Send, Loader2, User, Bot, Plus, Trash2, MessageSquare, Download, BarChart2, Star, X } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 import { MiniChart, extractChart, detectChartable } from './MiniChart';
+import { getTableColumnKey, renderContactResultsTable } from './rendering';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -12,6 +13,7 @@ interface ChatMessage {
   sqlResult?: Record<string, unknown>[];
   actionLog?: string[];
   contactIds?: string[];   // контакты, упомянутые в этом сообщении
+  contacts?: Array<{ id: string; full_name: string }>;
   question?: string;       // вопрос пользователя, к которому относится ответ
 }
 
@@ -105,6 +107,7 @@ interface ChatSession {
 
 const STORAGE_KEY = 'ai-assistant-sessions';
 const ACTIVE_SESSION_KEY = 'ai-assistant-active-session';
+const EMPTY_MESSAGES: ChatMessage[] = [];
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -161,7 +164,7 @@ const DIGEST_PERIOD_LABELS: Record<DigestPeriod, string> = {
   month: 'за месяц',
 };
 
-function renderMarkdown(text: string): string {
+function renderMarkdown(text: string, options?: { sqlResult?: Record<string, unknown>[] }): string {
   const lines = text.split('\n');
   const output: string[] = [];
   let i = 0;
@@ -192,17 +195,28 @@ function renderMarkdown(text: string): string {
       }
       const rows = tableLines.filter(l => !/^\s*\|[\s\-|:]+\|\s*$/.test(l));
       if (rows.length > 0) {
-        let tableHtml = '<table style="border-collapse:collapse;width:100%;font-size:0.85em;margin:8px 0">';
-        rows.forEach((row, idx) => {
-          const cells = row.split('|').slice(1, -1).map(c => c.trim());
-          const tag = idx === 0 ? 'th' : 'td';
-          const style = idx === 0
-            ? 'style="background:var(--frox-gray-50,#f9fafb);font-weight:600;padding:6px 10px;border:1px solid var(--frox-gray-200,#e5e7eb);text-align:left"'
-            : 'style="padding:5px 10px;border:1px solid var(--frox-gray-200,#e5e7eb)"';
-          tableHtml += `<tr>${cells.map(c => `<${tag} ${style}>${c}</${tag}>`).join('')}</tr>`;
-        });
-        tableHtml += '</table>';
-        output.push(tableHtml);
+        const headerCells = rows[0].split('|').slice(1, -1).map(c => c.trim());
+        const sqlRows = options?.sqlResult ?? [];
+        const canRenderContactsTable = sqlRows.length > 0
+          && sqlRows.every(row => typeof row.id === 'string' && typeof row.full_name === 'string')
+          && headerCells.some(cell => getTableColumnKey(cell) === 'full_name');
+
+        if (canRenderContactsTable) {
+          const markdownRows = rows.slice(1).map(row => row.split('|').slice(1, -1).map(cell => cell.trim()));
+          output.push(renderContactResultsTable(headerCells, sqlRows, markdownRows));
+        } else {
+          let tableHtml = '<table style="border-collapse:collapse;width:100%;font-size:0.85em;margin:8px 0">';
+          rows.forEach((row, idx) => {
+            const cells = row.split('|').slice(1, -1).map(c => c.trim());
+            const tag = idx === 0 ? 'th' : 'td';
+            const style = idx === 0
+              ? 'style="background:var(--frox-gray-50,#f9fafb);font-weight:600;padding:6px 10px;border:1px solid var(--frox-gray-200,#e5e7eb);text-align:left"'
+              : 'style="padding:5px 10px;border:1px solid var(--frox-gray-200,#e5e7eb)"';
+            tableHtml += `<tr>${cells.map(c => `<${tag} ${style}>${c}</${tag}>`).join('')}</tr>`;
+          });
+          tableHtml += '</table>';
+          output.push(tableHtml);
+        }
       }
       continue;
     }
@@ -248,6 +262,46 @@ function inlineFormat(text: string): string {
     .replace(/`(.+?)`/g, '<code style="background:var(--frox-gray-100,#f3f4f6);padding:1px 4px;border-radius:3px;font-size:0.9em">$1</code>');
 }
 
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getLinkableContactsFromRows(rows?: Record<string, unknown>[]): Array<{ id: string; full_name: string }> {
+  if (!rows?.length) return [];
+
+  const normalized = rows.map(row => ({
+    id: typeof row.id === 'string' ? row.id : '',
+    full_name: typeof row.full_name === 'string' ? row.full_name.trim() : '',
+  }));
+
+  if (normalized.some(contact => !contact.id || !contact.full_name)) {
+    return [];
+  }
+
+  return normalized
+    .filter((contact, index, arr) => arr.findIndex(item => item.id === contact.id) === index)
+    .sort((a, b) => b.full_name.length - a.full_name.length);
+}
+
+function linkifyContactNames(text: string, contacts: Array<{ id: string; full_name: string }>): string {
+  if (!contacts.length) return text;
+
+  let output = text;
+
+  for (const contact of contacts) {
+    const escapedName = escapeRegExp(contact.full_name);
+    const regex = new RegExp(`(^|[^\\p{L}\\p{N}_>/"'=])(${escapedName})(?=$|[^\\p{L}\\p{N}_<])`, 'gu');
+
+    output = output.replace(
+      regex,
+      (_, prefix: string, match: string) =>
+        `${prefix}<a href="/contacts/${contact.id}" style="color:var(--frox-blue);text-decoration:none;font-weight:600;border-bottom:1px solid rgba(59,130,246,0.35)">${match}</a>`
+    );
+  }
+
+  return output;
+}
+
 export default function AiAssistantPage() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -255,6 +309,7 @@ export default function AiAssistantPage() {
   const [loading, setLoading] = useState(false);
   const [liveActionLog, setLiveActionLog] = useState<string[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [digestPeriod, setDigestPeriod] = useState<DigestPeriod>('today');
   const [showSaved, setShowSaved] = useState(false);
@@ -265,7 +320,7 @@ export default function AiAssistantPage() {
   const { queries: savedQueries, save: saveQuery, remove: removeQuery, recordUsage, isSaved } = useSavedQueries();
 
   const activeSession = sessions.find(s => s.id === activeSessionId) || null;
-  const messages = activeSession?.messages || [];
+  const messages = activeSession?.messages ?? EMPTY_MESSAGES;
 
   // Load on mount
   useEffect(() => {
@@ -326,6 +381,21 @@ export default function AiAssistantPage() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showSaved]);
 
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 900px)');
+    const syncViewport = () => {
+      const mobile = media.matches;
+      setIsMobile(mobile);
+      if (mobile) {
+        setSidebarOpen(false);
+      }
+    };
+
+    syncViewport();
+    media.addEventListener('change', syncViewport);
+    return () => media.removeEventListener('change', syncViewport);
+  }, []);
+
   const updateSessionMessages = useCallback((sessionId: string, newMessages: ChatMessage[]) => {
     setSessions(prev => prev.map(s =>
       s.id === sessionId
@@ -345,6 +415,7 @@ export default function AiAssistantPage() {
     setSessions(prev => [session, ...prev]);
     setActiveSessionId(session.id);
     setInput('');
+    if (isMobile) setSidebarOpen(false);
   }
 
   function deleteSession(id: string) {
@@ -359,6 +430,7 @@ export default function AiAssistantPage() {
   function switchSession(id: string) {
     setActiveSessionId(id);
     setInput('');
+    if (isMobile) setSidebarOpen(false);
   }
 
   function autoResize() {
@@ -447,6 +519,13 @@ export default function AiAssistantPage() {
             } else if (eventName === 'reply') {
               const actionLog = (parsed.actionsPerformed as string[] | undefined) ?? [];
               const contactIds = (parsed.contactIds as string[] | undefined) ?? [];
+              const contacts = (
+                parsed.contacts as Array<{ id?: string; full_name?: string }> | undefined
+              )?.filter(contact => contact.id && contact.full_name)
+                .map(contact => ({
+                  id: String(contact.id),
+                  full_name: String(contact.full_name),
+                })) ?? [];
               const sqlResult = (parsed.sqlResult as Record<string, unknown>[] | undefined) ?? undefined;
               const lastUserContent = newMessages.findLast(m => m.role === 'user')?.content ?? '';
               updateSessionMessages(capturedSessionId, [...newMessages, {
@@ -456,6 +535,7 @@ export default function AiAssistantPage() {
                 sqlResult: sqlResult && sqlResult.length > 0 ? sqlResult : undefined,
                 actionLog,
                 contactIds: contactIds.length > 0 ? contactIds : undefined,
+                contacts: contacts.length > 0 ? contacts : undefined,
                 question: contactIds.length > 0 ? lastUserContent : undefined,
               }]);
               setLiveActionLog([]);
@@ -537,27 +617,80 @@ export default function AiAssistantPage() {
   }
 
   const sortedSessions = [...sessions].sort((a, b) => b.updatedAt - a.updatedAt);
+  const showSidebar = sidebarOpen;
 
   return (
-    <div style={{ display: 'flex', height: '100%', minHeight: 0 }}>
+    <div className="ai-assistant-root" style={{ display: 'flex', height: '100%', minHeight: 0 }}>
+      {isMobile && showSidebar && (
+        <button
+          type="button"
+          aria-label="Закрыть список чатов"
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            border: 'none',
+            background: 'rgba(15, 23, 42, 0.42)',
+            zIndex: 39,
+          }}
+        />
+      )}
+
       {/* Sidebar */}
-      {sidebarOpen && (
-        <div style={{
-          width: 260, flexShrink: 0, borderRight: '1px solid var(--frox-gray-200)',
-          display: 'flex', flexDirection: 'column', background: 'var(--frox-gray-50, #f9fafb)',
-        }}>
+      {showSidebar && (
+        <div
+          className="ai-sidebar"
+          style={{
+            width: isMobile ? 'min(84vw, 320px)' : 260,
+            flexShrink: 0,
+            borderRight: '1px solid var(--frox-gray-200)',
+            display: 'flex',
+            flexDirection: 'column',
+            background: 'var(--frox-gray-50, #f9fafb)',
+            ...(isMobile
+              ? {
+                  position: 'fixed',
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  zIndex: 40,
+                  boxShadow: '0 24px 60px rgba(15, 23, 42, 0.18)',
+                }
+              : {}),
+          }}
+        >
           {/* Sidebar header */}
           <div style={{
-            padding: '12px 12px 8px', display: 'flex', alignItems: 'center', gap: 8,
+            padding: isMobile ? '16px 14px 10px' : '12px 12px 8px', display: 'flex', alignItems: 'center', gap: 8,
           }}>
+            {isMobile && (
+              <button
+                onClick={() => setSidebarOpen(false)}
+                title="Закрыть"
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  border: '1px solid var(--frox-gray-200)',
+                  background: 'white',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <X size={18} />
+              </button>
+            )}
             <button
               onClick={createNewSession}
               style={{
                 flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                padding: '8px 12px', borderRadius: 10,
+                padding: isMobile ? '12px 14px' : '8px 12px', borderRadius: 14,
                 border: '1px solid var(--frox-gray-200)',
                 background: 'white', cursor: 'pointer',
-                fontSize: '0.85em', fontWeight: 500, color: 'var(--frox-gray-700)',
+                fontSize: isMobile ? '0.92em' : '0.85em', fontWeight: 600, color: 'var(--frox-gray-700)',
                 transition: 'border-color 0.15s',
               }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--frox-blue)'; }}
@@ -652,32 +785,43 @@ export default function AiAssistantPage() {
         </div>
       )}
 
-      {/* Main chat area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        {/* Main chat area */}
+      <div className="ai-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 }}>
         {/* Header */}
-        <div style={{
+        <div className="ai-header" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '12px 24px', borderBottom: '1px solid var(--frox-gray-200)',
+          padding: isMobile ? '12px 14px' : '12px 24px', borderBottom: '1px solid var(--frox-gray-200)',
           flexShrink: 0,
+          gap: 12,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
             <button
               onClick={() => setSidebarOpen(v => !v)}
               title={sidebarOpen ? 'Скрыть панель' : 'Показать панель'}
               style={{
-                padding: 6, border: 'none', background: 'transparent',
-                cursor: 'pointer', borderRadius: 6, display: 'flex',
+                width: isMobile ? 40 : 'auto', height: isMobile ? 40 : 'auto',
+                padding: isMobile ? 0 : 6, border: 'none', background: isMobile ? 'var(--frox-gray-100)' : 'transparent',
+                cursor: 'pointer', borderRadius: 10, display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
                 color: 'var(--frox-gray-500)',
+                flexShrink: 0,
               }}
             >
               <MessageSquare size={18} />
             </button>
-            <Sparkles size={18} color="var(--frox-blue)" />
-            <h1 style={{ fontSize: '1em', fontWeight: 600, margin: 0 }}>
+            {!isMobile && <Sparkles size={18} color="var(--frox-blue)" />}
+            <h1 style={{
+              fontSize: isMobile ? '0.95em' : '1em',
+              fontWeight: 600,
+              margin: 0,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
               {activeSession?.title || 'AI Ассистент'}
             </h1>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div className="ai-toolbar" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {/* Saved queries dropdown */}
             <div ref={savedDropdownRef} style={{ position: 'relative' }}>
               <button
@@ -698,7 +842,7 @@ export default function AiAssistantPage() {
                 <div style={{
                   position: 'absolute', top: 'calc(100% + 4px)', right: 0, zIndex: 50,
                   background: 'white', border: '1px solid var(--frox-gray-200)',
-                  borderRadius: 12, width: 320, boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+                  borderRadius: 12, width: isMobile ? 'min(320px, calc(100vw - 32px))' : 320, boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
                   maxHeight: 400, overflowY: 'auto',
                 }}>
                   <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--frox-gray-100)', fontSize: '0.8em', color: 'var(--frox-gray-500)' }}>
@@ -734,28 +878,29 @@ export default function AiAssistantPage() {
                 </div>
               )}
             </div>
-            <div style={{ display: 'flex', border: '1px solid var(--frox-gray-200)', borderRadius: 8, overflow: 'hidden' }}>
+            <div className="ai-digest-control" style={{ display: 'flex', border: '1px solid var(--frox-gray-200)', borderRadius: 12, overflow: 'hidden', background: 'white' }}>
               <button
                 onClick={() => runDigest(digestPeriod)}
                 disabled={loading}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '6px 12px', border: 'none', borderRight: '1px solid var(--frox-gray-200)',
+                  padding: isMobile ? '10px 12px' : '6px 12px', border: 'none', borderRight: '1px solid var(--frox-gray-200)',
                   background: 'white', cursor: loading ? 'default' : 'pointer',
                   fontSize: '0.85em', color: loading ? 'var(--frox-gray-400)' : 'var(--frox-gray-600)',
                 }}
               >
                 <BarChart2 size={14} />
-                Дайджест
+                {!isMobile && 'Дайджест'}
               </button>
               <select
                 value={digestPeriod}
                 onChange={e => setDigestPeriod(e.target.value as DigestPeriod)}
                 disabled={loading}
                 style={{
-                  padding: '6px 8px', border: 'none', background: 'white',
+                  padding: isMobile ? '10px 10px' : '6px 8px', border: 'none', background: 'white',
                   fontSize: '0.85em', color: 'var(--frox-gray-600)', cursor: 'pointer',
                   outline: 'none',
+                  minWidth: isMobile ? 0 : undefined,
                 }}
               >
                 <option value="today">Сегодня</option>
@@ -767,22 +912,22 @@ export default function AiAssistantPage() {
               onClick={createNewSession}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
-                padding: '6px 12px', borderRadius: 8, border: '1px solid var(--frox-gray-200)',
+                padding: isMobile ? '10px 12px' : '6px 12px', borderRadius: 12, border: '1px solid var(--frox-gray-200)',
                 background: 'white', cursor: 'pointer', fontSize: '0.85em', color: 'var(--frox-gray-600)',
               }}
             >
               <Plus size={14} />
-              Новый чат
+              {!isMobile && 'Новый чат'}
             </button>
           </div>
         </div>
 
         {/* Messages area */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px', minHeight: 0 }}>
+        <div className="ai-messages" style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '14px 12px' : '16px 24px', minHeight: 0, minWidth: 0 }}>
           {messages.length === 0 ? (
-            <WelcomeScreen onExample={text => sendMessage(text)} />
+            <WelcomeScreen onExample={text => sendMessage(text)} isMobile={isMobile} />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 800, margin: '0 auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 12 : 16, maxWidth: 800, margin: '0 auto', width: '100%' }}>
               {messages.map((msg, idx) => (
                 <MessageBubble
                   key={idx}
@@ -791,26 +936,28 @@ export default function AiAssistantPage() {
                   onQuickReply={loading ? undefined : (text) => sendMessage(text)}
                   onSaveQuery={saveQuery}
                   isSaved={isSaved}
+                  isMobile={isMobile}
                 />
               ))}
-              {loading && <LiveActionLog log={liveActionLog} />}
+              {loading && <LiveActionLog log={liveActionLog} isMobile={isMobile} />}
               <div ref={bottomRef} />
             </div>
           )}
         </div>
 
         {/* Input area */}
-        <div style={{
-          padding: '12px 24px 16px',
+        <div className="ai-composer-shell" style={{
+          padding: isMobile ? '10px 12px calc(12px + env(safe-area-inset-bottom))' : '12px 24px 16px',
           borderTop: '1px solid var(--frox-gray-200)',
           flexShrink: 0,
-          background: 'white',
+          background: 'rgba(255,255,255,0.96)',
+          backdropFilter: 'blur(14px)',
         }}>
           <div style={{
             display: 'flex', gap: 8, alignItems: 'flex-end',
             maxWidth: 800, margin: '0 auto',
-            border: '1px solid var(--frox-gray-200)', borderRadius: 16,
-            padding: '8px 8px 8px 16px',
+            border: '1px solid var(--frox-gray-200)', borderRadius: isMobile ? 18 : 16,
+            padding: isMobile ? '10px' : '8px 8px 8px 16px',
             background: 'white',
             boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
           }}>
@@ -824,7 +971,7 @@ export default function AiAssistantPage() {
               rows={1}
               style={{
                 flex: 1, border: 'none', outline: 'none', resize: 'none',
-                fontSize: '0.95em', lineHeight: 1.5, background: 'transparent',
+                fontSize: isMobile ? '16px' : '0.95em', lineHeight: 1.5, background: 'transparent',
                 fontFamily: 'inherit', minHeight: 24, maxHeight: 120,
                 color: 'var(--frox-gray-900)',
               }}
@@ -833,7 +980,7 @@ export default function AiAssistantPage() {
               onClick={() => sendMessage(input)}
               disabled={loading || !input.trim()}
               style={{
-                width: 36, height: 36, borderRadius: 10, border: 'none',
+                width: isMobile ? 44 : 36, height: isMobile ? 44 : 36, borderRadius: 12, border: 'none',
                 background: input.trim() && !loading ? 'var(--frox-blue)' : 'var(--frox-gray-200)',
                 color: input.trim() && !loading ? 'white' : 'var(--frox-gray-400)',
                 cursor: input.trim() && !loading ? 'pointer' : 'default',
@@ -844,45 +991,80 @@ export default function AiAssistantPage() {
               {loading ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Send size={16} />}
             </button>
           </div>
-          <p style={{ textAlign: 'center', fontSize: '0.75em', color: 'var(--frox-gray-400)', marginTop: 8 }}>
+          <p style={{ textAlign: 'center', fontSize: isMobile ? '0.7em' : '0.75em', color: 'var(--frox-gray-400)', marginTop: 8 }}>
             Enter — отправить · Shift+Enter — новая строка
           </p>
         </div>
 
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }`}</style>
+        <style>{`
+          @keyframes spin { to { transform: rotate(360deg); } }
+          @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+
+          .ai-assistant-root {
+            overflow: hidden;
+            position: relative;
+          }
+
+          @media (max-width: 900px) {
+            .ai-header {
+              align-items: flex-start;
+              flex-direction: column;
+            }
+
+            .ai-toolbar {
+              width: 100%;
+              justify-content: space-between !important;
+            }
+
+            .ai-digest-control {
+              flex: 1 1 auto;
+              min-width: 0;
+            }
+          }
+
+          @media (max-width: 640px) {
+            .ai-toolbar {
+              gap: 8px !important;
+            }
+
+            .ai-messages {
+              scroll-padding-bottom: 120px;
+            }
+          }
+        `}</style>
       </div>
     </div>
   );
 }
 
-function WelcomeScreen({ onExample }: { onExample: (text: string) => void }) {
+function WelcomeScreen({ onExample, isMobile = false }: { onExample: (text: string) => void; isMobile?: boolean }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 40, gap: 24 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: isMobile ? 10 : 40, gap: isMobile ? 18 : 24, width: '100%' }}>
       <div style={{
-        width: 64, height: 64, borderRadius: 20,
+        width: isMobile ? 56 : 64, height: isMobile ? 56 : 64, borderRadius: 20,
         background: 'linear-gradient(135deg,#e8f0fe,#c7d7fd)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <Sparkles size={32} color="var(--frox-blue)" />
+        <Sparkles size={isMobile ? 28 : 32} color="var(--frox-blue)" />
       </div>
       <div style={{ textAlign: 'center' }}>
-        <h2 style={{ fontSize: '1.3em', fontWeight: 700, margin: '0 0 6px' }}>AI Ассистент</h2>
-        <p style={{ color: 'var(--frox-gray-500)', margin: 0, fontSize: '0.95em' }}>
+        <h2 style={{ fontSize: isMobile ? '1.15em' : '1.3em', fontWeight: 700, margin: '0 0 6px' }}>AI Ассистент</h2>
+        <p style={{ color: 'var(--frox-gray-500)', margin: 0, fontSize: isMobile ? '0.9em' : '0.95em', maxWidth: 480 }}>
           Задавайте вопросы по базе контактов, заявок, аналитике
         </p>
       </div>
       <div style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, maxWidth: 560, width: '100%',
+        display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, maxWidth: 560, width: '100%',
       }}>
         {EXAMPLE_PROMPTS.map(prompt => (
           <button
             key={prompt}
             onClick={() => onExample(prompt)}
             style={{
-              padding: '12px 16px', borderRadius: 12,
+              padding: isMobile ? '14px 16px' : '12px 16px', borderRadius: 14,
               border: '1px solid var(--frox-gray-200)',
               background: 'white', cursor: 'pointer',
-              textAlign: 'left', fontSize: '0.875em',
+              textAlign: 'left', fontSize: isMobile ? '0.92em' : '0.875em',
               color: 'var(--frox-gray-700)',
               lineHeight: 1.4,
               transition: 'border-color 0.15s, background 0.15s',
@@ -911,15 +1093,19 @@ function extractButtons(content: string): { text: string; buttons: string[] } {
     buttons.push(label.trim());
     return '';
   }).replace(/\n{3,}/g, '\n\n').trim();
-  return { text, buttons };
+  return {
+    text,
+    buttons: buttons.filter(label => !label.startsWith('Показать карточку ')),
+  };
 }
 
-function MessageBubble({ message, isLast, onQuickReply, onSaveQuery, isSaved }: {
+function MessageBubble({ message, isLast, onQuickReply, onSaveQuery, isSaved, isMobile = false }: {
   message: ChatMessage;
   isLast?: boolean;
   onQuickReply?: (text: string) => void;
   onSaveQuery?: (text: string) => void;
   isSaved?: (text: string) => boolean;
+  isMobile?: boolean;
 }) {
   const isUser = message.role === 'user';
   const { text, buttons } = isUser ? { text: message.content, buttons: [] } : extractButtons(message.content);
@@ -928,6 +1114,10 @@ function MessageBubble({ message, isLast, onQuickReply, onSaveQuery, isSaved }: 
   const showButtons = isLast && buttons.length > 0 && onQuickReply;
   const [noteSaved, setNoteSaved] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
   const saved = isUser && isSaved ? isSaved(message.content) : false;
+  const linkableContacts = getLinkableContactsFromRows(message.sqlResult);
+  const renderedAssistantHtml = isUser ? '' : renderMarkdown(linkifyContactNames(cleanText, linkableContacts), {
+    sqlResult: linkableContacts.length > 0 ? message.sqlResult : undefined,
+  });
 
   const handleSaveNote = async () => {
     if (!message.contactIds?.length) return;
@@ -953,20 +1143,21 @@ function MessageBubble({ message, isLast, onQuickReply, onSaveQuery, isSaved }: 
     <div style={{
       display: 'flex',
       flexDirection: isUser ? 'row-reverse' : 'row',
-      gap: 10, alignItems: 'flex-start',
+      gap: isMobile ? 8 : 10, alignItems: 'flex-start',
+      width: '100%',
     }}>
       <div style={{
-        width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+        width: isMobile ? 28 : 32, height: isMobile ? 28 : 32, borderRadius: 10, flexShrink: 0,
         background: isUser ? 'var(--frox-blue)' : 'var(--frox-gray-100)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         {isUser
-          ? <User size={16} color="white" />
-          : <Bot size={16} color="var(--frox-gray-600)" />
+          ? <User size={isMobile ? 14 : 16} color="white" />
+          : <Bot size={isMobile ? 14 : 16} color="var(--frox-gray-600)" />
         }
       </div>
 
-      <div style={{ maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ maxWidth: isMobile ? 'calc(100% - 36px)' : '85%', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
         {/* Action log (автоматически выполненные действия) */}
         {!isUser && message.actionLog && message.actionLog.length > 0 && (
           <div style={{
@@ -983,17 +1174,18 @@ function MessageBubble({ message, isLast, onQuickReply, onSaveQuery, isSaved }: 
         )}
 
         <div style={{
-          padding: '10px 14px',
+          padding: isMobile ? '10px 12px' : '10px 14px',
           borderRadius: isUser ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
           background: isUser ? 'var(--frox-gray-100)' : 'white',
           border: isUser ? 'none' : '1px solid var(--frox-gray-200)',
-          fontSize: '0.9em',
+          fontSize: isMobile ? '0.92em' : '0.9em',
           lineHeight: 1.6,
+          overflowX: 'auto',
         }}>
           {isUser ? (
             <span style={{ whiteSpace: 'pre-wrap' }}>{text}</span>
           ) : (
-            <div dangerouslySetInnerHTML={{ __html: renderMarkdown(cleanText) }} />
+            <div dangerouslySetInnerHTML={{ __html: renderedAssistantHtml }} />
           )}
         </div>
 
@@ -1040,10 +1232,10 @@ function MessageBubble({ message, isLast, onQuickReply, onSaveQuery, isSaved }: 
                 key={i}
                 onClick={() => onQuickReply(label)}
                 style={{
-                  padding: '6px 14px', borderRadius: 18,
+                  padding: isMobile ? '9px 14px' : '6px 14px', borderRadius: 18,
                   border: '1px solid var(--frox-blue)',
                   background: 'white', cursor: 'pointer',
-                  fontSize: '0.83em', color: 'var(--frox-blue)',
+                  fontSize: isMobile ? '0.86em' : '0.83em', color: 'var(--frox-blue)',
                   fontWeight: 500, lineHeight: 1.3,
                   transition: 'background 0.15s, color 0.15s',
                 }}
@@ -1060,30 +1252,6 @@ function MessageBubble({ message, isLast, onQuickReply, onSaveQuery, isSaved }: 
               </button>
             ))}
           </div>
-        )}
-
-        {message.sql && (
-          <details style={{
-            border: '1px solid var(--frox-gray-200)',
-            borderRadius: 10, overflow: 'hidden', fontSize: '0.8em',
-          }}>
-            <summary style={{
-              padding: '6px 12px', cursor: 'pointer',
-              background: 'var(--frox-gray-50)', color: 'var(--frox-gray-600)',
-              userSelect: 'none', listStyle: 'none',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}>
-              ▶ SQL запрос
-            </summary>
-            <pre style={{
-              margin: 0, padding: '10px 12px',
-              background: '#1e1e2e', color: '#cdd6f4',
-              overflowX: 'auto', fontSize: '0.95em',
-              fontFamily: 'monospace', lineHeight: 1.5,
-            }}>
-              {message.sql}
-            </pre>
-          </details>
         )}
 
         {message.sqlResult && message.sqlResult.length > 0 && (
@@ -1134,20 +1302,21 @@ function MessageBubble({ message, isLast, onQuickReply, onSaveQuery, isSaved }: 
 }
 
 /** Живой лог действий во время обработки */
-function LiveActionLog({ log }: { log: string[] }) {
+function LiveActionLog({ log, isMobile = false }: { log: string[]; isMobile?: boolean }) {
   return (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+    <div style={{ display: 'flex', gap: isMobile ? 8 : 10, alignItems: 'flex-start', width: '100%' }}>
       <div style={{
-        width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+        width: isMobile ? 28 : 32, height: isMobile ? 28 : 32, borderRadius: 10, flexShrink: 0,
         background: 'var(--frox-gray-100)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <Bot size={16} color="var(--frox-gray-600)" />
+        <Bot size={isMobile ? 14 : 16} color="var(--frox-gray-600)" />
       </div>
       <div style={{
-        padding: '10px 14px', borderRadius: '4px 16px 16px 16px',
+        padding: isMobile ? '10px 12px' : '10px 14px', borderRadius: '4px 16px 16px 16px',
         background: 'white', border: '1px solid var(--frox-gray-200)',
         minWidth: 200,
+        width: isMobile ? 'calc(100% - 36px)' : 'auto',
       }}>
         {log.length === 0 ? (
           <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>

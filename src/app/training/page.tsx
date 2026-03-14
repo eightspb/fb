@@ -2,13 +2,181 @@ import { RequestCPModal } from "@/components/RequestCPModal";
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
+import { Pool } from "pg";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/Header";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { Footer } from "@/components/Footer";
-import { GraduationCap, Users, Calendar, Award, CheckCircle, Activity, Microscope, Clock, UserCheck, Stethoscope } from "lucide-react";
+import { GraduationCap, Users, Calendar, Award, CheckCircle, Activity, Microscope, Clock, UserCheck, Stethoscope, User, Briefcase, Building2 } from "lucide-react";
 import { PastEvents } from "@/components/PastEvents";
+import type { Speaker } from "@/lib/types/conference";
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
+});
+
+const instructorNames = [
+  "Одинцов Владислав Александрович",
+  "Приходько Кирилл Андреевич",
+  "Бусько Екатерина Александровна",
+] as const;
+
+type TrainingInstructor = Speaker & {
+  highlights: string[];
+};
+
+const fallbackInstructors: TrainingInstructor[] = [
+  {
+    id: "odintsov",
+    name: "Одинцов Владислав Александрович",
+    photo: "/uploads/speakers/ok3m36c5g6rml7wpfol-220bf3c6.png",
+    credentials: "Д.м.н., онколог, хирург, врач УЗД, профессор, главный врач Клиники доктора Одинцова",
+    institution: "Клиника Одинцова, г. Санкт-Петербург",
+    highlights: [
+      "Автор курса и ведущий наставник практического блока",
+      "Один из ключевых экспертов по интервенционной маммологии в России",
+    ],
+  },
+  {
+    id: "prikhodko",
+    name: "Приходько Кирилл Андреевич",
+    photo: "/uploads/speakers/ak4qsb462chmlalgmu1-fedba319.jpg",
+    credentials: "Онколог, пластический хирург, врач ультразвуковой диагностики",
+    institution: "Клиника Одинцова, г. Санкт-Петербург",
+    highlights: [
+      "Проводит клинические разборы и отработку малоинвазивных вмешательств",
+      "Сочетает онкологическую, пластическую и ультразвуковую практику",
+    ],
+  },
+  {
+    id: "busko",
+    name: "Бусько Екатерина Александровна",
+    photo: "/uploads/speakers/ljx6ciaysbml7zje08-5d960d98.png",
+    credentials: "Д.м.н., доцент, врач ультразвуковой диагностики, врач-рентгенолог, ведущий научный сотрудник",
+    institution: "НМИЦ Онкологии им. Н.Н.Петрова, г. Санкт-Петербург",
+    highlights: [
+      "Эксперт по лучевой и ультразвуковой диагностике молочной железы",
+      "Соединяет научную работу и клиническую практику федерального центра",
+    ],
+  },
+];
+
+async function getTrainingInstructors(): Promise<TrainingInstructor[]> {
+  try {
+    const result = await pool.query<{ speakers: Speaker[] }>(
+      `
+        SELECT speakers
+        FROM conferences
+        WHERE speakers IS NOT NULL
+          AND speakers::text ~ $1
+        ORDER BY COALESCE(updated_at, created_at) DESC NULLS LAST
+        LIMIT 1
+      `,
+      [instructorNames.join("|")]
+    );
+
+    const speakers = result.rows[0]?.speakers;
+
+    if (!Array.isArray(speakers)) {
+      return fallbackInstructors;
+    }
+
+    const highlightsByName: Record<string, string[]> = {
+      "Одинцов Владислав Александрович": [
+        "Автор курса и ведущий наставник практического блока",
+        "Один из ключевых экспертов по интервенционной маммологии в России",
+      ],
+      "Приходько Кирилл Андреевич": [
+        "Проводит клинические разборы и отработку малоинвазивных вмешательств",
+        "Сочетает онкологическую, пластическую и ультразвуковую практику",
+      ],
+      "Бусько Екатерина Александровна": [
+        "Эксперт по лучевой и ультразвуковой диагностике молочной железы",
+        "Соединяет научную работу и клиническую практику федерального центра",
+      ],
+    };
+
+    const speakerMap = new Map(
+      speakers
+        .filter((speaker) => instructorNames.includes(speaker.name as (typeof instructorNames)[number]))
+        .map((speaker) => [speaker.name, speaker])
+    );
+
+    const instructors = instructorNames
+      .map((name) => {
+        const speaker = speakerMap.get(name);
+        if (!speaker) return null;
+
+        return {
+          ...speaker,
+          highlights: highlightsByName[name],
+        };
+      })
+      .filter((speaker): speaker is TrainingInstructor => speaker !== null);
+
+    return instructors.length === instructorNames.length ? instructors : fallbackInstructors;
+  } catch (error) {
+    console.error("Failed to load training instructors:", error);
+    return fallbackInstructors;
+  }
+}
+
+function TrainingInstructorCard({ instructor }: { instructor: TrainingInstructor }) {
+  return (
+    <div className="group h-full bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col">
+      <div className="h-24 bg-teal-500 relative w-full" />
+
+      <div className="px-4 pb-6 flex flex-col items-start text-left flex-grow">
+        <div className="relative w-[146px] h-[146px] -mt-[73px] mb-3 flex-shrink-0 z-10 self-center">
+          {instructor.photo ? (
+            <div className="relative w-full h-full rounded-full overflow-hidden border-[4px] border-white ring-[4px] ring-teal-500 shadow-lg shadow-teal-500/20 bg-white">
+              <Image
+                src={instructor.photo}
+                alt={instructor.name}
+                fill
+                sizes="146px"
+                className="object-cover"
+                unoptimized
+              />
+            </div>
+          ) : (
+            <div className="w-full h-full rounded-full bg-slate-100 flex items-center justify-center border-[4px] border-white ring-[4px] ring-teal-500 shadow-lg shadow-teal-500/20 text-slate-300">
+              <User className="w-12 h-12" />
+            </div>
+          )}
+        </div>
+
+        <h3 className="font-bold text-slate-900 mb-2 text-lg leading-tight">
+          {instructor.name}
+        </h3>
+
+        {instructor.credentials && (
+          <div className="flex items-start gap-1.5 text-slate-500 mb-4 text-sm">
+            <Briefcase className="w-4 h-4 mt-0.5 flex-shrink-0 text-slate-400" />
+            <span className="leading-snug">{instructor.credentials}</span>
+          </div>
+        )}
+
+        <div className="space-y-2 mb-4">
+          {instructor.highlights.map((highlight) => (
+            <div key={highlight} className="flex items-start gap-3 text-sm text-slate-600 leading-relaxed">
+              <CheckCircle className="w-4 h-4 text-teal-500 shrink-0 mt-0.5" />
+              <span>{highlight}</span>
+            </div>
+          ))}
+        </div>
+
+        {instructor.institution && (
+          <div className="flex items-start gap-1.5 mt-auto pt-2 w-full text-sm">
+            <Building2 className="w-4 h-4 mt-0.5 flex-shrink-0 text-teal-500" />
+            <span className="text-teal-600 font-medium leading-snug">{instructor.institution}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export const metadata: Metadata = {
   title: "Обучение ВАБ и интервенционной маммологии | Курсы для врачей",
@@ -16,7 +184,8 @@ export const metadata: Metadata = {
   keywords: ["обучение ВАБ", "курсы маммологии", "интервенционная маммология обучение", "вакуумная биопсия обучение", "Одинцов В.А. курсы", "повышение квалификации маммологов", "мастер-класс биопсия"],
 };
 
-export default function Training() {
+export default async function Training() {
+  const instructors = await getTrainingInstructors();
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Course',
@@ -27,11 +196,11 @@ export default function Training() {
       'name': 'Учебный центр Xishan-Зенит',
       'sameAs': 'https://fibroadenoma.net'
     },
-    'instructor': {
+    'instructor': instructors.map((instructor) => ({
       '@type': 'Person',
-      'name': 'Одинцов Владислав Александрович',
-      'description': 'Д.м.н., онколог, хирург, врач УЗД, ведущий эксперт в области интервенционной маммологии'
-    },
+      'name': instructor.name,
+      'description': instructor.credentials,
+    })),
     'courseMode': 'in-person',
     'educationalCredentialAwarded': 'Удостоверение о повышении квалификации государственного образца',
     'timeRequired': 'P5D',
@@ -167,45 +336,19 @@ export default function Training() {
         </section>
 
         {/* Instructor Section */}
-        <section className="mb-24 max-w-5xl mx-auto">
-            <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl overflow-hidden shadow-2xl">
-                <div className="grid lg:grid-cols-[300px_1fr] gap-0">
-                    <div className="bg-slate-800/50 p-8 flex items-center justify-center border-r border-slate-700/50">
-                        <div className="relative w-48 h-48 rounded-2xl overflow-hidden shadow-xl ring-4 ring-white/10">
-                            <Image src="/images/odintsov.jpg" alt="Одинцов Владислав Александрович" fill className="object-cover" />
+        <section className="mb-24">
+            <div className="max-w-6xl mx-auto">
+                <div className="text-center mb-10">
+                    <Badge className="bg-teal-100 text-teal-800 hover:bg-teal-100 border-0 mb-4">Преподаватели курса</Badge>
+                    <h3 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Эксперты, которые ведут курс вместе</h3>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                    {instructors.map((instructor) => (
+                        <div key={instructor.id} className="h-full">
+                            <TrainingInstructorCard instructor={instructor} />
                         </div>
-                    </div>
-                    <div className="p-8 md:p-12 text-white">
-                        <Badge className="bg-teal-500 text-white hover:bg-teal-600 border-0 mb-4">Преподаватель курса</Badge>
-                        <h3 className="text-3xl font-bold mb-2">Одинцов Владислав Александрович</h3>
-                        <p className="text-teal-300 text-lg mb-6 font-medium">Доктор медицинских наук</p>
-                        
-                        <div className="space-y-3 text-slate-300">
-                            <div className="flex items-start gap-3">
-                                <CheckCircle className="w-5 h-5 text-teal-400 shrink-0 mt-0.5" />
-                                <span>Онколог, хирург, врач УЗД, рентгенолог</span>
-                            </div>
-                            <div className="flex items-start gap-3">
-                                <CheckCircle className="w-5 h-5 text-teal-400 shrink-0 mt-0.5" />
-                                <span>Главный врач ООО «Клиника Одинцова»</span>
-                            </div>
-                            <div className="flex items-start gap-3">
-                                <CheckCircle className="w-5 h-5 text-teal-400 shrink-0 mt-0.5" />
-                                <span>Профессор кафедры лучевой диагностики, лучевой терапии и онкологии ФГБОУ ВО СГМУ Минздрава России</span>
-                            </div>
-                            <div className="flex items-start gap-3">
-                                <CheckCircle className="w-5 h-5 text-teal-400 shrink-0 mt-0.5" />
-                                <span>Ведущий эксперт в области интервенционной маммологии в России</span>
-                            </div>
-                        </div>
-                        
-                        <div className="mt-8 pt-6 border-t border-slate-700">
-                            <p className="italic text-slate-200 text-lg leading-relaxed">
-                                &quot;Мы даем не просто теорию, а ставим руку. Каждый курсант самостоятельно выполняет манипуляции 
-                                под контролем опытного наставника.&quot;
-                            </p>
-                        </div>
-                    </div>
+                    ))}
                 </div>
             </div>
         </section>

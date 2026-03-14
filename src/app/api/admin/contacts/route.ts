@@ -46,78 +46,73 @@ export async function GET(request: NextRequest) {
   const limit    = Math.min(100, isNaN(limitRaw) ? 50 : limitRaw);
   const offset   = (page - 1) * limit;
 
-  const client = await pool.connect();
-  try {
-    const conditions: string[] = [];
-    const params: unknown[] = [];
-    let idx = 1;
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+  let idx = 1;
 
-    if (search) {
-      conditions.push(`(
-        LOWER(full_name) LIKE LOWER($${idx}) OR
-        LOWER(email)     LIKE LOWER($${idx}) OR
-        phone            LIKE $${idx} OR
-        LOWER(institution) LIKE LOWER($${idx}) OR
-        LOWER(city)      LIKE LOWER($${idx}) OR
-        LOWER(speciality) LIKE LOWER($${idx})
-      )`);
-      params.push(`%${search}%`);
-      idx++;
-    }
-
-    if (tag) {
-      conditions.push(`$${idx} = ANY(tags)`);
-      params.push(tag);
-      idx++;
-    }
-
-    if (status) {
-      conditions.push(`status = $${idx}`);
-      params.push(status);
-      idx++;
-    }
-
-    if (city) {
-      conditions.push(`LOWER(city) = LOWER($${idx})`);
-      params.push(city);
-      idx++;
-    }
-
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-
-    const allowedSort = ['created_at', 'full_name', 'email', 'city', 'status', 'speciality'];
-    const safeSort  = allowedSort.includes(sortBy) ? sortBy : 'created_at';
-    const safeOrder = sortOrder.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
-
-    const [countRes, statsRes, rowsRes] = await Promise.all([
-      client.query(`SELECT COUNT(*) FROM contacts ${where}`, params),
-      client.query(`
-        SELECT
-          COUNT(*)                                   AS total_count,
-          COUNT(*) FILTER (WHERE status = 'new')      AS new_count,
-          COUNT(*) FILTER (WHERE status = 'in_progress') AS in_progress_count,
-          COUNT(*) FILTER (WHERE status = 'processed') AS processed_count,
-          COUNT(*) FILTER (WHERE status = 'archived') AS archived_count
-        FROM contacts
-      `),
-      client.query(
-        `SELECT * FROM contacts ${where}
-         ORDER BY ${safeSort} ${safeOrder}
-         LIMIT $${idx} OFFSET $${idx + 1}`,
-        [...params, limit, offset]
-      ),
-    ]);
-
-    const totalCount = parseInt(countRes.rows[0].count);
-
-    return NextResponse.json({
-      contacts: rowsRes.rows,
-      pagination: { page, limit, totalCount, totalPages: Math.ceil(totalCount / limit) },
-      stats: statsRes.rows[0],
-    });
-  } finally {
-    client.release();
+  if (search) {
+    conditions.push(`(
+      LOWER(full_name) LIKE LOWER($${idx}) OR
+      LOWER(email)     LIKE LOWER($${idx}) OR
+      phone            LIKE $${idx} OR
+      LOWER(institution) LIKE LOWER($${idx}) OR
+      LOWER(city)      LIKE LOWER($${idx}) OR
+      LOWER(speciality) LIKE LOWER($${idx})
+    )`);
+    params.push(`%${search}%`);
+    idx++;
   }
+
+  if (tag) {
+    conditions.push(`$${idx} = ANY(tags)`);
+    params.push(tag);
+    idx++;
+  }
+
+  if (status) {
+    conditions.push(`status = $${idx}`);
+    params.push(status);
+    idx++;
+  }
+
+  if (city) {
+    conditions.push(`LOWER(city) = LOWER($${idx})`);
+    params.push(city);
+    idx++;
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const allowedSort = ['created_at', 'full_name', 'email', 'city', 'status', 'speciality'];
+  const safeSort  = allowedSort.includes(sortBy) ? sortBy : 'created_at';
+  const safeOrder = sortOrder.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
+  const [countRes, statsRes, rowsRes] = await Promise.all([
+    pool.query(`SELECT COUNT(*) FROM contacts ${where}`, params),
+    pool.query(`
+      SELECT
+        COUNT(*)                                   AS total_count,
+        COUNT(*) FILTER (WHERE status = 'new')      AS new_count,
+        COUNT(*) FILTER (WHERE status = 'in_progress') AS in_progress_count,
+        COUNT(*) FILTER (WHERE status = 'processed') AS processed_count,
+        COUNT(*) FILTER (WHERE status = 'archived') AS archived_count
+      FROM contacts
+    `),
+    pool.query(
+      `SELECT * FROM contacts ${where}
+       ORDER BY ${safeSort} ${safeOrder}
+       LIMIT $${idx} OFFSET $${idx + 1}`,
+      [...params, limit, offset]
+    ),
+  ]);
+
+  const totalCount = parseInt(countRes.rows[0].count);
+
+  return NextResponse.json({
+    contacts: rowsRes.rows,
+    pagination: { page, limit, totalCount, totalPages: Math.ceil(totalCount / limit) },
+    stats: statsRes.rows[0],
+  });
 }
 
 // POST /api/admin/contacts — create a new contact manually

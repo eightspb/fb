@@ -35,6 +35,12 @@ interface DigestQuery {
   sql: string;
 }
 
+interface DigestQueryResult {
+  label: string;
+  rows: unknown[];
+  error?: string;
+}
+
 const DIGEST_QUERIES: Record<Period, DigestQuery[]> = {
   today: [
     {
@@ -217,17 +223,16 @@ export async function POST(request: NextRequest) {
   try {
     await client.query("SET statement_timeout = '15s'");
 
-    const results = await Promise.all(
-      queries.map(async ({ label, sql }) => {
-        try {
-          const { rows } = await client.query(sql);
-          return { label, rows };
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          return { label, rows: [], error: msg };
-        }
-      })
-    );
+    const results: DigestQueryResult[] = [];
+    for (const { label, sql } of queries) {
+      try {
+        const { rows } = await client.query(sql);
+        results.push({ label, rows });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        results.push({ label, rows: [], error: msg });
+      }
+    }
 
     const periodLabel = period === 'today' ? 'сегодня' : period === 'week' ? 'последние 7 дней' : 'последний месяц';
 

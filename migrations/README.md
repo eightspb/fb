@@ -23,6 +23,7 @@
 - `017_add_crm_emails_lower_indexes.sql`
 - `018_add_contact_notes.sql`
 - `019_vector_search.sql` — pgvector: таблица `contact_embeddings`, функция `search_notes()`
+- `020_add_crm_sent_mailbox_retry_state.sql`
 
 ## Как применяются миграции
 

@@ -7,9 +7,15 @@
 bash scripts/commit-and-push.sh --message "Описание изменений"
 
 # 2. Деплой (только site + admin, без затрагивания БД) — 90% случаев
+bash scripts/deploy.sh app
+
+# или прямой низкоуровневый вариант
 bash scripts/deploy-from-github.sh --app-only
 
 # 3. С миграциями БД (при изменении схемы)
+bash scripts/deploy.sh full
+
+# или прямой низкоуровневый вариант
 bash scripts/deploy-from-github.sh
 ```
 
@@ -17,11 +23,21 @@ bash scripts/deploy-from-github.sh
 
 - `bun run dev:remote` — локальная разработка с SSH-туннелем к удалённой БД. Продакшн-сервер не обновляет.
 - `bash scripts/commit-and-push.sh --message "..."` — делает `git add`, `git commit` и `git push` в текущую локальную ветку.
+- `bash scripts/deploy.sh ...` — короткий entrypoint деплоя в режимах `app/site/admin/full`.
 - `bash scripts/deploy-from-github.sh ...` — подключается по SSH к продакшн-серверу, обновляет там код из GitHub и перезапускает контейнеры.
 
 Если сказать совсем просто: сначала вы готовите и пушите код, потом отдельной командой деплоите его на сервер.
 
 ## Параметры deploy-from-github.sh
+
+Если нужен более короткий интерфейс, используйте:
+
+```bash
+bash scripts/deploy.sh app
+bash scripts/deploy.sh site
+bash scripts/deploy.sh admin
+bash scripts/deploy.sh full
+```
 
 | Параметр | Что делает | Время |
 |----------|-----------|-------|
@@ -42,6 +58,18 @@ bash scripts/deploy-from-github.sh
 **При полном деплое:** backup БД → git pull → миграции → rebuild all containers
 
 > **ВАЖНО:** После `up -d site admin` всегда делать `restart nginx` — иначе 502 (nginx кэширует старые IP контейнеров).
+
+## Что теперь делает деплой автоматически
+
+- Проверяет свободное место на сервере перед деплоем.
+- Если места мало, очищает Docker cache (`builder/image/container/network prune` без удаления volumes).
+- При слишком маленьком остатке места останавливает деплой до ручной проверки.
+- После создания SQL-бэкапа оставляет только последние 5 файлов `db_backup_*.sql`.
+- На долгих шагах (`git pull`, migrations, build, up, restart nginx) показывает живой прогресс с таймером, чтобы было видно, что процесс не завис.
+- После деплоя делает post-check:
+  - проверяет HTTP `200` для сайта;
+  - проверяет HTTP `200` для `/admin`;
+  - проверяет `/api/health` (Node + DB check).
 
 ## Ручной деплой (на сервере)
 

@@ -207,6 +207,7 @@ const SYSTEM_PROMPT = `Ты — AI-ассистент CRM-системы для 
     Система автоматически выполнит семантический поиск по всем заметкам контактов и вернёт результаты.
     Примеры когда использовать: "найди контакты связанные с онкологией", "кто занимается маммографией", "контакты из области лучевой диагностики".
     НЕ используй semantic_search для точных запросов (по имени, городу, email) — для них используй SQL с ILIKE.
+13. Если строишь список контактов или таблицу контактов, всегда включай в SQL поля contacts.id и contacts.full_name, даже если id потом не показывается пользователю в финальном ответе.
 
 ЗАПРЕЩЕНО:
 - Говорить "вот запрос, который вы можете выполнить"
@@ -226,6 +227,7 @@ const SYSTEM_PROMPT = `Ты — AI-ассистент CRM-системы для 
 - Если предлагаешь варианты фильтрации или следующих шагов
 
 ЗАПРЕЩЕНО: перечислять варианты действий обычным текстом или списком — только [[btn:...]]
+ЗАПРЕЩЕНО: предлагать кнопки вида [[btn:Показать карточку ...]] или отдельные кнопки перехода на карточку только для части найденных контактов.
 Максимум 5 кнопок. Минимум — 0 (если нет вариантов выбора).
 
 ФОРМАТИРОВАНИЕ — ОЧЕНЬ ВАЖНО:
@@ -259,6 +261,91 @@ ${DB_SCHEMA}`;
 interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
+}
+
+interface ContactMention {
+  id: string;
+  full_name: string;
+}
+
+interface EnrichmentResult {
+  context: string;
+  actionsPerformed: string[];
+  contactIds: string[];
+  contacts: ContactMention[];
+}
+
+function normalizeOptionalText(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function extractResolvedContacts(rows: Record<string, unknown>[]): ContactMention[] {
+  return rows
+    .map(row => ({
+      id: typeof row.id === 'string' ? row.id : '',
+      full_name: typeof row.full_name === 'string' ? row.full_name.trim() : '',
+    }))
+    .filter(contact => contact.id && contact.full_name)
+    .filter((contact, index, arr) => arr.findIndex(item => item.id === contact.id) === index);
+}
+
+async function hydrateContactIds(rows: Record<string, unknown>[]): Promise<Record<string, unknown>[]> {
+  if (!rows.length) return rows;
+
+  const candidateRows = rows.filter(row => typeof row.full_name === 'string' && row.full_name.trim().length > 0);
+  if (!candidateRows.length) return rows;
+  if (candidateRows.every(row => typeof row.id === 'string' && row.id.trim().length > 0)) return rows;
+
+  const uniqueNames = [...new Set(candidateRows.map(row => String(row.full_name).trim()).filter(Boolean))];
+  if (!uniqueNames.length) return rows;
+
+  const client = await pool.connect();
+  try {
+    await client.query("SET statement_timeout = '10s'");
+    const result = await client.query(
+      `SELECT id, full_name, email, phone, city, institution
+       FROM contacts
+       WHERE full_name = ANY($1::text[])`,
+      [uniqueNames]
+    );
+
+    const rowsByName = new Map<string, Array<Record<string, unknown>>>();
+    for (const contactRow of result.rows as Array<Record<string, unknown>>) {
+      const key = String(contactRow.full_name ?? '').trim().toLowerCase();
+      if (!key) continue;
+      const bucket = rowsByName.get(key) ?? [];
+      bucket.push(contactRow);
+      rowsByName.set(key, bucket);
+    }
+
+    return rows.map(row => {
+      if (typeof row.id === 'string' && row.id.trim().length > 0) return row;
+
+      const fullName = String(row.full_name ?? '').trim();
+      if (!fullName) return row;
+
+      let matches = rowsByName.get(fullName.toLowerCase()) ?? [];
+      if (!matches.length) return row;
+
+      for (const field of ['email', 'phone', 'city', 'institution'] as const) {
+        const rowValue = normalizeOptionalText(row[field]);
+        if (!rowValue) continue;
+        const narrowed = matches.filter(candidate => normalizeOptionalText(candidate[field]) === rowValue);
+        if (narrowed.length > 0) matches = narrowed;
+      }
+
+      if (matches.length !== 1) return row;
+
+      return {
+        ...row,
+        id: String(matches[0].id),
+      };
+    });
+  } finally {
+    client.release();
+  }
 }
 
 async function callAI(messages: Message[]): Promise<string> {
@@ -388,7 +475,7 @@ export async function POST(request: NextRequest) {
           sendEvent('action', { text: '🔍 Ищу контакт в базе данных...' });
         }
 
-        let enrichmentResult: { context: string; actionsPerformed: string[]; contactIds: string[] } | null = null;
+        let enrichmentResult: EnrichmentResult | null = null;
 
         // Override enrichWithContactContext to emit live action events
         enrichmentResult = await enrichWithContactContextStreaming(lastUserMsg, (actionText) => {
@@ -473,6 +560,13 @@ export async function POST(request: NextRequest) {
             contactIds: (searchRows as Array<Record<string, unknown>>)
               .map(r => r.id as string)
               .filter((id, i, arr) => arr.indexOf(id) === i),
+            contacts: (searchRows as Array<Record<string, unknown>>)
+              .map(row => ({
+                id: String(row.id ?? ''),
+                full_name: String(row.full_name ?? ''),
+              }))
+              .filter(contact => contact.id && contact.full_name)
+              .filter((contact, index, arr) => arr.findIndex(item => item.id === contact.id) === index),
           });
           controller.close();
           return;
@@ -484,6 +578,7 @@ export async function POST(request: NextRequest) {
             reply: firstReply,
             actionsPerformed: enrichmentResult?.actionsPerformed ?? [],
             contactIds: enrichmentResult?.contactIds ?? [],
+            contacts: enrichmentResult?.contacts ?? [],
           });
           controller.close();
           return;
@@ -503,13 +598,13 @@ export async function POST(request: NextRequest) {
         sendEvent('action', { text: '🗄️ Выполняю SQL-запрос к базе данных...' });
 
         const client = await pool.connect();
-        let rows: unknown[];
+        let rows: Record<string, unknown>[];
         let truncated = false;
 
         try {
           await client.query("SET statement_timeout = '10s'");
           const result = await client.query(safeSql);
-          rows = result.rows;
+          rows = result.rows as Record<string, unknown>[];
           if (rows.length > 50) {
             rows = rows.slice(0, 50);
             truncated = true;
@@ -526,6 +621,9 @@ export async function POST(request: NextRequest) {
         } finally {
           client.release();
         }
+
+        rows = await hydrateContactIds(rows);
+        const resolvedContacts = extractResolvedContacts(rows);
 
         sendEvent('action', { text: `📊 Получено ${rows.length} строк, интерпретирую результат...` });
 
@@ -546,7 +644,12 @@ export async function POST(request: NextRequest) {
           sql: safeSql,
           sqlResult: rows,
           actionsPerformed: enrichmentResult?.actionsPerformed ?? [],
-          contactIds: enrichmentResult?.contactIds ?? [],
+          contactIds: resolvedContacts.length > 0
+            ? resolvedContacts.map(contact => contact.id)
+            : (enrichmentResult?.contactIds ?? []),
+          contacts: resolvedContacts.length > 0
+            ? resolvedContacts
+            : (enrichmentResult?.contacts ?? []),
         });
 
       } catch (err) {
@@ -574,7 +677,7 @@ export async function POST(request: NextRequest) {
 async function enrichWithContactContextStreaming(
   lastUserMessage: string,
   onAction: (text: string) => void
-): Promise<{ context: string; actionsPerformed: string[]; contactIds: string[] } | null> {
+): Promise<EnrichmentResult | null> {
   const uuidMatch = lastUserMessage.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
 
   let contactRows: Array<Record<string, unknown>> = [];
@@ -760,6 +863,10 @@ async function enrichWithContactContextStreaming(
       context: parts.join('\n\n'),
       actionsPerformed,
       contactIds: contactRows.slice(0, 3).map(c => c.id as string),
+      contacts: contactRows.slice(0, 3).map(c => ({
+        id: String(c.id),
+        full_name: String(c.full_name ?? ''),
+      })).filter(contact => contact.id && contact.full_name),
     };
   } catch (err) {
     console.warn('[AI Assistant] Contact enrichment (streaming) failed:', err);

@@ -745,6 +745,11 @@ CREATE TABLE IF NOT EXISTS crm_emails (
   submission_id UUID REFERENCES form_submissions(id) ON DELETE SET NULL,
   contact_email TEXT NOT NULL,
   sent_at TIMESTAMPTZ NOT NULL,
+  sent_mailbox_status TEXT NOT NULL DEFAULT 'legacy' CHECK (sent_mailbox_status IN ('legacy', 'pending', 'synced')),
+  sent_mailbox_last_error TEXT,
+  sent_mailbox_last_attempt_at TIMESTAMPTZ,
+  sent_mailbox_synced_at TIMESTAMPTZ,
+  sent_mailbox_retry_count INTEGER NOT NULL DEFAULT 0,
   imap_uid BIGINT,
   imap_folder TEXT,
   synced_at TIMESTAMPTZ DEFAULT NOW(),
@@ -759,6 +764,9 @@ CREATE INDEX IF NOT EXISTS idx_crm_emails_direction ON crm_emails(direction);
 CREATE INDEX IF NOT EXISTS idx_crm_emails_contact_email_lower ON crm_emails (LOWER(contact_email));
 CREATE INDEX IF NOT EXISTS idx_crm_emails_from_address_lower ON crm_emails (LOWER(from_address));
 CREATE INDEX IF NOT EXISTS idx_crm_emails_contact_email_lower_sent_at ON crm_emails (LOWER(contact_email), sent_at DESC);
+CREATE INDEX IF NOT EXISTS idx_crm_emails_sent_mailbox_status_sent_at
+  ON crm_emails (sent_mailbox_status, sent_at DESC)
+  WHERE direction = 'outbound';
 CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_emails_imap_folder_uid
   ON crm_emails (imap_folder, imap_uid)
   WHERE imap_folder IS NOT NULL AND imap_uid IS NOT NULL;
