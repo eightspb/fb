@@ -12,6 +12,9 @@ import { GraduationCap, Users, Calendar, Award, CheckCircle, Activity, Microscop
 import { PastEvents } from "@/components/PastEvents";
 import type { Speaker } from "@/lib/types/conference";
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
 });
