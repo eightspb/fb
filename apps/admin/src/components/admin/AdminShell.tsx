@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
@@ -19,7 +19,7 @@ const MANAGEMENT_NAV_ITEMS = [
   { href: '/banner', label: 'Баннер', icon: '/admin/icons/icon-notification-bing.svg' },
   { href: '/direct', label: 'Автоброкер', icon: '/admin/icons/icon-analytics.svg' },
   { href: '/logs', label: 'Логи', icon: '/admin/icons/icon-chart.svg' },
-  { href: '/settings', label: 'Настройки', icon: '/admin/icons/icon-setting.svg' },
+  { href: '/settings', label: 'Шаблоны', icon: '/admin/icons/icon-email.svg' },
 ];
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
@@ -29,6 +29,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const [minimized, setMinimized] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [managementOpen, setManagementOpen] = useState(false);
+  const authCheckStartedRef = useRef(false);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -55,6 +56,11 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         return;
       }
 
+      if (authCheckStartedRef.current) {
+        return;
+      }
+      authCheckStartedRef.current = true;
+
       try {
         const response = await fetch('/api/admin/auth', { method: 'GET', credentials: 'include' });
         if (response.ok) {
@@ -71,6 +77,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         router.replace('/login');
       } finally {
         setLoading(false);
+        authCheckStartedRef.current = false;
       }
     };
 

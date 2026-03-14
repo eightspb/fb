@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
-import { getEmailById } from '@/lib/imap-client';
+import { deleteEmailById, getEmailById } from '@/lib/imap-client';
 
 export const runtime = 'nodejs';
 
@@ -41,6 +41,30 @@ export async function GET(
     return NextResponse.json(email);
   } catch (error: any) {
     console.error('[CRM Emails] Error fetching email by id:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    if (!(await verifyAdminSession())) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const result = await deleteEmailById(id);
+
+    return NextResponse.json(result);
+  } catch (error: any) {
+    console.error('[CRM Emails] Error deleting email by id:', error);
+
+    if (error instanceof Error && error.message === 'Email not found') {
+      return NextResponse.json({ error: 'Email not found' }, { status: 404 });
+    }
+
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

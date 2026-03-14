@@ -1,7 +1,7 @@
 import { ImapFlow, type AppendResponseObject } from 'imapflow';
 import { simpleParser, type ParsedMail, type Attachment } from 'mailparser';
 import { Pool } from 'pg';
-import { writeFile, mkdir, readFile } from 'fs/promises';
+import { writeFile, mkdir, readFile, rm } from 'fs/promises';
 import { join } from 'path';
 import type Mail from 'nodemailer/lib/mailer';
 import { buildRawEmail } from '@/lib/email';
@@ -10,7 +10,18 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
 });
 
-const ATTACHMENTS_DIR = process.env.CRM_ATTACHMENTS_DIR || '/data/crm-attachments';
+function resolveAttachmentsDir(): string {
+  const configuredDir = process.env.CRM_ATTACHMENTS_DIR?.trim();
+  if (configuredDir) {
+    return configuredDir;
+  }
+
+  // Production uses CRM_ATTACHMENTS_DIR or a mounted /data volume.
+  // For local/dev runs, keep attachments inside the workspace to avoid mkdir('/data') failures.
+  return join(process.cwd(), '.data', 'crm-attachments');
+}
+
+const ATTACHMENTS_DIR = resolveAttachmentsDir();
 
 interface SyncResult {
   synced: number;
@@ -62,6 +73,17 @@ interface StoredOutboundEmailAttachment {
   filename: string;
   content_type: string | null;
   storage_key: string | null;
+}
+
+interface StoredEmailAttachmentCleanupRecord {
+  storage_key: string | null;
+}
+
+interface StoredEmailDeleteRecord {
+  id: string;
+  imap_uid: number | null;
+  imap_folder: string | null;
+  attachments: StoredEmailAttachmentCleanupRecord[];
 }
 
 interface StoredOutboundEmailRecord {
@@ -182,6 +204,22 @@ async function findSentFolder(client: ImapFlow): Promise<string | null> {
   return null;
 }
 
+async function findTrashFolder(client: ImapFlow): Promise<string | null> {
+  const folders = await client.list();
+  for (const folder of folders) {
+    if (folder.specialUse === '\\Trash') {
+      return folder.path;
+    }
+  }
+  for (const folder of folders) {
+    const name = folder.name.toLowerCase();
+    if (name === 'trash' || name === 'deleted' || name === 'корзина' || name === 'удаленные' || name === 'удалённые') {
+      return folder.path;
+    }
+  }
+  return null;
+}
+
 /**
  * Добавляет уже отправленное письмо в реальную IMAP-папку Sent основного ящика.
  */
@@ -205,6 +243,65 @@ export async function appendOutboundEmailToSentFolder(
   } finally {
     await client.logout().catch(() => {});
   }
+}
+
+async function deleteEmailFromMailbox(imapFolder: string, imapUid: number): Promise<boolean> {
+  const client = createImapClient();
+  await client.connect();
+
+  try {
+    const lock = await client.getMailboxLock(imapFolder);
+    try {
+      let existsInMailbox = false;
+      for await (const message of client.fetch(imapUid, { uid: true }, { uid: true })) {
+        existsInMailbox = typeof message.uid === 'number';
+        break;
+      }
+
+      if (!existsInMailbox) {
+        return false;
+      }
+
+      const trashFolder = await findTrashFolder(client);
+      const alreadyInTrash = Boolean(trashFolder && trashFolder === imapFolder);
+
+      if (trashFolder && !alreadyInTrash) {
+        const moved = await client.messageMove(imapUid, trashFolder, { uid: true });
+        if (!moved) {
+          throw new Error('Не удалось переместить письмо в корзину');
+        }
+        return true;
+      }
+
+      const deleted = await client.messageDelete(imapUid, { uid: true });
+      if (!deleted) {
+        throw new Error('Не удалось удалить письмо из почтового ящика');
+      }
+      return true;
+    } finally {
+      lock.release();
+    }
+  } finally {
+    await client.logout().catch(() => {});
+  }
+}
+
+async function cleanupStoredEmailFiles(email: StoredEmailDeleteRecord): Promise<void> {
+  const uniqueStorageKeys = Array.from(
+    new Set(
+      email.attachments
+        .map(att => att.storage_key)
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+
+  await Promise.all(
+    uniqueStorageKeys.map(storageKey =>
+      rm(join(ATTACHMENTS_DIR, storageKey), { force: true }).catch(() => {})
+    )
+  );
+
+  await rm(join(ATTACHMENTS_DIR, email.id), { recursive: true, force: true }).catch(() => {});
 }
 
 function formatMailboxAddress(address: string, name?: string | null): string {
@@ -241,6 +338,35 @@ async function loadStoredOutboundEmail(
   return {
     email,
     attachments: attachmentsResult.rows as StoredOutboundEmailAttachment[],
+  };
+}
+
+async function loadStoredEmailDeleteRecord(
+  emailId: string,
+  pgClient: any
+): Promise<StoredEmailDeleteRecord | null> {
+  const emailResult = await pgClient.query(
+    `SELECT id, imap_uid, imap_folder
+     FROM crm_emails
+     WHERE id = $1`,
+    [emailId]
+  );
+
+  const email = emailResult.rows[0] as Omit<StoredEmailDeleteRecord, 'attachments'> | undefined;
+  if (!email) {
+    return null;
+  }
+
+  const attachmentsResult = await pgClient.query(
+    `SELECT storage_key
+     FROM crm_email_attachments
+     WHERE email_id = $1`,
+    [emailId]
+  );
+
+  return {
+    ...email,
+    attachments: attachmentsResult.rows as StoredEmailAttachmentCleanupRecord[],
   };
 }
 
@@ -1190,6 +1316,42 @@ export async function getEmailById(emailId: string): Promise<CrmEmail | null> {
       [emailId]
     );
     return result.rows[0] || null;
+  } finally {
+    pgClient.release();
+  }
+}
+
+export async function deleteEmailById(emailId: string): Promise<{ deleted: true; mailboxDeleted: boolean }> {
+  const pgClient = await pool.connect();
+  try {
+    await pgClient.query('BEGIN');
+
+    const stored = await loadStoredEmailDeleteRecord(emailId, pgClient);
+    if (!stored) {
+      throw new Error('Email not found');
+    }
+
+    await pgClient.query('DELETE FROM crm_emails WHERE id = $1', [emailId]);
+    await pgClient.query('COMMIT');
+
+    let mailboxDeleted = false;
+    if (stored.imap_folder && stored.imap_uid) {
+      try {
+        mailboxDeleted = await deleteEmailFromMailbox(stored.imap_folder, stored.imap_uid);
+      } catch (error) {
+        console.error('[CRM Emails] Failed to delete email from mailbox after CRM delete:', error);
+      }
+    }
+
+    await cleanupStoredEmailFiles(stored);
+
+    return {
+      deleted: true,
+      mailboxDeleted,
+    };
+  } catch (error) {
+    await pgClient.query('ROLLBACK').catch(() => {});
+    throw error;
   } finally {
     pgClient.release();
   }

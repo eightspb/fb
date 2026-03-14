@@ -18,8 +18,8 @@ const pool = new Pool({
 
 const instructorNames = [
   "Одинцов Владислав Александрович",
-  "Приходько Кирилл Андреевич",
   "Бусько Екатерина Александровна",
+  "Приходько Кирилл Андреевич",
 ] as const;
 
 type TrainingInstructor = Speaker & {

@@ -7,8 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Save, Loader2, Mail } from 'lucide-react';
+import { Save, Loader2 } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
+import {
+  CRM_COMPOSE_TEMPLATE_EMAIL_TYPE,
+  CRM_COMPOSE_TEMPLATE_FORM_TYPE,
+} from '@/lib/email-compose-template';
 
 interface EmailTemplate {
   id: string;
@@ -20,15 +24,73 @@ interface EmailTemplate {
   updated_at: string;
 }
 
-const formTypes = [
-  { value: 'contact', label: 'Контактная форма' },
-  { value: 'cp', label: 'Запрос КП' },
-  { value: 'training', label: 'Заявка на обучение' },
-  { value: 'conference_registration', label: 'Регистрация на конференцию' },
+type TemplateKind = 'admin' | 'user';
+
+type TemplateSection = {
+  value: string;
+  label: string;
+  description: string;
+  bodyLabel?: string;
+  subjectLabel?: string;
+  subjectPlaceholder?: string;
+  bodyPlaceholder?: string;
+  subjectOptional?: boolean;
+  kinds: Array<{ value: TemplateKind; label: string }>;
+};
+
+const templateSections: TemplateSection[] = [
+  {
+    value: 'contact',
+    label: 'Контактная форма',
+    description: 'Шаблоны писем, которые отправляются при заполнении контактной формы.',
+    kinds: [
+      { value: 'admin', label: 'Администратору' },
+      { value: 'user', label: 'Пользователю' },
+    ],
+  },
+  {
+    value: 'cp',
+    label: 'Запрос КП',
+    description: 'Шаблоны уведомлений по запросу коммерческого предложения.',
+    kinds: [
+      { value: 'admin', label: 'Администратору' },
+      { value: 'user', label: 'Пользователю' },
+    ],
+  },
+  {
+    value: 'training',
+    label: 'Заявка на обучение',
+    description: 'Шаблоны писем для заявок на обучение.',
+    kinds: [
+      { value: 'admin', label: 'Администратору' },
+      { value: 'user', label: 'Пользователю' },
+    ],
+  },
+  {
+    value: 'conference_registration',
+    label: 'Регистрация на конференцию',
+    description: 'Шаблоны подтверждений и уведомлений по регистрации на конференцию.',
+    kinds: [
+      { value: 'admin', label: 'Администратору' },
+      { value: 'user', label: 'Пользователю' },
+    ],
+  },
+  {
+    value: CRM_COMPOSE_TEMPLATE_FORM_TYPE,
+    label: 'Переписка CRM',
+    description: 'Этот шаблон автоматически подставляется в тело нового письма и ответа в переписке.',
+    bodyLabel: 'Шаблон текста письма',
+    subjectLabel: 'Техническое поле темы',
+    subjectPlaceholder: 'Можно оставить пустым',
+    bodyPlaceholder: 'Например: Здравствуйте, {{name}}...',
+    subjectOptional: true,
+    kinds: [
+      { value: CRM_COMPOSE_TEMPLATE_EMAIL_TYPE, label: 'Новое письмо' },
+    ],
+  },
 ];
 
-
-const templateVariables = {
+const templateVariables: Record<string, Partial<Record<TemplateKind, string[]>>> = {
   contact: {
     admin: ['name', 'email', 'phone', 'message', 'date'],
     user: ['name', 'date'],
@@ -45,18 +107,42 @@ const templateVariables = {
     admin: ['conference', 'name', 'email', 'phone', 'institution', 'certificate', 'date'],
     user: ['name', 'conference', 'siteUrl', 'siteHostname'],
   },
+  [CRM_COMPOSE_TEMPLATE_FORM_TYPE]: {
+    admin: ['name', 'email'],
+  },
 };
+
+function buildEmptyTemplate(formType: string, emailType: TemplateKind): EmailTemplate {
+  return {
+    id: '',
+    form_type: formType,
+    email_type: emailType,
+    subject: '',
+    html_body: '',
+    created_at: '',
+    updated_at: '',
+  };
+}
 
 export default function SettingsPage() {
   const [templates, setTemplates] = useState<Record<string, Record<string, EmailTemplate>>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [activeFormType, setActiveFormType] = useState<string>('contact');
-  const [activeEmailType, setActiveEmailType] = useState<'admin' | 'user'>('admin');
+  const [activeEmailType, setActiveEmailType] = useState<TemplateKind>('admin');
 
   useEffect(() => {
     loadTemplates();
   }, []);
+
+  useEffect(() => {
+    const currentSection = templateSections.find((section) => section.value === activeFormType);
+    if (!currentSection) return;
+
+    if (!currentSection.kinds.some((kind) => kind.value === activeEmailType)) {
+      setActiveEmailType(currentSection.kinds[0].value);
+    }
+  }, [activeEmailType, activeFormType]);
 
   const loadTemplates = async () => {
     try {
@@ -97,16 +183,13 @@ export default function SettingsPage() {
     }
   };
 
-  const saveTemplate = async (formType: string, emailType: 'admin' | 'user') => {
-    const template = templates[formType]?.[emailType];
-    if (!template) {
-      alert('Шаблон не найден');
-      return;
-    }
+  const saveTemplate = async (formType: string, emailType: TemplateKind) => {
+    const template = templates[formType]?.[emailType] ?? buildEmptyTemplate(formType, emailType);
+    const section = templateSections.find((item) => item.value === formType);
+    const subjectRequired = !section?.subjectOptional;
 
-    // Валидация
-    if (!template.subject || !template.html_body) {
-      alert('Тема и содержимое письма обязательны для заполнения');
+    if ((subjectRequired && !template.subject.trim()) || !template.html_body.trim()) {
+      alert(subjectRequired ? 'Тема и содержимое письма обязательны для заполнения' : 'Содержимое письма обязательно для заполнения');
       return;
     }
 
@@ -162,22 +245,14 @@ export default function SettingsPage() {
     }
   };
 
-  const updateTemplate = (formType: string, emailType: 'admin' | 'user', field: 'subject' | 'html_body', value: string) => {
+  const updateTemplate = (formType: string, emailType: TemplateKind, field: 'subject' | 'html_body', value: string) => {
     setTemplates((prev) => {
       const newTemplates = { ...prev };
       if (!newTemplates[formType]) {
         newTemplates[formType] = {};
       }
       if (!newTemplates[formType][emailType]) {
-        newTemplates[formType][emailType] = {
-          id: '',
-          form_type: formType,
-          email_type: emailType,
-          subject: '',
-          html_body: '',
-          created_at: '',
-          updated_at: '',
-        };
+        newTemplates[formType][emailType] = buildEmptyTemplate(formType, emailType);
       }
       newTemplates[formType][emailType] = {
         ...newTemplates[formType][emailType],
@@ -198,59 +273,57 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-[var(--frox-gray-1100)]">Настройки</h1>
-        <p className="text-[var(--frox-gray-600)] mt-2">Управление шаблонами писем для форм</p>
+        <h1 className="text-3xl font-bold text-[var(--frox-gray-1100)]">Шаблоны</h1>
+        <p className="text-[var(--frox-gray-600)] mt-2">Управление шаблонами писем для форм и CRM-переписки</p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Шаблоны писем</CardTitle>
           <CardDescription>
-            Редактируйте шаблоны писем, которые отправляются при заполнении форм.
+            Редактируйте шаблоны писем для форм и автоматическую подстановку в CRM-переписке.
             Используйте переменные в формате {'{{variable}}'} для подстановки данных.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={activeFormType} onValueChange={setActiveFormType} className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              {formTypes.map((form) => (
-                <TabsTrigger key={form.value} value={form.value}>
-                  {form.label}
+            <TabsList className="grid w-full grid-cols-5">
+              {templateSections.map((section) => (
+                <TabsTrigger key={section.value} value={section.value}>
+                  {section.label}
                 </TabsTrigger>
               ))}
             </TabsList>
 
-            {formTypes.map((form) => (
-              <TabsContent key={form.value} value={form.value} className="space-y-4 mt-4">
-                <Tabs value={activeEmailType} onValueChange={(v) => setActiveEmailType(v as 'admin' | 'user')}>
+            {templateSections.map((section) => (
+              <TabsContent key={section.value} value={section.value} className="space-y-4 mt-4">
+                <p className="text-sm text-[var(--frox-gray-600)]">{section.description}</p>
+                <Tabs value={activeEmailType} onValueChange={(v) => setActiveEmailType(v as TemplateKind)}>
                   <TabsList>
-                    <TabsTrigger value="admin">Администратору</TabsTrigger>
-                    <TabsTrigger value="user">Пользователю</TabsTrigger>
+                    {section.kinds.map((kind) => (
+                      <TabsTrigger key={kind.value} value={kind.value}>
+                        {kind.label}
+                      </TabsTrigger>
+                    ))}
                   </TabsList>
 
-                  <TabsContent value="admin" className="space-y-4 mt-4">
-                    <TemplateEditor
-                      template={templates[form.value]?.admin}
-                      formType={form.value}
-                      emailType="admin"
-                      availableVars={templateVariables[form.value as keyof typeof templateVariables]?.admin || []}
-                      onUpdate={(field, value) => updateTemplate(form.value, 'admin', field, value)}
-                      onSave={() => saveTemplate(form.value, 'admin')}
-                      saving={saving === `${form.value}-admin`}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="user" className="space-y-4 mt-4">
-                    <TemplateEditor
-                      template={templates[form.value]?.user}
-                      formType={form.value}
-                      emailType="user"
-                      availableVars={templateVariables[form.value as keyof typeof templateVariables]?.user || []}
-                      onUpdate={(field, value) => updateTemplate(form.value, 'user', field, value)}
-                      onSave={() => saveTemplate(form.value, 'user')}
-                      saving={saving === `${form.value}-user`}
-                    />
-                  </TabsContent>
+                  {section.kinds.map((kind) => (
+                    <TabsContent key={kind.value} value={kind.value} className="space-y-4 mt-4">
+                      <TemplateEditor
+                        template={templates[section.value]?.[kind.value] ?? buildEmptyTemplate(section.value, kind.value)}
+                        formType={section.value}
+                        availableVars={templateVariables[section.value as keyof typeof templateVariables]?.[kind.value] || []}
+                        onUpdate={(field, value) => updateTemplate(section.value, kind.value, field, value)}
+                        onSave={() => saveTemplate(section.value, kind.value)}
+                        saving={saving === `${section.value}-${kind.value}`}
+                        subjectOptional={section.subjectOptional}
+                        subjectLabel={section.subjectLabel}
+                        subjectPlaceholder={section.subjectPlaceholder}
+                        bodyLabel={section.bodyLabel}
+                        bodyPlaceholder={section.bodyPlaceholder}
+                      />
+                    </TabsContent>
+                  ))}
                 </Tabs>
               </TabsContent>
             ))}
@@ -262,31 +335,32 @@ export default function SettingsPage() {
 }
 
 interface TemplateEditorProps {
-  template: EmailTemplate | undefined;
+  template: EmailTemplate;
   formType: string;
-  emailType: 'admin' | 'user';
   availableVars: string[];
   onUpdate: (field: 'subject' | 'html_body', value: string) => void;
   onSave: () => void;
   saving: boolean;
+  subjectOptional?: boolean;
+  subjectLabel?: string;
+  subjectPlaceholder?: string;
+  bodyLabel?: string;
+  bodyPlaceholder?: string;
 }
 
 function TemplateEditor({
   template,
+  formType,
   availableVars,
   onUpdate,
   onSave,
   saving,
+  subjectOptional,
+  subjectLabel,
+  subjectPlaceholder,
+  bodyLabel,
+  bodyPlaceholder,
 }: TemplateEditorProps) {
-  if (!template) {
-    return (
-      <div className="text-center py-8 text-[var(--frox-gray-500)]">
-        <Mail className="w-12 h-12 mx-auto mb-4 opacity-50" />
-        <p>Шаблон не найден. Создайте его, заполнив поля ниже.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <div className="bg-[var(--frox-gray-100)] p-4 rounded-lg">
@@ -320,29 +394,41 @@ function TemplateEditor({
         <p className="text-xs text-[var(--frox-gray-500)] mt-2">
           Нажмите на переменную, чтобы вставить её в шаблон
         </p>
+        {formType === CRM_COMPOSE_TEMPLATE_FORM_TYPE ? (
+          <p className="text-xs text-[var(--frox-gray-500)] mt-2">
+            Этот текст будет автоматически подставляться в начало нового письма и ответа в CRM.
+          </p>
+        ) : null}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="subject">Тема письма</Label>
+        <Label htmlFor="subject">{subjectLabel || 'Тема письма'}</Label>
         <Input
           id="subject"
           value={template.subject}
           onChange={(e) => onUpdate('subject', e.target.value)}
-          placeholder="Например: Новое сообщение от {{name}}"
+          placeholder={subjectPlaceholder || 'Например: Новое сообщение от {{name}}'}
         />
+        {subjectOptional ? (
+          <p className="text-xs text-[var(--frox-gray-500)]">
+            Для этого шаблона тема не используется, поле можно оставить пустым.
+          </p>
+        ) : null}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="html-body">HTML содержимое</Label>
+        <Label htmlFor="html-body">{bodyLabel || 'HTML содержимое'}</Label>
         <Textarea
           id="html-body"
           value={template.html_body}
           onChange={(e) => onUpdate('html_body', e.target.value)}
-          placeholder="HTML код письма..."
+          placeholder={bodyPlaceholder || 'HTML код письма...'}
           className="font-mono text-sm min-h-[300px]"
         />
         <p className="text-xs text-[var(--frox-gray-500)]">
-          Используйте HTML разметку. Переменные вставляются в формате {'{{variable}}'}
+          {formType === CRM_COMPOSE_TEMPLATE_FORM_TYPE
+            ? <>Можно использовать обычный текст или HTML. Переменные вставляются в формате {'{{variable}}'}.</>
+            : <>Используйте HTML разметку. Переменные вставляются в формате {'{{variable}}'}.</>}
         </p>
       </div>
 

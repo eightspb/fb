@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,7 +40,6 @@ import {
   Loader2,
   ChevronDown,
   Microscope,
-  ChevronUp,
 } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 import { FroxStatCard } from '@/components/admin/FroxStatCard';
@@ -787,7 +786,7 @@ function MergeModal({
               style={{ gridTemplateColumns: `140px repeat(${contacts.length}, 1fr)` }}
             >
               <div className="px-4 py-2.5 text-xs font-semibold text-[var(--frox-gray-500)] uppercase tracking-wider">Поле</div>
-              {contacts.map((c, i) => (
+              {contacts.map((c) => (
                 <div key={c.id} className="px-4 py-2.5 text-xs font-semibold text-[var(--frox-gray-700)] truncate">
                   {c.full_name}
                 </div>
@@ -959,12 +958,13 @@ interface PanelNote {
 }
 
 function ContactPanel({
-  contact, onUpdate, onClose, onDelete,
+  contact, onUpdate, onClose, onDelete, detailHref,
 }: {
   contact: Contact;
   onUpdate: (c: Contact) => void;
   onClose: () => void;
   onDelete: (id: string) => void;
+  detailHref: string;
 }) {
   const router = useRouter();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -1274,7 +1274,7 @@ function ContactPanel({
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <button
-                onClick={() => router.push(`/contacts/${contact.id}`)}
+                onClick={() => router.push(detailHref)}
                 className="p-1.5 rounded-lg hover:bg-[var(--frox-gray-200)] text-[var(--frox-gray-400)] hover:text-[var(--frox-gray-600)] transition-colors"
                 title="Открыть страницу контакта"
               >
@@ -1602,7 +1602,6 @@ function useColumnResize() {
         }
       }
     } catch { /* ignore */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1671,16 +1670,44 @@ async function contactsFetcher(url: string): Promise<ContactsResponse> {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ContactsPage() {
-  const [page, setPage] = useState(1);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const publicPathname = pathname.startsWith('/admin')
+    ? pathname
+    : pathname === '/'
+      ? '/admin'
+      : `/admin${pathname}`;
+
+  const initialState = useMemo(() => {
+    const initialPage = Number.parseInt(searchParams.get('page') || '1', 10);
+    const sortOrderParam = searchParams.get('sort_order');
+    const filterTagParam = searchParams.get('tag') || '';
+    const filterCityParam = searchParams.get('city') || '';
+
+    return {
+      page: Number.isFinite(initialPage) && initialPage > 0 ? initialPage : 1,
+      search: searchParams.get('search') || '',
+      filterStatus: searchParams.get('status') || '',
+      filterTag: filterTagParam,
+      filterCity: filterCityParam,
+      showFilters:
+        searchParams.get('show_filters') === '1' ||
+        Boolean(filterTagParam || filterCityParam),
+      sortBy: searchParams.get('sort_by') || 'full_name',
+      sortOrder: (sortOrderParam === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc',
+    };
+  }, [searchParams]);
+
+  const [page, setPage] = useState(initialState.page);
   const [limit] = useState(50);
 
-  const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterTag, setFilterTag] = useState('');
-  const [filterCity, setFilterCity] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState('full_name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [search, setSearch] = useState(initialState.search);
+  const [filterStatus, setFilterStatus] = useState(initialState.filterStatus);
+  const [filterTag, setFilterTag] = useState(initialState.filterTag);
+  const [filterCity, setFilterCity] = useState(initialState.filterCity);
+  const [showFilters, setShowFilters] = useState(initialState.showFilters);
+  const [sortBy, setSortBy] = useState(initialState.sortBy);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialState.sortOrder);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
@@ -1692,11 +1719,9 @@ export default function ContactsPage() {
   const [showMerge, setShowMerge] = useState(false);
   const [showBulkResearch, setShowBulkResearch] = useState(false);
 
-  const searchParams = useSearchParams();
   const { tableRef, setColRef, onResizeStart, defaultWidths } = useColumnResize();
 
-  // Build SWR key from current filters/sort/pagination
-  const swrKey = (() => {
+  const listQuery = useMemo(() => {
     const params = new URLSearchParams();
     if (search) params.set('search', search);
     if (filterStatus) params.set('status', filterStatus);
@@ -1706,8 +1731,25 @@ export default function ContactsPage() {
     params.set('sort_order', sortOrder);
     params.set('page', page.toString());
     params.set('limit', limit.toString());
-    return `/api/admin/contacts?${params}`;
+    if (showFilters) params.set('show_filters', '1');
+    return params.toString();
+  }, [filterCity, filterStatus, filterTag, limit, page, search, showFilters, sortBy, sortOrder]);
+
+  const selectedContactIdFromQuery = searchParams.get('contact');
+  const uiQuery = (() => {
+    const params = new URLSearchParams(listQuery);
+    if (selectedContact?.id) params.set('contact', selectedContact.id);
+    return params.toString();
   })();
+
+  useEffect(() => {
+    const currentQuery = searchParams.toString();
+    if (uiQuery === currentQuery) return;
+    const nextUrl = uiQuery ? `${publicPathname}?${uiQuery}` : publicPathname;
+    window.history.replaceState(window.history.state, '', nextUrl);
+  }, [publicPathname, searchParams, uiQuery]);
+
+  const swrKey = `/api/admin/contacts?${listQuery}`;
 
   const { data, error, isLoading: loading, mutate } = useSWR<ContactsResponse>(
     swrKey,
@@ -1724,17 +1766,17 @@ export default function ContactsPage() {
   const stats = data?.stats ?? null;
 
   const loadContacts = useCallback(() => mutate(), [mutate]);
-
+  const resetSelection = useCallback(() => {
+    setSelectedIds(new Set());
+    setSelectAll(false);
+  }, []);
   useEffect(() => {
-    const contactId = searchParams.get('contact');
-    if (!contactId) return;
-    fetch(`/api/admin/contacts/${contactId}`, { credentials: 'include' })
+    if (!selectedContactIdFromQuery || selectedContact?.id === selectedContactIdFromQuery) return;
+    fetch(`/api/admin/contacts/${selectedContactIdFromQuery}`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setSelectedContact(data); })
       .catch(() => {});
-  }, [searchParams]);
-
-  useEffect(() => { setSelectedIds(new Set()); setSelectAll(false); }, [page, filterStatus, filterTag, search]);
+  }, [selectedContact?.id, selectedContactIdFromQuery]);
 
   const handleSelectAll = () => {
     if (selectAll) setSelectedIds(new Set()); else setSelectedIds(new Set(contacts.map(c => c.id)));
@@ -1743,7 +1785,8 @@ export default function ContactsPage() {
 
   const handleSelectOne = (id: string) => {
     const next = new Set(selectedIds);
-    next.has(id) ? next.delete(id) : next.add(id);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
     setSelectedIds(next);
     setSelectAll(next.size === contacts.length);
   };
@@ -1793,11 +1836,14 @@ export default function ContactsPage() {
   };
 
   const clearFilters = () => {
+    resetSelection();
     setSearch(''); setFilterStatus(''); setFilterTag(''); setFilterCity('');
+    setShowFilters(false);
     setPage(1);
   };
 
   const hasActiveFilters = search || filterStatus || filterTag || filterCity;
+  const activeStatusLabel = statusConfig.find((item) => item.value === filterStatus)?.label;
 
   function SortIcon({ field }: { field: string }) {
     if (sortBy !== field) return <ArrowUpDown className="w-3.5 h-3.5 text-[var(--frox-gray-300)]" />;
@@ -1862,6 +1908,7 @@ export default function ContactsPage() {
               tone={card.tone}
               active={Boolean(card.filterVal) && filterStatus === card.filterVal}
               onClick={card.filterVal ? () => {
+                resetSelection();
                 setFilterStatus(filterStatus === card.filterVal ? '' : card.filterVal);
                 setPage(1);
               } : undefined}
@@ -1878,15 +1925,15 @@ export default function ContactsPage() {
             <Input
               placeholder="Поиск по имени, email, телефону, городу, специальности..."
               value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1); }}
+              onChange={e => { resetSelection(); setSearch(e.target.value); setPage(1); }}
               className="h-10 border-[rgba(115,100,219,0.1)] bg-white/80 pl-10 focus:bg-white"
             />
           </div>
           <div className="flex flex-wrap gap-2">
             <select
-              className="frox-select h-10 rounded-xl px-3 text-sm"
+              className={`frox-select h-10 rounded-xl px-3 text-sm transition-colors ${filterStatus ? 'border-[rgba(115,100,219,0.32)] bg-[var(--frox-brand-soft)] text-[var(--frox-brand-strong)]' : ''}`}
               value={filterStatus}
-              onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
+              onChange={e => { resetSelection(); setFilterStatus(e.target.value); setPage(1); }}
             >
               <option value="">Все статусы</option>
               {statusConfig.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -1895,7 +1942,7 @@ export default function ContactsPage() {
               variant={showFilters ? 'secondary' : 'outline'}
               size="sm"
               onClick={() => setShowFilters(!showFilters)}
-              className="h-10 gap-1.5"
+              className={`h-10 gap-1.5 ${(filterTag || filterCity) ? 'border-[rgba(115,100,219,0.32)] bg-[var(--frox-brand-soft)] text-[var(--frox-brand-strong)] hover:bg-[var(--frox-brand-soft)]' : ''}`}
             >
               <Filter className="w-3.5 h-3.5" />
               Фильтры
@@ -1909,6 +1956,34 @@ export default function ContactsPage() {
           </div>
         </div>
 
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-[rgba(115,100,219,0.1)] px-4 pb-4 pt-0">
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--frox-gray-500)]">
+              Активные фильтры
+            </span>
+            {activeStatusLabel && (
+              <span className="inline-flex items-center rounded-full bg-[var(--frox-plum-soft)] px-3 py-1 text-xs font-medium text-[#7a5fe4]">
+                Статус: {activeStatusLabel}
+              </span>
+            )}
+            {filterTag && (
+              <span className="inline-flex items-center rounded-full bg-[var(--frox-brand-soft)] px-3 py-1 text-xs font-medium text-[var(--frox-brand-strong)]">
+                Тег: {filterTag}
+              </span>
+            )}
+            {filterCity && (
+              <span className="inline-flex items-center rounded-full bg-[var(--frox-slate-soft)] px-3 py-1 text-xs font-medium text-[var(--frox-gray-700)]">
+                Город: {filterCity}
+              </span>
+            )}
+            {search && (
+              <span className="inline-flex items-center rounded-full bg-[var(--frox-gray-100)] px-3 py-1 text-xs font-medium text-[var(--frox-gray-700)]">
+                Поиск: {search}
+              </span>
+            )}
+          </div>
+        )}
+
         {showFilters && (
           <div className="grid grid-cols-1 gap-4 border-t border-[rgba(115,100,219,0.1)] px-4 pb-4 pt-4 sm:grid-cols-2">
             <div>
@@ -1918,7 +1993,7 @@ export default function ContactsPage() {
                 <Input
                   placeholder="Фильтр по тегу"
                   value={filterTag}
-                  onChange={e => { setFilterTag(e.target.value); setPage(1); }}
+                  onChange={e => { resetSelection(); setFilterTag(e.target.value); setPage(1); }}
                   className="h-10 bg-white/80 pl-9"
                 />
               </div>
@@ -1930,7 +2005,7 @@ export default function ContactsPage() {
                 <Input
                   placeholder="Город"
                   value={filterCity}
-                  onChange={e => { setFilterCity(e.target.value); setPage(1); }}
+                  onChange={e => { resetSelection(); setFilterCity(e.target.value); setPage(1); }}
                   className="h-10 bg-white/80 pl-9"
                 />
               </div>
@@ -2179,11 +2254,11 @@ export default function ContactsPage() {
             {((pagination.page - 1) * pagination.limit) + 1}–{Math.min(pagination.page * pagination.limit, pagination.totalCount)} из {pagination.totalCount}
           </div>
           <div className="flex items-center gap-1.5">
-            <Button variant="outline" size="sm" disabled={pagination.page <= 1} onClick={() => setPage(p => p - 1)} className="h-8 w-8 p-0">
+            <Button variant="outline" size="sm" disabled={pagination.page <= 1} onClick={() => { resetSelection(); setPage(p => p - 1); }} className="h-8 w-8 p-0">
               <ChevronLeft className="w-4 h-4" />
             </Button>
             <span className="text-sm text-[var(--frox-gray-500)] px-2">{pagination.page} / {pagination.totalPages}</span>
-            <Button variant="outline" size="sm" disabled={pagination.page >= pagination.totalPages} onClick={() => setPage(p => p + 1)} className="h-8 w-8 p-0">
+            <Button variant="outline" size="sm" disabled={pagination.page >= pagination.totalPages} onClick={() => { resetSelection(); setPage(p => p + 1); }} className="h-8 w-8 p-0">
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
@@ -2198,6 +2273,7 @@ export default function ContactsPage() {
           onUpdate={handleContactUpdate}
           onClose={() => setSelectedContact(null)}
           onDelete={handleContactDelete}
+          detailHref={`${pathname}/${selectedContact.id}?returnTo=${encodeURIComponent(uiQuery ? `${publicPathname}?${uiQuery}` : publicPathname)}`}
         />
       )}
 
@@ -2214,7 +2290,7 @@ export default function ContactsPage() {
         <MergeModal
           contacts={contacts.filter(c => selectedIds.has(c.id))}
           onClose={() => setShowMerge(false)}
-          onDone={(survivorId) => {
+          onDone={() => {
             setShowMerge(false);
             setSelectedIds(new Set());
             setSelectAll(false);

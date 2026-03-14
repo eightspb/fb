@@ -59,7 +59,7 @@ vi.mock('@/lib/telegram-notifications', () => ({
 
 // Мок api-logger — passthrough
 vi.mock('@/lib/api-logger', () => ({
-  withApiLogging: (_endpoint: string, handler: Function) => handler,
+  withApiLogging: <T extends (...args: any[]) => any>(_endpoint: string, handler: T) => handler,
 }));
 
 // Мок logger
@@ -93,7 +93,7 @@ beforeEach(() => {
 // ═══════════════════════════════════════════════════════
 
 describe('/api/contact', () => {
-  let POST: Function;
+  let POST: (request: NextRequest) => Promise<Response>;
 
   beforeEach(async () => {
     const mod = await import('@/app/api/contact/route');
@@ -184,6 +184,53 @@ describe('/api/contact', () => {
     expect(data.success).toBe(true);
   });
 
+  it('возвращает 200 если автоответ пользователю отклонён, но письмо админу ушло', async () => {
+    mockSendMail
+      .mockResolvedValueOnce({ messageId: 'admin-msg-id' })
+      .mockRejectedValueOnce(Object.assign(new Error('Recipient rejected'), {
+        code: 'EENVELOPE',
+        command: 'RCPT TO',
+        response: '550 non-local recipient verification failed',
+        responseCode: 550,
+      }));
+
+    const req = makeRequest('http://localhost:3000/api/contact', validBody);
+    const res = await POST(req);
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(mockSendMail).toHaveBeenCalledTimes(2);
+    expect(mockNotifyError).toHaveBeenCalledTimes(1);
+    expect(mockNotifyError.mock.calls[0][1]).toMatchObject({
+      location: '/api/contact - user auto-reply',
+    });
+  });
+
+  it('не шлёт telegram error для probe/test автоответа с envelope reject', async () => {
+    mockSendMail
+      .mockResolvedValueOnce({ messageId: 'admin-msg-id' })
+      .mockRejectedValueOnce(Object.assign(new Error('Recipient rejected'), {
+        code: 'EENVELOPE',
+        command: 'RCPT TO',
+        response: '550 non-local recipient verification failed',
+        responseCode: 550,
+      }));
+
+    const req = makeRequest('http://localhost:3000/api/contact', {
+      ...validBody,
+      name: 'pentest',
+      email: 'pentest@example.com',
+      message: 'probe',
+    });
+    const res = await POST(req);
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(mockNotifyError).not.toHaveBeenCalled();
+  });
+
   it('отправляет Telegram уведомление', async () => {
     const req = makeRequest('http://localhost:3000/api/contact', validBody);
     await POST(req);
@@ -210,7 +257,7 @@ describe('/api/contact', () => {
 // ═══════════════════════════════════════════════════════
 
 describe('/api/request-cp', () => {
-  let POST: Function;
+  let POST: (request: NextRequest) => Promise<Response>;
 
   beforeEach(async () => {
     const mod = await import('@/app/api/request-cp/route');
@@ -316,7 +363,7 @@ describe('/api/request-cp', () => {
 // ═══════════════════════════════════════════════════════
 
 describe('/api/conferences/register', () => {
-  let POST: Function;
+  let POST: (request: NextRequest) => Promise<Response>;
 
   beforeEach(async () => {
     const mod = await import('@/app/api/conferences/register/route');
@@ -413,7 +460,7 @@ describe('/api/conferences/register', () => {
 // ═══════════════════════════════════════════════════════
 
 describe('/api/subscribe', () => {
-  let POST: Function;
+  let POST: (request: NextRequest) => Promise<Response>;
 
   beforeEach(async () => {
     const mod = await import('@/app/api/subscribe/route');

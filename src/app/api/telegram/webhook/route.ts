@@ -13,9 +13,54 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
 });
 
+function formatDurationMs(durationMs: number): string {
+  if (durationMs < 1000) {
+    return `${durationMs}ms`;
+  }
+
+  return `${(durationMs / 1000).toFixed(2)}s`;
+}
+
+function describeTelegramUpdate(body: any): string {
+  if (body?.callback_query) {
+    const callbackQuery = body.callback_query;
+    const chatId = callbackQuery.message?.chat?.id ?? 'unknown';
+    const messageId = callbackQuery.message?.message_id ?? 'unknown';
+    const data = callbackQuery.data || 'no-data';
+    return `callback chat=${chatId} message=${messageId} data=${JSON.stringify(data)}`;
+  }
+
+  if (body?.message) {
+    const msg = body.message as TelegramBot.Message;
+    const chatId = msg.chat?.id ?? 'unknown';
+    const messageId = msg.message_id ?? 'unknown';
+
+    if (msg.text) {
+      return `message chat=${chatId} message=${messageId} text=${JSON.stringify(msg.text.substring(0, 80))}`;
+    }
+
+    if (msg.photo?.length) {
+      return `message chat=${chatId} message=${messageId} photo=${msg.photo.length}`;
+    }
+
+    if (msg.video) {
+      return `message chat=${chatId} message=${messageId} video=${msg.video.file_id}`;
+    }
+
+    if (msg.voice) {
+      return `message chat=${chatId} message=${messageId} voice=${msg.voice.file_id} duration=${msg.voice.duration}s`;
+    }
+
+    return `message chat=${chatId} message=${messageId} type=other`;
+  }
+
+  return 'unknown update';
+}
+
 export async function POST(request: NextRequest) {
-  const timestamp = new Date().toISOString();
-  console.log(`\n[${timestamp}] ===== TELEGRAM WEBHOOK RECEIVED =====`);
+  const startedAt = Date.now();
+  let updateLabel = 'update=unparsed';
+  console.log('\n===== TELEGRAM WEBHOOK RECEIVED =====');
   
   try {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -28,6 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    updateLabel = describeTelegramUpdate(body);
     const [telegramBotModule, telegramHandlers] = await Promise.all([
       import('node-telegram-bot-api'),
       import('@/lib/telegram-bot'),
@@ -55,6 +101,7 @@ export async function POST(request: NextRequest) {
       regenerateAIContent,
       pendingNews,
     } = telegramHandlers;
+    console.log(`[WEBHOOK] ⏱️ Start ${updateLabel}`);
     console.log('[WEBHOOK] 📥 Получено обновление:', JSON.stringify(body, null, 2));
 
     // Обрабатываем callback_query (ответы на кнопки)
@@ -469,7 +516,9 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    console.log(`[${new Date().toISOString()}] ===== WEBHOOK PROCESSING COMPLETE =====\n`);
+    const durationMs = Date.now() - startedAt;
+    console.log(`[WEBHOOK] ⏱️ Done ${updateLabel} in ${formatDurationMs(durationMs)}`);
+    console.log('===== WEBHOOK PROCESSING COMPLETE =====\n');
   }
 }
 

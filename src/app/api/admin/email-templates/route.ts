@@ -4,6 +4,7 @@ import { checkApiAuth } from '@/lib/auth';
 
 // Явно указываем Node.js runtime для работы с PostgreSQL
 export const runtime = 'nodejs';
+const CRM_COMPOSE_TEMPLATE_FORM_TYPE = 'crm_compose';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
@@ -101,6 +102,7 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     const { form_type, email_type, subject, html_body } = body;
+    const subjectRequired = form_type !== CRM_COMPOSE_TEMPLATE_FORM_TYPE;
 
     console.log('[Email Templates API] Получен запрос на сохранение:', {
       form_type,
@@ -109,11 +111,18 @@ export async function PUT(request: NextRequest) {
       htmlBodyLength: html_body?.length,
     });
 
-    if (!form_type || !email_type || !subject || !html_body) {
+    if (!form_type || !email_type || typeof html_body !== 'string' || html_body.trim().length === 0 || (subjectRequired && (!subject || String(subject).trim().length === 0))) {
       return NextResponse.json(
         { 
-          error: 'Все поля обязательны: form_type, email_type, subject, html_body',
-          received: { form_type: !!form_type, email_type: !!email_type, subject: !!subject, html_body: !!html_body }
+          error: subjectRequired
+            ? 'Все поля обязательны: form_type, email_type, subject, html_body'
+            : 'Все поля обязательны: form_type, email_type, html_body',
+          received: {
+            form_type: !!form_type,
+            email_type: !!email_type,
+            subject: typeof subject === 'string' ? subject.trim().length > 0 : !!subject,
+            html_body: typeof html_body === 'string' ? html_body.trim().length > 0 : !!html_body,
+          }
         },
         { status: 400 }
       );
@@ -147,7 +156,7 @@ export async function PUT(request: NextRequest) {
           `UPDATE email_templates 
            SET subject = $1, html_body = $2, updated_at = NOW()
            WHERE form_type = $3 AND email_type = $4`,
-          [subject, html_body, form_type, email_type]
+          [typeof subject === 'string' ? subject : '', html_body, form_type, email_type]
         );
       } else {
         // Создаем новый шаблон
@@ -155,7 +164,7 @@ export async function PUT(request: NextRequest) {
         await client.query(
           `INSERT INTO email_templates (form_type, email_type, subject, html_body)
            VALUES ($1, $2, $3, $4)`,
-          [form_type, email_type, subject, html_body]
+          [form_type, email_type, typeof subject === 'string' ? subject : '', html_body]
         );
       }
 

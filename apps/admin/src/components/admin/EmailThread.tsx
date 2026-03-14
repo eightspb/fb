@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, type MouseEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   RefreshCw,
@@ -19,6 +19,7 @@ import {
   Search,
   Square,
   SlidersHorizontal,
+  Trash2,
   X,
 } from 'lucide-react';
 import { EmailCompose } from './EmailCompose';
@@ -142,6 +143,7 @@ function EmailItem({
   onReply,
   onCancelReply,
   onSent,
+  onDeleted,
   contactEmail,
   contactName,
   submissionId,
@@ -152,6 +154,7 @@ function EmailItem({
   onReply: (email: CrmEmail) => void;
   onCancelReply: () => void;
   onSent: () => void;
+  onDeleted: (emailId: string) => void;
   contactEmail: string;
   contactName?: string;
   submissionId?: string;
@@ -160,6 +163,7 @@ function EmailItem({
   const [expanded, setExpanded] = useState(defaultExpanded ?? false);
   const [fullEmail, setFullEmail] = useState<CrmEmail | null>(null);
   const [bodyLoading, setBodyLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const isInbound = email.direction === 'inbound';
 
   // Загружаем полное тело письма при первом раскрытии
@@ -190,6 +194,37 @@ function EmailItem({
   }, []);
 
   const displayEmail = fullEmail ?? email;
+
+  const handleDelete = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+
+    const confirmed = window.confirm('Удалить это письмо из CRM и основного ящика?');
+    if (!confirmed) return;
+
+    setDeleting(true);
+    try {
+      const response = await adminCsrfFetch(`/api/admin/emails/${email.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        let message = 'Не удалось удалить письмо';
+        try {
+          const data = await response.json();
+          if (data?.error) message = data.error;
+        } catch {}
+        throw new Error(message);
+      }
+
+      onDeleted(email.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось удалить письмо';
+      window.alert(message);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className={`border-l-2 ${isInbound ? 'border-l-blue-300' : 'border-l-green-300'} ml-2`}>
@@ -276,10 +311,20 @@ function EmailItem({
           )}
 
           {/* Кнопка ответить */}
-          <div className="px-3 pb-2 pt-1">
+          <div className="px-3 pb-2 pt-1 flex items-center gap-2">
             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={e => { e.stopPropagation(); onReply(displayEmail); }}>
               <Reply className="w-3 h-3 mr-1" />
               Ответить
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Trash2 className="w-3 h-3 mr-1" />}
+              Удалить
             </Button>
           </div>
         </div>
@@ -309,6 +354,7 @@ function ThreadCard({
   onReply,
   onCancelReply,
   onSent,
+  onDeleted,
   contactEmail,
   contactName,
   submissionId,
@@ -318,6 +364,7 @@ function ThreadCard({
   onReply: (email: CrmEmail) => void;
   onCancelReply: () => void;
   onSent: () => void;
+  onDeleted: (emailId: string) => void;
   contactEmail: string;
   contactName?: string;
   submissionId?: string;
@@ -381,6 +428,7 @@ function ThreadCard({
               onReply={onReply}
               onCancelReply={onCancelReply}
               onSent={onSent}
+              onDeleted={onDeleted}
               contactEmail={contactEmail}
               contactName={contactName}
               submissionId={submissionId}
@@ -395,7 +443,7 @@ function ThreadCard({
 
 export function EmailThread({ contactEmail, contactName, submissionId }: EmailThreadProps) {
   const [emails, setEmails] = useState<CrmEmail[]>([]);
-  const [totalEmails, setTotalEmails] = useState<number | null>(null);
+  const [, setTotalEmails] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -668,6 +716,15 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
     fetchEmails();
   };
 
+  const handleEmailDeleted = (emailId: string) => {
+    setEmails(prev => prev.filter(email => email.id !== emailId));
+    setSearchResults(prev => prev ? prev.filter(email => email.id !== emailId) : prev);
+    setTotalEmails(prev => prev === null ? prev : Math.max(0, prev - 1));
+    if (replyToId === emailId) {
+      setReplyToId(null);
+    }
+  };
+
   const hasActiveFilters = filterDirection !== 'all' || filterHasAttachments || filterDateFrom || filterDateTo;
 
   // Фильтрация писем — текстовый поиск серверный (searchResults), остальные фильтры клиентские
@@ -924,6 +981,7 @@ export function EmailThread({ contactEmail, contactName, submissionId }: EmailTh
                   onReply={email => { setShowNewCompose(false); setReplyToId(email.id); }}
                   onCancelReply={() => setReplyToId(null)}
                   onSent={handleEmailSent}
+                  onDeleted={handleEmailDeleted}
                   contactEmail={contactEmail}
                   contactName={contactName}
                   submissionId={submissionId}

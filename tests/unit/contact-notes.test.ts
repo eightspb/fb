@@ -74,7 +74,7 @@ beforeEach(() => {
 // ═══════════════════════════════════════════════════════
 
 describe('GET /api/admin/contacts/[id]/notes', () => {
-  let GET: Function;
+  let GET: (request: NextRequest, context: { params: Promise<{ id: string }> }) => Promise<Response>;
 
   beforeEach(async () => {
     const mod = await import('@/app/api/admin/contacts/[id]/notes/route');
@@ -131,7 +131,7 @@ describe('GET /api/admin/contacts/[id]/notes', () => {
 // ═══════════════════════════════════════════════════════
 
 describe('POST /api/admin/contacts/[id]/notes', () => {
-  let POST: Function;
+  let POST: (request: NextRequest, context: { params: Promise<{ id: string }> }) => Promise<Response>;
 
   beforeEach(async () => {
     const mod = await import('@/app/api/admin/contacts/[id]/notes/route');
@@ -291,7 +291,7 @@ describe('POST /api/admin/contacts/[id]/notes', () => {
 // ═══════════════════════════════════════════════════════
 
 describe('PATCH /api/admin/contacts/[id]/notes/[noteId]', () => {
-  let PATCH: Function;
+  let PATCH: (request: NextRequest, context: { params: Promise<{ id: string; noteId: string }> }) => Promise<Response>;
 
   beforeEach(async () => {
     const mod = await import('@/app/api/admin/contacts/[id]/notes/[noteId]/route');
@@ -372,7 +372,7 @@ describe('PATCH /api/admin/contacts/[id]/notes/[noteId]', () => {
 // ═══════════════════════════════════════════════════════
 
 describe('DELETE /api/admin/contacts/[id]/notes/[noteId]', () => {
-  let DELETE: Function;
+  let DELETE: (request: NextRequest, context: { params: Promise<{ id: string; noteId: string }> }) => Promise<Response>;
 
   beforeEach(async () => {
     const mod = await import('@/app/api/admin/contacts/[id]/notes/[noteId]/route');

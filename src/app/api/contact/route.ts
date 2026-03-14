@@ -22,6 +22,51 @@ interface ContactFormData {
   consent: boolean;
 }
 
+interface ProbeSignal {
+  category: 'probe' | 'test';
+  reasons: string[];
+}
+
+function detectProbeLikeSubmission(body: ContactFormData): ProbeSignal | null {
+  const reasons: string[] = [];
+  const email = body.email.trim().toLowerCase();
+  const name = body.name.trim().toLowerCase();
+  const message = body.message.trim().toLowerCase();
+  const domain = email.split('@')[1] || '';
+  const emailLocal = email.split('@')[0] || '';
+
+  const disposableOrReservedDomains = ['example.com', 'example.org', 'example.net', 'test', 'invalid', 'localhost'];
+  const probeTokens = ['pentest', 'probe', 'scanner', 'scan'];
+  const testTokens = ['test', 'qa', 'dummy'];
+
+  if (disposableOrReservedDomains.includes(domain)) {
+    reasons.push(`reserved-domain:${domain}`);
+  }
+
+  for (const token of probeTokens) {
+    if (email.includes(token) || name.includes(token) || message.includes(token)) {
+      reasons.push(`probe-token:${token}`);
+    }
+  }
+
+  for (const token of testTokens) {
+    if (emailLocal === token || name === token || message === token) {
+      reasons.push(`test-token:${token}`);
+    }
+  }
+
+  if (!reasons.length) {
+    return null;
+  }
+
+  return {
+    category: reasons.some((reason) => reason.startsWith('probe-token:') || reason.startsWith('reserved-domain:'))
+      ? 'probe'
+      : 'test',
+    reasons,
+  };
+}
+
 export const POST = withApiLogging('/api/contact', async (request: NextRequest) => {
   console.log('[Contact Form API] Получен запрос на отправку формы');
   try {
@@ -56,6 +101,17 @@ export const POST = withApiLogging('/api/contact', async (request: NextRequest) 
         { error: 'Неверный формат email' },
         { status: 400 }
       );
+    }
+
+    const probeSignal = detectProbeLikeSubmission(body);
+    if (probeSignal) {
+      console.warn('[Contact Form][Probe Signal] Обнаружена внешняя probe/test заявка:', {
+        category: probeSignal.category,
+        reasons: probeSignal.reasons,
+        email: body.email,
+        name: body.name,
+        referer: request.headers.get('referer') || null,
+      });
     }
 
     // Save to database
@@ -180,13 +236,52 @@ export const POST = withApiLogging('/api/contact', async (request: NextRequest) 
         </div>
       `;
 
-      const userResult = await transporter.sendMail({
-        from: senderEmail,
-        to: body.email,
-        subject: userSubject,
-        html: userHtml,
-      });
-      console.log('[Contact Form] Подтверждение пользователю отправлено:', userResult.messageId);
+      try {
+        const userResult = await transporter.sendMail({
+          from: senderEmail,
+          to: body.email,
+          subject: userSubject,
+          html: userHtml,
+        });
+        console.log('[Contact Form] Подтверждение пользователю отправлено:', userResult.messageId);
+      } catch (userEmailError: any) {
+        const userEmailMessage = userEmailError?.message || 'Неизвестная ошибка отправки автоответа';
+        const isEnvelopeReject = userEmailError?.code === 'EENVELOPE' || userEmailError?.command === 'RCPT TO';
+
+        console.warn('[Contact Form] Автоответ пользователю не отправлен, заявка сохранена:', {
+          email: body.email,
+          probeCategory: probeSignal?.category || null,
+          message: userEmailMessage,
+          code: userEmailError?.code,
+          command: userEmailError?.command,
+          response: userEmailError?.response,
+          responseCode: userEmailError?.responseCode,
+          saved: true,
+        });
+
+        // Не шумим в Telegram на очевидных probe/test адресах и envelope rejects:
+        // заявка уже сохранена, админское письмо уже ушло.
+        if (!(probeSignal && isEnvelopeReject)) {
+          notifyAdminAboutError(
+            userEmailError instanceof Error ? userEmailError : new Error(userEmailMessage),
+            {
+              location: '/api/contact - user auto-reply',
+              requestUrl: request.url,
+              requestMethod: 'POST',
+              additionalInfo: {
+                formType: 'contact',
+                emailCode: userEmailError?.code,
+                emailResponseCode: userEmailError?.responseCode,
+                probeCategory: probeSignal?.category || null,
+                saved: true,
+              },
+            }
+          ).catch(err => {
+            console.error('[Contact Form] Ошибка отправки уведомления об ошибке:', err);
+          });
+        }
+      }
+
       console.log('[Contact Form] Все письма успешно отправлены');
     } catch (emailError: any) {
       console.error('[Contact Form] Ошибка отправки email:', {
@@ -211,6 +306,7 @@ export const POST = withApiLogging('/api/contact', async (request: NextRequest) 
             formType: 'contact',
             emailCode: emailError?.code,
             emailResponseCode: emailError?.responseCode,
+            probeCategory: probeSignal?.category || null,
           },
         }
       ).catch(err => {
@@ -287,4 +383,3 @@ export const POST = withApiLogging('/api/contact', async (request: NextRequest) 
     );
   }
 });
-

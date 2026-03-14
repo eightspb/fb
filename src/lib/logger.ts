@@ -47,6 +47,20 @@ const originalConsoleDebug = console.debug;
 // Флаг инициализации
 let isInitialized = false;
 
+function createTimestampPrefix(date: Date = new Date()): string {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+
+  return `[${day}.${month} ${hours}:${minutes}:${seconds}]`;
+}
+
+function withTimestamp(args: any[], date: Date = new Date()): any[] {
+  return [createTimestampPrefix(date), ...args];
+}
+
 /**
  * Сохраняет лог в БД
  */
@@ -245,11 +259,11 @@ export function initializeLogger(): void {
   }
 
   isInitialized = true;
-  originalConsoleLog('[Logger] 🔧 Инициализация системы логирования...');
+  originalConsoleLog(...withTimestamp(['[Logger] 🔧 Инициализация системы логирования...']));
 
   // Перехватываем console.log
   console.log = (...args: any[]) => {
-    originalConsoleLog.apply(console, args);
+    originalConsoleLog.apply(console, withTimestamp(args));
     
     const message = formatArgs(args);
     const { context, cleanMessage } = extractContext(message);
@@ -270,7 +284,7 @@ export function initializeLogger(): void {
 
   // Перехватываем console.error
   console.error = (...args: any[]) => {
-    originalConsoleError.apply(console, args);
+    originalConsoleError.apply(console, withTimestamp(args));
     
     const message = formatArgs(args);
     const { context, cleanMessage } = extractContext(message);
@@ -291,7 +305,7 @@ export function initializeLogger(): void {
 
   // Перехватываем console.warn
   console.warn = (...args: any[]) => {
-    originalConsoleWarn.apply(console, args);
+    originalConsoleWarn.apply(console, withTimestamp(args));
     
     const message = formatArgs(args);
     
@@ -330,7 +344,7 @@ export function initializeLogger(): void {
 
   // Перехватываем console.debug
   console.debug = (...args: any[]) => {
-    originalConsoleDebug.apply(console, args);
+    originalConsoleDebug.apply(console, withTimestamp(args));
     
     const message = formatArgs(args);
     const { context, cleanMessage } = extractContext(message);
@@ -354,13 +368,14 @@ export function initializeLogger(): void {
     });
   }
 
-  originalConsoleLog('[Logger] ✅ Система логирования инициализирована');
+  originalConsoleLog(...withTimestamp(['[Logger] ✅ Система логирования инициализирована']));
 }
 
 /**
  * Ручное логирование (для использования в коде)
  */
 export function log(level: LogLevel, message: string, metadata?: Record<string, any>, context?: string): void {
+  const timestamp = new Date();
   const requestInfo = getRequestInfo();
   
   queueLog({
@@ -368,7 +383,7 @@ export function log(level: LogLevel, message: string, metadata?: Record<string, 
     message,
     context,
     metadata,
-    timestamp: new Date(),
+    timestamp,
     ...requestInfo,
   });
 
@@ -380,7 +395,7 @@ export function log(level: LogLevel, message: string, metadata?: Record<string, 
     debug: originalConsoleDebug,
   }[level];
 
-  consoleMethod(`[${context || 'App'}] ${message}`, metadata || '');
+  consoleMethod(...withTimestamp([`[${context || 'App'}] ${message}`, metadata || ''], timestamp));
 }
 
 /**

@@ -100,9 +100,6 @@ export function TagAutocompleteInput({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Reset active index when filtered list changes
-  useEffect(() => { setActiveIndex(-1); }, [value]);
-
   // Scroll active item into view
   useEffect(() => {
     if (activeIndex >= 0 && dropdownRef.current) {
@@ -117,7 +114,11 @@ export function TagAutocompleteInput({
         <Input
           ref={inputRef as React.RefObject<HTMLInputElement>}
           value={value}
-          onChange={e => { setValue(e.target.value); setOpen(true); }}
+          onChange={e => {
+            setValue(e.target.value);
+            setOpen(true);
+            setActiveIndex(-1);
+          }}
           onFocus={() => setOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}

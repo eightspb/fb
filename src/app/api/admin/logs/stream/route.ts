@@ -1,17 +1,26 @@
 import { NextRequest } from 'next/server';
 import logEventBus, { LOG_EVENT } from '@/lib/log-event-bus';
 import type { LogEntry } from '@/lib/logger';
+import { verifyToken } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+async function hasValidAdminSession(request: NextRequest): Promise<boolean> {
+  const adminSession = request.cookies.get('admin-session')?.value;
+  if (!adminSession) {
+    return false;
+  }
+
+  return verifyToken(adminSession);
+}
 
 /**
  * GET /api/admin/logs/stream
  * Server-Sent Events stream — events are pushed instantly when logs are written.
  */
 export async function GET(request: NextRequest) {
-  const adminSession = request.cookies.get('admin-session')?.value;
-  if (!adminSession) {
+  if (!(await hasValidAdminSession(request))) {
     return new Response('Unauthorized', { status: 401 });
   }
 

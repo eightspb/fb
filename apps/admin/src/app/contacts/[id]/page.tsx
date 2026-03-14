@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -566,7 +566,13 @@ const notesFetcher = (url: string) =>
 export default function ContactDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = params.id as string;
+  const returnToParam = searchParams.get('returnTo');
+  const backHref = returnToParam && (
+    returnToParam.startsWith('/contacts') ||
+    returnToParam.startsWith('/admin/contacts')
+  ) ? returnToParam : '/contacts';
 
   const { data: contact, error: swrError, isLoading: loading, mutate } = useSWR<Contact>(
     id ? `/api/admin/contacts/${id}` : null,
@@ -724,7 +730,7 @@ export default function ContactDetailPage() {
             variant="ghost"
             size="sm"
             className="shrink-0 h-8 gap-1.5 text-[var(--frox-gray-500)] hover:text-[var(--frox-gray-900)] -ml-2"
-            onClick={() => router.push('/contacts')}
+            onClick={() => router.push(backHref)}
           >
             <ArrowLeft className="w-4 h-4" />
             Контакты

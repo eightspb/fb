@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLogs } from '@/lib/logger';
 import { Pool } from 'pg';
+import { verifyToken } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
@@ -8,15 +9,22 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:54322/postgres',
 });
 
+async function hasValidAdminSession(request: NextRequest): Promise<boolean> {
+  const adminSession = request.cookies.get('admin-session')?.value;
+  if (!adminSession) {
+    return false;
+  }
+
+  return verifyToken(adminSession);
+}
+
 /**
  * GET /api/admin/logs
  * Получение логов с фильтрацией
  */
 export async function GET(request: NextRequest) {
   try {
-    // Проверка авторизации
-    const adminSession = request.cookies.get('admin-session')?.value;
-    if (!adminSession) {
+    if (!(await hasValidAdminSession(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -53,9 +61,7 @@ export async function GET(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    // Проверка авторизации
-    const adminSession = request.cookies.get('admin-session')?.value;
-    if (!adminSession) {
+    if (!(await hasValidAdminSession(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

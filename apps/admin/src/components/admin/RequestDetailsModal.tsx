@@ -2,9 +2,11 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, User, Inbox, Clock, CheckCircle2, Archive } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ExternalLink, User, Inbox, Clock, CheckCircle2, Archive, Mail } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { LeadInfoPanel } from './LeadInfoPanel';
+import { EmailThread } from './EmailThread';
 
 export interface RequestItem {
   id: string;
@@ -32,6 +34,7 @@ interface RequestDetailsModalProps {
   onClose: () => void;
   onUpdate: (updatedRequest: RequestItem) => void;
   onDelete: (id: string) => void;
+  detailHref: string;
 }
 
 const formTypeLabels: Record<string, string> = {
@@ -68,6 +71,7 @@ export function RequestDetailsModal({
   onClose,
   onUpdate,
   onDelete,
+  detailHref,
 }: RequestDetailsModalProps) {
   const router = useRouter();
 
@@ -79,12 +83,12 @@ export function RequestDetailsModal({
 
   const handleOpenFull = () => {
     onClose();
-    router.push(`/requests/${request.id}`);
+    router.push(detailHref);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[92dvh] overflow-hidden p-0 gap-0 rounded-2xl border-[var(--frox-neutral-border)] shadow-xl flex flex-col">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-4xl max-h-[92dvh] overflow-hidden p-0 gap-0 rounded-2xl border-[var(--frox-neutral-border)] shadow-xl flex flex-col">
         {/* ── Шапка модалки ── */}
         <DialogHeader className="px-5 pt-5 pb-4 border-b border-[var(--frox-neutral-border)] shrink-0">
           <div className="flex items-start justify-between gap-3">
@@ -130,12 +134,50 @@ export function RequestDetailsModal({
 
         {/* ── Контент ── */}
         <div className="overflow-y-auto flex-1 px-5 py-4">
-          <LeadInfoPanel
-            request={request}
-            onUpdate={onUpdate}
-            onDelete={(id) => { onDelete(id); onClose(); }}
-            compact
-          />
+          <Tabs defaultValue="info" className="w-full">
+            <TabsList className="bg-white border border-[var(--frox-neutral-border)] rounded-xl p-1 h-auto w-full sm:w-auto">
+              <TabsTrigger
+                value="info"
+                className="flex-1 sm:flex-none rounded-lg data-[state=active]:bg-[var(--frox-gray-1100)] data-[state=active]:text-white data-[state=active]:shadow-none text-[var(--frox-gray-500)] h-8 px-4 text-sm"
+              >
+                Информация
+              </TabsTrigger>
+              <TabsTrigger
+                value="emails"
+                className="flex-1 sm:flex-none rounded-lg data-[state=active]:bg-[var(--frox-gray-1100)] data-[state=active]:text-white data-[state=active]:shadow-none text-[var(--frox-gray-500)] h-8 px-4 text-sm"
+              >
+                <Mail className="w-3.5 h-3.5 mr-1.5" />
+                Переписка
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="info" className="mt-4">
+              <LeadInfoPanel
+                request={request}
+                onUpdate={onUpdate}
+                onDelete={(id) => { onDelete(id); onClose(); }}
+                compact
+              />
+            </TabsContent>
+
+            <TabsContent value="emails" className="mt-4">
+              <div className="bg-white border border-[var(--frox-neutral-border)] rounded-2xl pt-4 sm:pt-6 px-4 sm:px-6 pb-2 shadow-sm overflow-hidden">
+                {request.email ? (
+                  <EmailThread
+                    contactEmail={request.email}
+                    contactName={request.name}
+                    submissionId={request.id}
+                  />
+                ) : (
+                  <div className="text-center py-12 text-[var(--frox-gray-400)]">
+                    <Mail className="w-12 h-12 mx-auto mb-3 stroke-1" />
+                    <p className="text-sm">У заявки не указан email</p>
+                    <p className="text-xs mt-1">Добавьте email на вкладке «Информация»</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
 
         {/* ── Футер ── */}

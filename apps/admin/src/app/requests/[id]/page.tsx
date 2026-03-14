@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,7 +44,13 @@ async function requestFetcher(url: string): Promise<RequestItem> {
 export default function RequestDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = params.id as string;
+  const returnToParam = searchParams.get('returnTo');
+  const backHref = returnToParam && (
+    returnToParam.startsWith('/requests') ||
+    returnToParam.startsWith('/admin/requests')
+  ) ? returnToParam : '/requests';
 
   const { data: request, error, isLoading: loading, mutate } = useSWR<RequestItem>(
     `/api/admin/requests/${id}`,
@@ -67,7 +73,7 @@ export default function RequestDetailPage() {
           <AlertCircle className="w-7 h-7 text-red-400" />
         </div>
         <p className="text-[var(--frox-gray-600)] mb-6">{error?.message || 'Заявка не найдена'}</p>
-        <Button variant="outline" onClick={() => router.push('/requests')}>
+        <Button variant="outline" onClick={() => router.push(backHref)}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Назад к заявкам
         </Button>
@@ -87,7 +93,7 @@ export default function RequestDetailPage() {
             variant="ghost"
             size="sm"
             className="shrink-0 h-8 gap-1.5 text-[var(--frox-gray-500)] hover:text-[var(--frox-gray-900)] -ml-2"
-            onClick={() => router.push('/requests')}
+            onClick={() => router.push(backHref)}
           >
             <ArrowLeft className="w-4 h-4" />
             Заявки
@@ -129,7 +135,7 @@ export default function RequestDetailPage() {
             <LeadInfoPanel
               request={request}
               onUpdate={(updated) => mutate(updated, false)}
-              onDelete={() => router.push('/requests')}
+              onDelete={() => router.push(backHref)}
             />
           </div>
         </TabsContent>

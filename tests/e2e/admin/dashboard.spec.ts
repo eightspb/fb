@@ -18,6 +18,7 @@ test.describe('Admin Dashboard', () => {
 
   test('shows the dashboard heading', async ({ adminPage }) => {
     await expect(adminPage.locator('body')).toContainText('Панель управления сайтом fibroadenoma.net');
+    await expect(adminPage.getByText('Быстрые переходы')).toBeVisible();
   });
 
   test('shows all quick links', async ({ adminPage }) => {

@@ -50,6 +50,16 @@ const QUICK_LINKS = [
 export default function AdminDashboard() {
   return (
     <div className="space-y-8">
+      <section className="frox-shell-surface rounded-[32px] px-6 py-7 sm:px-8">
+        <p className="frox-page-kicker">Admin Overview</p>
+        <h1 data-frox-heading="true" className="mt-3 text-3xl font-black tracking-tight text-[var(--frox-gray-1100)]">
+          Обзор
+        </h1>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--frox-gray-500)]">
+          Панель управления сайтом fibroadenoma.net с быстрым доступом к заявкам, контактам, новостям и мероприятиям.
+        </p>
+      </section>
+
       <ActiveSessions />
 
       <section>
@@ -77,7 +87,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-lg font-semibold text-[var(--frox-gray-900)] transition-colors group-hover:text-[var(--frox-brand-strong)]">
+                  <div className="text-lg font-semibold text-[var(--frox-gray-900)] transition-colors group-hover:text-[#6150d2]">
                     {item.label}
                   </div>
                   <p className="mt-2 text-sm leading-6 text-[var(--frox-gray-500)]">

@@ -1,16 +1,26 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Send,
   Paperclip,
+  Bold,
+  Italic,
+  Underline,
+  Link2,
+  Eraser,
   X,
   Loader2,
 } from 'lucide-react';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
+import {
+  buildComposeHtml,
+  CRM_COMPOSE_TEMPLATE_EMAIL_TYPE,
+  CRM_COMPOSE_TEMPLATE_FORM_TYPE,
+  htmlTemplateToPlainText,
+} from '@/lib/email-compose-template';
 
 interface ReplyToEmail {
   id: string;
@@ -18,6 +28,7 @@ interface ReplyToEmail {
   subject: string | null;
   from_address: string;
   from_name: string | null;
+  body_html?: string | null;
   body_text: string | null;
 }
 
@@ -30,18 +41,59 @@ interface EmailComposeProps {
   onCancel: () => void;
 }
 
-function buildQuote(email: ReplyToEmail): string {
-  const date = ''; // не добавляем дату в цитату для краткости
+const FONT_SIZE_OPTIONS = [
+  { label: 'S', value: '13px' },
+  { label: 'M', value: '16px' },
+  { label: 'L', value: '18px' },
+  { label: 'XL', value: '22px' },
+];
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function buildQuoteHtml(email: ReplyToEmail): string {
   const from = email.from_name ? `${email.from_name} <${email.from_address}>` : email.from_address;
-  const body = email.body_text || '';
-  const quoted = body.split('\n').map(line => `> ${line}`).join('\n');
-  return `\n\n---\nОт: ${from}\n\n${quoted}`;
+  const bodyText = email.body_text || '';
+  const quotedBody = bodyText
+    .split('\n')
+    .map((line) => escapeHtml(line))
+    .join('<br>');
+
+  return `<div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #d9dbe3; color: #5f6472;">
+  <div style="margin-bottom: 8px; font-size: 13px;"><strong>От:</strong> ${escapeHtml(from)}</div>
+  <blockquote style="margin: 0; padding-left: 12px; border-left: 3px solid #d9dbe3;">${quotedBody || '&nbsp;'}</blockquote>
+</div>`;
+}
+
+function applyEditorDisplayOverrides(editor: HTMLDivElement) {
+  const elements = editor.querySelectorAll<HTMLElement>('[style]');
+  for (const element of elements) {
+    if (element.style.maxWidth) {
+      element.style.setProperty('max-width', 'none', 'important');
+    }
+    if (element.style.margin === '0 auto') {
+      element.style.setProperty('margin', '0', 'important');
+    }
+    if (element.style.marginLeft === 'auto') {
+      element.style.setProperty('margin-left', '0', 'important');
+    }
+    if (element.style.marginRight === 'auto') {
+      element.style.setProperty('margin-right', '0', 'important');
+    }
+  }
 }
 
 export function EmailCompose({ contactEmail, contactName, submissionId, replyTo, onSent, onCancel }: EmailComposeProps) {
   const toValue = replyTo
     ? (replyTo.from_name ? `${replyTo.from_name} <${replyTo.from_address}>` : replyTo.from_address)
     : (contactName ? `${contactName} <${contactEmail}>` : contactEmail);
+  const quoteHtml = replyTo ? buildQuoteHtml(replyTo) : '';
 
   const [to, setTo] = useState(toValue);
   const [subject, setSubject] = useState(
@@ -49,11 +101,69 @@ export function EmailCompose({ contactEmail, contactName, submissionId, replyTo,
       ? (replyTo.subject.startsWith('Re:') ? replyTo.subject : `Re: ${replyTo.subject}`)
       : ''
   );
-  const [body, setBody] = useState(replyTo ? buildQuote(replyTo) : '');
+  const [bodyHtml, setBodyHtml] = useState(quoteHtml);
   const [files, setFiles] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fontSize, setFontSize] = useState('16px');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const pristineBodyRef = useRef(quoteHtml);
+
+  useEffect(() => {
+    setTo(toValue);
+    pristineBodyRef.current = quoteHtml;
+    setBodyHtml(quoteHtml);
+  }, [quoteHtml, toValue]);
+
+  useEffect(() => {
+    if (!editorRef.current) return;
+    if (editorRef.current.innerHTML !== bodyHtml) {
+      editorRef.current.innerHTML = bodyHtml;
+    }
+    applyEditorDisplayOverrides(editorRef.current);
+  }, [bodyHtml]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadComposeTemplate = async () => {
+      try {
+        const params = new URLSearchParams({
+          form_type: CRM_COMPOSE_TEMPLATE_FORM_TYPE,
+          email_type: CRM_COMPOSE_TEMPLATE_EMAIL_TYPE,
+        });
+
+        const response = await fetch(`/api/admin/email-templates?${params.toString()}`, {
+          credentials: 'include',
+        });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const template = Array.isArray(data.templates) ? data.templates[0] : null;
+        if (cancelled || !template?.html_body) return;
+
+        const nextBody = buildComposeHtml(template.html_body, {
+          name: contactName,
+          email: contactEmail,
+        }, quoteHtml);
+
+        if (!nextBody) return;
+
+        setBodyHtml((prev) => (prev === pristineBodyRef.current ? nextBody : prev));
+        pristineBodyRef.current = nextBody;
+      } catch {
+        // если шаблон не загрузился, оставляем пустое тело/цитату
+      }
+    };
+
+    void loadComposeTemplate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [contactEmail, contactName, quoteHtml]);
 
   const handleAddFiles = (newFiles: FileList | null) => {
     if (!newFiles) return;
@@ -70,8 +180,69 @@ export function EmailCompose({ contactEmail, contactName, submissionId, replyTo,
     return match ? match[1] : str.trim();
   };
 
+  const syncEditorHtml = () => {
+    if (!editorRef.current) return;
+    applyEditorDisplayOverrides(editorRef.current);
+    setBodyHtml(editorRef.current.innerHTML);
+  };
+
+  const handleEditorInput = (event: FormEvent<HTMLDivElement>) => {
+    applyEditorDisplayOverrides(event.currentTarget);
+    setBodyHtml(event.currentTarget.innerHTML);
+  };
+
+  const focusEditor = () => {
+    editorRef.current?.focus();
+  };
+
+  const applyCommand = (command: 'bold' | 'italic' | 'underline' | 'removeFormat' | 'unlink', value?: string) => {
+    focusEditor();
+    document.execCommand(command, false, value);
+    syncEditorHtml();
+  };
+
+  const handleInsertLink = () => {
+    focusEditor();
+    const selection = window.getSelection();
+    const selectedText = selection?.toString().trim() ?? '';
+    const initial = selectedText.startsWith('http') ? selectedText : 'https://';
+    const href = window.prompt('Введите ссылку', initial);
+    if (!href) return;
+    document.execCommand('createLink', false, href.trim());
+    syncEditorHtml();
+  };
+
+  const handleFontSizeChange = (nextSize: string) => {
+    setFontSize(nextSize);
+    focusEditor();
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    if (range.collapsed) return;
+
+    const span = document.createElement('span');
+    span.style.fontSize = nextSize;
+
+    try {
+      const fragment = range.extractContents();
+      span.appendChild(fragment);
+      range.insertNode(span);
+      selection.removeAllRanges();
+      const nextRange = document.createRange();
+      nextRange.selectNodeContents(span);
+      selection.addRange(nextRange);
+      syncEditorHtml();
+    } catch {
+      // если выделение сложное, просто пропускаем без падения редактора
+    }
+  };
+
   const handleSend = async () => {
-    if (!to || !subject || !body.trim()) {
+    const bodyText = htmlTemplateToPlainText(bodyHtml);
+
+    if (!to || !subject || !bodyText.trim()) {
       setError('Заполните все обязательные поля');
       return;
     }
@@ -83,13 +254,8 @@ export function EmailCompose({ contactEmail, contactName, submissionId, replyTo,
       const formData = new FormData();
       formData.append('to', extractEmail(to));
       formData.append('subject', subject);
-
-      // Оборачиваем plain text в базовый HTML
-      const htmlBody = `<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6;">
-${body.split('\n').map(line => `<p style="margin: 0 0 8px 0;">${line || '&nbsp;'}</p>`).join('\n')}
-</div>`;
-      formData.append('body_html', htmlBody);
-      formData.append('body_text', body);
+      formData.append('body_html', bodyHtml);
+      formData.append('body_text', bodyText);
 
       if (submissionId) {
         formData.append('submission_id', submissionId);
@@ -159,13 +325,48 @@ ${body.split('\n').map(line => `<p style="margin: 0 0 8px 0;">${line || '&nbsp;'
       {/* Тело */}
       <div>
         <label className="block text-xs text-[var(--frox-gray-500)] mb-1">Сообщение</label>
-        <Textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Текст письма..."
-          className="min-h-[150px] text-sm resize-y"
-          autoFocus
+        <div className="mb-2 flex flex-wrap items-center gap-1 rounded-xl border border-[var(--frox-neutral-border)] bg-[var(--frox-gray-50)] p-1.5">
+          <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={() => applyCommand('bold')}>
+            <Bold className="h-3.5 w-3.5" />
+          </Button>
+          <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={() => applyCommand('italic')}>
+            <Italic className="h-3.5 w-3.5" />
+          </Button>
+          <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={() => applyCommand('underline')}>
+            <Underline className="h-3.5 w-3.5" />
+          </Button>
+          <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={handleInsertLink}>
+            <Link2 className="h-3.5 w-3.5" />
+          </Button>
+          <select
+            value={fontSize}
+            onChange={(e) => handleFontSizeChange(e.target.value)}
+            className="h-8 rounded-lg border border-[var(--frox-neutral-border)] bg-white px-2 text-xs text-[var(--frox-gray-700)]"
+          >
+            {FONT_SIZE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={() => applyCommand('removeFormat')}>
+            <Eraser className="h-3.5 w-3.5" />
+          </Button>
+          <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => applyCommand('unlink')}>
+            Без ссылки
+          </Button>
+        </div>
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={handleEditorInput}
+          className="min-h-[180px] rounded-xl border border-[var(--frox-neutral-border)] bg-white px-3 py-2 text-left text-sm text-[var(--frox-gray-800)] focus:outline-none focus:ring-2 focus:ring-[var(--frox-brand)]/40 [&_a]:text-[var(--frox-brand)] [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:my-4 [&_blockquote]:border-l-4 [&_blockquote]:border-[var(--frox-neutral-border)] [&_blockquote]:pl-3 [&_p]:my-0"
+          style={{ lineHeight: 1.6 }}
         />
+        <p className="mt-1 text-xs text-[var(--frox-gray-500)]">
+          HTML-редактор: ссылки, размеры и переносы сохраняются как в письме.
+        </p>
       </div>
 
       {/* Вложения */}

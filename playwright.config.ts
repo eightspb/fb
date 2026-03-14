@@ -1,8 +1,20 @@
 import { defineConfig, devices } from '@playwright/test';
 import { loadEnvConfig } from '@next/env';
 
-// Загружаем .env, .env.local и т.д. как Next.js
+const testProcessEnv = process.env as Record<string, string | undefined>;
+testProcessEnv.NODE_ENV ??= 'test';
+
+// Для Playwright используем test env, чтобы не зависеть от локального DevRemote/.env.local.
 loadEnvConfig(process.cwd());
+
+const SITE_PORT = process.env.PLAYWRIGHT_SITE_PORT || '3100';
+const ADMIN_PORT = process.env.PLAYWRIGHT_ADMIN_PORT || '3101';
+const SITE_URL = process.env.PLAYWRIGHT_BASE_URL || `http://localhost:${SITE_PORT}`;
+const ADMIN_URL = process.env.PLAYWRIGHT_ADMIN_URL || `http://localhost:${ADMIN_PORT}`;
+
+process.env.PLAYWRIGHT_BASE_URL = SITE_URL;
+process.env.PLAYWRIGHT_ADMIN_URL = ADMIN_URL;
+process.env.NEXT_PUBLIC_SITE_URL ??= SITE_URL;
 
 /**
  * Playwright конфигурация для E2E тестов
@@ -32,7 +44,7 @@ export default defineConfig({
   /* Общие настройки для всех проектов */
   use: {
     /* Base URL для тестов (site). Admin URL передаётся через PLAYWRIGHT_ADMIN_URL в fixtures.ts */
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
+    baseURL: SITE_URL,
     /* Trace для отладки */
     trace: process.env.CI ? 'on-first-retry' : 'retain-on-failure',
     /* Скриншоты при ошибках */
@@ -65,16 +77,16 @@ export default defineConfig({
   /* Запуск site + admin серверов перед тестами */
   webServer: [
     {
-      command: 'bun run dev:site',
-      url: 'http://localhost:3000',
+      command: `ADMIN_APP_ORIGIN=${ADMIN_URL} NEXT_PUBLIC_SITE_URL=${SITE_URL} bunx next dev --turbopack -p ${SITE_PORT}`,
+      url: SITE_URL,
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,
       stdout: 'ignore',
       stderr: 'pipe',
     },
     {
-      command: 'bun run dev:admin',
-      url: 'http://localhost:3001/admin/login',
+      command: `ADMIN_API_ORIGIN=${SITE_URL} NEXT_PUBLIC_SITE_URL=${SITE_URL} bunx next dev apps/admin -p ${ADMIN_PORT}`,
+      url: `${ADMIN_URL}/admin/login`,
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,
       stdout: 'ignore',

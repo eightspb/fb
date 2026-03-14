@@ -32,12 +32,14 @@ const nextConfig: NextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   async rewrites() {
-    // In development, proxy the separate admin app and external uploads.
-    if (process.env.NODE_ENV === 'development') {
+    // In non-production, proxy the separate admin app and external uploads.
+    if (process.env.NODE_ENV !== 'production') {
+      const adminOrigin = process.env.ADMIN_APP_ORIGIN ?? 'http://localhost:3001';
+
       return [
         {
           source: '/admin/:path*',
-          destination: 'http://localhost:3001/admin/:path*',
+          destination: `${adminOrigin}/admin/:path*`,
         },
         {
           source: '/uploads/:path*',

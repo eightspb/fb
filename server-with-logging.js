@@ -3,6 +3,21 @@
  * Используется в production Docker контейнере
  */
 
+function ts() {
+  const date = new Date();
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+
+  return `[${day}.${month} ${hours}:${minutes}:${seconds}]`;
+}
+
+function logWithTimestamp(method, ...args) {
+  method(ts(), ...args);
+}
+
 // Инициализация логирования ДО запуска сервера
 async function initializeLogging() {
   try {
@@ -20,7 +35,7 @@ async function initializeLogging() {
       pid: process.pid,
     }, 'System');
     
-    console.log('[SERVER] ✅ Система логирования инициализирована');
+    logWithTimestamp(console.log, '[SERVER] ✅ Система логирования инициализирована');
     
     // Инициализируем обработчики ошибок
     let notifyAdminAboutError = null;
@@ -28,12 +43,12 @@ async function initializeLogging() {
       const telegram = await import('./src/lib/telegram-notifications.js');
       notifyAdminAboutError = telegram.notifyAdminAboutError;
     } catch (e) {
-      console.log('[SERVER] ⚠️  Telegram notifications недоступны:', e.message);
+      logWithTimestamp(console.log, '[SERVER] ⚠️  Telegram notifications недоступны:', e.message);
     }
     
     // Обработчик необработанных исключений
     process.on('uncaughtException', (error) => {
-      console.error('[SERVER] ❌ Необработанное исключение:', error);
+      logWithTimestamp(console.error, '[SERVER] ❌ Необработанное исключение:', error);
       log('error', `Необработанное исключение: ${error.message}`, {
         stack: error.stack?.substring(0, 500),
       }, 'System');
@@ -50,7 +65,7 @@ async function initializeLogging() {
     
     // Обработчик необработанных промисов
     process.on('unhandledRejection', (reason) => {
-      console.error('[SERVER] ❌ Необработанный rejection:', reason);
+      logWithTimestamp(console.error, '[SERVER] ❌ Необработанный rejection:', reason);
       const error = reason instanceof Error ? reason : new Error(String(reason));
       log('error', `Необработанный rejection: ${error.message}`, {
         reason: String(reason).substring(0, 500),
@@ -78,10 +93,10 @@ async function initializeLogging() {
       log('info', 'Сервер останавливается', { reason: 'SIGINT' }, 'System');
     });
     
-    console.log('[SERVER] ✅ Обработчики ошибок установлены');
+    logWithTimestamp(console.log, '[SERVER] ✅ Обработчики ошибок установлены');
     
   } catch (error) {
-    console.error('[SERVER] ❌ Ошибка инициализации логирования:', error);
+    logWithTimestamp(console.error, '[SERVER] ❌ Ошибка инициализации логирования:', error);
     // Продолжаем запуск даже если логирование не инициализировалось
   }
 }
@@ -89,11 +104,11 @@ async function initializeLogging() {
 // Запуск
 initializeLogging()
   .then(() => {
-    console.log('[SERVER] 🚀 Запуск Next.js сервера...');
+    logWithTimestamp(console.log, '[SERVER] 🚀 Запуск Next.js сервера...');
     // Запускаем основной сервер Next.js
     require('./server.js');
   })
   .catch((error) => {
-    console.error('[SERVER] ❌ Фатальная ошибка при запуске:', error);
+    logWithTimestamp(console.error, '[SERVER] ❌ Фатальная ошибка при запуске:', error);
     process.exit(1);
   });

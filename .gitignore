@@ -45,6 +45,7 @@ public/images/trainings.zip
 
 # backups
 /backups
+/.data
 
 # SSL certificates (certbot)
 /certbot

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +51,13 @@ interface Stats {
   total_count: string;
 }
 
+interface TypeStats {
+  contact_count: string;
+  cp_count: string;
+  training_count: string;
+  conference_count: string;
+}
+
 const formTypeLabels: Record<string, string> = {
   'contact': 'Контакт',
   'cp': 'КП',
@@ -85,6 +92,21 @@ function getStatusConfig(status: string) {
 
 function getPriorityConfig(priority?: string) {
   return priorityConfig.find(p => p.value === (priority || 'normal')) || priorityConfig[1];
+}
+
+function SortIcon({
+  field,
+  sortBy,
+  sortOrder,
+}: {
+  field: string;
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+}) {
+  if (sortBy !== field) return <ArrowUpDown className="w-3.5 h-3.5 text-[var(--frox-gray-300)]" />;
+  return sortOrder === 'asc'
+    ? <ArrowUp className="w-3.5 h-3.5 text-blue-500" />
+    : <ArrowDown className="w-3.5 h-3.5 text-blue-500" />;
 }
 
 function getRowAccent(req: RequestItem) {
@@ -135,6 +157,7 @@ interface RequestsResponse {
   requests: RequestItem[];
   pagination: PaginationInfo;
   stats: Stats;
+  typeStats: TypeStats;
 }
 
 async function requestsFetcher(url: string): Promise<RequestsResponse> {
@@ -148,18 +171,48 @@ async function requestsFetcher(url: string): Promise<RequestsResponse> {
 
 export default function AdminRequestsPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const publicPathname = pathname.startsWith('/admin')
+    ? pathname
+    : pathname === '/'
+      ? '/admin'
+      : `/admin${pathname}`;
 
-  const [search, setSearch] = useState('');
-  const [filterType, setFilterType] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterPriority, setFilterPriority] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  const initialState = useMemo(() => {
+    const initialPage = Number.parseInt(searchParams.get('page') || '1', 10);
+    const sortOrderParam = searchParams.get('sort_order');
+    const priorityParam = searchParams.get('priority') || '';
+    const dateFromParam = searchParams.get('date_from') || '';
+    const dateToParam = searchParams.get('date_to') || '';
 
-  const [sortBy, setSortBy] = useState('created_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [page, setPage] = useState(1);
+    return {
+      search: searchParams.get('search') || '',
+      filterType: searchParams.get('form_type') || '',
+      filterStatus: searchParams.get('status') || '',
+      filterPriority: priorityParam,
+      dateFrom: dateFromParam,
+      dateTo: dateToParam,
+      showFilters:
+        searchParams.get('show_filters') === '1' ||
+        Boolean(priorityParam || dateFromParam || dateToParam),
+      sortBy: searchParams.get('sort_by') || 'created_at',
+      sortOrder: (sortOrderParam === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc',
+      page: Number.isFinite(initialPage) && initialPage > 0 ? initialPage : 1,
+    };
+  }, [searchParams]);
+
+  const [search, setSearch] = useState(initialState.search);
+  const [filterType, setFilterType] = useState(initialState.filterType);
+  const [filterStatus, setFilterStatus] = useState(initialState.filterStatus);
+  const [filterPriority, setFilterPriority] = useState(initialState.filterPriority);
+  const [dateFrom, setDateFrom] = useState(initialState.dateFrom);
+  const [dateTo, setDateTo] = useState(initialState.dateTo);
+  const [showFilters, setShowFilters] = useState(initialState.showFilters);
+
+  const [sortBy, setSortBy] = useState(initialState.sortBy);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialState.sortOrder);
+  const [page, setPage] = useState(initialState.page);
   const [limit] = useState(25);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -169,8 +222,7 @@ export default function AdminRequestsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
-  // Build SWR key from current filters/sort/pagination
-  const swrKey = (() => {
+  const listQuery = useMemo(() => {
     const params = new URLSearchParams();
     if (search) params.set('search', search);
     if (filterType) params.set('form_type', filterType);
@@ -182,8 +234,24 @@ export default function AdminRequestsPage() {
     params.set('sort_order', sortOrder);
     params.set('page', page.toString());
     params.set('limit', limit.toString());
-    return `/api/admin/requests?${params}`;
-  })();
+    if (showFilters) params.set('show_filters', '1');
+    return params.toString();
+  }, [dateFrom, dateTo, filterPriority, filterStatus, filterType, limit, page, search, showFilters, sortBy, sortOrder]);
+
+  useEffect(() => {
+    const currentQuery = searchParams.toString();
+    if (listQuery === currentQuery) return;
+    const nextUrl = listQuery ? `${publicPathname}?${listQuery}` : publicPathname;
+    window.history.replaceState(window.history.state, '', nextUrl);
+  }, [listQuery, publicPathname, searchParams]);
+
+  const currentListHref = useMemo(
+    () => `${publicPathname}${listQuery ? `?${listQuery}` : ''}`,
+    [listQuery, publicPathname]
+  );
+
+  // Build SWR key from current filters/sort/pagination
+  const swrKey = `/api/admin/requests?${listQuery}`;
 
   const { data, error, isLoading: loading, mutate } = useSWR<RequestsResponse>(
     swrKey,
@@ -194,6 +262,7 @@ export default function AdminRequestsPage() {
   const requests = data?.requests ?? [];
   const pagination: PaginationInfo = data?.pagination ?? { page, limit, totalCount: 0, totalPages: 0 };
   const stats = data?.stats ?? null;
+  const typeStats = data?.typeStats ?? null;
 
   const handleSelectAll = () => {
     if (selectAll) { setSelectedIds(new Set()); } else { setSelectedIds(new Set(requests.map(r => r.id))); }
@@ -202,7 +271,8 @@ export default function AdminRequestsPage() {
 
   const handleSelectOne = (id: string) => {
     const next = new Set(selectedIds);
-    next.has(id) ? next.delete(id) : next.add(id);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
     setSelectedIds(next);
     setSelectAll(next.size === requests.length);
   };
@@ -283,20 +353,27 @@ export default function AdminRequestsPage() {
   const clearFilters = () => {
     setSearch(''); setFilterType(''); setFilterStatus('');
     setFilterPriority(''); setDateFrom(''); setDateTo('');
+    setShowFilters(false);
     setPage(1);
   };
 
   const hasActiveFilters = search || filterType || filterStatus || filterPriority || dateFrom || dateTo;
+  const activeStatusLabel = statusConfig.find((item) => item.value === filterStatus)?.label;
+  const activeTypeLabel = filterType ? formTypeLabels[filterType] || filterType : '';
+  const typeSummaryItems = typeStats ? [
+    { label: 'КП', value: typeStats.cp_count },
+    { label: 'Обучение', value: typeStats.training_count },
+    {
+      label: 'Прочее',
+      value: (
+        Number(typeStats.contact_count || 0) +
+        Number(typeStats.conference_count || 0)
+      ).toString(),
+    },
+  ] : [];
 
   const formatDate = (s: string) => new Date(s).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' });
   const formatTime = (s: string) => new Date(s).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-
-  function SortIcon({ field }: { field: string }) {
-    if (sortBy !== field) return <ArrowUpDown className="w-3.5 h-3.5 text-[var(--frox-gray-300)]" />;
-    return sortOrder === 'asc'
-      ? <ArrowUp className="w-3.5 h-3.5 text-blue-500" />
-      : <ArrowDown className="w-3.5 h-3.5 text-blue-500" />;
-  }
 
   return (
     <div className="space-y-5">
@@ -307,6 +384,16 @@ export default function AdminRequestsPage() {
           {stats && (
             <p className="text-sm text-[var(--frox-gray-500)] mt-1">
               Всего {stats.total_count} · {stats.new_count} новых
+            </p>
+          )}
+          {typeStats && (
+            <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--frox-gray-600)]">
+              <span className="font-medium text-[var(--frox-gray-700)]">По типам:</span>
+              {typeSummaryItems.map((item) => (
+                <span key={item.label}>
+                  {item.label}: <span className="font-semibold text-[var(--frox-gray-900)]">{item.value}</span>
+                </span>
+              ))}
             </p>
           )}
         </div>
@@ -366,7 +453,7 @@ export default function AdminRequestsPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <select
-              className="frox-select h-10 rounded-xl px-3 text-sm"
+              className={`frox-select h-10 rounded-xl px-3 text-sm transition-colors ${filterType ? 'border-[rgba(115,100,219,0.32)] bg-[var(--frox-brand-soft)] text-[var(--frox-brand-strong)]' : ''}`}
               value={filterType}
               onChange={e => { setFilterType(e.target.value); setPage(1); }}
             >
@@ -378,7 +465,7 @@ export default function AdminRequestsPage() {
             </select>
 
             <select
-              className="frox-select h-10 rounded-xl px-3 text-sm"
+              className={`frox-select h-10 rounded-xl px-3 text-sm transition-colors ${filterStatus ? 'border-[rgba(115,100,219,0.32)] bg-[var(--frox-brand-soft)] text-[var(--frox-brand-strong)]' : ''}`}
               value={filterStatus}
               onChange={e => { setFilterStatus(e.target.value); setPage(1); }}
             >
@@ -390,7 +477,7 @@ export default function AdminRequestsPage() {
               variant={showFilters ? 'secondary' : 'outline'}
               size="sm"
               onClick={() => setShowFilters(!showFilters)}
-              className="h-10 gap-1.5"
+              className={`h-10 gap-1.5 ${(filterPriority || dateFrom || dateTo) ? 'border-[rgba(115,100,219,0.32)] bg-[var(--frox-brand-soft)] text-[var(--frox-brand-strong)] hover:bg-[var(--frox-brand-soft)]' : ''}`}
             >
               <Filter className="w-3.5 h-3.5" />
               Фильтры
@@ -407,6 +494,39 @@ export default function AdminRequestsPage() {
             )}
           </div>
         </div>
+
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-[rgba(115,100,219,0.1)] px-4 pb-4 pt-0">
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--frox-gray-500)]">
+              Активные фильтры
+            </span>
+            {activeTypeLabel && (
+              <span className="inline-flex items-center rounded-full bg-[var(--frox-brand-soft)] px-3 py-1 text-xs font-medium text-[var(--frox-brand-strong)]">
+                Тип: {activeTypeLabel}
+              </span>
+            )}
+            {activeStatusLabel && (
+              <span className="inline-flex items-center rounded-full bg-[var(--frox-plum-soft)] px-3 py-1 text-xs font-medium text-[#7a5fe4]">
+                Статус: {activeStatusLabel}
+              </span>
+            )}
+            {filterPriority && (
+              <span className="inline-flex items-center rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700">
+                Приоритет: {getPriorityConfig(filterPriority).label}
+              </span>
+            )}
+            {dateFrom && (
+              <span className="inline-flex items-center rounded-full bg-[var(--frox-slate-soft)] px-3 py-1 text-xs font-medium text-[var(--frox-gray-700)]">
+                От: {dateFrom}
+              </span>
+            )}
+            {dateTo && (
+              <span className="inline-flex items-center rounded-full bg-[var(--frox-slate-soft)] px-3 py-1 text-xs font-medium text-[var(--frox-gray-700)]">
+                До: {dateTo}
+              </span>
+            )}
+          </div>
+        )}
 
         {showFilters && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-[rgba(115,100,219,0.1)] px-4 pb-4 pt-4">
@@ -512,7 +632,7 @@ export default function AdminRequestsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <button className="min-w-0 text-left" onClick={() => router.push(`/requests/${req.id}`)}>
+                      <button className="min-w-0 text-left" onClick={() => router.push(`${pathname}/${req.id}?returnTo=${encodeURIComponent(currentListHref)}`)}>
                         <div className="font-semibold text-[var(--frox-gray-1100)]">{req.name}</div>
                         <div className="text-xs text-[var(--frox-gray-400)] mt-0.5">{formatDate(req.created_at)} · {formatTime(req.created_at)}</div>
                       </button>
@@ -541,7 +661,7 @@ export default function AdminRequestsPage() {
                           {pc.label}
                         </span>
                       )}
-                      <Button variant="outline" size="sm" className="ml-auto h-7 text-xs" onClick={() => router.push(`/requests/${req.id}`)}>
+                      <Button variant="outline" size="sm" className="ml-auto h-7 text-xs" onClick={() => router.push(`${pathname}/${req.id}?returnTo=${encodeURIComponent(currentListHref)}`)}>
                         <ExternalLink className="w-3.5 h-3.5 mr-1" />
                         Открыть
                       </Button>
@@ -568,7 +688,7 @@ export default function AdminRequestsPage() {
                 onClick={() => handleSort('created_at')}
               >
                 <div className="flex items-center gap-1.5">
-                  Дата <SortIcon field="created_at" />
+                  Дата <SortIcon field="created_at" sortBy={sortBy} sortOrder={sortOrder} />
                 </div>
               </th>
               <th className="px-4 py-3 text-xs font-semibold text-[var(--frox-gray-500)] uppercase tracking-wider">Тип</th>
@@ -577,7 +697,7 @@ export default function AdminRequestsPage() {
                 onClick={() => handleSort('name')}
               >
                 <div className="flex items-center gap-1.5">
-                  Контакт <SortIcon field="name" />
+                  Контакт <SortIcon field="name" sortBy={sortBy} sortOrder={sortOrder} />
                 </div>
               </th>
               <th className="px-4 py-3 text-xs font-semibold text-[var(--frox-gray-500)] uppercase tracking-wider">Детали</th>
@@ -685,7 +805,7 @@ export default function AdminRequestsPage() {
                         </button>
                         <button
                           title="Открыть полностью"
-                          onClick={() => router.push(`/requests/${req.id}`)}
+                          onClick={() => router.push(`${pathname}/${req.id}?returnTo=${encodeURIComponent(currentListHref)}`)}
                           className="p-1.5 rounded-lg hover:bg-[var(--frox-gray-200)] text-[var(--frox-gray-500)] hover:text-[var(--frox-gray-800)] transition-colors"
                         >
                           <ExternalLink className="w-4 h-4" />
@@ -757,6 +877,7 @@ export default function AdminRequestsPage() {
         onClose={() => setIsModalOpen(false)}
         onUpdate={handleRequestUpdate}
         onDelete={handleRequestDelete}
+        detailHref={selectedRequest ? `${pathname}/${selectedRequest.id}?returnTo=${encodeURIComponent(currentListHref)}` : pathname}
       />
     </div>
   );
