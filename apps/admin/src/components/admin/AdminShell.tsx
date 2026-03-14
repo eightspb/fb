@@ -5,15 +5,19 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { adminCsrfFetch } from '@/lib/admin-csrf-fetch';
 
-const NAV_ITEMS = [
+const PRIMARY_NAV_ITEMS = [
   { href: '/', label: 'Главная', icon: '/admin/icons/icon-favorite-chart.svg' },
   { href: '/requests', label: 'Заявки', icon: '/admin/icons/icon-inbox.svg', hasBadge: true },
   { href: '/contacts', label: 'Контакты', icon: '/admin/icons/icon-people.svg' },
+  { href: '/ai-assistant', label: 'Ассистент', icon: '/admin/icons/icon-ai.svg' },
+];
+
+const MANAGEMENT_NAV_ITEMS = [
   { href: '/news', label: 'Новости', icon: '/admin/icons/icon-cms.svg' },
   { href: '/conferences', label: 'Мероприятия', icon: '/admin/icons/icon-calendar-1.svg' },
+  { href: '/analytics', label: 'Активность', icon: '/admin/icons/icon-chart.svg' },
   { href: '/banner', label: 'Баннер', icon: '/admin/icons/icon-notification-bing.svg' },
   { href: '/direct', label: 'Автоброкер', icon: '/admin/icons/icon-analytics.svg' },
-  { href: '/ai-assistant', label: 'AI Ассистент', icon: '/admin/icons/icon-ai.svg' },
   { href: '/logs', label: 'Логи', icon: '/admin/icons/icon-chart.svg' },
   { href: '/settings', label: 'Настройки', icon: '/admin/icons/icon-setting.svg' },
 ];
@@ -24,6 +28,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const [newRequestsCount, setNewRequestsCount] = useState(0);
   const [minimized, setMinimized] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [managementOpen, setManagementOpen] = useState(false);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -86,6 +91,12 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     setMobileOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    if (MANAGEMENT_NAV_ITEMS.some((item) => normalizedPath === item.href || normalizedPath.startsWith(item.href + '/'))) {
+      setManagementOpen(true);
+    }
+  }, [normalizedPath]);
+
   const handleLogout = async () => {
     try {
       await adminCsrfFetch('/api/admin/auth', { method: 'DELETE', credentials: 'include' });
@@ -114,7 +125,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       ? normalizedPath === '/'
       : normalizedPath === href || normalizedPath.startsWith(href + '/');
 
-  const currentLabel = NAV_ITEMS.find((item) => isActive(item.href))?.label ?? 'Панель управления';
+  const currentLabel = [...PRIMARY_NAV_ITEMS, ...MANAGEMENT_NAV_ITEMS].find((item) => isActive(item.href))?.label ?? 'Панель управления';
+  const managementActive = MANAGEMENT_NAV_ITEMS.some((item) => isActive(item.href));
 
   return (
     <>
@@ -174,7 +186,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             <div className="mb-5 h-px w-full shrink-0 bg-[linear-gradient(90deg,rgba(115,100,219,0.08),rgba(115,100,219,0.35),rgba(115,100,219,0.08))]" />
 
             <nav className="flex flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto">
-              {NAV_ITEMS.map((item) => {
+              {PRIMARY_NAV_ITEMS.map((item) => {
                 const active = isActive(item.href);
                 const badge = item.hasBadge ? newRequestsCount : 0;
 
@@ -212,6 +224,78 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                   </Link>
                 );
               })}
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (minimized && !mobileOpen) {
+                    setMinimized(false);
+                    setManagementOpen(true);
+                    return;
+                  }
+
+                  setManagementOpen((prev) => !prev);
+                }}
+                className={`
+                  nav-link group relative flex shrink-0 items-center gap-[10px] rounded-2xl py-[12px]
+                  transition-all duration-150
+                  ${minimized && !mobileOpen ? 'justify-center px-0' : 'px-[14px]'}
+                  ${managementActive
+                    ? 'bg-[linear-gradient(135deg,#6150d2_0%,#7d69e6_100%)] text-white shadow-[0_18px_38px_rgba(97,80,210,0.26)]'
+                    : 'text-[var(--frox-gray-500)] hover:bg-[var(--frox-brand-softer)] hover:text-[var(--frox-brand-strong)]'
+                  }
+                `}
+                title={minimized && !mobileOpen ? 'Управление' : undefined}
+              >
+                <img
+                  src="/admin/icons/icon-setting.svg"
+                  alt=""
+                  className={`h-5 w-5 shrink-0 transition-opacity ${managementActive ? 'filter-white' : 'filter-black opacity-60 group-hover:opacity-80'}`}
+                />
+                <span className={`sidebar-label whitespace-nowrap text-sm font-semibold transition-all duration-200 ${minimized && !mobileOpen ? 'hidden' : 'block'}`}>
+                  Управление
+                </span>
+                {(!minimized || mobileOpen) && (
+                  <img
+                    src="/admin/icons/icon-arrow-left.svg"
+                    alt=""
+                    className={`ml-auto h-3 w-3 shrink-0 transition-transform duration-200 ${managementOpen ? '-rotate-90' : 'rotate-180'} ${managementActive ? 'filter-white' : 'filter-black opacity-50 group-hover:opacity-80'}`}
+                  />
+                )}
+              </button>
+
+              {managementOpen && (!minimized || mobileOpen) && (
+                <div className="flex flex-col gap-1">
+                  {MANAGEMENT_NAV_ITEMS.map((item) => {
+                    const active = isActive(item.href);
+
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={`
+                          nav-link group relative flex shrink-0 items-center gap-[10px] rounded-2xl py-[11px] pl-[18px] pr-[14px]
+                          transition-all duration-150
+                          ${active
+                            ? 'bg-[rgba(97,80,210,0.12)] text-[var(--frox-brand-strong)]'
+                            : 'text-[var(--frox-gray-500)] hover:bg-[var(--frox-brand-softer)] hover:text-[var(--frox-brand-strong)]'
+                          }
+                        `}
+                      >
+                        <span className="h-px w-3 shrink-0 rounded-full bg-current opacity-30" />
+                        <img
+                          src={item.icon}
+                          alt=""
+                          className={`h-4 w-4 shrink-0 transition-opacity ${active ? 'filter-black opacity-80' : 'filter-black opacity-50 group-hover:opacity-80'}`}
+                        />
+                        <span className="sidebar-label whitespace-nowrap text-sm font-semibold">
+                          {item.label}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </nav>
           </div>
 
@@ -237,7 +321,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           </div>
         </aside>
 
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-white/80 bg-[rgba(255,255,255,0.78)] px-6 py-4 backdrop-blur-2xl shadow-[0_14px_40px_rgba(52,40,121,0.06)]">
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-white/80 bg-[rgba(255,255,255,0.78)] px-3 py-3 backdrop-blur-2xl shadow-[0_14px_40px_rgba(52,40,121,0.06)] md:px-6 md:py-4">
           <div className="flex items-center gap-3">
             <button
               className="rounded-xl border border-transparent p-2 transition-colors hover:border-[rgba(115,100,219,0.12)] hover:bg-[var(--frox-brand-softer)] md:hidden"
@@ -281,7 +365,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
         <main className="relative overflow-x-hidden overflow-y-auto">
           <div className="absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_top,rgba(115,100,219,0.08),transparent_68%)]" />
-          <div className="relative p-6 md:p-8">{children}</div>
+          <div className="relative p-3 md:p-8">{children}</div>
         </main>
       </div>
     </>

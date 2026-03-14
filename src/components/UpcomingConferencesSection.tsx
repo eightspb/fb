@@ -3,11 +3,16 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Card, CardContent } from '@/components/ui/card';
+import { CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, Calendar, MapPin, Users } from 'lucide-react';
+import { ArrowRight, Calendar, Users } from 'lucide-react';
 import { Conference } from '@/lib/types/conference';
+import {
+  formatConferenceDateRange,
+  getConferenceDateSortKey,
+  isConferenceUpcoming,
+} from '@/lib/conference-date';
 
 export function UpcomingConferencesSection() {
   const [conferences, setConferences] = useState<Conference[]>([]);
@@ -19,29 +24,10 @@ export function UpcomingConferencesSection() {
         const response = await fetch('/api/conferences?status=published');
         if (response.ok) {
           const data: Conference[] = await response.json();
-          
-          // Фильтруем предстоящие конференции
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          
-          const parseDate = (dateStr: string) => {
-            if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-              return new Date(dateStr);
-            }
-            const parts = dateStr.split('.');
-            if (parts.length === 3) {
-              return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-            }
-            return new Date();
-          };
 
           const upcoming = data
-            .filter(c => {
-              const endDate = c.date_end ? parseDate(c.date_end) : parseDate(c.date);
-              endDate.setHours(0, 0, 0, 0);
-              return endDate >= today;
-            })
-            .sort((a, b) => parseDate(a.date).getTime() - parseDate(b.date).getTime())
+            .filter((c) => isConferenceUpcoming(c.date, c.date_end))
+            .sort((a, b) => getConferenceDateSortKey(a.date) - getConferenceDateSortKey(b.date))
             .slice(0, 2); // Берем только 2 ближайшие
 
           setConferences(upcoming);
@@ -62,41 +48,6 @@ export function UpcomingConferencesSection() {
   if (conferences.length === 0) {
     return null;
   }
-
-  const formatDateRange = (start: string, end?: string) => {
-    const parseDate = (dateStr: string) => {
-      if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        return new Date(dateStr);
-      }
-      const parts = dateStr.split('.');
-      if (parts.length === 3) {
-        return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-      }
-      return new Date();
-    };
-
-    const startDate = parseDate(start);
-    const day = startDate.getDate();
-    const month = startDate.toLocaleString('ru-RU', { month: 'short' });
-    const year = startDate.getFullYear();
-    
-    if (end) {
-      const endDate = parseDate(end);
-      const endDay = endDate.getDate();
-      const endMonth = endDate.toLocaleString('ru-RU', { month: 'short' });
-      const endYear = endDate.getFullYear();
-      
-      if (year === endYear && month === endMonth) {
-        return `${day}-${endDay} ${month} ${year}`;
-      } else if (year === endYear) {
-        return `${day} ${month} - ${endDay} ${endMonth} ${year}`;
-      } else {
-        return `${day} ${month} ${year} - ${endDay} ${endMonth} ${endYear}`;
-      }
-    }
-    
-    return `${day} ${month} ${year}`;
-  };
 
   return (
     <section className="w-full py-12 md:py-16 bg-white overflow-hidden">
@@ -145,7 +96,7 @@ export function UpcomingConferencesSection() {
 
                     {/* Date Badge */}
                     <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-xs font-semibold text-slate-900 shadow-sm">
-                      {formatDateRange(conference.date, conference.date_end)}
+                      {formatConferenceDateRange(conference.date, conference.date_end, { month: 'short' })}
                     </div>
                   </div>
 

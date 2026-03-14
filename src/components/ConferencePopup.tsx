@@ -13,6 +13,11 @@ import {
 import Link from "next/link"
 import { Calendar, MapPin } from "lucide-react"
 import { Conference } from "@/lib/types/conference"
+import {
+  formatConferenceDateRange,
+  getConferenceDateSortKey,
+  isConferenceUpcoming,
+} from "@/lib/conference-date"
 
 export function ConferencePopup() {
   const [open, setOpen] = useState(false)
@@ -25,29 +30,10 @@ export function ConferencePopup() {
         const response = await fetch('/api/conferences?status=published')
         if (response.ok) {
           const data: Conference[] = await response.json()
-          
-          // Фильтруем предстоящие конференции
-          const today = new Date()
-          today.setHours(0, 0, 0, 0)
-          
-          const parseDate = (dateStr: string) => {
-            if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-              return new Date(dateStr)
-            }
-            const parts = dateStr.split('.')
-            if (parts.length === 3) {
-              return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]))
-            }
-            return new Date()
-          }
 
           const upcoming = data
-            .filter(c => {
-              const endDate = c.date_end ? parseDate(c.date_end) : parseDate(c.date)
-              endDate.setHours(0, 0, 0, 0)
-              return endDate >= today
-            })
-            .sort((a, b) => parseDate(a.date).getTime() - parseDate(b.date).getTime())
+            .filter((c) => isConferenceUpcoming(c.date, c.date_end))
+            .sort((a, b) => getConferenceDateSortKey(a.date) - getConferenceDateSortKey(b.date))
             .slice(0, 1) // Берем только ближайшую
 
           if (upcoming.length > 0) {
@@ -90,41 +76,6 @@ export function ConferencePopup() {
     setOpen(open)
   }
 
-  const formatDateRange = (start: string, end?: string) => {
-    const parseDate = (dateStr: string) => {
-      if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        return new Date(dateStr)
-      }
-      const parts = dateStr.split('.')
-      if (parts.length === 3) {
-        return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]))
-      }
-      return new Date()
-    }
-
-    const startDate = parseDate(start)
-    const day = startDate.getDate()
-    const month = startDate.toLocaleString('ru-RU', { month: 'long' })
-    const year = startDate.getFullYear()
-    
-    if (end) {
-      const endDate = parseDate(end)
-      const endDay = endDate.getDate()
-      const endMonth = endDate.toLocaleString('ru-RU', { month: 'long' })
-      const endYear = endDate.getFullYear()
-      
-      if (year === endYear && month === endMonth) {
-        return `${day}-${endDay} ${month} ${year}`
-      } else if (year === endYear) {
-        return `${day} ${month} - ${endDay} ${endMonth} ${year}`
-      } else {
-        return `${day} ${month} ${year} - ${endDay} ${endMonth} ${endYear}`
-      }
-    }
-    
-    return `${day} ${month} ${year}`
-  }
-
   // Не показываем попап если нет предстоящих мероприятий
   if (!conference) {
     return null
@@ -158,7 +109,7 @@ export function ConferencePopup() {
                 </div>
                 <div className="flex items-center gap-2 text-slate-600 mb-1">
                     <Calendar className="h-4 w-4 text-teal-600" />
-                    <span>{formatDateRange(conference.date, conference.date_end)}</span>
+                    <span>{formatConferenceDateRange(conference.date, conference.date_end)}</span>
                 </div>
                 {conference.location && (
                   <div className="flex items-center gap-2 text-slate-600">
@@ -183,4 +134,3 @@ export function ConferencePopup() {
     </Dialog>
   )
 }
-

@@ -50,6 +50,8 @@ const QUICK_LINKS = [
 export default function AdminDashboard() {
   return (
     <div className="space-y-8">
+      <ActiveSessions />
+
       <section>
         <div className="mb-4 flex items-end justify-between gap-3">
           <div>
@@ -88,7 +90,6 @@ export default function AdminDashboard() {
         </div>
       </section>
 
-      <ActiveSessions />
       <VisitStats />
     </div>
   );

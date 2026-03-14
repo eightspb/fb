@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin, Users, ArrowRight } from "lucide-react";
+import {
+  formatConferenceDateRange,
+  getConferenceDateSortKey,
+  isConferenceUpcoming,
+} from '@/lib/conference-date';
 
 interface Speaker {
   id: string;
@@ -80,55 +85,13 @@ export function ConferencesList() {
     loadData();
   }, []);
 
-  const parseDate = (dateStr: string) => {
-    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      return new Date(dateStr);
-    }
-    const parts = dateStr.split('.');
-    if (parts.length === 3) {
-      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-    }
-    return new Date();
-  };
+  const upcoming = conferences
+    .filter((c) => isConferenceUpcoming(c.date, c.date_end))
+    .sort((a, b) => getConferenceDateSortKey(a.date) - getConferenceDateSortKey(b.date));
 
-  const formatDateRange = (start: string, end?: string) => {
-    const startDate = parseDate(start);
-    const day = startDate.getDate();
-    const month = startDate.toLocaleString('ru-RU', { month: 'short' });
-    const year = startDate.getFullYear();
-    
-    if (end) {
-      const endDate = parseDate(end);
-      const endDay = endDate.getDate();
-      const endMonth = endDate.toLocaleString('ru-RU', { month: 'short' });
-      const endYear = endDate.getFullYear();
-      
-      if (year === endYear && month === endMonth) {
-        return `${day}-${endDay} ${month} ${year}`;
-      } else if (year === endYear) {
-        return `${day} ${month} - ${endDay} ${endMonth} ${year}`;
-      } else {
-        return `${day} ${month} ${year} - ${endDay} ${endMonth} ${endYear}`;
-      }
-    }
-    
-    return `${day} ${month} ${year}`;
-  };
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  const upcoming = conferences.filter(c => {
-    const endDate = c.date_end ? parseDate(c.date_end) : parseDate(c.date);
-    endDate.setHours(0, 0, 0, 0);
-    return endDate >= today;
-  }).sort((a, b) => parseDate(a.date).getTime() - parseDate(b.date).getTime());
-
-  const past = conferences.filter(c => {
-    const endDate = c.date_end ? parseDate(c.date_end) : parseDate(c.date);
-    endDate.setHours(0, 0, 0, 0);
-    return endDate < today;
-  }).sort((a, b) => parseDate(b.date).getTime() - parseDate(a.date).getTime());
+  const past = conferences
+    .filter((c) => !isConferenceUpcoming(c.date, c.date_end))
+    .sort((a, b) => getConferenceDateSortKey(b.date) - getConferenceDateSortKey(a.date));
 
   if (loading) {
     return <div className="text-center py-12">Загрузка мероприятий...</div>;
@@ -164,7 +127,7 @@ export function ConferencesList() {
             <div className="absolute top-6 left-6 bg-white/95 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg">
               <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-0.5">Дата проведения</div>
               <div className="text-sm font-bold text-slate-900">
-                {formatDateRange(event.date, event.date_end)}
+                {formatConferenceDateRange(event.date, event.date_end, { month: 'short' })}
               </div>
             </div>
           </div>
@@ -287,7 +250,7 @@ export function ConferencesList() {
 
             {/* Date Badge */}
             <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-xs font-semibold text-slate-900 shadow-sm">
-              {formatDateRange(event.date, event.date_end)}
+              {formatConferenceDateRange(event.date, event.date_end, { month: 'short' })}
             </div>
           </div>
 

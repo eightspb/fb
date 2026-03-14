@@ -18,6 +18,11 @@ import { isUUID } from '@/lib/slug';
 import { getSpeakers, getPresidiumMembers, isStructuredProgram } from '@/lib/types/conference';
 import type { Conference, ProgramItem } from '@/lib/types/conference';
 import {
+  formatConferenceDateRange,
+  isConferenceUpcoming,
+  parseConferenceDateInMoscow,
+} from '@/lib/conference-date';
+import {
   Calendar,
   MapPin,
   Users,
@@ -90,43 +95,6 @@ const getConference = cache(async (idOrSlug: string): Promise<Conference | null>
   return null;
 });
 
-function parseDate(dateStr: string): Date {
-  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    return new Date(dateStr);
-  }
-  const parts = dateStr.split('.');
-  if (parts.length === 3) {
-    return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-  }
-  return new Date();
-}
-
-function formatDateRange(start: string, end?: string): string {
-  const startDate = parseDate(start);
-  const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
-  
-  if (end) {
-    const endDate = parseDate(end);
-    const startStr = startDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
-    const endStr = endDate.toLocaleDateString('ru-RU', options);
-    
-    if (startDate.getMonth() === endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear()) {
-      return `${startDate.getDate()}-${endDate.getDate()} ${endDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}`;
-    }
-    return `${startStr} - ${endStr}`;
-  }
-  
-  return startDate.toLocaleDateString('ru-RU', options);
-}
-
-function isUpcoming(date: string, dateEnd?: string): boolean {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const endDate = dateEnd ? parseDate(dateEnd) : parseDate(date);
-  endDate.setHours(0, 0, 0, 0);
-  return endDate >= today;
-}
-
 export default async function ConferencePage({ params }: ConferencePageProps) {
   const { id } = await params;
   const conference = await getConference(id);
@@ -135,7 +103,7 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
     notFound();
   }
 
-  const upcoming = isUpcoming(conference.date, conference.date_end);
+  const upcoming = isConferenceUpcoming(conference.date, conference.date_end);
   const hasContacts = conference.organizer_contacts && (
     conference.organizer_contacts.name ||
     conference.organizer_contacts.phone ||
@@ -232,7 +200,7 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
                       </div>
                       <div>
                         <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-1">Дата</p>
-                        <p className="text-white font-semibold text-lg leading-tight">{formatDateRange(conference.date, conference.date_end)}</p>
+                        <p className="text-white font-semibold text-lg leading-tight">{formatConferenceDateRange(conference.date, conference.date_end)}</p>
                       </div>
                     </div>
 
@@ -409,7 +377,7 @@ export default async function ConferencePage({ params }: ConferencePageProps) {
             {upcoming && (
               <section className="text-center">
                 <h3 className="text-lg font-bold text-slate-900 mb-4">До начала мероприятия</h3>
-                <CountdownTimer targetDate={parseDate(conference.date)} />
+                <CountdownTimer targetDate={parseConferenceDateInMoscow(conference.date)} />
               </section>
             )}
 
