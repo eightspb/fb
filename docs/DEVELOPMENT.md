@@ -314,7 +314,7 @@ bun run dev:remote
 
 # Или вручную (3 терминала):
 # Терминал 1 — SSH туннель к БД (держать открытым)
-ssh -p 2222 -N -L 54321:172.18.0.5:5432 root@155.212.217.60
+bun run tunnel:start
 
 # Терминал 2 — публичный сайт (порт 3000)
 bun run dev:site
@@ -336,23 +336,28 @@ bun run dev:admin
 
 ### 3. Коммит и push
 
-Использовать скилл `commit-commands:commit-push-pr` — он создаёт коммит, пушит и открывает PR.
-Или скилл `commit-commands:commit` — только коммит без пуша.
+Основной путь сейчас:
+
+```bash
+bash scripts/commit-and-push.sh --message "Описание изменений"
+```
+
+Скрипт делает `git add`, `git commit` и `git push` в текущую локальную ветку.
 
 ### 4. Деплой на продакшен
 
-```powershell
+```bash
 # Только admin (без пересборки site)
-.\scripts\deploy-from-github.ps1 -AdminOnly
+bash scripts/deploy-from-github.sh --admin-only
 
 # Только site
-.\scripts\deploy-from-github.ps1 -SiteOnly
+bash scripts/deploy-from-github.sh --site-only
 
 # Site + admin
-.\scripts\deploy-from-github.ps1 -AppOnly
+bash scripts/deploy-from-github.sh --app-only
 
 # Полный деплой (с миграциями)
-.\scripts\deploy-from-github.ps1
+bash scripts/deploy-from-github.sh
 ```
 
 **Время деплоя:** ~2-3 минуты

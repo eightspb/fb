@@ -1,4 +1,8 @@
-﻿# Скрипт для проверки переменных окружения SMTP
+﻿# DEPRECATED: legacy PowerShell entrypoint for Windows users.
+# Основной поддерживаемый вариант: bash ./check-env.sh
+# Этот файл оставлен в репозитории для обратной совместимости и не считается основным путём запуска.
+#
+# Скрипт для проверки переменных окружения SMTP
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 

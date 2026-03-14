@@ -1,4 +1,8 @@
-﻿# Скрипт для полной очистки всех кешей проекта
+﻿# DEPRECATED: legacy PowerShell entrypoint for Windows users.
+# Основной поддерживаемый вариант: bash scripts/clear-all-caches.sh
+# Этот файл оставлен в репозитории для обратной совместимости и не считается основным путём запуска.
+#
+# Скрипт для полной очистки всех кешей проекта
 # Использование: .\scripts\clear-all-caches.ps1
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8

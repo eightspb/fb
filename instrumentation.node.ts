@@ -83,7 +83,12 @@ export async function initializeNodeErrorHandlers() {
   });
 
   // Обработчики завершения работы
+  let shutdownLogged = false;
   const shutdownHandler = (signal: string) => {
+    if (shutdownLogged) {
+      return;
+    }
+    shutdownLogged = true;
     console.log(`[INSTRUMENTATION] 🛑 Получен сигнал ${signal}, завершение работы...`);
   };
   

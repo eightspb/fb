@@ -2,58 +2,81 @@
 
 Актуальный список скриптов из папки `scripts/`.
 
-## Основные (Windows, локально)
+## Основные (macOS/Linux, локально)
 
-### `deploy-from-github.ps1`
+### `deploy-from-github.sh`
 Главный скрипт деплоя по SSH.
+По умолчанию автоматически определяет default branch удалённого репозитория; для другой ветки используйте `--branch <name>`.
+Запускается локально, но обновляет код и контейнеры на продакшн-сервере.
 
-```powershell
-.\scripts\deploy-from-github.ps1 -SiteOnly
-.\scripts\deploy-from-github.ps1 -AdminOnly
-.\scripts\deploy-from-github.ps1 -AppOnly
-.\scripts\deploy-from-github.ps1
+```bash
+bash scripts/deploy-from-github.sh --site-only
+bash scripts/deploy-from-github.sh --admin-only
+bash scripts/deploy-from-github.sh --app-only
+bash scripts/deploy-from-github.sh
 ```
 
-### `commit-and-push.ps1`
+### `commit-and-push.sh`
 Автоматизирует `git add`, commit, push.
+Пушит в текущую checkout-ветку, которая активна локально в момент запуска.
 
-```powershell
-.\scripts\commit-and-push.ps1
-.\scripts\commit-and-push.ps1 -Message "feat: update docs"
+```bash
+bash scripts/commit-and-push.sh
+bash scripts/commit-and-push.sh --message "feat: update docs"
 ```
 
-### `backup-database.ps1`
+### `backup-database.sh`
 Ручной бэкап PostgreSQL (локально или production-параметрами).
 
-```powershell
-.\scripts\backup-database.ps1
+```bash
+bash scripts/backup-database.sh
 ```
 
-### `dev-remote.ps1`
-Локальная разработка с SSH-туннелем к удаленной БД. Запускает `site` (порт 3000) и `admin` (порт 3001) параллельно. Ctrl+C корректно завершает все дочерние процессы (рекурсивный `Stop-ProcessTree`).
+### `dev-remote.sh`
+Локальная разработка с SSH-туннелем к удаленной БД. Запускает `site` (порт 3000) и `admin` (порт 3001) параллельно. Ctrl+C корректно завершает процессы и туннель.
 
-```powershell
-.\scripts\dev-remote.ps1
+```bash
+bash scripts/dev-remote.sh
 # или через package.json:
 bun run dev:remote
 ```
 
-### `clear-all-caches.ps1`
+### `clear-all-caches.sh`
 Очистка локальных кэшей (`.next`, `.turbo` и временных файлов).
 
-```powershell
-.\scripts\clear-all-caches.ps1
+```bash
+bash scripts/clear-all-caches.sh
 ```
 
-### `check-telegram-webhook.ps1`
-Проверка/настройка webhook Telegram из Windows.
+### `check-telegram-webhook.sh`
+Проверка/настройка webhook Telegram через bash.
 
-```powershell
-.\scripts\check-telegram-webhook.ps1
+```bash
+bash scripts/check-telegram-webhook.sh
 ```
 
-### `apply-migration-on-server.ps1`
+### `apply-migration-on-server.sh`
 Точечная проверка и применение legacy-миграции `006_fix_app_logs_rls` на сервере.
+
+## Что запускать и когда
+
+- `bun run dev:remote` — когда нужна локальная разработка с удалённой БД.
+- `bash scripts/commit-and-push.sh --message "..."` — когда изменения готовы к отправке в GitHub.
+- `bash scripts/deploy-from-github.sh --app-only` — когда уже запушенный код нужно выкатить на продакшн-сервер.
+- `bash scripts/deploy-from-github.sh` — когда нужен полный деплой с миграциями.
+
+## Legacy PowerShell (Windows, deprecated)
+
+Эти скрипты оставлены в репозитории для обратной совместимости, но больше не считаются основным путём запуска. На этой машине они не проверялись, потому что `pwsh`/`powershell` здесь не установлен.
+
+- `check-env.ps1` — legacy вариант для `check-env.sh`
+- `scripts/dev-remote.ps1` — legacy вариант для `scripts/dev-remote.sh`
+- `scripts/deploy-from-github.ps1` — legacy вариант для `scripts/deploy-from-github.sh`
+- `scripts/commit-and-push.ps1` — legacy вариант для `scripts/commit-and-push.sh`
+- `scripts/backup-database.ps1` — legacy вариант для `scripts/backup-database.sh`
+- `scripts/clear-all-caches.ps1` — legacy вариант для `scripts/clear-all-caches.sh`
+- `scripts/check-telegram-webhook.ps1` — legacy вариант для `scripts/check-telegram-webhook.sh`
+- `scripts/apply-migration-on-server.ps1` — legacy вариант для `scripts/apply-migration-on-server.sh`
 
 ## Серверные (Linux, на сервере)
 
@@ -89,6 +112,7 @@ bash scripts/clear-server-caches.sh --rebuild
 - `fix-telegram-now.sh` — быстрое исправление webhook
 - `diagnose-telegram.sh` — диагностика Telegram интеграции
 - `check-telegram-webhook.sh` — проверка webhook через bash
+- `tunnel-start.sh` — SSH-туннель к remote PostgreSQL
 
 ### Legacy/точечные скрипты поддержки
 
@@ -127,6 +151,5 @@ cd /opt/fb-net && bun scripts/index-embeddings.ts
 ## Смежная документация
 
 - [Деплой](../docs/DEPLOY_GUIDE.md)
-- [Автоматизация](../docs/AUTOMATION_GUIDE.md)
 - [Удаленная БД](../docs/REMOTE_DB_SETUP.md)
 - [Troubleshooting](../docs/TROUBLESHOOTING.md)

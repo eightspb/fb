@@ -1,4 +1,8 @@
-﻿# Скрипт проверки и настройки Telegram webhook
+﻿# DEPRECATED: legacy PowerShell entrypoint for Windows users.
+# Основной поддерживаемый вариант: bash scripts/check-telegram-webhook.sh
+# Этот файл оставлен в репозитории для обратной совместимости и не считается основным путём запуска.
+#
+# Скрипт проверки и настройки Telegram webhook
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 

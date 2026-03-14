@@ -65,11 +65,16 @@ async function initializeLogging() {
     });
     
     // Обработчик завершения
+    let shutdownLogged = false;
     process.on('SIGTERM', () => {
+      if (shutdownLogged) return;
+      shutdownLogged = true;
       log('info', 'Сервер останавливается', { reason: 'SIGTERM' }, 'System');
     });
     
     process.on('SIGINT', () => {
+      if (shutdownLogged) return;
+      shutdownLogged = true;
       log('info', 'Сервер останавливается', { reason: 'SIGINT' }, 'System');
     });
     

@@ -4,19 +4,20 @@
 
 ## Быстрый старт
 
-```powershell
+```bash
 bun run dev:remote
 ```
 
-Открыть: `http://localhost:3001/admin`
+Открыть: `http://localhost:3001/admin/login`
 
-Скрипт автоматически: проверяет SSH, создаёт туннель `localhost:54321 → PostgreSQL в Docker (172.18.0.5:5432)`, запускает `site` (3000) + `admin` (3001). Ctrl+C завершает всё корректно.
+Скрипт автоматически: проверяет SSH, создаёт туннель `localhost:54321 → PostgreSQL в Docker`, запускает `site` (3000) + `admin` (3001). Ctrl+C завершает всё корректно.
+Скрипт сам определяет текущий IP контейнера PostgreSQL на сервере, поэтому IP не нужно прописывать вручную.
 
 ## Вручную (3 терминала)
 
 ```bash
 # Терминал 1 — SSH туннель (держать открытым)
-ssh -p 2222 -N -L 54321:172.18.0.5:5432 root@155.212.217.60
+bun run tunnel:start
 
 # Терминал 2
 bun run dev:site
@@ -28,13 +29,13 @@ bun run dev:admin
 ## Troubleshooting
 
 **Порт 54321 занят:**
-```powershell
-Get-NetTCPConnection -LocalPort 54321 | Select-Object OwningProcess
-Stop-Process -Id <PID> -Force
+```bash
+lsof -nP -iTCP:54321 -sTCP:LISTEN
+kill <PID>
 ```
 
 **SSH не подключается:**
-```powershell
+```bash
 ssh -p 2222 root@155.212.217.60  # или: ssh fb-net (если настроен alias)
 ```
 
@@ -50,7 +51,7 @@ Host 155.212.217.60
 
 Вы работаете с **продакшн данными** — все изменения реальные. Для тестирования деструктивных операций используйте локальную БД:
 
-```powershell
+```bash
 bun run docker:up
 bun run dev:site
 ```

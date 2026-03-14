@@ -7,7 +7,7 @@
     "dev:site": "next dev --turbopack -p 3000",
     "dev:admin": "next dev apps/admin -p 3001",
     "dev:no-turbo": "next dev",
-    "dev:remote": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-remote.ps1",
+    "dev:remote": "bash scripts/dev-remote.sh",
     "build": "next build",
     "build:admin": "next build apps/admin",
     "start": "next start",
@@ -36,7 +36,7 @@
     "docker:prod:restart:admin": "docker compose -f docker-compose.production.yml up -d --no-deps admin",
     "docker:test": "docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit",
     "docker:test:down": "docker-compose -f docker-compose.test.yml down -v",
-    "tunnel:start": "powershell -Command \"$ip = (ssh root@155.212.217.60 'docker inspect fb-net-db --format \\\"{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}\\\"').Trim(); ssh -N -L 54321:${ip}:5432 root@155.212.217.60\"",
+    "tunnel:start": "bash scripts/tunnel-start.sh",
     "tunnel:check": "ssh root@155.212.217.60 \"docker exec fb-net-db psql -U postgres -d postgres -c 'SELECT version();'\"",
     "bun:install": "bun install",
     "bun:update": "bun update",
@@ -74,6 +74,11 @@
     "sharp": "^0.34.5",
     "swr": "^2.4.1",
     "tailwind-merge": "^3.4.0"
+  },
+  "optionalDependencies": {
+    "@img/sharp-darwin-arm64": "0.34.5",
+    "@img/sharp-libvips-darwin-arm64": "1.2.4",
+    "lightningcss-darwin-arm64": "1.30.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",

@@ -1,4 +1,8 @@
-﻿# Скрипт для создания бэкапа базы данных PostgreSQL из Docker контейнера
+﻿# DEPRECATED: legacy PowerShell entrypoint for Windows users.
+# Основной поддерживаемый вариант: bash scripts/backup-database.sh
+# Этот файл оставлен в репозитории для обратной совместимости и не считается основным путём запуска.
+#
+# Скрипт для создания бэкапа базы данных PostgreSQL из Docker контейнера
 
 param(
     [string]$ContainerName = "fb-net-postgres",

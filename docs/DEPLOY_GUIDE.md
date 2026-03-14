@@ -2,30 +2,42 @@
 
 ## Стандартный цикл
 
-```powershell
-# 1. Коммит и push — используй скилл commit-commands:commit-push-pr
+```bash
+# 1. Коммит и push
+bash scripts/commit-and-push.sh --message "Описание изменений"
 
 # 2. Деплой (только site + admin, без затрагивания БД) — 90% случаев
-.\scripts\deploy-from-github.ps1 -AppOnly
+bash scripts/deploy-from-github.sh --app-only
 
 # 3. С миграциями БД (при изменении схемы)
-.\scripts\deploy-from-github.ps1
+bash scripts/deploy-from-github.sh
 ```
 
-## Параметры deploy-from-github.ps1
+## Что делает каждый скрипт
+
+- `bun run dev:remote` — локальная разработка с SSH-туннелем к удалённой БД. Продакшн-сервер не обновляет.
+- `bash scripts/commit-and-push.sh --message "..."` — делает `git add`, `git commit` и `git push` в текущую локальную ветку.
+- `bash scripts/deploy-from-github.sh ...` — подключается по SSH к продакшн-серверу, обновляет там код из GitHub и перезапускает контейнеры.
+
+Если сказать совсем просто: сначала вы готовите и пушите код, потом отдельной командой деплоите его на сервер.
+
+## Параметры deploy-from-github.sh
 
 | Параметр | Что делает | Время |
 |----------|-----------|-------|
-| `-AppOnly` | `site` + `admin`, БД не трогается | ~2-3 мин |
-| `-SiteOnly` | Только `site` (сайт + API) | ~2 мин |
-| `-AdminOnly` | Только `admin` (UI панели) | ~2 мин |
+| `--app-only` | `site` + `admin`, БД не трогается | ~2-3 мин |
+| `--site-only` | Только `site` (сайт + API) | ~2 мин |
+| `--admin-only` | Только `admin` (UI панели) | ~2 мин |
 | (без флагов) | Полный деплой + миграции | ~5-7 мин |
-| `-SkipBackup` | Без автоматического бэкапа БД | — |
-| `-SkipMigrations` | Без применения миграций | — |
-| `-Branch dev` | Деплой из другой ветки | — |
-| `-Init` | Первый запуск на новом сервере | — |
+| `--skip-backup` | Без автоматического бэкапа БД | — |
+| `--skip-migrations` | Без применения миграций | — |
+| `--branch dev` | Деплой из явно указанной ветки | — |
+| `--init` | Первый запуск на новом сервере | — |
 
-**При `-AppOnly`:** git pull → build site + admin → up -d → restart nginx
+По умолчанию `bash scripts/deploy-from-github.sh` пытается автоматически определить default branch удалённого репозитория.
+Если нужен не default branch, а конкретная ветка, укажите её явно через `--branch <name>`.
+
+**При `--app-only`:** git pull → build site + admin → up -d → restart nginx
 
 **При полном деплое:** backup БД → git pull → миграции → rebuild all containers
 
@@ -36,7 +48,8 @@
 ```bash
 ssh -p 2222 root@155.212.217.60
 cd /opt/fb-net
-git pull origin master
+git fetch origin
+git pull origin "$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD | sed 's#^origin/##')"
 docker compose -f docker-compose.ssl.yml build --no-cache site admin
 docker compose -f docker-compose.ssl.yml up -d site admin
 docker compose -f docker-compose.ssl.yml restart nginx  # обязательно!
@@ -44,8 +57,8 @@ docker compose -f docker-compose.ssl.yml restart nginx  # обязательно
 
 ## Первый запуск на новом сервере
 
-```powershell
-.\scripts\deploy-from-github.ps1 -Init
+```bash
+bash scripts/deploy-from-github.sh --init
 ```
 
 На сервере создать `.env`:
@@ -57,13 +70,13 @@ cp ENV_EXAMPLE.txt .env
 nano .env  # заполнить все переменные
 ```
 
-Затем: `.\scripts\deploy-from-github.ps1`
+Затем: `bash scripts/deploy-from-github.sh`
 
 ## Бэкап и восстановление
 
-```powershell
+```bash
 # Ручной бэкап
-.\scripts\backup-database.ps1
+bash scripts/backup-database.sh
 ```
 
 ```bash

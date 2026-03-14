@@ -70,5 +70,4 @@ docker compose -f docker-compose.production.yml up -d
 ## Подробная документация
 
 Детальные шаги и диагностика описаны в:
-- [AUTOMATION_GUIDE.md](AUTOMATION_GUIDE.md)
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md)

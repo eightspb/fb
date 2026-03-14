@@ -9,8 +9,8 @@
 
 **С вашего компьютера запустите деплой скрипт:**
 
-```powershell
-.\scripts\deploy-from-github.ps1 -AppOnly
+```bash
+bash scripts/deploy-from-github.sh --app-only
 ```
 
 Скрипт автоматически:

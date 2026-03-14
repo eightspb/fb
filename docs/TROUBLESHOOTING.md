@@ -9,10 +9,10 @@
 **Ошибка:** `ECONNREFUSED` или `connect ECONNREFUSED 127.0.0.1:54321`
 
 При разработке с удалённой БД — убедитесь что туннель работает:
-```powershell
+```bash
 bun run dev:remote
 # или вручную:
-ssh -p 2222 -N -L 54321:172.18.0.5:5432 root@155.212.217.60
+bun run tunnel:start
 ```
 
 При локальной БД:
@@ -120,7 +120,7 @@ FROM news_images WHERE image_data IS NOT NULL LIMIT 5;
 
 ### Скрипт деплоя не подключается к серверу
 
-```powershell
+```bash
 ssh -p 2222 root@155.212.217.60
 ssh-add -l
 ```

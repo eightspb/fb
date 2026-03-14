@@ -1,4 +1,8 @@
-﻿# Скрипт для применения миграции на сервере
+﻿# DEPRECATED: legacy PowerShell entrypoint for Windows users.
+# Основной поддерживаемый вариант: bash scripts/apply-migration-on-server.sh
+# Этот файл оставлен в репозитории для обратной совместимости и не считается основным путём запуска.
+#
+# Скрипт для применения миграции на сервере
 param(
     [Parameter(Mandatory=$false)]
     [string]$Server = "root@155.212.217.60",

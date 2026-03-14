@@ -1,4 +1,8 @@
-﻿param(
+﻿# DEPRECATED: legacy PowerShell entrypoint for Windows users.
+# Основной поддерживаемый вариант: bash scripts/commit-and-push.sh
+# Этот файл оставлен в репозитории для обратной совместимости и не считается основным путём запуска.
+
+param(
   [Parameter(Mandatory = $false)]
   [string]$Message,
 

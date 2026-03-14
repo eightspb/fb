@@ -1,4 +1,8 @@
-﻿# PowerShell скрипт для деплоя из GitHub на сервер
+﻿# DEPRECATED: legacy PowerShell entrypoint for Windows users.
+# Основной поддерживаемый вариант: bash scripts/deploy-from-github.sh
+# Этот файл оставлен в репозитории для обратной совместимости и не считается основным путём запуска.
+#
+# PowerShell скрипт для деплоя из GitHub на сервер
 # Запускается локально, разворачивает проект на сервере через git pull
 #
 # Архитектура:
