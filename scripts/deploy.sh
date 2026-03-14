@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LEGACY_DEPLOY_SCRIPT="$ROOT_DIR/scripts/deploy-from-github.sh"
 
-mode="app"
+mode=""
 branch=""
 server=""
 ssh_port=""
@@ -24,7 +24,7 @@ Usage:
   bash scripts/deploy.sh [mode] [options]
 
 Modes:
-  app        Deploy site + admin only (default)
+  app        Deploy site + admin only (default in non-interactive mode)
   site       Deploy only public site/API
   admin      Deploy only admin panel
   full       Full deploy with DB migrations
@@ -46,6 +46,54 @@ Examples:
   bash scripts/deploy.sh admin
   bash scripts/deploy.sh full --branch main
 EOF
+}
+
+is_interactive() {
+  [[ -t 0 && -t 1 ]]
+}
+
+prompt_mode_selection() {
+  local choice=""
+
+  cat <<'EOF'
+
+Select deploy mode:
+  1) app   - Deploy site + admin
+  2) site  - Deploy only public site/API
+  3) admin - Deploy only admin panel
+  4) full  - Full deploy with DB migrations
+  q) quit
+EOF
+
+  while true; do
+    read -r -p "Choose mode [1-4, q]: " choice
+
+    case "$choice" in
+      ""|1|app)
+        mode="app"
+        return 0
+        ;;
+      2|site)
+        mode="site"
+        return 0
+        ;;
+      3|admin)
+        mode="admin"
+        return 0
+        ;;
+      4|full)
+        mode="full"
+        return 0
+        ;;
+      q|Q|quit|exit)
+        info "Deploy cancelled"
+        exit 0
+        ;;
+      *)
+        warn "Unknown choice: $choice"
+        ;;
+    esac
+  done
 }
 
 if [[ ! -f "$LEGACY_DEPLOY_SCRIPT" ]]; then
@@ -102,6 +150,15 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ -z "$mode" ]]; then
+  if is_interactive; then
+    prompt_mode_selection
+  else
+    mode="app"
+    info "Mode not provided, defaulting to: $mode"
+  fi
+fi
 
 cmd=(bash "$LEGACY_DEPLOY_SCRIPT")
 
